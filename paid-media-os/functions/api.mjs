@@ -6968,10 +6968,22 @@ function registerOps(r) {
     const results = [];
     const touched = /* @__PURE__ */ new Set();
     const simple = [];
-    const owners = await ownerAccounts(g, changes.map((c) => c.entityId)).catch(() => ({}));
-    const foreign = changes.filter((c) => owners[String(c.entityId)] && owners[String(c.entityId)] !== actId(c.accountId));
+    /* Con cuentas asignadas la verificaci\xF3n es obligatoria (si Meta no confirma la cuenta del objeto, no se aplica);
+       sin restricci\xF3n, un fallo al consultar no bloquea y Meta valida al aplicar. */
+    const restricted = !!await allowedAccounts(ctx);
+    let owners = {}, ownersOk = true;
+    try {
+      owners = await ownerAccounts(g, changes.map((c) => c.entityId));
+    } catch {
+      ownersOk = false;
+    }
+    const foreign = changes.filter((c) => {
+      const o = owners[String(c.entityId)];
+      return o ? o !== actId(c.accountId) : restricted;
+    });
     for (const ch of foreign) {
-      results.push({ id: ch.id, ok: false, error: `El objeto ${ch.entityId} pertenece a la cuenta ${owners[String(ch.entityId)]}, no a ${actId(ch.accountId)}. Recarga la cuenta y vuelve a preparar el cambio.` });
+      const o = owners[String(ch.entityId)];
+      results.push({ id: ch.id, ok: false, error: o ? `El objeto ${ch.entityId} pertenece a la cuenta ${o}, no a ${actId(ch.accountId)}. Recarga la cuenta y vuelve a preparar el cambio.` : `No se pudo confirmar con Meta a qu\xE9 cuenta pertenece ${ch.entityId}${ownersOk ? "" : " (Meta no respondi\xF3)"}; con cuentas asignadas no se aplica sin confirmarlo.` });
       await audit({ user: u.email, action: ch.level + "." + ch.kind, result: "error", accountId: actId(ch.accountId), level: ch.level, entityId: ch.entityId, entityName: ch.entityName, error: "Cuenta del objeto distinta a la indicada" });
     }
     const blocked = new Set(foreign.map((c) => c.id));
@@ -7049,7 +7061,8 @@ function registerOps(r) {
     await ensureAccountAccess(ctx, b.sourceAccountId);
     const g = await graph();
     const own = await ownerAccounts(g, b.ids || []);
-    const bad = (b.ids || []).filter((x) => own[String(x)] && own[String(x)] !== actId(b.sourceAccountId));
+    const restrictedD = !!await allowedAccounts(ctx);
+    const bad = (b.ids || []).filter((x) => own[String(x)] ? own[String(x)] !== actId(b.sourceAccountId) : restrictedD);
     if (bad.length) throw new ApiError(403, `Los objetos ${bad.join(", ")} no pertenecen a la cuenta de origen.`, "account_forbidden");
     const [src, dst] = await Promise.all([accInfo(b.sourceAccountId), accInfo(b.targetAccountId)]);
     const res = await analyzeDuplicate(g, b.level, b.ids, b.targetAccountId);
@@ -7062,7 +7075,8 @@ function registerOps(r) {
     const g = await graph();
     if (b.sourceId) {
       const own = await ownerAccounts(g, [b.sourceId]);
-      if (own[String(b.sourceId)] && own[String(b.sourceId)] !== source) throw new ApiError(403, "El objeto de origen no pertenece a la cuenta de origen.", "account_forbidden");
+      const o = own[String(b.sourceId)];
+      if (o ? o !== source : !!await allowedAccounts(ctx)) throw new ApiError(403, "El objeto de origen no pertenece a la cuenta de origen.", "account_forbidden");
     }
     const [src, dst] = await Promise.all([accInfo(source), accInfo(target)]);
     const suffix = b.suffix ?? " - Copia";
