@@ -1,11 +1,22 @@
-# Meta Bulk Editor · sitio 5.5.1
+# Meta Bulk Editor · sitio 5.7.0 (Plan masivo de Paid Media OS 6.1)
 
 Sitio estático que captura la estructura de una campaña de Meta y la envía al
-webhook de n8n. **No habla con Meta ni con la hoja**: eso lo hace el motor
-en n8n. Sitio y motor deben ser la misma versión (5.5.1); si no coinciden, el
-sitio bloquea el envío y lo avisa.
+motor de n8n **a través de la plataforma** (`/api/motor`, que exige sesión, aplica
+permisos por rol y por cuenta y agrega la clave compartida). **No habla con Meta ni
+con la hoja**: eso lo hace el motor. Sitio y motor deben ser la misma versión
+(5.7.0); si no coinciden, el sitio bloquea el envío y lo avisa.
 
 No hay compilación: HTML, CSS y JavaScript.
+
+## Qué cambió en 5.7
+
+- **Activar, pausar o eliminar un lote** vuelve a funcionar: la acción viaja en `accion_lote`
+  (antes sobrescribía la ruta del motor y n8n respondía "Acción no reconocida").
+- Aviso cuando la API de Meta configurada en n8n es anterior a la vigente (**v26.0**).
+- Los scripts se cargan con `?v=5.7.0` para que el navegador no use versiones anteriores.
+- En el motor: chequeo de Meta con datasets solo CAPI, WhatsApp confirmado por conjuntos existentes,
+  gestor que verifica la cuenta de cada objeto, dataset de WhatsApp antes que el píxel web y el
+  correo de quien publica en la bitácora. Detalle en `AUDITORIA.md` del repositorio.
 
 ## Qué cambió en 5.5
 
@@ -56,18 +67,15 @@ saludo, mensaje prellenado, preguntas frecuentes, secuencias).
 
 ## Archivos que se tocan
 
-- **`config.js`**: `endpoint`, `clave`, `hojaUrl`. Con `endpoint` vacío, el sitio entra en **modo demostración** (nada se escribe).
-- **`_redirects`**: a qué instancia de n8n reenvía `/api/*`. Es el único lugar con la URL de n8n.
-- `netlify.toml` y `robots.txt`: cabeceras de seguridad y exclusión de buscadores.
-
-La clave compartida sigue **apagada** (`clave: ""` y sin `APP_SHARED_SECRET` en n8n).
-Para encenderla más adelante basta con crear la variable en n8n y poner el mismo valor aquí.
+- **`config.js`**: `endpoint` (`/api/motor`) y `hojaUrl`. Con `endpoint` vacío, el sitio entra en **modo demostración** (nada se escribe).
+- La URL de n8n y la clave compartida viven solo en Netlify (`MOTOR_URL`, `MOTOR_SHARED_SECRET`); en n8n,
+  `APP_SHARED_SECRET` debe tener el mismo valor. El navegador nunca las conoce.
 
 ## Despliegue
 
-1. Arrastra **esta carpeta** a Netlify (`index.html` debe quedar en la raíz del sitio).
-2. Recarga y comprueba que la barra superior dice `ABCW` y no `modo demostración`.
-3. Si el sitio avisa que el motor no es 5.5.1, activa en n8n el workflow nuevo y desactiva el anterior.
+Este sitio se publica junto con la plataforma (carpeta `paid-media-os`, ver `LEEME-PUBLICAR.md`).
+Si el sitio avisa que el motor no es 5.7.0, importa en n8n `meta_bulk_motor.json`, **activa** el workflow nuevo
+y desactiva el anterior (ambos ocupan la misma URL del webhook).
 
 ## Cómo se usa un formulario
 

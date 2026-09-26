@@ -4710,7 +4710,7 @@ function registerAuth(r) {
   r.get("/api/health", () => ({
     ok: configProblems().length === 0,
     problems: configProblems(),
-    version: "6.0.0",
+    version: "6.1.0",
     metaMode: env.metaMode,
     metaVersion: env.metaVersion,
     devLogin: env.devLogin,
@@ -4751,13 +4751,14 @@ function registerAuth(r) {
     const key2 = "loginfail/" + (ctx.ip || "sin-ip").replace(/[^a-zA-Z0-9.:]/g, "_");
     const fails = await kv("core").get(key2) || { n: 0, until: 0 };
     if (fails.until > Date.now()) throw new ApiError(429, "Demasiados intentos fallidos. Espera 15 minutos.", "locked");
+    if (fails.last && Date.now() - fails.last > 36e5) fails.n = 0;
     const { email, code } = await ctx.json();
     const mail = String(email || "").trim().toLowerCase();
     const check = checkCorporateEmail({ email: mail, email_verified: true, hd: mail.split("@")[1] }, env.allowedDomains, false);
     const okCode = typeof code === "string" && code.length === env.accessCode.length && [...code].reduce((d, ch, i) => d | ch.charCodeAt(0) ^ env.accessCode.charCodeAt(i), 0) === 0;
     if (!check.ok || !okCode) {
       const n2 = fails.n + 1;
-      await kv("core").set(key2, { n: n2 >= 5 ? 0 : n2, until: n2 >= 5 ? Date.now() + 15 * 6e4 : 0 });
+      await kv("core").set(key2, { n: n2 >= 5 ? 0 : n2, until: n2 >= 5 ? Date.now() + 15 * 6e4 : 0, last: Date.now() });
       await audit({ user: mail || "desconocido", action: "auth.denied", result: "error", error: !check.ok ? check.reason : "C\xF3digo incorrecto", ip: ctx.ip, level: "session", meta: { method: "code" } });
       throw new ApiError(403, !check.ok ? check.reason : "El c\xF3digo de acceso no es correcto.", !check.ok ? "domain" : "code");
     }
@@ -4961,8 +4962,12 @@ function registerMeta(r) {
         });
         for (const w of assets.wabas) for (const n2 of w.numbers)
           if (n2.qualityRating === "RED" || n2.status !== "CONNECTED") checks.push({ group: "WhatsApp", item: `N\xFAmero ${n2.display}`, status: "warning", detail: `Estado ${n2.status || "\u2014"} \xB7 calidad ${n2.qualityRating || "\u2014"}.` });
+        /* Solo importan las WABA cuyos n\xFAmeros usa esta cuenta: el token ve las de todos sus portafolios. */
+        const wabasEnUso = new Set((waInfo?.numbers || []).filter((n2) => n2.wabaId && n2.sources.some((x) => x === "CONJUNTOS" || x === "ANUNCIOS")).map((n2) => n2.wabaId));
         const waNoDs = assets.wabas.filter((w) => !w.datasets.length);
-        if (waNoDs.length) checks.push({ group: "Medici\xF3n", item: "Dataset de WhatsApp (CAPI mensajer\xEDa)", status: "warning", detail: "Sin dataset: " + waNoDs.map((w) => w.name).join(", ") + ". Sin \xE9l no se puede optimizar ni medir compras en WhatsApp.", fix: "Events Manager \u2192 Conectar or\xEDgenes de datos \u2192 WhatsApp; luego env\xEDa eventos Purchase con action_source=business_messaging." });
+        const waNoDsUso = waNoDs.filter((w) => wabasEnUso.has(w.id));
+        if (waNoDsUso.length) checks.push({ group: "Medici\xF3n", item: "Dataset de WhatsApp (CAPI mensajer\xEDa)", status: "warning", detail: "Sin dataset: " + waNoDsUso.map((w) => w.name).join(", ") + " (sus n\xFAmeros se usan en esta cuenta). Sin \xE9l no se puede optimizar ni medir compras en WhatsApp.", fix: "Events Manager \u2192 Conectar or\xEDgenes de datos \u2192 WhatsApp; luego env\xEDa eventos Purchase con action_source=business_messaging." });
+        else if (waNoDs.length) checks.push({ group: "Medici\xF3n", item: "WABA sin dataset", status: "info", detail: "Sin dataset: " + waNoDs.map((w) => w.name).join(", ") + ". Esta cuenta no anuncia con sus n\xFAmeros, as\xED que no le afecta." });
         if (!assets.pixels.length) checks.push({ group: "Medici\xF3n", item: "P\xEDxel / dataset", status: "warning", detail: "La cuenta no tiene p\xEDxeles compartidos." });
         assets.pixels.forEach((px) => {
           const days = px.lastFiredTime ? (Date.now() - Date.parse(px.lastFiredTime)) / 864e5 : null;
@@ -6082,14 +6087,20 @@ function registerData(r) {
     return { id: res.id };
   }, { permission: "audiences" });
   r.post("/api/accounts/:id/audiences/:aid/users", async (ctx) => {
-    const { g, id } = await accountCtx(ctx);
+    const { g, id, acc } = await accountCtx(ctx);
     const b = await ctx.json();
     const rows = (b.rows || []).slice(0, 1e4);
     if (!rows.length) throw new ApiError(400, "No hay filas para subir.");
+    const own = (await audiences(g, id)).value.custom;
+    if (!own.some((x) => String(x.id) === String(ctx.params.aid))) throw new ApiError(403, "El p\xFAblico no pertenece a esta cuenta.", "audience_forbidden");
+    /* Meta compara tel\xE9fonos con c\xF3digo de pa\xEDs: un n\xFAmero local de 10 d\xEDgitos se completa con el del pa\xEDs de la cuenta. */
+    const cc = { MXN: "52", COP: "57", USD: "", PEN: "51", CLP: "56", ARS: "54" }[String(acc.currency || "").toUpperCase()] || "";
     const norm = (s, kind) => {
       if (!s) return "";
-      const v2 = kind === "email" ? s.trim().toLowerCase() : s.replace(/\D/g, "");
-      return v2;
+      if (kind === "email") return String(s).trim().toLowerCase();
+      let d = String(s).replace(/\D/g, "").replace(/^00/, "");
+      if (cc && d.length === 10) d = cc + d;
+      return d;
     };
     const data = await Promise.all(rows.map(async (x) => [x.email ? await sha256Hex(norm(x.email, "email")) : "", x.phone ? await sha256Hex(norm(x.phone, "phone")) : ""]));
     const res = await g.post(ctx.params.aid + "/users", { payload: { schema: ["EMAIL", "PHONE"], data } });
@@ -6365,6 +6376,7 @@ async function analyzeDuplicate(g, level, ids, targetAccountId) {
 var pick = (o, keys) => Object.fromEntries(keys.filter((k) => o[k] !== void 0 && o[k] !== null).map((k) => [k, o[k]]));
 function remapAdset(a, map, campaignId, statusOption, suffix) {
   const p = pick(a, ["optimization_goal", "billing_event", "bid_amount", "bid_strategy", "daily_budget", "lifetime_budget", "destination_type", "attribution_spec", "end_time"]);
+  if (p.attribution_spec) p.attribution_spec = cleanAttribution(p.attribution_spec);
   p.name = a.name + suffix;
   p.campaign_id = campaignId;
   p.status = statusOption === "INHERITED_FROM_SOURCE" ? a.status : statusOption;
@@ -6452,6 +6464,10 @@ function attributionSpec(k) {
     default:
       return [{ event_type: "CLICK_THROUGH", window_days: 7 }, { event_type: "VIEW_THROUGH", window_days: 1 }];
   }
+}
+function cleanAttribution(spec) {
+  if (!Array.isArray(spec)) return spec;
+  return spec.map((x) => String(x?.event_type || "").toUpperCase() === "VIEW_THROUGH" && Number(x.window_days) > 1 ? { ...x, window_days: 1 } : x);
 }
 function campaignPayload(c, currency) {
   const p = {
@@ -6600,7 +6616,7 @@ function applyReference(p, a, r) {
   if (a.pixelId && (po.pixel_id || a.customEventType)) po.pixel_id = a.pixelId;
   if (a.customEventType && po.pixel_id) po.custom_event_type = a.customEventType;
   if (Object.keys(po).length) p.promoted_object = po;
-  if (Array.isArray(r.attributionSpec) && r.attributionSpec.length) p.attribution_spec = r.attributionSpec;
+  if (Array.isArray(r.attributionSpec) && r.attributionSpec.length) p.attribution_spec = cleanAttribution(r.attributionSpec);
 }
 var WA_LINK = "https://api.whatsapp.com/send";
 function creativePayload(ad, a, objective) {
@@ -7246,7 +7262,7 @@ async function runRules(accountIds, actor, opts) {
       for (const m of evaluateRule(rule, subjects)) {
         const cdKey = `rulecd/${rule.id}/${m.subjectId}`;
         const last = await kv("core").get(cdKey);
-        if (last && Date.now() - last.at < rule.cooldownHours * 36e5) continue;
+        if (last && Date.now() - last.at < (Number(rule.cooldownHours) || 24) * 36e5) continue;
         matches.push(m);
         await kv("core").set(cdKey, { at: Date.now() });
         if (opts.execute && rule.mode === "auto" && executed.length < 20 && ["pause", "increase_budget", "decrease_budget"].includes(rule.action.type)) {

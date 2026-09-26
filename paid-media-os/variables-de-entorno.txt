@@ -23,7 +23,7 @@ GOOGLE_REQUIRE_HD=true
 ADMIN_EMAILS=
 
 # --- Meta ---
-META_API_VERSION=v25.0
+META_API_VERSION=v26.0
 # Token de system user (recomendado para agencias: no vence). Permisos en docs/META.md.
 META_ACCESS_TOKEN=
 # App de Meta: habilita appsecret_proof, debug_token y la conexión por Facebook Login for Business.
@@ -31,6 +31,11 @@ META_APP_ID=
 META_APP_SECRET=
 # Opcional: configuración de Facebook Login for Business (config_id). URI de retorno: ${APP_URL}/api/meta/oauth/callback
 META_LOGIN_CONFIG_ID=
+# Opcional (6.1): IDs de cuentas de WhatsApp Business (WABA) que se revisan aunque Meta no las liste en los
+# portafolios del token, separados por coma. Ej.: 803058249331497
+META_WABA_IDS=
+# Opcional: token de verificación del webhook de Meta (/api/webhooks/meta).
+META_WEBHOOK_VERIFY_TOKEN=
 
 # --- Motor de publicación masiva (n8n, módulo "Plan masivo") ---
 # URL del webhook de producción de n8n (termina en /webhook/meta-bulk-captura).

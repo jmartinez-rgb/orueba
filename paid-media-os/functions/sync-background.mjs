@@ -3474,7 +3474,7 @@ async function runRules(accountIds, actor, opts) {
       for (const m of evaluateRule(rule, subjects)) {
         const cdKey = `rulecd/${rule.id}/${m.subjectId}`;
         const last = await kv("core").get(cdKey);
-        if (last && Date.now() - last.at < rule.cooldownHours * 36e5) continue;
+        if (last && Date.now() - last.at < (Number(rule.cooldownHours) || 24) * 36e5) continue;
         matches.push(m);
         await kv("core").set(cdKey, { at: Date.now() });
         if (opts.execute && rule.mode === "auto" && executed.length < 20 && ["pause", "increase_budget", "decrease_budget"].includes(rule.action.type)) {

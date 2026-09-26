@@ -1,5 +1,6 @@
 import { correr } from './simulador-n8n.mjs';
-const ok = (c, m) => console.log((c ? 'OK   ' : 'FALLA') + ' ' + m);
+let fallas = 0;
+const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALLA') + ' ' + m); if (!c) fallas++; };
 // 1) lote_accion con accion_lote (lo que manda el sitio 5.7)
 let r = await correr('Buscar en Meta', { body: { accion: 'buscar', tipo: 'lote_accion', cuenta_id: '1', lote_id: 'L1', accion_lote: 'PAUSED', ids: { campanas: ['11'], conjuntos: [], anuncios: ['33'] } },
   rutas: [
@@ -54,3 +55,5 @@ r = await correr('Buscar en Meta', { body: { accion: 'buscar', tipo: 'whatsapp',
     { match: /\/77\?fields=whatsapp_number/, res: {} },
   ] });
 ok(r.out.resultados.length === 1 && r.out.diagnostico.wabas === 1, 'whatsapp: número desde WABA asignada al token → ' + JSON.stringify(r.out.resultados.map(x => x.n)));
+console.log(fallas ? `\n${fallas} prueba(s) fallaron` : '\nTodas las pruebas del motor pasaron');
+process.exit(fallas ? 1 : 0);
