@@ -1,0 +1,43 @@
+# ===== ABCW Paid Media OS · variables de entorno (Netlify → Site configuration → Environment variables) =====
+
+# --- Sesión ---
+# Secreto para firmar sesiones y cifrar tokens guardados. Genera uno con: openssl rand -hex 32
+SESSION_SECRET=
+# URL pública del sitio (sin / final). Se usa para las URL de retorno de OAuth.
+APP_URL=https://tu-sitio.netlify.app
+
+# --- Ingreso con código de acceso (sin Google) ---
+# Los usuarios entran con su correo @abcw.global / @abcw.mx y este código. Mínimo 10 caracteres.
+# Compártelo solo con el equipo y cámbialo si alguien sale (cerrar sesión de todos: cambiar SESSION_SECRET).
+ACCESS_CODE=
+
+# --- Google OAuth (OPCIONAL; si lo configuras aparece el botón de Google) (Google Cloud Console → APIs & Services → Credentials → OAuth client ID "Web application") ---
+# URI de redirección autorizada: ${APP_URL}/api/auth/google/callback
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+# Dominios permitidos (se valida en el servidor). No cambiar sin autorización.
+ALLOWED_DOMAINS=abcw.global,abcw.mx
+# Exige el claim "hd" (cuenta de Google Workspace del dominio). Recomendado: true.
+GOOGLE_REQUIRE_HD=true
+# Correos que reciben el rol Administrador en su primer ingreso (separados por coma).
+ADMIN_EMAILS=
+
+# --- Meta ---
+META_API_VERSION=v25.0
+# Token de system user (recomendado para agencias: no vence). Permisos en docs/META.md.
+META_ACCESS_TOKEN=
+# App de Meta: habilita appsecret_proof, debug_token y la conexión por Facebook Login for Business.
+META_APP_ID=
+META_APP_SECRET=
+# Opcional: configuración de Facebook Login for Business (config_id). URI de retorno: ${APP_URL}/api/meta/oauth/callback
+META_LOGIN_CONFIG_ID=
+
+# --- Motor de publicación masiva (n8n, módulo "Plan masivo") ---
+# URL del webhook de producción de n8n (termina en /webhook/meta-bulk-captura).
+MOTOR_URL=
+# Debe ser IGUAL a la variable APP_SHARED_SECRET del workflow en n8n. Nunca va al navegador.
+MOTOR_SHARED_SECRET=
+
+# --- Solo desarrollo local (se ignora en Netlify) ---
+# META_MODE=mock usa una API de Meta simulada con datos de ejemplo.
+# DEV_LOGIN=1 muestra un acceso de desarrollo (sigue validando el dominio).
