@@ -25,7 +25,7 @@ function configProblems() {
   if (!env.devLogin && !google && !env.accessCode) out.push("No hay forma de iniciar sesi\xF3n: define ACCESS_CODE (c\xF3digo de acceso) o GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET.");
   if (env.accessCode && env.accessCode.length < 10) out.push("ACCESS_CODE debe tener al menos 10 caracteres.");
   if (env.metaMode !== "mock" && !env.metaToken) out.push("Falta META_ACCESS_TOKEN (o conecta un token desde Conexi\xF3n con Meta).");
-  if (!/^v\d+\.\d+$/.test(env.metaVersion)) out.push("META_API_VERSION debe tener el formato v25.0.");
+  if (!/^v\d+\.\d+$/.test(env.metaVersion)) out.push("META_API_VERSION debe tener el formato v26.0.");
   return out;
 }
 var env;
@@ -55,7 +55,7 @@ var init_env = __esm({
         return v("ADMIN_EMAILS").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
       },
       get metaVersion() {
-        return v("META_API_VERSION", "v25.0");
+        return v("META_API_VERSION", "v26.0");
       },
       get metaToken() {
         return v("META_ACCESS_TOKEN");
@@ -68,6 +68,10 @@ var init_env = __esm({
       },
       get metaLoginConfigId() {
         return v("META_LOGIN_CONFIG_ID");
+      },
+      /** IDs de WABA que se revisan aunque Meta no las liste en los portafolios del token (separados por coma). */
+      get metaWabaIds() {
+        return v("META_WABA_IDS").split(/[\s,;]+/).map((s) => s.trim()).filter((s) => /^\d{6,}$/.test(s));
       },
       get metaMode() {
         return v("META_MODE", "live");
@@ -95,6 +99,10 @@ var init_env = __esm({
     };
   }
 });
+
+/* Versión de la Graph API: la vigente (objetivo) y la más antigua que Meta todavía acepta. */
+var API_TARGET = 26;
+var API_MIN = 24;
 
 // server/lib/crypto.ts
 async function keyFor(purpose, usage) {
@@ -1224,7 +1232,7 @@ var init_store = __esm({
     };
     stores = /* @__PURE__ */ new Map();
     mem = /* @__PURE__ */ new Map();
-    CACHE_VERSION = "v6";
+    CACHE_VERSION = "v7";
   }
 });
 
@@ -1360,7 +1368,7 @@ var init_errors = __esm({
       "613:": { category: "rate_limit", cause: "Demasiadas llamadas a la cuenta en poco tiempo.", recommendation: "Espera unos minutos; reduce el tama\xF1o de los lotes.", retryable: true },
       "80000:": { category: "rate_limit", cause: "L\xEDmite de uso de la cuenta publicitaria (Business Use Case).", recommendation: "Espera el tiempo que indica Meta.", retryable: true },
       "80004:": { category: "rate_limit", cause: "L\xEDmite de uso de Ads Management de la cuenta.", recommendation: "Espera el tiempo que indica Meta.", retryable: true },
-      "2635:": { category: "invalid_parameter", cause: "La versi\xF3n de la API ya no est\xE1 disponible.", recommendation: "Cambia META_API_VERSION a v25.0 o posterior." },
+      "2635:": { category: "invalid_parameter", cause: "La versi\xF3n de la API ya no est\xE1 disponible.", recommendation: "Cambia META_API_VERSION a v26.0 (la versi\xF3n vigente)." },
       "2500:": { category: "invalid_parameter", cause: "Error de sintaxis en la solicitud.", recommendation: "Reporta el caso con el fbtrace_id." },
       "100:1885183": { category: "app_mode", cause: "La app de Meta est\xE1 en modo desarrollo: no puede publicar anuncios.", recommendation: "En developers.facebook.com pasa la app a modo Live." },
       "100:2490408": { category: "incompatible_config", cause: "Meta no acepta ese objetivo de rendimiento (optimization_goal) con el objetivo de la campa\xF1a o el destino.", recommendation: 'Con WhatsApp: Ventas admite Conversiones con el dataset de WhatsApp y Conversaciones; Interacci\xF3n admite Conversaciones y Clics. Usa "Verificar con Meta" para ver qu\xE9 acepta tu cuenta.' },
@@ -1662,6 +1670,21 @@ async function discoverWabas(g, accountId, errors) {
   } catch (e) {
     errors.push("Portafolios del token: " + errText(e));
   }
+  const direct = /* @__PURE__ */ new Map();
+  try {
+    const dbg = (await g.get("debug_token", { input_token: g.token })).data || {};
+    (dbg.granular_scopes || []).forEach((gs) => {
+      const ids = (gs.target_ids || []).map(String);
+      if (/^whatsapp_business_(management|messaging)$/.test(gs.scope)) ids.forEach((id) => direct.set(id, "asignada al token"));
+      if (gs.scope === "business_management") ids.forEach((id) => {
+        if (!businesses2.has(id)) businesses2.set(id, "portafolio " + id);
+      });
+    });
+  } catch {
+  }
+  env.metaWabaIds.forEach((id) => {
+    if (!direct.has(id)) direct.set(id, "configurada (META_WABA_IDS)");
+  });
   const wabas = /* @__PURE__ */ new Map();
   await Promise.all([...businesses2.entries()].slice(0, 20).map(async ([bid, bname]) => {
     for (const [edge, relation] of [["owned_whatsapp_business_accounts", "propia"], ["client_whatsapp_business_accounts", "de cliente"]]) {
@@ -1674,7 +1697,15 @@ async function discoverWabas(g, accountId, errors) {
       }
     }
   }));
-  return { wabas: [...wabas.values()], businesses: [...businesses2.values()] };
+  await Promise.all([...direct.entries()].filter(([id]) => !wabas.has(id)).slice(0, 20).map(async ([id, relation]) => {
+    try {
+      const w = await g.get(id, { fields: "id,name" });
+      wabas.set(id, { id, name: w.name || id, business: "\u2014", relation });
+    } catch (e) {
+      errors.push(`WABA ${id} (${relation}): ${errText(e)}`);
+    }
+  }));
+  return { wabas: [...wabas.values()], businesses: [...businesses2.values()], direct: direct.size };
 }
 async function whatsappInfo(g, accountId, force2 = false) {
   const act = actId(accountId);
@@ -1830,7 +1861,7 @@ async function whatsappInfo(g, accountId, force2 = false) {
       configs,
       welcome: [...welcome.values()].sort((a, b) => b.uses - a.uses).slice(0, 30),
       pages: pageConfirm,
-      diagnostics: { businesses: disc.businesses, errors, adsetsScanned: adsets.length, whatsappAdsets: wa.length, missingWhatsappPermission }
+      diagnostics: { businesses: disc.businesses, directWabas: disc.direct, errors, adsetsScanned: adsets.length, whatsappAdsets: wa.length, missingWhatsappPermission }
     };
   }, { force: force2 });
 }
@@ -1937,6 +1968,7 @@ async function accountAssets(g, accountId, force2 = false) {
       soft("P\xEDxeles", g.all(act + "/adspixels", { fields: "id,name,last_fired_time,is_unavailable,creation_time,owner_business{id,name}" }, 5), []),
       soft("Conversiones personalizadas", g.all(act + "/customconversions", { fields: "id,name,custom_event_type,last_fired_time,is_archived,rule,pixel{id}" }, 5), [])
     ]);
+    const activity = await Promise.all(pixelsRaw.map((p, i) => i < 15 ? pixelActivity(g, p.id, p.last_fired_time) : null));
     const pages = await Promise.all(pagesRaw.map(async (p) => {
       let whatsappNumber = null;
       try {
@@ -1978,6 +2010,7 @@ async function accountAssets(g, accountId, force2 = false) {
       };
     }));
     if (!wabas.length && wabaErrors.length) warnings.push("WhatsApp Business: " + wabaErrors.slice(0, 3).join(" \xB7 "));
+    const wabaDiscovery = { businesses: found.businesses, direct: found.direct, errors: wabaErrors };
     let catalogs = [];
     if (bizId) {
       const cats = await soft("Cat\xE1logos", g.all(bizId + "/owned_product_catalogs", { fields: "id,name,product_count,vertical" }, 5), []);
@@ -1986,9 +2019,28 @@ async function accountAssets(g, accountId, force2 = false) {
     return {
       pages,
       instagram: pages.filter((p) => p.instagram).map((p) => ({ id: p.instagram.id, username: p.instagram.username, pageId: p.id })),
-      pixels: pixelsRaw.map((p) => ({ id: p.id, name: p.name, lastFiredTime: p.last_fired_time || null, isUnavailable: !!p.is_unavailable, creationTime: p.creation_time, ownerBusiness: p.owner_business?.name })),
+      /* lastFiredTime es el \xFAltimo evento recibido por cualquier v\xEDa. last_fired_time de Meta solo cuenta el p\xEDxel del
+         navegador: un dataset que recibe solo Conversions API (CAPI, WhatsApp, CRM, offline) lo trae vac\xEDo aunque
+         reciba miles de eventos. Por eso se completa con /{pixel}/stats (eventos de los \xFAltimos 7 d\xEDas). */
+      pixels: pixelsRaw.map((p, i) => {
+        const a = activity[i] || {};
+        return {
+          id: p.id,
+          name: p.name,
+          lastFiredTime: a.last || p.last_fired_time || null,
+          browserLastFiredTime: p.last_fired_time || null,
+          events7d: a.events7d ?? null,
+          topEvents: a.topEvents || [],
+          activitySource: a.source || (p.last_fired_time ? "browser" : null),
+          statsError: a.error,
+          isUnavailable: !!p.is_unavailable,
+          creationTime: p.creation_time,
+          ownerBusiness: p.owner_business?.name
+        };
+      }),
       customConversions: ccRaw.map((c) => ({ id: c.id, name: c.name, customEventType: c.custom_event_type, pixelId: c.pixel?.id, lastFiredTime: c.last_fired_time || null, archived: !!c.is_archived, rule: c.rule })),
       wabas,
+      wabaDiscovery,
       catalogs,
       warnings
     };
@@ -2044,6 +2096,31 @@ function mapAudience(a) {
     sharing: a.sharing_status?.sharing_relationship_id ? "compartido" : "propio"
   };
 }
+async function pixelActivity(g, pixelId, browserLast) {
+  const browserMs = browserLast ? Date.parse(browserLast) : NaN;
+  if (isFinite(browserMs) && Date.now() - browserMs < 864e5) return { last: browserLast, source: "browser" };
+  try {
+    const r = await g.get(pixelId + "/stats", { aggregation: "event", start_time: Math.floor(Date.now() / 1e3) - 7 * 86400 });
+    let lastMs = 0, total = 0;
+    const byEvent = /* @__PURE__ */ new Map();
+    (r.data || []).forEach((b) => {
+      let n2 = 0;
+      (b.data || []).forEach((x) => {
+        const c = Number(x.count) || 0;
+        n2 += c;
+        byEvent.set(x.value, (byEvent.get(x.value) || 0) + c);
+      });
+      total += n2;
+      const t = Date.parse(b.start_time);
+      if (n2 > 0 && isFinite(t) && t > lastMs) lastMs = t;
+    });
+    const topEvents = [...byEvent.entries()].filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, count]) => ({ name, count }));
+    if (lastMs && (!isFinite(browserMs) || lastMs > browserMs)) return { last: new Date(lastMs).toISOString().replace(".000Z", "+0000"), events7d: total, topEvents, source: "stats" };
+    return { last: browserLast || null, events7d: total, topEvents, source: browserLast ? "browser" : null };
+  } catch (e) {
+    return { last: browserLast || null, source: browserLast ? "browser" : null, error: e.info?.message || e.message };
+  }
+}
 async function pixelStats(g, pixelId, force2 = false) {
   return cached("pxstats:" + pixelId, TTL.events, async () => {
     const since = Math.floor(Date.now() / 1e3) - 7 * 86400;
@@ -2055,8 +2132,9 @@ async function pixelStats(g, pixelId, force2 = false) {
     const byEvent = /* @__PURE__ */ new Map();
     (stats.data || []).forEach((b) => (b.data || []).forEach((x) => {
       const cur = byEvent.get(x.value) || { count: 0, last: "" };
-      cur.count += Number(x.count) || 0;
-      if (b.start_time > cur.last) cur.last = b.start_time;
+      const c = Number(x.count) || 0;
+      cur.count += c;
+      if (c > 0 && b.start_time > cur.last) cur.last = b.start_time;
       byEvent.set(x.value, cur);
     }));
     const sources = /* @__PURE__ */ new Map();
@@ -2241,9 +2319,9 @@ async function tokenHealth() {
   add3({
     group: "API",
     item: "Versi\xF3n de la API",
-    status: vnum < 24 ? "error" : vnum < 25 ? "warning" : "ok",
-    detail: `META_API_VERSION = ${env.metaVersion}.`,
-    fix: vnum < 25 ? "Usa v25.0 o posterior (v23 se retir\xF3 el 9-jun-2026)." : void 0
+    status: vnum < API_MIN ? "error" : vnum < API_TARGET ? "warning" : "ok",
+    detail: `META_API_VERSION = ${env.metaVersion}.` + (vnum < API_MIN ? " Meta ya retir\xF3 esta versi\xF3n." : vnum < API_TARGET ? ` Funciona, pero la versi\xF3n vigente es v${API_TARGET}.0.` : ""),
+    fix: vnum < API_TARGET ? `Cambia META_API_VERSION a v${API_TARGET}.0 en Netlify (y en n8n) y vuelve a publicar. Desde v26.0 Meta exige is_adset_budget_sharing_enabled en campa\xF1as sin presupuesto de campa\xF1a y retir\xF3 GET /?ids= y las ubicaciones Explorar de Instagram e Historias de Messenger; la plataforma ya lo contempla.` : void 0
   });
   add3({
     group: "API",
@@ -3071,7 +3149,8 @@ function destinationKeyFromAdset(destinationType, goal) {
   return "NONE";
 }
 var RETIRED_POSITIONS = {
-  instagram_positions: ["explore"],
+  /* v26.0: Meta retir\xF3 Explorar de Instagram (explore, explore_home, ig_search) e Historias de Messenger. */
+  instagram_positions: ["explore", "explore_home", "ig_search"],
   messenger_positions: ["story", "sponsored_messages"],
   whatsapp_positions: ["status"]
 };
@@ -3120,13 +3199,13 @@ function seed() {
   put({ __type: "phone", id: "410001", __waba: "400001", display_phone_number: "+52 55 1234 5678", verified_name: "izzi", quality_rating: "GREEN", status: "CONNECTED", name_status: "APPROVED", code_verification_status: "VERIFIED", platform_type: "CLOUD_API", throughput: { level: "STANDARD" } });
   put({ __type: "phone", id: "410002", __waba: "400001", display_phone_number: "+52 55 8765 4321", verified_name: "izzi Soporte", quality_rating: "YELLOW", status: "CONNECTED", name_status: "APPROVED", code_verification_status: "VERIFIED", platform_type: "CLOUD_API", throughput: { level: "STANDARD" } });
   put({ __type: "page", id: "200004", name: "izzi telecom", instagram_business_account: { id: "300004", username: "izzitelecom" }, access_token: "page-token-4", leadgen_tos_accepted: true, __waLinked: true, __accounts: ["act_100000000000001"] });
-  put({ __type: "waba", id: "400003", name: "izzi telecom \xB7 Ventas WhatsApp", currency: "MXN", account_review_status: "APPROVED", __biz: "b9", __client: "b1", __dataset: "500901" });
+  put({ __type: "waba", id: "400003", name: "izzi telecom \xB7 Ventas WhatsApp", currency: "MXN", account_review_status: "APPROVED", __biz: "b9", __dataset: "500901" });
   put({ __type: "phone", id: "410004", __waba: "400003", display_phone_number: "+52 1 55 4000 1234", verified_name: "izzi telecom", quality_rating: "GREEN", status: "CONNECTED", name_status: "APPROVED", code_verification_status: "VERIFIED", platform_type: "CLOUD_API", throughput: { level: "STANDARD" } });
   put({ __type: "phone", id: "410003", __waba: "400002", display_phone_number: "+57 300 111 2233", verified_name: "ABCW", quality_rating: "GREEN", status: "CONNECTED", name_status: "APPROVED", code_verification_status: "VERIFIED", platform_type: "CLOUD_API", throughput: { level: "STANDARD" } });
   put({ __type: "pixel", id: "500001", name: "izzi.mx \xB7 Pixel", last_fired_time: daysAgo(0.02), is_unavailable: false, creation_time: daysAgo(900), owner_business: { id: "b2", name: "izzi Telecom" }, __accounts: ["act_100000000000001", "act_100000000000002"] });
   put({ __type: "pixel", id: "500002", name: "Sky \xB7 Pixel", last_fired_time: daysAgo(12), is_unavailable: false, creation_time: daysAgo(600), owner_business: { id: "b2", name: "izzi Telecom" }, __accounts: ["act_100000000000002"] });
   put({ __type: "pixel", id: "500900", name: "izzi WhatsApp \xB7 Dataset (CAPI mensajer\xEDa)", last_fired_time: daysAgo(0.1), is_unavailable: false, creation_time: daysAgo(200), owner_business: { id: "b2", name: "izzi Telecom" }, __accounts: ["act_100000000000001"] });
-  put({ __type: "pixel", id: "500901", name: "izzi telecom \xB7 Dataset WhatsApp", last_fired_time: daysAgo(0.05), is_unavailable: false, creation_time: daysAgo(120), owner_business: { id: "b9", name: "izzi telecom" }, __accounts: ["act_100000000000001"] });
+  put({ __type: "pixel", id: "500901", name: "izzi telecom \xB7 Dataset WhatsApp (solo CAPI)", is_unavailable: false, creation_time: daysAgo(120), owner_business: { id: "b9", name: "izzi telecom" }, __accounts: ["act_100000000000001"] });
   put({ __type: "pixel", id: "500003", name: "ABCW \xB7 Pixel", last_fired_time: daysAgo(1), creation_time: daysAgo(300), __accounts: ["act_100000000000003"] });
   put({ __type: "cc", id: "510001", name: "Lead \xB7 Contrataci\xF3n completada", custom_event_type: "LEAD", last_fired_time: daysAgo(0.3), is_archived: false, rule: '{"and":[{"event":{"eq":"Lead"}},{"url":{"i_contains":"gracias"}}]}', pixel: { id: "500001" }, __account: "act_100000000000001" });
   put({ __type: "catalog", id: "520001", name: "Paquetes izzi", product_count: 48, vertical: "commerce", __biz: "b2" });
@@ -3566,14 +3645,14 @@ async function mockTransport(url, init) {
     const out = [];
     for (const r of body.batch) {
       const init2 = { method: r.method, headers: init.headers, body: r.body || void 0 };
-      const res = await mockTransport(`https://graph.facebook.com/v25.0/${r.relative_url}`, init2);
+      const res = await mockTransport(`https://graph.facebook.com/${env.metaVersion}/${r.relative_url}`, init2);
       out.push({ code: res.status, body: await res.text() });
     }
     return ok(out);
   }
   if (a === "me" && !b) return ok({ id: "9001", name: "PMOS System User (simulado)" });
   if (a === "me" && b === "permissions") return list(["ads_management", "ads_read", "business_management", "pages_show_list", "pages_read_engagement", "pages_manage_ads", "leads_retrieval", "whatsapp_business_management", "read_insights"].map((permission) => ({ permission, status: "granted" })));
-  if (a === "debug_token") return ok({ data: { app_id: "1", type: "SYSTEM_USER", application: "PMOS", expires_at: 0, data_access_expires_at: 0, is_valid: true, scopes: ["ads_management", "ads_read", "business_management"], user_id: "9001" } });
+  if (a === "debug_token") return ok({ data: { app_id: "1", type: "SYSTEM_USER", application: "PMOS", expires_at: 0, data_access_expires_at: 0, is_valid: true, scopes: ["ads_management", "ads_read", "business_management"], granular_scopes: [{ scope: "whatsapp_business_management", target_ids: ["400003"] }], user_id: "9001" } });
   if (a === "me" && b === "businesses") return list(all("business").map((x) => project(x, fields)));
   if (a === "me" && b === "adaccounts") return list(all("account").filter((x) => x.id !== "act_100000000000003").map((x) => project(x, fields)));
   if (a === "me" && b === "accounts") return list(all("page").map((p) => ({ id: p.id, name: p.name, access_token: p.access_token })));
@@ -4816,6 +4895,7 @@ function registerMeta(r) {
   r.get("/api/meta/errors", async (ctx) => ({ errors: await recentMetaErrors(Number(ctx.url.searchParams.get("days") || 3)) }));
   r.get("/api/meta/check", async (ctx) => {
     const accountId = ctx.url.searchParams.get("accountId");
+    if (accountId) await ensureAccountAccess(ctx, accountId);
     const g = await graph();
     const health = await tokenHealth();
     const checks = [...health.checks];
@@ -4834,15 +4914,25 @@ function registerMeta(r) {
           checks.push({ group: "Cuenta", item: "L\xEDmite de gasto", status: pct3 >= 90 ? "warning" : "ok", detail: `Lleva ${pct3.toFixed(0)} % del l\xEDmite de gasto de la cuenta.`, fix: pct3 >= 90 ? "Sube o quita el l\xEDmite: al alcanzarlo Meta detiene toda la entrega." : void 0 });
         }
         const assets = (await accountAssets(g, accountId, true)).value;
+        const waInfo = await whatsappInfo(g, accountId).then((x) => x.value).catch(() => null);
+        const waPages = waInfo?.pages || {};
+        const waUsed = new Map((waInfo?.datasets || []).filter((d) => d.sources.includes("CONJUNTOS")).map((d) => [d.id, d]));
+        const wabaDs = new Set(assets.wabas.flatMap((w) => w.datasets.map((d) => d.id)));
+        const nf = (v2) => formatNumber(Number(v2) || 0);
         assets.warnings.forEach((w) => checks.push({ group: "Activos", item: "Lectura parcial", status: "warning", detail: w }));
         checks.push({ group: "P\xE1ginas", item: "P\xE1ginas disponibles", status: assets.pages.length ? "ok" : "error", detail: assets.pages.length ? assets.pages.map((p) => p.name).join(", ") : "La cuenta no tiene p\xE1ginas para anunciar.", fix: assets.pages.length ? void 0 : "Asigna la p\xE1gina al system user y a la cuenta en Business Manager." });
         for (const p of assets.pages.slice(0, 8)) {
+          const conf = waPages[p.id];
+          const inUse = !!conf?.confirmed;
           checks.push({
             group: "WhatsApp",
             item: `WhatsApp de "${p.name}"`,
-            status: p.whatsappNumber ? "ok" : p.whatsappNumber === "" ? "warning" : "info",
-            detail: p.whatsappNumber ? `N\xFAmero vinculado: ${p.whatsappNumber}.` : p.whatsappNumber === "" ? "La p\xE1gina no tiene WhatsApp vinculado: los anuncios a WhatsApp fallar\xE1n (2446886)." : "No se pudo leer el n\xFAmero vinculado (Meta no siempre lo expone).",
-            fix: p.whatsappNumber ? void 0 : "P\xE1gina \u2192 Configuraci\xF3n \u2192 Cuentas vinculadas \u2192 WhatsApp."
+            status: p.whatsappNumber || inUse ? "ok" : p.whatsappNumber === "" ? "warning" : "info",
+            /* El campo whatsapp_number de la p\xE1gina solo refleja algunos tipos de v\xEDnculo (p. ej. la app de WhatsApp Business).
+               Con n\xFAmeros de la API en la nube o de un proveedor suele venir vac\xEDo aunque los anuncios funcionen, as\xED que se
+               confirma con los conjuntos y anuncios que ya env\xEDan a WhatsApp con esta p\xE1gina. */
+            detail: p.whatsappNumber ? `N\xFAmero vinculado: ${p.whatsappNumber}.` : inUse ? `Meta no expone el n\xFAmero en la p\xE1gina, pero la cuenta ya anuncia a WhatsApp con ella (${conf.source}${conf.numbers.length ? ": " + conf.numbers.join(", ") : ""}): el v\xEDnculo funciona.` : p.whatsappNumber === "" ? "Meta no muestra un n\xFAmero de WhatsApp vinculado y la cuenta no tiene anuncios a WhatsApp con esta p\xE1gina. Si la p\xE1gina no tiene WhatsApp, los anuncios a WhatsApp fallar\xE1n (2446886)." : "No se pudo leer el n\xFAmero vinculado (Meta no siempre lo expone).",
+            fix: p.whatsappNumber || inUse ? void 0 : 'Confirma con "Verificar con Meta" en Nueva campa\xF1a. Si falla con 2446886: P\xE1gina \u2192 Configuraci\xF3n \u2192 Cuentas vinculadas \u2192 WhatsApp.'
           });
           checks.push({ group: "Instagram", item: `Instagram de "${p.name}"`, status: p.instagram ? "ok" : "warning", detail: p.instagram ? "@" + (p.instagram.username || p.instagram.id) : "Sin cuenta profesional de Instagram conectada: en Instagram el anuncio sale con el perfil de la p\xE1gina." });
           try {
@@ -4859,12 +4949,15 @@ function registerMeta(r) {
             checks.push({ group: "Formularios", item: `Token de "${p.name}"`, status: "warning", detail: e.message });
           }
         }
+        const disc = assets.wabaDiscovery || { businesses: [], errors: [] };
+        const usedWaDs = [...waUsed.values()].map((d) => assets.pixels.find((px) => px.id === d.id)?.name || d.name || d.id);
+        const who = health.user?.name ? `al usuario del sistema "${health.user.name}"` : "al usuario del sistema del token";
         checks.push({
           group: "WhatsApp",
           item: "Cuentas de WhatsApp Business",
-          status: assets.wabas.length ? "ok" : "warning",
-          detail: assets.wabas.length ? assets.wabas.map((w) => `${w.name} (${w.numbers.length} n\xFAmeros${w.datasets.length ? ", dataset " + w.datasets[0].id : ", sin dataset"})`).join(" \xB7 ") : "No hay WABA visibles para el token.",
-          fix: assets.wabas.length ? void 0 : "Asigna la WABA al system user (Business Manager \u2192 Cuentas \u2192 Cuentas de WhatsApp) y usa el permiso whatsapp_business_management."
+          status: assets.wabas.length ? "ok" : usedWaDs.length || (waInfo?.configs || []).length ? "warning" : "info",
+          detail: assets.wabas.length ? assets.wabas.map((w) => `${w.name} (${w.numbers.length} n\xFAmeros${w.datasets.length ? ", dataset " + w.datasets[0].id : ", sin dataset"})`).join(" \xB7 ") : "El token no ve ninguna cuenta de WhatsApp Business (WABA)." + (usedWaDs.length ? ` La cuenta s\xED anuncia en WhatsApp midiendo con ${usedWaDs.map((n2) => `"${n2}"`).join(", ")}: la WABA existe, pero no est\xE1 compartida con este token.` : "") + (disc.businesses.length ? ` Portafolios revisados: ${disc.businesses.slice(0, 6).join(", ")}.` : "") + (disc.errors.length ? " Respuesta de Meta: " + disc.errors.slice(0, 2).join(" \xB7 ") : ""),
+          fix: assets.wabas.length ? void 0 : `En el Business Manager due\xF1o de la WABA: Configuraci\xF3n del negocio \u2192 Cuentas \u2192 Cuentas de WhatsApp \u2192 la WABA \u2192 Asignar personas \u2192 ${who} con control total. Si la WABA es del cliente, el cliente debe compartirla con tu portafolio como socio. Tambi\xE9n puedes poner su ID en la variable META_WABA_IDS de Netlify para revisarla directamente. Sin la WABA la plataforma no lista n\xFAmeros ni su calidad, pero los anuncios a WhatsApp siguen funcionando.`
         });
         for (const w of assets.wabas) for (const n2 of w.numbers)
           if (n2.qualityRating === "RED" || n2.status !== "CONNECTED") checks.push({ group: "WhatsApp", item: `N\xFAmero ${n2.display}`, status: "warning", detail: `Estado ${n2.status || "\u2014"} \xB7 calidad ${n2.qualityRating || "\u2014"}.` });
@@ -4873,7 +4966,20 @@ function registerMeta(r) {
         if (!assets.pixels.length) checks.push({ group: "Medici\xF3n", item: "P\xEDxel / dataset", status: "warning", detail: "La cuenta no tiene p\xEDxeles compartidos." });
         assets.pixels.forEach((px) => {
           const days = px.lastFiredTime ? (Date.now() - Date.parse(px.lastFiredTime)) / 864e5 : null;
-          checks.push({ group: "Medici\xF3n", item: `P\xEDxel "${px.name}"`, status: days === null ? "warning" : days > 7 ? "warning" : "ok", detail: days === null ? "No registra eventos." : `\xDAltimo evento hace ${days < 1 ? "menos de un d\xEDa" : Math.floor(days) + " d\xEDas"}.` });
+          const wa = waUsed.get(px.id);
+          const isWa = !!wa || wabaDs.has(px.id);
+          const ago = days === null ? "" : days < 1 / 24 ? "hace menos de una hora" : days < 1 ? `hace ${Math.max(1, Math.round(days * 24))} h` : `hace ${Math.floor(days)} d\xEDa${Math.floor(days) === 1 ? "" : "s"}`;
+          const vol = px.events7d ? ` ${nf(px.events7d)} eventos en 7 d\xEDas` + (px.topEvents?.length ? ` (${px.topEvents.slice(0, 4).map((e) => `${e.name} ${nf(e.count)}`).join(", ")})` : "") + "." : "";
+          const serverOnly = days !== null && !px.browserLastFiredTime ? " Recibe eventos solo por servidor (Conversions API), por eso Meta no informa disparos del navegador." : "";
+          const use = wa ? ` Lo usan ${wa.uses} conjunto(s) de WhatsApp para optimizar.` : "";
+          const stale = days === null || days > 7 || isWa && wa && days > 2;
+          checks.push({
+            group: "Medici\xF3n",
+            item: `${isWa ? "Dataset de WhatsApp" : "P\xEDxel"} "${px.name}"`,
+            status: stale ? "warning" : "ok",
+            detail: days === null ? px.statsError ? `Meta no informa disparos del navegador y no se pudieron leer sus estad\xEDsticas (${px.statsError}).${use}` : `Sin eventos en los \xFAltimos 7 d\xEDas, ni del navegador ni del servidor.${use}` : `\xDAltimo evento ${ago}.${vol}${serverOnly}${use}`,
+            fix: stale ? (wa ? "Los conjuntos que optimizan con este dataset no pueden aprender sin eventos: revisa que tu CRM o proveedor de WhatsApp siga enviando Purchase/LeadSubmitted con este ID de dataset." : "Revisa el dataset en Events Manager \u2192 Resumen. Si env\xEDas eventos por Conversions API, confirma que usen este ID y un token vigente.") : void 0
+          });
         });
       } catch (e) {
         checks.push({ group: "Cuenta", item: "Acceso", status: "error", detail: `${e.info?.message || e.message}${e.info?.code ? ` [${e.info.code}${e.info.subcode ? "/" + e.info.subcode : ""}]` : ""}`, fix: e.info?.recommendation, meta: e.info });
@@ -5064,6 +5170,16 @@ async function ensureAccountAccess(ctx, accountId) {
   const id = String(accountId).startsWith("act_") ? accountId : "act_" + accountId;
   if (allowed.length && !allowed.includes(id)) throw new ApiError(403, "No tienes acceso a esta cuenta publicitaria.", "account_forbidden");
   return id;
+}
+async function ownerAccounts(g, ids) {
+  const list2 = [...new Set(ids.map(String).filter((x) => /^\d+$/.test(x)))];
+  const out = {};
+  if (!list2.length) return out;
+  const res = await g.batch(list2.map((id) => ({ method: "GET", relative_url: `${id}?fields=account_id` })));
+  res.forEach((r, i) => {
+    if (r.ok && r.body?.account_id) out[list2[i]] = "act_" + String(r.body.account_id).replace(/^act_/, "");
+  });
+  return out;
 }
 async function allowedAccounts(ctx) {
   const u = await getUser(ctx.user.email);
@@ -5979,14 +6095,18 @@ function registerData(r) {
   r.get("/api/accounts/:id/events", async (ctx) => {
     const { g, id } = await accountCtx(ctx);
     const assets = (await accountAssets(g, id, force(ctx))).value;
-    const waIds = new Set(assets.wabas.flatMap((w) => w.datasets.map((d) => d.id)));
-    const allDs = [...assets.pixels.map((p) => ({ ...p, kind: waIds.has(p.id) ? "whatsapp" : "pixel" }))];
+    const waInfo = await whatsappInfo(g, id).then((x) => x.value).catch(() => null);
+    const waUsed = new Map((waInfo?.datasets || []).filter((d) => d.sources.includes("CONJUNTOS")).map((d) => [d.id, d]));
+    const waIds = /* @__PURE__ */ new Set([...assets.wabas.flatMap((w) => w.datasets.map((d) => d.id)), ...waUsed.keys()]);
+    const allDs = [...assets.pixels.map((p) => ({ ...p, kind: waIds.has(p.id) ? "whatsapp" : "pixel", whatsappAdsets: waUsed.get(p.id)?.uses || 0 }))];
     assets.wabas.forEach((w) => w.datasets.forEach((d) => {
       if (!allDs.some((x) => x.id === d.id)) allDs.push({ id: d.id, name: d.name || "Dataset de " + w.name, kind: "whatsapp", lastFiredTime: null });
     }));
     const detail = await Promise.all(allDs.slice(0, 12).map(async (ds) => {
       const [st, q] = await Promise.all([pixelStats(g, ds.id, force(ctx)).then((x) => x.value).catch(() => null), datasetQuality(g, ds.id)]);
-      return { ...ds, stats: st, quality: q, wabas: assets.wabas.filter((w) => w.datasets.some((d) => d.id === ds.id)).map((w) => ({ id: w.id, name: w.name })) };
+      const statsLast = (st?.events || []).map((e) => e.lastReceived).filter(Boolean).sort().pop() || null;
+      const lastFiredTime = [ds.lastFiredTime, statsLast].filter(Boolean).sort((a, b) => Date.parse(b) - Date.parse(a))[0] || null;
+      return { ...ds, lastFiredTime, stats: st, quality: q, wabas: assets.wabas.filter((w) => w.datasets.some((d) => d.id === ds.id)).map((w) => ({ id: w.id, name: w.name })) };
     }));
     return {
       datasets: detail,
@@ -5995,7 +6115,8 @@ function registerData(r) {
       warnings: assets.warnings,
       notes: [
         "La API de Conversiones Offline (offline_conversion_data_sets) se retir\xF3: los eventos offline y de CRM se env\xEDan al mismo dataset con Conversions API (action_source = physical_store / system_generated).",
-        "Los eventos de WhatsApp se reciben en el dataset de la WABA con action_source = business_messaging."
+        "Los eventos de WhatsApp se reciben en el dataset de la WABA con action_source = business_messaging.",
+        "La fecha de \xFAltimo evento incluye los eventos de servidor (Conversions API). Meta solo informa last_fired_time para el p\xEDxel del navegador, as\xED que un dataset que recibe solo CAPI se revisa con sus estad\xEDsticas de 7 d\xEDas."
       ]
     };
   });
@@ -6422,9 +6543,13 @@ function targetingPayload(t, p, a) {
   if (p.mode === "manual") {
     out.publisher_platforms = p.publisherPlatforms;
     const clean = (k, arr) => (arr || []).filter((x) => !(RETIRED_POSITIONS[k] || []).includes(x));
-    if (p.publisherPlatforms.includes("facebook") && p.facebookPositions.length) out.facebook_positions = clean("facebook_positions", p.facebookPositions);
-    if (p.publisherPlatforms.includes("instagram") && p.instagramPositions.length) out.instagram_positions = clean("instagram_positions", p.instagramPositions);
-    if (p.publisherPlatforms.includes("messenger") && p.messengerPositions.length) out.messenger_positions = clean("messenger_positions", p.messengerPositions);
+    const setPos = (k, arr) => {
+      const v2 = clean(k, arr);
+      if (v2.length) out[k] = v2;
+    };
+    if (p.publisherPlatforms.includes("facebook") && p.facebookPositions.length) setPos("facebook_positions", p.facebookPositions);
+    if (p.publisherPlatforms.includes("instagram") && p.instagramPositions.length) setPos("instagram_positions", p.instagramPositions);
+    if (p.publisherPlatforms.includes("messenger") && p.messengerPositions.length) setPos("messenger_positions", p.messengerPositions);
     if (p.publisherPlatforms.includes("audience_network") && p.audienceNetworkPositions.length) out.audience_network_positions = p.audienceNetworkPositions;
     if (p.devicePlatforms?.length && p.devicePlatforms.length < 2) out.device_platforms = p.devicePlatforms;
   }
@@ -6814,7 +6939,7 @@ function registerOps(r) {
   }, { permission: "create" });
   r.post("/api/changes/apply", async (ctx) => {
     const b = await ctx.json();
-    const changes = b.changes || [];
+    let changes = b.changes || [];
     if (!changes.length) return { results: [] };
     if (changes.length > 25) throw new ApiError(400, "Env\xEDa los cambios en lotes de hasta 25.");
     const u = ctx.user;
@@ -6823,6 +6948,14 @@ function registerOps(r) {
     const results = [];
     const touched = /* @__PURE__ */ new Set();
     const simple = [];
+    const owners = await ownerAccounts(g, changes.map((c) => c.entityId)).catch(() => ({}));
+    const foreign = changes.filter((c) => owners[String(c.entityId)] && owners[String(c.entityId)] !== actId(c.accountId));
+    for (const ch of foreign) {
+      results.push({ id: ch.id, ok: false, error: `El objeto ${ch.entityId} pertenece a la cuenta ${owners[String(ch.entityId)]}, no a ${actId(ch.accountId)}. Recarga la cuenta y vuelve a preparar el cambio.` });
+      await audit({ user: u.email, action: ch.level + "." + ch.kind, result: "error", accountId: actId(ch.accountId), level: ch.level, entityId: ch.entityId, entityName: ch.entityName, error: "Cuenta del objeto distinta a la indicada" });
+    }
+    const blocked = new Set(foreign.map((c) => c.id));
+    changes = changes.filter((c) => !blocked.has(c.id));
     for (const ch of changes.filter((c) => c.kind === "update" && !Object.keys(c.fields || {}).some((k) => k.startsWith("creative.")))) {
       const id = await ensureAccountAccess(ctx, ch.accountId);
       const acc = await accInfo(id);
@@ -6895,6 +7028,9 @@ function registerOps(r) {
     await ensureAccountAccess(ctx, b.targetAccountId);
     await ensureAccountAccess(ctx, b.sourceAccountId);
     const g = await graph();
+    const own = await ownerAccounts(g, b.ids || []);
+    const bad = (b.ids || []).filter((x) => own[String(x)] && own[String(x)] !== actId(b.sourceAccountId));
+    if (bad.length) throw new ApiError(403, `Los objetos ${bad.join(", ")} no pertenecen a la cuenta de origen.`, "account_forbidden");
     const [src, dst] = await Promise.all([accInfo(b.sourceAccountId), accInfo(b.targetAccountId)]);
     const res = await analyzeDuplicate(g, b.level, b.ids, b.targetAccountId);
     return { ...res, source: src, target: dst, currencyMismatch: src.currency !== dst.currency, targetActive: dst.status === 1 };
@@ -6904,6 +7040,10 @@ function registerOps(r) {
     const target = await ensureAccountAccess(ctx, b.targetAccountId);
     const source = await ensureAccountAccess(ctx, b.sourceAccountId);
     const g = await graph();
+    if (b.sourceId) {
+      const own = await ownerAccounts(g, [b.sourceId]);
+      if (own[String(b.sourceId)] && own[String(b.sourceId)] !== source) throw new ApiError(403, "El objeto de origen no pertenece a la cuenta de origen.", "account_forbidden");
+    }
     const [src, dst] = await Promise.all([accInfo(source), accInfo(target)]);
     const suffix = b.suffix ?? " - Copia";
     const status = b.statusOption || "PAUSED";
@@ -7169,6 +7309,7 @@ function registerAdmin(r) {
   r.post("/api/rules/run", async (ctx) => {
     const b = await ctx.json().catch(() => ({}));
     const allowed = await allowedAccounts(ctx);
+    if (b.accountId) b.accountId = await ensureAccountAccess(ctx, b.accountId);
     const res = await runRules(b.accountId ? [b.accountId] : allowed, ctx.user.email, { execute: !!b.execute && ctx.user.permissions.includes("rules_execute") });
     await kv("core").set("sync/rules", { at: res.at, by: ctx.user.email });
     return res;
@@ -7177,12 +7318,14 @@ function registerAdmin(r) {
     const days = Number(ctx.url.searchParams.get("days") || 7);
     const since = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
     const keys = (await kv("core").list("alert/")).filter((k) => k.split("/")[1] >= since).reverse().slice(0, 500);
-    const alerts = (await Promise.all(keys.map(async (k) => ({ key: k, ...await kv("core").get(k) })))).filter((a) => a.status !== "dismissed");
+    const allowed = await allowedAccounts(ctx);
+    const alerts = (await Promise.all(keys.map(async (k) => ({ key: k, ...await kv("core").get(k) })))).filter((a) => a.status !== "dismissed" && (!allowed || allowed.includes(a.accountId)));
     return { alerts };
   });
   r.post("/api/alerts/dismiss", async (ctx) => {
     const b = await ctx.json();
     for (const k of (b.keys || []).slice(0, 200)) {
+      if (typeof k !== "string" || !/^alert\/\d{4}-\d{2}-\d{2}\//.test(k)) continue;
       const a = await kv("core").get(k);
       if (a) await kv("core").set(k, { ...a, status: "dismissed", dismissedBy: ctx.user.email });
     }
@@ -7237,6 +7380,11 @@ function registerAdmin(r) {
     if (escritura && !u.permissions.includes("plan")) throw new ApiError(403, "Tu rol no puede publicar planes masivos.");
     if (accion === "gestor" && body.op === "aplicar" && !u.permissions.includes("publish")) throw new ApiError(403, "Tu rol no puede aplicar cambios.");
     delete body.clave;
+    const allowedM = await allowedAccounts(ctx);
+    if (allowedM) {
+      const pedidas = [body.cuenta_id, ...String(body.cuentas || "").split(",")].map((x) => String(x || "").trim()).filter(Boolean);
+      for (const c of pedidas) await ensureAccountAccess(ctx, c);
+    }
     const res = await fetch(env.motorUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-ABCW-Clave": env.motorSecret, "X-ABCW-Usuario": u.email },
@@ -7245,7 +7393,14 @@ function registerAdmin(r) {
     }).catch((e) => {
       throw new ApiError(504, "El motor (n8n) no respondi\xF3: " + e.message, "motor_timeout");
     });
-    const text = await res.text();
+    let text = await res.text();
+    if (allowedM && accion === "cuentas" && res.ok) {
+      const d = safeJson(text);
+      if (d && Array.isArray(d.cuentas)) {
+        d.cuentas = d.cuentas.filter((c) => allowedM.includes(actId(c.cuenta || c.id || c.account_id || "")));
+        text = JSON.stringify(d);
+      }
+    }
     if (escritura || accion === "publicar") await audit({ user: u.email, action: "plan." + accion + (body.op ? "." + body.op : ""), result: res.ok ? "ok" : "error", level: "plan", accountId: body.cuenta_id ? "act_" + String(body.cuenta_id).replace(/^act_/, "") : void 0, meta: { status: res.status, run: safeJson(text)?.run_id } });
     return new Response(text, { status: res.status, headers: { "Content-Type": res.headers.get("content-type") || "application/json", "Cache-Control": "no-store" } });
   });

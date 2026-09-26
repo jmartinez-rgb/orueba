@@ -45,7 +45,7 @@ var init_env = __esm({
         return v("ADMIN_EMAILS").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
       },
       get metaVersion() {
-        return v("META_API_VERSION", "v25.0");
+        return v("META_API_VERSION", "v26.0");
       },
       get metaToken() {
         return v("META_ACCESS_TOKEN");
@@ -85,6 +85,10 @@ var init_env = __esm({
     };
   }
 });
+
+/* Versión de la Graph API: la vigente (objetivo) y la más antigua que Meta todavía acepta. */
+var API_TARGET = 26;
+var API_MIN = 24;
 
 // server/lib/crypto.ts
 async function keyFor(purpose, usage) {
@@ -1173,7 +1177,7 @@ var init_store = __esm({
     };
     stores = /* @__PURE__ */ new Map();
     mem = /* @__PURE__ */ new Map();
-    CACHE_VERSION = "v6";
+    CACHE_VERSION = "v7";
   }
 });
 
@@ -1309,7 +1313,7 @@ var init_errors = __esm({
       "613:": { category: "rate_limit", cause: "Demasiadas llamadas a la cuenta en poco tiempo.", recommendation: "Espera unos minutos; reduce el tama\xF1o de los lotes.", retryable: true },
       "80000:": { category: "rate_limit", cause: "L\xEDmite de uso de la cuenta publicitaria (Business Use Case).", recommendation: "Espera el tiempo que indica Meta.", retryable: true },
       "80004:": { category: "rate_limit", cause: "L\xEDmite de uso de Ads Management de la cuenta.", recommendation: "Espera el tiempo que indica Meta.", retryable: true },
-      "2635:": { category: "invalid_parameter", cause: "La versi\xF3n de la API ya no est\xE1 disponible.", recommendation: "Cambia META_API_VERSION a v25.0 o posterior." },
+      "2635:": { category: "invalid_parameter", cause: "La versi\xF3n de la API ya no est\xE1 disponible.", recommendation: "Cambia META_API_VERSION a v26.0 (la versi\xF3n vigente)." },
       "2500:": { category: "invalid_parameter", cause: "Error de sintaxis en la solicitud.", recommendation: "Reporta el caso con el fbtrace_id." },
       "100:1885183": { category: "app_mode", cause: "La app de Meta est\xE1 en modo desarrollo: no puede publicar anuncios.", recommendation: "En developers.facebook.com pasa la app a modo Live." },
       "100:2490408": { category: "incompatible_config", cause: "Meta no acepta ese objetivo de rendimiento (optimization_goal) con el objetivo de la campa\xF1a o el destino.", recommendation: 'Con WhatsApp: Ventas admite Conversiones con el dataset de WhatsApp y Conversaciones; Interacci\xF3n admite Conversaciones y Clics. Usa "Verificar con Meta" para ver qu\xE9 acepta tu cuenta.' },
@@ -1661,9 +1665,9 @@ async function tokenHealth() {
   add2({
     group: "API",
     item: "Versi\xF3n de la API",
-    status: vnum < 24 ? "error" : vnum < 25 ? "warning" : "ok",
-    detail: `META_API_VERSION = ${env.metaVersion}.`,
-    fix: vnum < 25 ? "Usa v25.0 o posterior (v23 se retir\xF3 el 9-jun-2026)." : void 0
+    status: vnum < API_MIN ? "error" : vnum < API_TARGET ? "warning" : "ok",
+    detail: `META_API_VERSION = ${env.metaVersion}.` + (vnum < API_MIN ? " Meta ya retir\xF3 esta versi\xF3n." : vnum < API_TARGET ? ` Funciona, pero la versi\xF3n vigente es v${API_TARGET}.0.` : ""),
+    fix: vnum < API_TARGET ? `Cambia META_API_VERSION a v${API_TARGET}.0 en Netlify (y en n8n) y vuelve a publicar. Desde v26.0 Meta exige is_adset_budget_sharing_enabled en campa\xF1as sin presupuesto de campa\xF1a y retir\xF3 GET /?ids= y las ubicaciones Explorar de Instagram e Historias de Messenger; la plataforma ya lo contempla.` : void 0
   });
   add2({
     group: "API",
@@ -2069,13 +2073,13 @@ function seed() {
   put({ __type: "phone", id: "410001", __waba: "400001", display_phone_number: "+52 55 1234 5678", verified_name: "izzi", quality_rating: "GREEN", status: "CONNECTED", name_status: "APPROVED", code_verification_status: "VERIFIED", platform_type: "CLOUD_API", throughput: { level: "STANDARD" } });
   put({ __type: "phone", id: "410002", __waba: "400001", display_phone_number: "+52 55 8765 4321", verified_name: "izzi Soporte", quality_rating: "YELLOW", status: "CONNECTED", name_status: "APPROVED", code_verification_status: "VERIFIED", platform_type: "CLOUD_API", throughput: { level: "STANDARD" } });
   put({ __type: "page", id: "200004", name: "izzi telecom", instagram_business_account: { id: "300004", username: "izzitelecom" }, access_token: "page-token-4", leadgen_tos_accepted: true, __waLinked: true, __accounts: ["act_100000000000001"] });
-  put({ __type: "waba", id: "400003", name: "izzi telecom \xB7 Ventas WhatsApp", currency: "MXN", account_review_status: "APPROVED", __biz: "b9", __client: "b1", __dataset: "500901" });
+  put({ __type: "waba", id: "400003", name: "izzi telecom \xB7 Ventas WhatsApp", currency: "MXN", account_review_status: "APPROVED", __biz: "b9", __dataset: "500901" });
   put({ __type: "phone", id: "410004", __waba: "400003", display_phone_number: "+52 1 55 4000 1234", verified_name: "izzi telecom", quality_rating: "GREEN", status: "CONNECTED", name_status: "APPROVED", code_verification_status: "VERIFIED", platform_type: "CLOUD_API", throughput: { level: "STANDARD" } });
   put({ __type: "phone", id: "410003", __waba: "400002", display_phone_number: "+57 300 111 2233", verified_name: "ABCW", quality_rating: "GREEN", status: "CONNECTED", name_status: "APPROVED", code_verification_status: "VERIFIED", platform_type: "CLOUD_API", throughput: { level: "STANDARD" } });
   put({ __type: "pixel", id: "500001", name: "izzi.mx \xB7 Pixel", last_fired_time: daysAgo(0.02), is_unavailable: false, creation_time: daysAgo(900), owner_business: { id: "b2", name: "izzi Telecom" }, __accounts: ["act_100000000000001", "act_100000000000002"] });
   put({ __type: "pixel", id: "500002", name: "Sky \xB7 Pixel", last_fired_time: daysAgo(12), is_unavailable: false, creation_time: daysAgo(600), owner_business: { id: "b2", name: "izzi Telecom" }, __accounts: ["act_100000000000002"] });
   put({ __type: "pixel", id: "500900", name: "izzi WhatsApp \xB7 Dataset (CAPI mensajer\xEDa)", last_fired_time: daysAgo(0.1), is_unavailable: false, creation_time: daysAgo(200), owner_business: { id: "b2", name: "izzi Telecom" }, __accounts: ["act_100000000000001"] });
-  put({ __type: "pixel", id: "500901", name: "izzi telecom \xB7 Dataset WhatsApp", last_fired_time: daysAgo(0.05), is_unavailable: false, creation_time: daysAgo(120), owner_business: { id: "b9", name: "izzi telecom" }, __accounts: ["act_100000000000001"] });
+  put({ __type: "pixel", id: "500901", name: "izzi telecom \xB7 Dataset WhatsApp (solo CAPI)", is_unavailable: false, creation_time: daysAgo(120), owner_business: { id: "b9", name: "izzi telecom" }, __accounts: ["act_100000000000001"] });
   put({ __type: "pixel", id: "500003", name: "ABCW \xB7 Pixel", last_fired_time: daysAgo(1), creation_time: daysAgo(300), __accounts: ["act_100000000000003"] });
   put({ __type: "cc", id: "510001", name: "Lead \xB7 Contrataci\xF3n completada", custom_event_type: "LEAD", last_fired_time: daysAgo(0.3), is_archived: false, rule: '{"and":[{"event":{"eq":"Lead"}},{"url":{"i_contains":"gracias"}}]}', pixel: { id: "500001" }, __account: "act_100000000000001" });
   put({ __type: "catalog", id: "520001", name: "Paquetes izzi", product_count: 48, vertical: "commerce", __biz: "b2" });
@@ -2515,14 +2519,14 @@ async function mockTransport(url, init) {
     const out = [];
     for (const r of body.batch) {
       const init2 = { method: r.method, headers: init.headers, body: r.body || void 0 };
-      const res = await mockTransport(`https://graph.facebook.com/v25.0/${r.relative_url}`, init2);
+      const res = await mockTransport(`https://graph.facebook.com/${env.metaVersion}/${r.relative_url}`, init2);
       out.push({ code: res.status, body: await res.text() });
     }
     return ok(out);
   }
   if (a === "me" && !b) return ok({ id: "9001", name: "PMOS System User (simulado)" });
   if (a === "me" && b === "permissions") return list(["ads_management", "ads_read", "business_management", "pages_show_list", "pages_read_engagement", "pages_manage_ads", "leads_retrieval", "whatsapp_business_management", "read_insights"].map((permission) => ({ permission, status: "granted" })));
-  if (a === "debug_token") return ok({ data: { app_id: "1", type: "SYSTEM_USER", application: "PMOS", expires_at: 0, data_access_expires_at: 0, is_valid: true, scopes: ["ads_management", "ads_read", "business_management"], user_id: "9001" } });
+  if (a === "debug_token") return ok({ data: { app_id: "1", type: "SYSTEM_USER", application: "PMOS", expires_at: 0, data_access_expires_at: 0, is_valid: true, scopes: ["ads_management", "ads_read", "business_management"], granular_scopes: [{ scope: "whatsapp_business_management", target_ids: ["400003"] }], user_id: "9001" } });
   if (a === "me" && b === "businesses") return list(all("business").map((x) => project(x, fields)));
   if (a === "me" && b === "adaccounts") return list(all("account").filter((x) => x.id !== "act_100000000000003").map((x) => project(x, fields)));
   if (a === "me" && b === "accounts") return list(all("page").map((p) => ({ id: p.id, name: p.name, access_token: p.access_token })));
