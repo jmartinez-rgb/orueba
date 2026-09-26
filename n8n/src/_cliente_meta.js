@@ -10,9 +10,11 @@ const version = $vars.META_API_VERSION;
 if (!token)   throw new Error('Falta la variable META_ACCESS_TOKEN en n8n.');
 if (!version) throw new Error('Falta META_API_VERSION en n8n. No hay versión por defecto: fíjala explícitamente.');
 const base = `https://graph.facebook.com/${version}/`;
-/* Versión mínima vigente de la API (v23 se retiró el 9-jun-2026). Se informa al sitio. */
+/* Versión de la API: la vigente (v26.0) y la mínima que Meta todavía acepta (v23 se retiró el
+   9-jun-2026). Ambas se informan al sitio. */
 const VERSION_API_NUM = Number(String(version).replace(/^v/i, '')) || 0;
 const VERSION_API_MINIMA = 24;
+const VERSION_API_VIGENTE = 26;
 const http = (this && this.helpers && this.helpers.httpRequest)
   ? this.helpers.httpRequest.bind(this) : null;
 if (!http) throw new Error('Este Code node necesita this.helpers.httpRequest.');
@@ -71,7 +73,7 @@ const TRADUCCIONES = {
   '200:':        'El token no tiene permiso sobre este activo. Revisa en Business Manager que el system user tenga acceso.',
   '10:':         'El token no tiene el permiso necesario para esta acción.',
   '368:':        'La cuenta o la página tienen una restricción activa de Meta.',
-  '2635:':       'La versión de la API está vencida. Actualiza META_API_VERSION en n8n (recomendado: v25.0 o posterior).',
+  '2635:':       'La versión de la API está vencida. Actualiza META_API_VERSION en n8n a v26.0 (la vigente).',
 };
 function explicar(e){
   if (!e) return 'Error desconocido.';
@@ -436,7 +438,7 @@ function resolverCuenta(crudas, cuentaId, clientKey){
 /* Offset de moneda en UN solo lugar. Verificar cada moneda nueva contra
    la referencia de Ad Account Currency antes de operar con ella. */
 const OFFSET_1 = ['JPY','KRW','CLP','VND','COP','ISK','HUF','TWD','PYG','UGX',
-                  'RWF','XAF','XOF','XPF','BIF','DJF','GNF','KMF','MGA','VUV'];
+                  'RWF','XAF','XOF','XPF','BIF','DJF','GNF','KMF','MGA','VUV','CRC','IDR'];
 function offsetMoneda(m){ return OFFSET_1.indexOf(String(m||'').toUpperCase()) >= 0 ? 1 : 100; }
 function aMenor(v, moneda){ const n = Number(v); if (!n) return null; return Math.round(n * offsetMoneda(moneda)); }
 function aMayor(v, moneda){ return Number(v || 0) / offsetMoneda(moneda); }

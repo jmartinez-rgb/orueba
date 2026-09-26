@@ -33,7 +33,7 @@ const MEJORAS = [["META","Las que Meta aplica por defecto","Meta puede ajustar b
 const PASOS = [{t:"Cuenta"},{t:"Campañas"},{t:"Conjuntos"},{t:"Creativos"},{t:"Anuncios"},{t:"Revisar y enviar"}];
 /* Límite conservador: el envío pasa por el proxy de Netlify antes de llegar a n8n. */
 const LIMITE_ENVIO_MB = 5;
-const SITIO_VERSION_ESPERADA = "5.6.0";
+const SITIO_VERSION_ESPERADA = "5.7.0";
 const RATIO_ESPERADO = { archivo:[1, 0.8], archivoStories:[0.5625], archivoColumna:[1.91] };
 
 /* --------------------------------------------------------------- estado */

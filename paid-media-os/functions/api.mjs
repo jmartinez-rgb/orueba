@@ -5171,15 +5171,19 @@ async function ensureAccountAccess(ctx, accountId) {
   if (allowed.length && !allowed.includes(id)) throw new ApiError(403, "No tienes acceso a esta cuenta publicitaria.", "account_forbidden");
   return id;
 }
-async function ownerAccounts(g, ids) {
+async function entityInfo(g, ids, fields = "account_id") {
   const list2 = [...new Set(ids.map(String).filter((x) => /^\d+$/.test(x)))];
   const out = {};
   if (!list2.length) return out;
-  const res = await g.batch(list2.map((id) => ({ method: "GET", relative_url: `${id}?fields=account_id` })));
+  const res = await g.batch(list2.map((id) => ({ method: "GET", relative_url: `${id}?fields=${encodeURIComponent(fields)}` })));
   res.forEach((r, i) => {
-    if (r.ok && r.body?.account_id) out[list2[i]] = "act_" + String(r.body.account_id).replace(/^act_/, "");
+    if (r.ok && r.body) out[list2[i]] = { ...r.body, account: r.body.account_id ? "act_" + String(r.body.account_id).replace(/^act_/, "") : void 0 };
   });
   return out;
+}
+async function ownerAccounts(g, ids) {
+  const info = await entityInfo(g, ids);
+  return Object.fromEntries(Object.entries(info).filter(([, x]) => x.account).map(([id, x]) => [id, x.account]));
 }
 async function allowedAccounts(ctx) {
   const u = await getUser(ctx.user.email);
@@ -7376,14 +7380,44 @@ function registerAdmin(r) {
     const u = ctx.user;
     const body = await ctx.json();
     const accion = String(body.accion || "");
-    const escritura = ["publicar", "subir", "gestor", "formularios", "lote_accion"].includes(accion) || accion === "buscar" && ["lote_accion"].includes(body.tipo);
+    /* Tipos de "buscar" que escriben en Meta: acciones sobre un lote y el diagn\xF3stico de referencia
+       (crea copias de prueba y las elimina). */
+    const escritura = ["publicar", "subir", "gestor", "formularios", "lote_accion"].includes(accion) || accion === "buscar" && ["lote_accion", "diagnostico_referencia"].includes(body.tipo);
     if (escritura && !u.permissions.includes("plan")) throw new ApiError(403, "Tu rol no puede publicar planes masivos.");
     if (accion === "gestor" && body.op === "aplicar" && !u.permissions.includes("publish")) throw new ApiError(403, "Tu rol no puede aplicar cambios.");
+    if (accion === "buscar" && body.tipo === "lote_accion") {
+      const la = String(body.accion_lote || "").toUpperCase();
+      if (la === "ACTIVE" && !u.permissions.includes("publish")) throw new ApiError(403, "Tu rol puede crear en pausa, pero no activar. Pide a un coordinador que active el lote.");
+      if (la === "DELETED" && !u.permissions.includes("delete")) throw new ApiError(403, "Tu rol no puede eliminar.");
+    }
+    /* Descargar leads (datos personales) exige el mismo permiso que en Formularios y leads. */
+    if (accion === "formularios" && body.op === "leads" && !u.permissions.includes("audiences")) throw new ApiError(403, "Tu rol no puede descargar leads.");
     delete body.clave;
     const allowedM = await allowedAccounts(ctx);
+    if (allowedM && accion === "formularios" && body.page_id) await ensurePageAccess(ctx, body.page_id);
+    const cambiosG = accion === "gestor" && body.op === "aplicar" && Array.isArray(body.cambios) ? body.cambios.slice(0, 500) : [];
     if (allowedM) {
-      const pedidas = [body.cuenta_id, ...String(body.cuentas || "").split(",")].map((x) => String(x || "").trim()).filter(Boolean);
-      for (const c of pedidas) await ensureAccountAccess(ctx, c);
+      const pedidas = [body.cuenta_id, body.origen_cuenta_id, ...String(body.cuentas || "").split(","), ...cambiosG.map((c) => c?.cuenta)].map((x) => String(x || "").trim()).filter(Boolean);
+      for (const c of new Set(pedidas)) await ensureAccountAccess(ctx, c);
+    }
+    if (cambiosG.length) {
+      /* El gestor multicuenta aplica en Meta con el token del motor: aqu\xED se exigen las mismas reglas que en el
+         editor (cada objeto es de la cuenta indicada y una subida de presupuesto > 50 % necesita a un director),
+         con los valores actuales le\xEDdos de Meta, no los que manda el navegador. */
+      const g = await graph();
+      const info = await entityInfo(g, cambiosG.map((c) => c?.id), "account_id,daily_budget,lifetime_budget");
+      const monedas = new Map((await adAccounts(g)).value.map((a) => [a.id, a.currency]));
+      for (const c of cambiosG) {
+        const x = info[String(c?.id)];
+        if (!x) continue;
+        if (x.account && x.account !== actId(c.cuenta || "")) throw new ApiError(400, `"${c.nombre || c.id}" pertenece a la cuenta ${x.account}, no a ${actId(c.cuenta || "")}. Vuelve a cargar el gestor.`, "account_mismatch");
+        if (u.permissions.includes("publish_budget_increase")) continue;
+        const cur = monedas.get(x.account) || "MXN";
+        for (const k of ["daily_budget", "lifetime_budget"]) {
+          const nuevo = Number(c.campos?.[k]), antes = toMajor(x[k], cur) || 0;
+          if (nuevo > 0 && antes > 0 && (nuevo - antes) / antes * 100 > 50) throw new ApiError(403, `Subir el presupuesto de "${c.nombre || c.id}" un ${Math.round((nuevo - antes) / antes * 100)} % requiere aprobaci\xF3n de un director.`, "budget_increase");
+        }
+      }
     }
     const res = await fetch(env.motorUrl, {
       method: "POST",
@@ -7394,14 +7428,14 @@ function registerAdmin(r) {
       throw new ApiError(504, "El motor (n8n) no respondi\xF3: " + e.message, "motor_timeout");
     });
     let text = await res.text();
-    if (allowedM && accion === "cuentas" && res.ok) {
+    if (allowedM && res.ok && (accion === "cuentas" || accion === "historial")) {
       const d = safeJson(text);
-      if (d && Array.isArray(d.cuentas)) {
-        d.cuentas = d.cuentas.filter((c) => allowedM.includes(actId(c.cuenta || c.id || c.account_id || "")));
-        text = JSON.stringify(d);
-      }
+      if (d && Array.isArray(d.cuentas)) d.cuentas = d.cuentas.filter((c) => allowedM.includes(actId(c.cuenta || c.id || c.account_id || "")));
+      if (d && Array.isArray(d.corridas)) d.corridas = d.corridas.filter((c) => c.cuenta && allowedM.includes(actId(c.cuenta)));
+      if (d) text = JSON.stringify(d);
     }
-    if (escritura || accion === "publicar") await audit({ user: u.email, action: "plan." + accion + (body.op ? "." + body.op : ""), result: res.ok ? "ok" : "error", level: "plan", accountId: body.cuenta_id ? "act_" + String(body.cuenta_id).replace(/^act_/, "") : void 0, meta: { status: res.status, run: safeJson(text)?.run_id } });
+    if (accion === "formularios" && body.op === "leads") await audit({ user: u.email, action: "leads.download", result: res.ok ? "ok" : "error", entityId: String(body.form_id || ""), level: "meta", meta: { pageId: body.page_id, via: "motor", filas: safeJson(text)?.filas?.length } });
+    else if (escritura || accion === "publicar") await audit({ user: u.email, action: "plan." + accion + (body.op ? "." + body.op : "") + (accion === "buscar" && body.tipo ? "." + body.tipo + (body.accion_lote ? "." + String(body.accion_lote).toLowerCase() : "") : ""), result: res.ok ? "ok" : "error", level: "plan", accountId: body.cuenta_id ? "act_" + String(body.cuenta_id).replace(/^act_/, "") : void 0, meta: { status: res.status, run: safeJson(text)?.run_id } });
     return new Response(text, { status: res.status, headers: { "Content-Type": res.headers.get("content-type") || "application/json", "Cache-Control": "no-store" } });
   });
   void json;

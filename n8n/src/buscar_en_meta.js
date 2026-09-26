@@ -57,6 +57,18 @@ async function wabasAccesibles(acc, diag){
     diag.permisos = otorgados;
     diag.faltaPermisoWA = otorgados.length > 0 && otorgados.indexOf('whatsapp_business_management') < 0;
   } catch (e) { /* algunos tokens no exponen /me/permissions; no es bloqueante */ }
+  /* 5.7 · Además de los Business: las WABA asignadas directamente al token (debug_token → granular_scopes)
+     y las que se fijen a mano en la variable opcional META_WABA_IDS de n8n (IDs separados por coma).
+     Una WABA de cliente compartida solo con el system user no aparece en ningún Business del token. */
+  const directas = {};
+  try {
+    const dbg = await gGet(base + 'debug_token?input_token=' + encodeURIComponent(token));
+    ((dbg.data || {}).granular_scopes || []).forEach(gs => {
+      if (/^whatsapp_business_(management|messaging)$/.test(gs.scope)) (gs.target_ids || []).forEach(id => { directas[String(id)] = 'asignada al token'; });
+      if (gs.scope === 'business_management') (gs.target_ids || []).forEach(id => { if (!negocios[id]) negocios[id] = 'portafolio ' + id; });
+    });
+  } catch (e) { /* sin debug_token no es bloqueante */ }
+  String(($vars && $vars.META_WABA_IDS) || '').split(/[\s,;]+/).filter(x => /^\d{6,}$/.test(x)).forEach(id => { if (!directas[id]) directas[id] = 'META_WABA_IDS'; });
   for (const bid of Object.keys(negocios)) {
     diag.negocios.push(negocios[bid]);
     for (const edge of ['owned_whatsapp_business_accounts', 'client_whatsapp_business_accounts']) {
@@ -64,6 +76,10 @@ async function wabasAccesibles(acc, diag){
         (await paginar(base + bid + '/' + edge + '?fields=id,name&limit=50', 100)).forEach(w => { wabas[w.id] = w.name || w.id; });
       } catch (e) { diag.erroresWaba.push(negocios[bid] + ' (' + (edge.indexOf('owned') === 0 ? 'propias' : 'de clientes') + '): ' + explicar(e)); }
     }
+  }
+  for (const id of Object.keys(directas).filter(x => !wabas[x]).slice(0, 20)) {
+    try { const w = await gGet(base + id + '?fields=id,name'); wabas[id] = w.name || id; }
+    catch (e) { diag.erroresWaba.push('WABA ' + id + ' (' + directas[id] + '): ' + explicar(e)); }
   }
   diag.wabas = Object.keys(wabas).length;
   diag.nombresWaba = Object.keys(wabas).map(k => wabas[k]);
@@ -574,8 +590,8 @@ try {
     const add = (grupo, punto, estado, detalle, como) => pasos.push({ grupo, punto, estado, detalle, como: como || '' });
     const acc = await actDe();
     const pageId = String(b.page_id || '');
-    if (VERSION_API_NUM < VERSION_API_MINIMA) add('API', 'Versión de la API', 'falla', 'META_API_VERSION es ' + version + ' y Meta ya la retiró.', 'En n8n cambia la variable META_API_VERSION a v25.0.');
-    else if (VERSION_API_NUM < 25) add('API', 'Versión de la API', 'revisar', 'META_API_VERSION es ' + version + ': vigente, pero es la más antigua que Meta acepta.', 'Cambia a v25.0 en n8n cuando puedas; el motor ya está probado con v25 y v26.');
+    if (VERSION_API_NUM < VERSION_API_MINIMA) add('API', 'Versión de la API', 'falla', 'META_API_VERSION es ' + version + ' y Meta ya la retiró.', 'En n8n cambia la variable META_API_VERSION a v' + VERSION_API_VIGENTE + '.0.');
+    else if (VERSION_API_NUM < VERSION_API_VIGENTE) add('API', 'Versión de la API', 'revisar', 'META_API_VERSION es ' + version + ': Meta la acepta, pero la vigente es v' + VERSION_API_VIGENTE + '.0.', 'Cambia META_API_VERSION a v' + VERSION_API_VIGENTE + '.0 en n8n (y en Netlify): el motor ya envía lo que v26 exige.');
     else add('API', 'Versión de la API', 'ok', 'META_API_VERSION es ' + version + '.');
 
     const NECESARIOS = { ads_management: 'crear y editar anuncios', ads_read: 'leer resultados', business_management: 'leer páginas y activos del Business',
@@ -586,7 +602,26 @@ try {
       gGet(base + 'me/permissions?limit=200').then(r => ({ permisos: r.data || [] }), e => ({ permisos: null, ePerm: e })),
       gGet(base + 'debug_token?input_token=' + encodeURIComponent(token)).then(r => ({ dbg: r.data || null }), () => ({ dbg: null })),
       gGet(base + acc + '?fields=name,account_status,disable_reason,currency,timezone_name,amount_spent,spend_cap').then(r => ({ cuenta: r }), e => ({ eCuenta: e })),
-      gGet(base + acc + '/adspixels?fields=id,name,last_fired_time&limit=10').then(r => ({ pixeles: r.data || [] }), () => ({ pixeles: null })),
+      gGet(base + acc + '/adspixels?fields=id,name,last_fired_time&limit=10').then(async r => {
+        /* last_fired_time solo cuenta el píxel del navegador: un conjunto de datos que recibe solo
+           Conversions API (WhatsApp, CRM, offline) lo trae vacío. Se completa con /stats de 7 días. */
+        const pixeles = (r.data || []).slice(0, 3);
+        await Promise.all(pixeles.map(async x => {
+          const t = x.last_fired_time ? Date.parse(x.last_fired_time) : 0;
+          if (t && Date.now() - t < 86400000) return;
+          try {
+            const st = await gGet(base + x.id + '/stats?aggregation=event&start_time=' + (Math.floor(Date.now() / 1000) - 7 * 86400));
+            let ultimo = 0, total = 0;
+            (st.data || []).forEach(bk => { const n = (bk.data || []).reduce((s_, y) => s_ + (Number(y.count) || 0), 0); total += n;
+              const tb = Date.parse(bk.start_time); if (n > 0 && tb > ultimo) ultimo = tb; });
+            x.eventos7d = total;
+            if (ultimo > t) { x.ultimo_evento = new Date(ultimo).toISOString(); x.soloServidor = !t; }
+          } catch (e) { x.errorStats = explicar(e); }
+        }));
+        return { pixeles };
+      }, () => ({ pixeles: null })),
+      gGet(base + acc + '/adsets?fields=destination_type,promoted_object&limit=200&filtering=' + encodeURIComponent(JSON.stringify([{ field: 'effective_status', operator: 'IN', value: ['ACTIVE', 'PAUSED', 'CAMPAIGN_PAUSED', 'ADSET_PAUSED'] }])))
+        .then(r => ({ conjuntosWA: (r.data || []).filter(a => /WHATSAPP/.test(String(a.destination_type || '').toUpperCase())) }), () => ({ conjuntosWA: null })),
     ];
     if (pageId) {
       tareas.push(gGet(base + pageId + '?fields=name,instagram_business_account{id,username}').then(r => ({ pagina: r }), e => ({ ePagina: e })));
@@ -643,9 +678,15 @@ try {
           res.tos === true ? '' : 'Un administrador de la página debe aceptarlas en https://www.facebook.com/ads/leadgen/tos');
         /* Meta no siempre expone el número vinculado en la página: si no aparece, se pide revisar (no se bloquea).
            La prueba definitiva la hace el motor con validate_only antes de crear cada conjunto. */
-        add('WhatsApp', 'Número vinculado a la página', res.wa ? 'ok' : 'revisar',
-          res.wa ? 'La página tiene vinculado el número ' + res.wa + '.' : res.wa === '' ? 'Meta no reporta un número de WhatsApp vinculado a la página. Si publicas a WhatsApp y no está vinculado, Meta rechaza el conjunto (error 2446886).' : 'No pude leer el número de WhatsApp de la página; el motor lo verifica con Meta antes de crear cada conjunto.',
-          res.wa ? 'Si usas otro número en el plan, también debe estar vinculado a esta página.' : 'Vincula el número de WhatsApp Business en la configuración de la página (Cuentas vinculadas → WhatsApp).');
+        /* whatsapp_number de la página suele venir vacío con números de la API en la nube o de un proveedor
+           aunque los anuncios funcionen: se confirma con los conjuntos de la cuenta que ya van a WhatsApp. */
+        const enUso = (res.conjuntosWA || []).filter(a => String((a.promoted_object || {}).page_id || '') === pageId);
+        const numsUso = [...new Set(enUso.map(a => (a.promoted_object || {}).whatsapp_phone_number).filter(Boolean))];
+        add('WhatsApp', 'Número vinculado a la página', res.wa || enUso.length ? 'ok' : 'revisar',
+          res.wa ? 'La página tiene vinculado el número ' + res.wa + '.'
+            : enUso.length ? 'Meta no expone el número en la página, pero ' + enUso.length + ' conjunto(s) de la cuenta ya anuncian a WhatsApp con ella' + (numsUso.length ? ' (' + numsUso.slice(0, 3).join(', ') + ')' : '') + ': el vínculo funciona.'
+            : res.wa === '' ? 'Meta no reporta un número de WhatsApp vinculado a la página y la cuenta no tiene conjuntos de WhatsApp con ella. Si publicas a WhatsApp y no está vinculado, Meta rechaza el conjunto (error 2446886).' : 'No pude leer el número de WhatsApp de la página; el motor lo verifica con Meta antes de crear cada conjunto.',
+          res.wa ? 'Si usas otro número en el plan, también debe estar vinculado a esta página.' : enUso.length ? '' : 'Vincula el número de WhatsApp Business en la configuración de la página (Cuentas vinculadas → WhatsApp).');
       }
     }
 
@@ -653,9 +694,13 @@ try {
     if (res.pixeles) {
       if (!res.pixeles.length) add('Medición', 'Píxel', 'revisar', 'La cuenta no tiene píxel: no se puede optimizar por conversiones del sitio web.', 'Crea o comparte un conjunto de datos (píxel) con la cuenta en el Administrador de eventos.');
       else res.pixeles.slice(0, 3).forEach(x => {
-        const dias = x.last_fired_time ? Math.floor((Date.now() - Date.parse(x.last_fired_time)) / 86400000) : null;
+        const ultimo = x.ultimo_evento || x.last_fired_time;
+        const dias = ultimo ? Math.floor((Date.now() - Date.parse(ultimo)) / 86400000) : null;
+        const vol = x.eventos7d ? ' ' + Number(x.eventos7d).toLocaleString('es-MX') + ' eventos en 7 días.' : '';
         add('Medición', 'Píxel "' + x.name + '"', dias == null ? 'revisar' : dias > 7 ? 'revisar' : 'ok',
-          dias == null ? 'No registra eventos.' : 'Último evento hace ' + dias + (dias === 1 ? ' día.' : ' días.'),
+          dias == null ? (x.errorStats ? 'Meta no informa disparos del navegador y no pude leer sus estadísticas (' + x.errorStats + ').' : 'Sin eventos en los últimos 7 días, ni del navegador ni del servidor.')
+            : (dias < 1 ? 'Último evento hace menos de un día.' : 'Último evento hace ' + dias + (dias === 1 ? ' día.' : ' días.')) + vol
+              + (x.soloServidor ? ' Recibe eventos solo por servidor (Conversions API).' : ''),
           dias == null || dias > 7 ? 'Revisa la instalación en el Administrador de eventos antes de optimizar o medir con él.' : '');
       });
     }
@@ -665,7 +710,7 @@ try {
     return [{ json: { pasos: pasos.sort((x, y) => orden[x.estado] - orden[y.estado]), revisado: new Date().toISOString(), cuenta: acc.replace('act_', '') } }];
 
   } else if (tipo === 'version') {
-    return [{ json: { motor_version: '5.6.0', api_version: version, api_minima: 'v' + VERSION_API_MINIMA } }];
+    return [{ json: { motor_version: '5.7.0', api_version: version, api_minima: 'v' + VERSION_API_MINIMA + '.0', api_recomendada: 'v' + VERSION_API_VIGENTE + '.0' } }];
 
   } else if (tipo === 'preview') {
     /* Previsualización real con /generatepreviews: Meta renderiza el anuncio en cada
@@ -786,7 +831,9 @@ try {
        sobre objetos que llevan la etiqueta de ESTE lote. Orden: al activar, de arriba
        hacia abajo; al pausar o eliminar, de abajo hacia arriba. */
     const acc = await actDe();
-    const accion = String(b.accion || '').toUpperCase();
+    /* La acción viaja en accion_lote: "accion" es la ruta del webhook ("buscar"). Hasta 5.6 el sitio
+       mandaba la acción del lote en "accion" y la sobrescribía, así que n8n respondía "Acción no reconocida". */
+    const accion = String(b.accion_lote || (b.accion !== 'buscar' ? b.accion : '') || '').toUpperCase();
     if (['ACTIVE', 'PAUSED', 'DELETED'].indexOf(accion) < 0) throw new Error('Acción no válida.');
     const nombreEt = 'mbe_' + String(b.lote_id || '').replace(/[^a-zA-Z0-9_]/g, '');
     const et = (await paginar(base + acc + '/adlabels?fields=id,name&limit=500', 2000)).find(x => x.name === nombreEt);

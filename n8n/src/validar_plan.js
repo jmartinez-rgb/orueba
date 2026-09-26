@@ -162,7 +162,7 @@ for (const a of adsets) {
     if (!sa.targeting) problemas.push('La audiencia guardada "' + (sa.name || a.saved_audience_id) + '" no trae segmentación legible.');
   } catch (e) {
     segGuardada[a.saved_audience_id] = null;
-    problemas.push('No pude leer la audiencia guardada del conjunto "' + a.name + '": ' + e.message);
+    problemas.push('No pude leer la audiencia guardada del conjunto "' + a.name + '": ' + explicar(e));
   }
 }
 
@@ -235,7 +235,11 @@ if (cuenta) {
   } else if (!pageId) {
     problemas.push('No hay página de Facebook seleccionada y no encontré ninguna accesible con este token.');
   } else if (disponibles.length && disponibles.indexOf(pageId) < 0) {
-    problemas.push('La página elegida ya no está accesible con este token.');
+    /* Cada lista trae como máximo 100 páginas: una agencia con más páginas no las ve todas.
+       Antes de bloquear se lee la página directamente; si el token la ve, decide Meta al crear. */
+    let visible = false;
+    try { const pg = await gGet(base + pageId + '?fields=id,name'); visible = !!(pg && pg.id); } catch (e) {}
+    if (!visible) problemas.push('La página elegida ya no está accesible con este token.');
   }
 }
 
@@ -315,7 +319,7 @@ adsets.forEach(a => {
     else if (obj && permit.indexOf(meta) < 0) problemas.push(et + ' va a WhatsApp y optimiza por "' + nm(meta) + '", que Meta no admite con el objetivo ' + no(obj)
       + (meta === 'MESSAGING_PURCHASE_CONVERSION' ? '. Con WhatsApp, las compras por mensajes se crean con objetivo Interacción.' : '.'));
     if (meta === 'MESSAGING_PURCHASE_CONVERSION' && !a.whatsapp_phone_number) problemas.push(et + ' optimiza por compras en WhatsApp y no tiene número de WhatsApp seleccionado.');
-    if (meta === 'OFFSITE_CONVERSIONS' && !a.pixel_id) problemas.push(et + ' va a WhatsApp y optimiza por conversiones del sitio web, pero la cuenta no tiene píxel.');
+    if (meta === 'OFFSITE_CONVERSIONS' && !a.pixel_id && !a.messaging_dataset_id) problemas.push(et + ' va a WhatsApp y optimiza por conversiones, pero no tiene conjunto de datos: elige el de WhatsApp (CAPI) en la campaña.');
     if (a.whatsapp_phone_number && !/^\+?\d{10,15}$/.test(String(a.whatsapp_phone_number).replace(/[\s\-().]/g, ''))) {
       problemas.push(et + ': el número de WhatsApp "' + a.whatsapp_phone_number + '" no tiene un formato válido. Escríbelo con código de país, por ejemplo +52 81 1454 0207.');
     }
@@ -519,7 +523,7 @@ return [{ json: {
   run_id: runId,
   client_key: b.client_key || '',
   cuenta_id: cuenta ? cuenta.act.replace('act_','') : String(b.cuenta_id || ''),
-  operador: String(b.operador || ''),
+  operador: String(b.usuario || b.operador || ''),
   campana: b.campana || (nombresExistentes.length ? nombresExistentes.join(' + ') : ''),
   campaign_id: usaExistente ? String(idsExistentes[0]) : '',
   campaign_ids: idsExistentes,

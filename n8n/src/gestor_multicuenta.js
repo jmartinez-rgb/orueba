@@ -54,7 +54,7 @@ try {
         const met = {};
         try {
           const ins = await paginarHasta(base + act + '/insights?level=' + nivel + '&date_preset=' + periodo
-            + '&fields=' + nivel + '_id,spend,impressions,clicks,actions&limit=500', 3000, 21000);
+            + '&use_unified_attribution_setting=true&fields=' + nivel + '_id,spend,impressions,clicks,actions&limit=500', 3000, 21000);
           ins.forEach(x => { met[String(x[nivel + '_id'])] = x; });
         } catch (e) { errores.push((info.name || act) + ': sin métricas (' + explicar(e) + ').'); }
         resumen.push({ id: act.replace('act_', ''), nombre: info.name || act, moneda: mon, tz: info.timezone_name || '', minimo: aMayor(info.min_daily_budget, mon), objetos: objs.length });
@@ -92,11 +92,15 @@ try {
     const resultados = [], bitacora = [];
     const corrida = 'cambio_' + new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
     const valido = [];
+    let duenos = {};
+    try { duenos = await porIds(cambios.map(c => String(c.id)), 'account_id'); } catch (e) { duenos = {}; }
     cambios.forEach(c => {
       const cid = String(c.cuenta || '').replace(/^act_/, '');
       const inf = infoCuenta[cid] || {};
       const r = { id: String(c.id), ok: false, error: '' };
       if (!inf.currency) { r.error = inf.error || 'No pude leer la cuenta ' + cid + '.'; resultados.push(r); return; }
+      const dueno = String((duenos[String(c.id)] || {}).account_id || '').replace(/^act_/, '');
+      if (dueno && dueno !== cid) { r.error = 'El objeto pertenece a la cuenta ' + dueno + ', no a ' + cid + '. Vuelve a cargar el gestor.'; resultados.push(r); return; }
       const campos = c.campos || {}, cuerpo = [];
       if (campos.status) {
         if (['ACTIVE', 'PAUSED'].indexOf(campos.status) < 0) { r.error = 'Estado no válido.'; resultados.push(r); return; }
@@ -148,7 +152,7 @@ try {
         bitacora.push({ run_id: corrida, publicado_en: ahora, client_key: 'gestor', cuenta: act_(c.cuenta), campana: String(c.nombre || antes.nombre || ''),
           campaign_id: c.nivel === 'campaign' ? String(c.id) : '', adset_id: c.nivel === 'adset' ? String(c.id) : '', ad_id: c.nivel === 'ad' ? String(c.id) : '', creative_id: '',
           anuncio: 'CAMBIO · ' + nombreCampo + ': ' + (previo == null || previo === '' ? '—' : previo) + ' → ' + c.campos[k],
-          estado: r.ok ? 'APLICADO' : 'ERROR', error: r.error || '', operador: String(b.operador || '') });
+          estado: r.ok ? 'APLICADO' : 'ERROR', error: r.error || '', operador: String(b.usuario || b.operador || '') });
       });
     });
     const aplicados = resultados.filter(x => x.ok).length;

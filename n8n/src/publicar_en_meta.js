@@ -736,8 +736,10 @@ async function crearConjunto(a){
       } else if (comprasMensajes) {
         candidatas.push(Object.assign({}, b0, { custom_event_type: 'PURCHASE' }));
         candidatas.push(Object.assign({}, b0));
-      } else if (conversionesWeb && a.pixel_id) {
-        candidatas.push(Object.assign({}, b0, { pixel_id: String(a.pixel_id), custom_event_type: String(a.custom_event_type || 'PURCHASE').toUpperCase() }));
+      } else if (conversionesWeb && (a.messaging_dataset_id || a.pixel_id)) {
+        /* Click to WhatsApp con conversiones: el conjunto de datos de la WABA (CAPI de mensajería) va primero;
+           pixel_id es el píxel web de la cuenta y solo sirve si no hay dataset de WhatsApp. */
+        candidatas.push(Object.assign({}, b0, { pixel_id: String(a.messaging_dataset_id || a.pixel_id), custom_event_type: String(a.custom_event_type || 'PURCHASE').toUpperCase() }));
       } else candidatas.push(b0);
     });
     const esDelNumero = e => /whats ?app|phone|n[uú]mero|promoted[_ ]object|objeto promocionado/i.test(String(e.message || '') + ' ' + String(e.titulo || ''))
@@ -1271,11 +1273,14 @@ function armarCreativos(ad){
     if (tipo === 'VIDEO') {
       const ctaV = aWhatsApp ? { type: 'WHATSAPP_MESSAGE', value: { app_destination: 'WHATSAPP', link: 'https://api.whatsapp.com/send' } }
         : aFormulario ? { type: cta.type, value: { lead_gen_form_id: formId, link: LINK_FORM } } : cta;
-      spec.video_data = { video_id: s.video, message: textos[0] || '', title: titulos[0] || '', link_description: descripcion, call_to_action: ctaV };
+      spec.video_data = { video_id: s.video, message: textos[0] || '', title: titulos[0] || '', link_description: descripcion };
+      /* Sin botón (anuncio importado o editado sin CTA) no se envía call_to_action: Meta rechaza null. */
+      if (ctaV) spec.video_data.call_to_action = ctaV;
       if (bienvenida) spec.video_data.page_welcome_message = JSON.stringify(bienvenida);
       if (s.thumb) spec.video_data.image_url = s.thumb;
     } else {
-      spec.link_data = { image_hash: s.hash, link: enlace, message: textos[0] || '', name: titulos[0] || '', description: descripcion, call_to_action: cta };
+      spec.link_data = { image_hash: s.hash, link: enlace, message: textos[0] || '', name: titulos[0] || '', description: descripcion };
+      if (cta) spec.link_data.call_to_action = cta;
       if (bienvenida) spec.link_data.page_welcome_message = JSON.stringify(bienvenida);
       if (ad.display_link && !aFormulario) spec.link_data.caption = ad.display_link;
     }

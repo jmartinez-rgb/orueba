@@ -18,5 +18,6 @@ return [{ json: {
   errores: 0,
   mensaje: 'Validando el plan…',
   detalle: 'fase:validacion',
-  operador: String(b.operador || ''),
+  /* Quién publica: el correo de la sesión que agrega la plataforma (el sitio no manda operador). */
+  operador: String(b.usuario || b.operador || ''),
 } }];

@@ -379,8 +379,11 @@ let pasoPintado = -1;
 function avisoMotorHTML(){
   if (!S.cuentas.length) return "";
   /* La versión de la API de Meta la fija META_API_VERSION en n8n (5.3). */
+  const numApi = v => Number(String(v || "").replace(/^v/i, "")) || 0;
   if (S.motorVersion === SITIO_VERSION) return S.apiVigente === false ? `<div class="note warn" style="margin-bottom:18px"><strong>La versión de la API de Meta configurada en n8n (${esc(S.apiVersion)}) ya no está vigente.</strong>
-    Meta la retiró y responderá con error. En n8n cambia la variable <code>META_API_VERSION</code> a <code>v25.0</code> (o posterior; mínimo ${esc(S.apiMinima || "v24.0")}) y recarga esta página.</div>` : "";
+    Meta la retiró y responderá con error. En n8n cambia la variable <code>META_API_VERSION</code> a <code>${esc(S.apiRecomendada || "v26.0")}</code> (mínimo ${esc(S.apiMinima || "v24.0")}) y recarga esta página.</div>`
+    : S.apiRecomendada && numApi(S.apiVersion) < numApi(S.apiRecomendada) ? `<div class="note" style="margin-bottom:18px">La API de Meta configurada en n8n es <code>${esc(S.apiVersion)}</code>; la vigente es <code>${esc(S.apiRecomendada)}</code>.
+    Funciona, pero conviene cambiar <code>META_API_VERSION</code> en n8n (y en Netlify) a <code>${esc(S.apiRecomendada)}</code>.</div>` : "";
   return `<div class="note stop" style="margin-bottom:18px"><strong>El motor de n8n no es la versión de este sitio</strong> (motor: ${esc(S.motorVersion || "anterior a " + SITIO_VERSION)}; sitio: ${SITIO_VERSION}).
     El envío está bloqueado para evitar errores confusos. En n8n: <strong>1)</strong> abre el workflow que importaste más recientemente y <strong>actívalo</strong>; <strong>2)</strong> desactiva (o borra) el workflow anterior, que sigue ocupando la misma URL del webhook; <strong>3)</strong> recarga esta página.</div>`;
 }
@@ -488,13 +491,13 @@ function vArranque(){
 /* El sitio y el motor de n8n deben ser de la misma versión. Al importar un JSON en
    n8n se crea un workflow NUEVO y el anterior puede seguir activo en la misma URL;
    esta verificación lo hace visible en lugar de fallar de formas confusas. */
-const SITIO_VERSION = "5.6.0";
+const SITIO_VERSION = "5.7.0";
 async function arrancar(){
   S.cargando = true; S.fallo = ""; render();
   try {
     const r = await llamar("cuentas"); S.cuentas = r.cuentas || [];
     S.motorVersion = r.motor_version || "";
-    S.apiVersion = r.api_version || ""; S.apiVigente = r.api_vigente !== false; S.apiMinima = r.api_minima || "";
+    S.apiVersion = r.api_version || ""; S.apiVigente = r.api_vigente !== false; S.apiMinima = r.api_minima || ""; S.apiRecomendada = r.api_recomendada || "";
     if (!S.cuentas.length) throw new Error("El token no tiene acceso a ninguna cuenta publicitaria activa.");
   }
   catch(e){ S.fallo = e.message; }
@@ -1626,7 +1629,7 @@ function ligarLote(){
     if (!window.confirm(texto)) return;
     LOTE.trabajando = acc === "ACTIVE" ? "Activando…" : acc === "DELETED" ? "Eliminando…" : "Pausando…"; LOTE.hecho = ""; render();
     try {
-      const r = await llamar("buscar", Object.assign({ tipo:"lote_accion", lote_id:S.loteId, accion:acc,
+      const r = await llamar("buscar", Object.assign({ tipo:"lote_accion", lote_id:S.loteId, accion_lote:acc,
         ids:{ campanas:o.campanas.map(x => x.id), conjuntos:o.conjuntos.map(x => x.id), anuncios:o.anuncios.map(x => x.id) } }, ctx()));
       LOTE.hecho = r.ok + " objetos actualizados" + (r.fallos.length ? " · " + r.fallos.length + " fallaron: " + r.fallos.slice(0,3).join("; ") : "") + (r.omitidos ? " · " + r.omitidos + " omitidos por no llevar la etiqueta del lote" : "") + ".";
     } catch(e){ LOTE.hecho = "Error: " + e.message; }

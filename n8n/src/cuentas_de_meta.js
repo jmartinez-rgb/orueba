@@ -23,4 +23,4 @@ const cuentas = asignarLlaves(crudas).map(a => {
 }).sort((x, y) => x.nombre.localeCompare(y.nombre, 'es'));
 
 /* Versión de la API configurada en n8n: el sitio avisa si ya no está vigente (5.3). */
-return [{ json: { cuentas, api_version: String(version), api_vigente: VERSION_API_NUM >= VERSION_API_MINIMA, api_minima: 'v' + VERSION_API_MINIMA + '.0' } }];
+return [{ json: { cuentas, api_version: String(version), api_vigente: VERSION_API_NUM >= VERSION_API_MINIMA, api_minima: 'v' + VERSION_API_MINIMA + '.0', api_recomendada: 'v' + VERSION_API_VIGENTE + '.0' } }];
