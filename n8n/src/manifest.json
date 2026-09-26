@@ -1,0 +1,97 @@
+[
+  {
+    "node": "Autenticar",
+    "file": "autenticar.js",
+    "cliente_meta": false
+  },
+  {
+    "node": "Cuentas de Meta",
+    "file": "cuentas_de_meta.js",
+    "cliente_meta": true
+  },
+  {
+    "node": "Armar cuentas",
+    "file": "armar_cuentas.js",
+    "cliente_meta": false
+  },
+  {
+    "node": "Buscar en Meta",
+    "file": "buscar_en_meta.js",
+    "cliente_meta": true
+  },
+  {
+    "node": "Fila de arranque",
+    "file": "fila_de_arranque.js",
+    "cliente_meta": false
+  },
+  {
+    "node": "Validar plan",
+    "file": "validar_plan.js",
+    "cliente_meta": true
+  },
+  {
+    "node": "Fila de rechazo",
+    "file": "fila_de_rechazo.js",
+    "cliente_meta": false
+  },
+  {
+    "node": "Publicar en Meta",
+    "file": "publicar_en_meta.js",
+    "cliente_meta": true
+  },
+  {
+    "node": "Fila de progreso",
+    "file": "fila_de_progreso.js",
+    "cliente_meta": false
+  },
+  {
+    "node": "Preparar cierre",
+    "file": "preparar_cierre.js",
+    "cliente_meta": false
+  },
+  {
+    "node": "Filas de bitácora",
+    "file": "filas_de_bitacora.js",
+    "cliente_meta": false
+  },
+  {
+    "node": "Cerrar corrida",
+    "file": "cerrar_corrida.js",
+    "cliente_meta": false
+  },
+  {
+    "node": "Estado de la corrida",
+    "file": "estado_de_la_corrida.js",
+    "cliente_meta": false
+  },
+  {
+    "node": "Subir a Meta",
+    "file": "subir_a_meta.js",
+    "cliente_meta": true
+  },
+  {
+    "node": "Formularios de Meta",
+    "file": "formularios_de_meta.js",
+    "cliente_meta": true
+  },
+  {
+    "node": "Prevalidar plan",
+    "file": "validar_plan.js",
+    "cliente_meta": true
+  },
+  {
+    "node": "Gestor multicuenta",
+    "file": "gestor_multicuenta.js",
+    "cliente_meta": true
+  },
+  {
+    "node": "Filas de cambios",
+    "file": "filas_de_cambios.js",
+    "cliente_meta": false
+  },
+  {
+    "node": "Historial",
+    "file": "historial.js",
+    "cliente_meta": false
+  }
+]
