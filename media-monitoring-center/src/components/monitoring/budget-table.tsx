@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
+import { sileo } from "sileo";
 import type { BudgetLevel } from "@/lib/types";
 import type { BudgetLine } from "@/lib/services/budget";
 import { fmtCurrency, fmtPercent } from "@/lib/format";
@@ -58,6 +59,7 @@ export function BudgetTable({ lines, month, canEdit }: { lines: BudgetLine[]; mo
       return;
     }
     setEditing(null);
+    sileo.success({ title: "Presupuesto de referencia guardado", description: "Solo cambia el seguimiento en la app, no la plataforma." });
     router.refresh();
   }
 
@@ -97,6 +99,11 @@ export function BudgetTable({ lines, month, canEdit }: { lines: BudgetLine[]; mo
                       {l.name}
                     </span>
                     {l.parentName && <span className="block text-[10px] text-muted-foreground">{l.parentName}</span>}
+                    <span className="mt-0.5 flex flex-wrap gap-1">
+                      {l.currency === "USD" && <span className="rounded bg-muted px-1 text-[10px] font-semibold text-muted-foreground">USD→MXN</span>}
+                      {l.budgetSource === "campaign_sum" && <span className="rounded bg-muted px-1 text-[10px] text-muted-foreground">suma de campañas</span>}
+                      {l.needsConfirmation && <span className="rounded bg-status-attention/15 px-1 text-[10px] font-semibold text-status-attention-text">confirmar nivel</span>}
+                    </span>
                   </span>
                 </span>
               </TableCell>
@@ -140,7 +147,7 @@ export function BudgetTable({ lines, month, canEdit }: { lines: BudgetLine[]; mo
           <DialogHeader>
             <DialogTitle>Presupuesto mensual</DialogTitle>
             <DialogDescription>
-              {editing?.name} · {month}. El cambio se guarda en el almacén de la app (BigQuery en producción).
+              {editing?.name} · {month}. Es un presupuesto de referencia para el seguimiento: se guarda en la app (BigQuery en producción) y no modifica nada en la plataforma.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1.5">

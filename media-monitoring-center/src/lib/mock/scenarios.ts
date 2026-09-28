@@ -47,10 +47,25 @@ export interface MockScenario {
   duplicates: Partial<Record<PlatformId, number>>;
 }
 
-const META_DROP_CAMPAIGNS = ["m-2001", "m-2002", "m-2003", "m-2004", "m-2005", "m-2008", "m-2009"];
+const META_DROP_CAMPAIGNS = ["m-2001", "m-2002", "m-2003", "m-2004", "m-2005", "m-2008", "m-2009", "m-2022", "m-2023"];
 
-/** Caída progresiva de Meta: 0.8 de madrugada, 0.7 al amanecer y 0.6 desde las 8:00. */
-const META_DROP_CURVE = Array.from({ length: 24 }, (_, h) => (h < 4 ? 0.8 : h < 8 ? 0.7 : 0.6));
+/** Caída progresiva de Meta: 0.8 de madrugada, 0.65 al amanecer y 0.55 desde las 8:00. */
+const META_DROP_CURVE = Array.from({ length: 24 }, (_, h) => (h < 4 ? 0.8 : h < 8 ? 0.65 : 0.55));
+
+/**
+ * Efectos "de contexto" para el mensaje de monitoreo: cambian AYER, no hoy ni las semanas de
+ * referencia. Hoy Google sigue dentro de lo esperado (semáforo verde), pero el mensaje sí reporta
+ * campañas con más gasto que ayer, caídas de conversiones vs ayer y una campaña sin gasto.
+ */
+const GOOGLE_CONTEXT: ScenarioEffect[] = [
+  { label: "Ayer: izzi - Ofertas con gasto bajo", dayOffset: -1, accountId: "g-104", spend: 0.75 },
+  { label: "Ayer: izzi - Paquetes - 2do Dominio con gasto bajo", dayOffset: -1, accountId: "g-105", spend: 0.75 },
+  { label: "Ayer: Discovery con gasto bajo", dayOffset: -1, accountId: "g-108", spend: 0.75 },
+  // Ayer con +80% de conversiones: hoy se reporta una caída fuerte vs ayer (aunque ayer sea domingo, que convierte menos).
+  { label: "Ayer: más conversiones en Performance ppal", dayOffset: -1, accountId: "g-101", results: 1.8 },
+  { label: "Ayer: más conversiones en mxn 2", dayOffset: -1, accountId: "g-103", results: 1.8 },
+  { label: "Hoy: DSP-Audience sin gasto (volumen bajo, no genera alerta)", dayOffset: 0, campaignIds: ["g-1030"], spend: 0 },
+];
 
 /** Ayer: TikTok con caída de delivery 9:00-15:00 y recuperación con gasto acelerado. */
 const TIKTOK_YESTERDAY_CURVE = Array.from({ length: 24 }, (_, h) => (h >= 9 && h < 15 ? 0.2 : h >= 15 && h < 21 ? 1.7 : 1));
@@ -103,6 +118,7 @@ export const SCENARIOS: Record<string, MockScenario> = {
         spend: 1.3,
       },
       yesterdayTikTok,
+      ...GOOGLE_CONTEXT,
     ],
     outages: [
       {

@@ -1,13 +1,15 @@
+import { logActivity } from "@/lib/services/activity";
 import { z } from "zod";
-import { requirePermission } from "@/lib/auth/session";
+import { requirePermission, requireAuth } from "@/lib/auth/session";
 import { getAppContext } from "@/lib/services/context";
 import { getSnapshot } from "@/lib/services/snapshot";
 import { getBudgetControl } from "@/lib/services/budget";
-import { badRequest, forbidden, json, readJson, serverError } from "@/lib/services/http";
+import { badRequest, forbidden, json, readJson, serverError, unauthorized } from "@/lib/services/http";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  if (!(await requireAuth())) return unauthorized();
   try {
     const [ctx, snap] = await Promise.all([getAppContext(), getSnapshot()]);
     return json({ ok: true, ...(await getBudgetControl(ctx, snap)) });
@@ -33,6 +35,7 @@ export async function PUT(req: Request) {
   try {
     const ctx = await getAppContext();
     await ctx.store.setBudget(parsed.data);
+    await logActivity(session, "BUDGET_REFERENCE", `${parsed.data.month} · ${parsed.data.level} ${parsed.data.campaignId ?? parsed.data.accountId ?? parsed.data.platform ?? "total"} = ${parsed.data.amount.toLocaleString("es-MX")} MXN`);
     return json({ ok: true });
   } catch (err) {
     return serverError("api", err, "budgets");

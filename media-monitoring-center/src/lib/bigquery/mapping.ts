@@ -13,6 +13,37 @@ import { z } from "zod";
  *  - expresiones opcionales (p. ej. cost_micros / 1e6) si se habilitan explícitamente.
  */
 
+function executionFields() {
+  return z.object({
+    step: z.string(),
+    platform: z.string().nullable().optional(),
+    source: z.string().nullable().optional(),
+    status: z.string(),
+    lastRunAt: z.string(),
+    rows: z.string().nullable().optional(),
+    message: z.string().nullable().optional(),
+    expectedEveryMinutes: z.string().nullable().optional(),
+  });
+}
+
+function statusValues() {
+  return z
+    .object({
+      ok: z.array(z.string()).default(["OK", "Listo", "Ejecutado", "Completado", "SUCCESS"]),
+      partial: z.array(z.string()).default(["PARCIAL", "Parcial"]),
+      pending: z.array(z.string()).default(["PENDIENTE", "Pendiente", "Por ejecutar"]),
+      running: z.array(z.string()).default(["EJECUTANDO", "En proceso", "RUNNING"]),
+      error: z.array(z.string()).default(["ERROR", "Error", "Falló", "FAILED"]),
+    })
+    .default({
+      ok: ["OK", "Listo", "Ejecutado", "Completado", "SUCCESS"],
+      partial: ["PARCIAL", "Parcial"],
+      pending: ["PENDIENTE", "Pendiente", "Por ejecutar"],
+      running: ["EJECUTANDO", "En proceso", "RUNNING"],
+      error: ["ERROR", "Error", "Falló", "FAILED"],
+    });
+}
+
 const identifier = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/, "Identificador inválido");
 const tableRef = z.string().regex(/^[A-Za-z0-9_\-]+(\.[A-Za-z0-9_\-]+){0,2}$/, "Referencia de tabla inválida");
 const platformEnum = z.enum(["google", "meta", "tiktok", "microsoft", "spotify", "x"]);
@@ -52,6 +83,10 @@ export const metricSourceSchema = z.object({
     campaignName: fieldRef,
     campaignStatus: fieldRef,
     objective: fieldRef,
+    /** Tipo de campaña (Google: SEARCH, PERFORMANCE_MAX…). Campo secundario de los clasificadores. */
+    campaignType: fieldRef,
+    /** Moneda de la cuenta (MXN / USD). Las cuentas en USD se convierten con la tasa del mes. */
+    currency: fieldRef,
     spend: z.string().min(1),
     impressions: fieldRef,
     clicks: fieldRef,
@@ -86,8 +121,43 @@ export const bigQueryMappingSchema = z.object({
         accountId: fieldRef,
         campaignId: fieldRef,
         amount: z.string(),
+        /** Moneda del monto (MXN/USD). Sin columna se asume MXN. */
+        currency: fieldRef,
       }),
     })
+    .nullable()
+    .optional(),
+  /** Tasas de cambio mensuales USD→MXN (opcional: también se capturan en Settings). */
+  fxRates: z
+    .object({
+      table: tableRef,
+      fields: z.object({ month: z.string(), rate: z.string(), currency: fieldRef }),
+    })
+    .nullable()
+    .optional(),
+  /**
+   * Hoja/tabla de control de ejecución: confirma si Dataslayer, Apps Script o la API ya corrieron.
+   * Puede ser una tabla de BigQuery (incluida una tabla externa sobre Google Sheets) o la hoja de
+   * Google Sheets directamente (lectura con la misma service account, permiso de lector).
+   */
+  executionControl: z
+    .discriminatedUnion("type", [
+      z.object({
+        type: z.literal("bigquery"),
+        table: tableRef,
+        fields: executionFields(),
+        statusValues: statusValues(),
+      }),
+      z.object({
+        type: z.literal("sheets"),
+        spreadsheetId: z.string().regex(/^[A-Za-z0-9_-]{20,}$/, "spreadsheetId inválido"),
+        /** Rango con encabezados en la primera fila, p. ej. "Control!A1:H50". */
+        range: z.string().regex(/^[^;]{1,100}$/),
+        /** Nombres de las columnas (encabezados) de la hoja. */
+        fields: executionFields(),
+        statusValues: statusValues(),
+      }),
+    ])
     .nullable()
     .optional(),
   syncLog: z

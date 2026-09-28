@@ -1,7 +1,9 @@
 import "server-only";
 import type { MetricId, PlatformId } from "@/lib/types";
 import { PLATFORM_IDS } from "@/lib/types";
-import { addMetrics, emptyMetrics, metricValue, METRICS, OBJECTIVE_KPI } from "@/lib/metrics";
+import { addMetrics, emptyMetrics, metricValue, METRICS, OBJECTIVE_KPI, OBJECTIVE_LABEL } from "@/lib/metrics";
+import { DEFAULT_CLASSIFIERS } from "@/lib/classifiers/defaults";
+import { classifyCampaign } from "@/lib/classifiers/classify";
 import { PLATFORMS } from "@/lib/platforms/registry";
 import { addDays, diffDays, hourLabel, sameWeekdayDates, shortDateLabel, weekdayOf } from "@/lib/time/tz";
 import { cumulativeByHour, delta, mean, median, windowTotals, type HourlySeries } from "@/lib/monitoring/historical-comparator";
@@ -44,22 +46,54 @@ export interface CompareColumn {
   kind: "base" | "week" | "custom";
 }
 
+export type CompareDimension = "platform" | "account" | "strategy" | "objective" | "campaign";
+
+export const DIMENSION_LABEL: Record<CompareDimension, string> = {
+  platform: "Plataforma",
+  account: "Cuenta",
+  strategy: "Estrategia",
+  objective: "Objetivo",
+  campaign: "Campaña",
+};
+
+export interface CompareRow {
+  id: string;
+  name: string;
+  sub: string | null;
+  platform: PlatformId | null;
+  values: Array<number | null>;
+  avg: number | null;
+  median: number | null;
+  vsPrev: number | null;
+  vsAvg: number | null;
+  vsMedian: number | null;
+  /** Gasto de la fecha base (para ordenar). */
+  spend: number;
+}
+
 export interface CompareResult {
   date: string;
   cutoffHour: number;
   metric: MetricId;
   metricLabel: string;
-  scope: PlatformId | "total";
+  dimension: CompareDimension;
+  platform: PlatformId | "all";
+  focus: string;
+  focusName: string;
   columns: CompareColumn[];
-  rows: Array<{ id: PlatformId | "total"; name: string; values: Array<number | null>; avg: number | null; median: number | null; vsPrev: number | null; vsAvg: number | null; vsMedian: number | null }>;
+  rows: CompareRow[];
+  total: CompareRow;
+  truncated: number;
   series: Array<Record<string, number | string | null>>;
 }
 
+const MAX_ROWS = 60;
+
 export async function getCompare(
   ctx: AppContext,
-  params: { date: string; cutoffHour: number; weeksBack: number[]; customDates: string[]; metric: MetricId; scope: PlatformId | "total" },
+  params: { date: string; cutoffHour: number; weeksBack: number[]; customDates: string[]; metric: MetricId; dimension: CompareDimension; platform: PlatformId | "all"; focus: string | null },
 ): Promise<CompareResult> {
-  const { date, cutoffHour, metric, scope } = params;
+  const { date, cutoffHour, metric, dimension, platform } = params;
   const weeks = [...new Set(params.weeksBack.filter((w) => w >= 1 && w <= 12))].sort((a, b) => a - b);
   const custom = [...new Set(params.customDates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && d !== date))].slice(0, 4);
   const columns: CompareColumn[] = [
@@ -67,39 +101,111 @@ export async function getCompare(
     ...weeks.map((w, i) => ({ key: `c${i + 1}`, date: addDays(date, -7 * w), label: `${shortDateLabel(addDays(date, -7 * w))} (−${w} sem)`, kind: "week" as const })),
     ...custom.map((d, i) => ({ key: `c${weeks.length + i + 1}`, date: d, label: shortDateLabel(d), kind: "custom" as const })),
   ];
-  const rows = await ctx.source.getHourly({ dates: columns.map((c) => c.date), level: "platform" });
-  const series = toSeries(rows);
-  const scopes: Array<PlatformId | "total"> = [...PLATFORM_IDS, "total"];
-  const outRows = scopes.map((id) => {
-    const s: HourlySeries = series.get(id) ?? new Map();
+  const catalog = await ctx.source.getCatalog();
+  const campaignById = new Map(catalog.campaigns.map((c) => [c.id, c]));
+  const accountById = new Map(catalog.accounts.map((a) => [a.id, a]));
+  const classifiers = { ...DEFAULT_CLASSIFIERS, ...ctx.settings.classifiers };
+  const rows = await ctx.source.getHourly({ dates: columns.map((c) => c.date), level: dimension === "platform" ? "platform" : "campaign", platforms: platform === "all" ? undefined : [platform] });
+
+  const groups = new Map<string, { name: string; sub: string | null; platform: PlatformId | null; series: HourlySeries }>();
+  const total: HourlySeries = new Map();
+  const add = (series: HourlySeries, r: HourlyRow) => {
+    let day = series.get(r.date);
+    if (!day) {
+      day = Array.from({ length: 24 }, () => null);
+      series.set(r.date, day);
+    }
+    const cur = day[r.hour];
+    if (cur) addMetrics(cur, r.metrics);
+    else day[r.hour] = addMetrics(emptyMetrics(), r.metrics);
+  };
+  for (const r of rows) {
+    const camp = r.campaignId ? campaignById.get(r.campaignId) : undefined;
+    const accountId = r.accountId ?? camp?.accountId ?? null;
+    let key: string;
+    let name: string;
+    let sub: string | null = null;
+    let p: PlatformId | null = r.platform;
+    if (dimension === "platform") {
+      key = r.platform;
+      name = PLATFORMS[r.platform].name;
+    } else if (dimension === "account") {
+      key = accountId ?? `${r.platform}-sin-cuenta`;
+      name = (accountId && accountById.get(accountId)?.name) || "Sin cuenta";
+      sub = accountById.get(accountId ?? "")?.currency === "USD" ? "USD → MXN" : null;
+    } else if (dimension === "strategy") {
+      const label = camp ? classifyCampaign(classifiers[r.platform], camp) : "Sin clasificar";
+      key = `${r.platform}|${label}`;
+      name = label;
+    } else if (dimension === "objective") {
+      const objective = camp ? (ctx.settings.objectiveOverrides[camp.id] ?? camp.objective) : "CONVERSIONS";
+      key = objective;
+      name = OBJECTIVE_LABEL[objective];
+      p = null;
+    } else {
+      key = r.campaignId ?? "sin-campana";
+      name = camp?.name ?? r.campaignId ?? "Sin campaña";
+      sub = accountId ? (accountById.get(accountId)?.name ?? null) : null;
+    }
+    let g = groups.get(key);
+    if (!g) {
+      g = { name, sub, platform: p, series: new Map() };
+      groups.set(key, g);
+    }
+    add(g.series, r);
+    add(total, r);
+  }
+
+  const buildRow = (id: string, name: string, sub: string | null, p: PlatformId | null, series: HourlySeries): CompareRow => {
     const values = columns.map((c) => {
-      const t = windowTotals(s, c.date, 0, cutoffHour);
+      const t = windowTotals(series, c.date, 0, cutoffHour);
       return t ? metricValue(t, metric, KPI) : null;
     });
     const weekVals = values.slice(1, 1 + weeks.length).filter((v): v is number => v !== null);
     const avg = mean(weekVals);
     const med = median(weekVals);
     const prevIdx = weeks.indexOf(1);
-    const prev = prevIdx >= 0 ? values[prevIdx + 1] : values[1] ?? null;
+    const prev = prevIdx >= 0 ? values[prevIdx + 1] : (values[1] ?? null);
     return {
       id,
-      name: id === "total" ? "Total izzi" : PLATFORMS[id].name,
+      name,
+      sub,
+      platform: p,
       values,
       avg,
       median: med,
       vsPrev: delta(values[0], prev),
       vsAvg: delta(values[0], avg),
       vsMedian: delta(values[0], med),
+      spend: windowTotals(series, date, 0, cutoffHour)?.spend ?? 0,
     };
-  });
-  const scopeSeries: HourlySeries = series.get(scope) ?? new Map();
-  const cum = columns.map((c) => cumulativeByHour(scopeSeries, c.date, metric, KPI, c.kind === "base" ? cutoffHour : 24));
+  };
+  const all = [...groups.entries()].map(([id, g]) => buildRow(id, g.name, g.sub, g.platform, g.series)).sort((a, b) => b.spend - a.spend || a.name.localeCompare(b.name));
+  const totalName = platform === "all" ? "Total izzi" : `Total ${PLATFORMS[platform].name}`;
+  const totalRow = buildRow("total", totalName, null, platform === "all" ? null : platform, total);
+  const focus = params.focus && groups.has(params.focus) ? params.focus : "total";
+  const focusSeries = focus === "total" ? total : groups.get(focus)!.series;
+  const cum = columns.map((c) => cumulativeByHour(focusSeries, c.date, metric, KPI, c.kind === "base" ? cutoffHour : 24));
   const chart = Array.from({ length: 24 }, (_, h) => {
     const pt: Record<string, number | string | null> = { hour: h + 1, label: hourLabel(h + 1) };
     columns.forEach((c, i) => (pt[c.key] = cum[i][h]));
     return pt;
   });
-  return { date, cutoffHour, metric, metricLabel: METRICS[metric].label, scope, columns, rows: outRows, series: chart };
+  return {
+    date,
+    cutoffHour,
+    metric,
+    metricLabel: METRICS[metric].label,
+    dimension,
+    platform,
+    focus,
+    focusName: focus === "total" ? totalName : groups.get(focus)!.name,
+    columns,
+    rows: all.slice(0, MAX_ROWS),
+    total: totalRow,
+    truncated: Math.max(0, all.length - MAX_ROWS),
+    series: chart,
+  };
 }
 
 export interface HistoricalResult {

@@ -1,4 +1,5 @@
 "use client";
+import { sileo } from "sileo";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, RotateCcw, Save, Trash2 } from "lucide-react";
@@ -141,9 +142,12 @@ export function SettingsForm({
     const res = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(s) });
     const data = (await res.json().catch(() => ({}))) as { message?: string };
     setSaving(false);
-    if (!res.ok) setMsg({ ok: false, text: data.message ?? "No se pudo guardar." });
-    else {
-      setMsg({ ok: true, text: mode === "mock" ? "Guardado (MOCK MODE: se guarda en este navegador)." : "Guardado en BigQuery para todo el equipo." });
+    if (!res.ok) {
+      setMsg({ ok: false, text: data.message ?? "No se pudo guardar." });
+      sileo.error({ title: "No se pudo guardar", description: data.message });
+    } else {
+      setMsg({ ok: true, text: mode === "mock" ? "Guardado para todo el equipo." : "Guardado en BigQuery para todo el equipo." });
+      sileo.success({ title: "Configuración guardada", description: "Aplica para todo el equipo. No cambia nada en las plataformas." });
       router.refresh();
     }
   }
@@ -153,6 +157,7 @@ export function SettingsForm({
     await fetch("/api/settings", { method: "DELETE" });
     setSaving(false);
     setMsg({ ok: true, text: "Se restauraron los valores por defecto." });
+    sileo.success({ title: "Valores por defecto restaurados" });
     router.refresh();
   }
 

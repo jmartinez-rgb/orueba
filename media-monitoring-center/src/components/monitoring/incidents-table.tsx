@@ -1,7 +1,9 @@
 "use client";
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BellRing, Search } from "lucide-react";
+import { BellRing, Search, Ticket } from "lucide-react";
+import { sileo } from "sileo";
 import type { Incident, NotificationRecord } from "@/lib/alerts/types";
 import { PLATFORMS } from "@/lib/platforms/registry";
 import { ANOMALY_LABEL } from "@/lib/anomaly-engine/anomaly-engine";
@@ -92,7 +94,13 @@ export function IncidentsTable({
     if (!selected) return;
     setSaving(true);
     try {
-      await fetch(`/api/incidents/${selected.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const res = await fetch(`/api/incidents/${selected.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { message?: string };
+        sileo.error({ title: "No se pudo guardar", description: d.message });
+        return;
+      }
+      sileo.success({ title: body.note ? "Nota guardada" : body.owner !== undefined ? "Responsable asignado" : "Estado actualizado", description: selected.id });
       setNote("");
       router.refresh();
     } finally {
@@ -277,6 +285,17 @@ export function IncidentsTable({
                       ))}
                     </ul>
                   )}
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2.5">
+                  <div className="text-xs">
+                    <p className="font-semibold">¿El problema es grave?</p>
+                    <p className="text-muted-foreground">Documenta a quién se reportó y el número de caso en un ticket.</p>
+                  </div>
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href={`/tickets?new=${selected.id}`}>
+                      <Ticket /> Crear ticket
+                    </Link>
+                  </Button>
                 </div>
               </div>
               {canWrite ? (

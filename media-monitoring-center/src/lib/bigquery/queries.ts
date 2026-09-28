@@ -95,6 +95,8 @@ export function normalizedSelect(src: MetricSourceMapping, resolve: TableResolve
     `CAST(${field(src, "campaignName") ?? "NULL"} AS STRING) AS campaign_name`,
     `CAST(${field(src, "campaignStatus") ?? "NULL"} AS STRING) AS campaign_status`,
     `CAST(${field(src, "objective") ?? "NULL"} AS STRING) AS objective`,
+    `CAST(${field(src, "campaignType") ?? "NULL"} AS STRING) AS campaign_type`,
+    `UPPER(CAST(${field(src, "currency") ?? "NULL"} AS STRING)) AS currency`,
     `${ingested ? `CAST(${ingested} AS TIMESTAMP)` : "CAST(NULL AS TIMESTAMP)"} AS ingested_at`,
     ...BASE_METRICS.map((m) => {
       const f = field(src, METRIC_FIELD[m]);
@@ -204,7 +206,7 @@ export function catalogQuery(sources: MetricSourceMapping[], resolve: TableResol
 )
 SELECT platform, account_id, ANY_VALUE(account_name) AS account_name, campaign_id,
   ANY_VALUE(campaign_name) AS campaign_name, ANY_VALUE(campaign_status) AS campaign_status,
-  ANY_VALUE(objective) AS objective, MAX(d) AS last_seen,
+  ANY_VALUE(objective) AS objective, ANY_VALUE(campaign_type) AS campaign_type, ANY_VALUE(currency) AS currency, MAX(d) AS last_seen,
   SUM(IF(d >= DATE_SUB(@to_date, INTERVAL 2 DAY), spend, 0)) AS recent_spend
 FROM src
 WHERE d BETWEEN @from_date AND @to_date AND campaign_id IS NOT NULL
@@ -236,7 +238,8 @@ export function budgetsQuery(mapping: NonNullable<BigQueryMapping["budgets"]>, r
   ${f.platform ? platformCase(f.platform, {}) : "CAST(NULL AS STRING)"} AS platform,
   CAST(${f.accountId ?? "NULL"} AS STRING) AS account_id,
   CAST(${f.campaignId ?? "NULL"} AS STRING) AS campaign_id,
-  CAST(${f.amount} AS FLOAT64) AS amount
+  CAST(${f.amount} AS FLOAT64) AS amount,
+  UPPER(CAST(${f.currency ?? "NULL"} AS STRING)) AS currency
 FROM ${resolve(mapping.table)}
 WHERE SUBSTR(CAST(${f.month} AS STRING), 1, 7) = @month`;
 }
@@ -255,4 +258,22 @@ FROM ${resolve(mapping.table)}
 WHERE CAST(${f.startedAt} AS TIMESTAMP) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 2 DAY)
 ORDER BY started_at DESC
 LIMIT @limit`;
+}
+
+export function fxRatesQuery(mapping: NonNullable<BigQueryMapping["fxRates"]>, resolve: TableResolver): string {
+  const f = mapping.fields;
+  return `SELECT SUBSTR(CAST(${f.month} AS STRING), 1, 7) AS month, SAFE_CAST(REPLACE(CAST(${f.rate} AS STRING), ',', '.') AS FLOAT64) AS rate
+FROM ${resolve(mapping.table)}
+WHERE ${f.rate} IS NOT NULL${f.currency ? ` AND UPPER(CAST(${f.currency} AS STRING)) IN ('USD', 'USDMXN', 'USD/MXN')` : ""}
+ORDER BY month`;
+}
+
+export function executionControlQuery(mapping: Extract<NonNullable<BigQueryMapping["executionControl"]>, { type: "bigquery" }>, resolve: TableResolver): string {
+  const f = mapping.fields;
+  const col = (v: string | null | undefined, cast: string) => (v ? `SAFE_CAST(${v} AS ${cast})` : `CAST(NULL AS ${cast})`);
+  return `SELECT ${col(f.step, "STRING")} AS step, ${col(f.platform, "STRING")} AS platform, ${col(f.source, "STRING")} AS source,
+  ${col(f.status, "STRING")} AS status, CAST(${f.lastRunAt} AS STRING) AS last_run_at, ${col(f.rows, "INT64")} AS rows_loaded,
+  ${col(f.message, "STRING")} AS message, ${col(f.expectedEveryMinutes, "INT64")} AS expected_every
+FROM ${resolve(mapping.table)}
+LIMIT 200`;
 }

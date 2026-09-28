@@ -46,7 +46,12 @@ Spotify, X ──────┤ WF09 Escalamiento · WF10 Recuperación        
    en `tests/`.
 6. **n8n orquesta, Netlify aloja.** La app no programa tareas ni envía WhatsApp: expone
    `POST /api/monitoring/evaluate` para el runner de n8n y entrega notificaciones a un webhook
-   firmado de n8n.
+   firmado de n8n. El mensaje de Monitoreos se copia y se envía a mano.
+7. **Solo monitoreo.** Ningún endpoint escribe en Google, Meta, TikTok, Microsoft, Spotify o X.
+   Los permisos de escritura solo tocan datos internos (umbrales, notas, tickets, acuses).
+8. **Registros separados de las métricas.** Bitácora, tickets, acuses e historial de mensajes van
+   a Netlify Blobs (`lib/records`); las métricas solo viven en BigQuery (nada de duplicarlas en
+   otra base).
 
 ## Capas
 
@@ -54,12 +59,16 @@ Spotify, X ──────┤ WF09 Escalamiento · WF10 Recuperación        
 |---|---|---|
 | Configuración | `lib/config` | `env.ts` (solo servidor), `settings.ts` (umbrales, frecuencia, histórico, zona horaria, destinatarios; validado con zod) |
 | Tiempo | `lib/time/tz.ts` | Fechas y horas de negocio con `Intl`; conversión explícita UTC ↔ local |
-| Datos | `lib/data`, `lib/mock`, `lib/bigquery` | Contrato, caché TTL por fecha, mock determinista, SQL parametrizado |
+| Acceso | `proxy.ts`, `lib/auth` | Sesión firmada (HMAC, Web Crypto), contraseñas scrypt, roles, límite de intentos |
+| Datos | `lib/data`, `lib/mock`, `lib/bigquery`, `lib/google` | Contrato, caché TTL por fecha, conversión USD→MXN, mock determinista, SQL parametrizado, hoja de control (Sheets, solo lectura) |
+| Clasificadores | `lib/classifiers` | Estrategia por nombre de campaña (réplica de las fórmulas de la hoja) |
 | Monitoreo | `lib/monitoring` | Data Health, comparador (mismo día + franja), PacingEngine, MonitoringEngine |
 | Anomalías | `lib/anomaly-engine` | Reglas de patrón (casos 1–7), severidad, agrupación jerárquica |
 | Alertas | `lib/alerts` | Alertas → incidentes, anti-spam, escalamiento, formato WhatsApp, despacho a n8n |
 | Estado | `lib/state` | Memoria (mock/dev) o BigQuery (append-only) |
-| Servicios | `lib/services` | Snapshot, budget, compare, historical, integraciones, evaluación programada |
+| Servicios | `lib/services` | Snapshot (con confianza y control de ejecución), budget, compare, historical, reporte de Monitoreos, críticos, integraciones, evaluación programada |
+| Registros | `lib/records` | Bitácora, usuarios, tickets, acuses e historial (Netlify Blobs / archivos locales / memoria) |
+| Reportes y guías | `lib/reports`, `lib/optimizations` | Formato del mensaje de WhatsApp; recomendaciones de la documentación oficial |
 | UI | `src/app`, `src/components` | Páginas, tablas, gráficas, estados vacíos/errores |
 
 ## Flujo de una evaluación (cada 2 h)
@@ -102,8 +111,13 @@ mismo gestor de incidentes; las notificaciones quedan como `SIMULATED`.
 - Secretos solo en variables de entorno del servidor (Netlify) o credenciales de n8n.
 - Webhooks a n8n firmados (HMAC SHA-256 con timestamp); endpoint de evaluación con API key y
   comparación en tiempo constante.
-- Roles: Admin (todo), Paid Media Manager (alertas, incidentes, presupuestos, disparar
-  evaluaciones), Viewer (lectura). `AUTH_MODE=header` delega la identidad a un proxy/SSO.
+- Acceso con contraseña (`docs/AUTH.md`): `src/proxy.ts` exige una cookie de sesión firmada en
+  todas las páginas y `/api/*` (salvo `/api/health` y `/api/monitoring/evaluate`); las rutas de
+  API vuelven a validar la sesión y el permiso. Cuentas nominales + contraseña universal con
+  nombre; 5 intentos fallidos bloquean 10 min; bitácora de accesos y acciones con IP enmascarada.
+- Roles: Administrador y Co-administrador (todo), Paid Media Manager (alertas, incidentes,
+  tickets, evaluaciones), Consulta (lectura, acuses, tickets y mensaje de monitoreo).
+  `AUTH_MODE=header` delega la identidad a un proxy/SSO.
 - Destinatarios enmascarados en pantalla para quien no administra; logs con redacción de llaves
   sensibles; errores técnicos solo detrás de "Ver detalles técnicos".
 - Cabeceras: `X-Frame-Options: DENY`, `nosniff`, `noindex`, `Referrer-Policy`, `Permissions-Policy`.

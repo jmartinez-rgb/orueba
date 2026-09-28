@@ -1,3 +1,4 @@
+import { logActivity } from "@/lib/services/activity";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/session";
 import { getAppContext } from "@/lib/services/context";
@@ -18,6 +19,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   try {
     const app = await getAppContext();
     await app.store.setAlertStatus(id, parsed.data.status as never, session.user.name);
+    await logActivity(session, "ALERT_STATUS", `${id} → ${parsed.data.status}`);
     invalidate("state:");
     return json({ ok: true, id, status: parsed.data.status });
   } catch (err) {

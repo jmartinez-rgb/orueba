@@ -1,4 +1,5 @@
-@import "tailwindcss";
+/* Solo se buscan clases en src/: docs, SQL o plantillas no pueden generar CSS inválido. */
+@import "tailwindcss" source("..");
 @import "tw-animate-css";
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -183,4 +184,43 @@
 }
 .recharts-tooltip-cursor {
   stroke: var(--chart-axis);
+}
+
+/* Destello del botón principal (adaptado de RareUI · GlassShimmerButton). */
+@keyframes immc-shimmer {
+  0% {
+    transform: translateX(-75%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(25%) skewX(-20deg);
+  }
+}
+.immc-shimmer {
+  animation: immc-shimmer 2.6s infinite linear;
+}
+
+/* Alerta crítica a pantalla completa: pulso del borde. */
+@keyframes immc-critical-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--status-critical) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in oklab, var(--status-critical) 0%, transparent);
+  }
+}
+.immc-critical-pulse {
+  animation: immc-critical-pulse 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .immc-shimmer,
+  .immc-critical-pulse {
+    animation: none;
+  }
+}
+
+/* Sileo: tipografía de la app. */
+[data-sileo-toast] {
+  font-family: var(--font-sans);
 }

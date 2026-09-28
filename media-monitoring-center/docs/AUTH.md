@@ -1,0 +1,131 @@
+# Acceso, usuarios y bitácora
+
+El Monitoring Center es **solo de monitoreo**: ningún rol puede modificar campañas, presupuestos
+ni configuraciones en Google, Meta, TikTok, Microsoft, Spotify o X. Los permisos de escritura solo
+cambian datos internos de la app (umbrales, notas, tickets, métricas a vigilar…).
+
+## Cómo se entra
+
+Página `/login`. Todo lo demás (páginas y `/api/*`) exige sesión, salvo `/api/health` y
+`/api/monitoring/evaluate` (este último protegido con `MONITORING_API_KEY` para n8n).
+
+| Tipo de acceso | Usuario | Contraseña | Rol |
+|---|---|---|---|
+| Cuenta nominal | `jmartinez` | propia | Administrador |
+| Cuenta nominal | `operaciones` | propia | Co-administrador |
+| Contraseña universal | Nombre y apellido de la persona (p. ej. `Ana López`) | la universal | Consulta (o Paid Media Manager si se configura) |
+
+- Cada persona recibe un **avatar blobatar** generado a partir de su nombre, visible en el menú, en
+  Usuarios, en tickets y en acuses.
+- La contraseña universal **no** sirve para entrar como una cuenta nominal ni con el nombre de una
+  de ellas.
+- Tras **5 intentos fallidos en 10 minutos** el acceso (IP + usuario) se bloquea 10 minutos. El
+  contador vive en la memoria de cada instancia del servidor: es una defensa básica, no reemplaza
+  una contraseña larga.
+- La sesión es una cookie `immc_session` (httpOnly, `SameSite=Lax`, `Secure` en producción) firmada
+  con HMAC-SHA256 y `AUTH_SECRET`. Dura `AUTH_SESSION_HOURS` (12 h por defecto). No contiene
+  secretos: usuario, nombre visible, rol y vencimiento.
+
+## Roles
+
+| Permiso | Administrador | Co-administrador | Paid Media Manager | Consulta |
+|---|:-:|:-:|:-:|:-:|
+| Ver todo el monitoreo | ✅ | ✅ | ✅ | ✅ |
+| Acusar alertas críticas, levantar tickets, generar el mensaje de Monitoreos | ✅ | ✅ | ✅ | ✅ |
+| Cambiar estado de alertas e incidentes, ejecutar evaluación manual, ver detalles técnicos | ✅ | ✅ | ✅ | — |
+| Gestionar tickets (estado, responsable, número de caso) | ✅ | ✅ | ✅ | — |
+| Settings, métricas monitoreadas, métricas fijas, tipo de cambio, clasificadores, nivel de presupuesto | ✅ | ✅ | — | — |
+| Usuarios y bitácora de accesos | ✅ | ✅ | — | — |
+
+## Configuración (variables de entorno)
+
+Los valores reales **solo** van en `.env.local` (local) y en Netlify (producción). Nunca en el
+repositorio.
+
+| Variable | Qué es |
+|---|---|
+| `AUTH_SECRET` | Firma de sesiones, 32+ caracteres aleatorios. Secreta |
+| `AUTH_USERS` | JSON en una línea con las cuentas: `[{"u":"jmartinez","n":"J. Martínez","r":"admin","h":"scrypt:…"}]` |
+| `AUTH_UNIVERSAL_PASSWORD_HASH` | Hash de la contraseña universal |
+| `AUTH_UNIVERSAL_ROLE` | `viewer` (default) o `manager`. Nunca admin |
+| `AUTH_SESSION_HOURS` | Duración de la sesión (default 12, máximo 336) |
+| `AUTH_MODE` | Vacío = automático (recomendado). `open` = sin contraseña (solo demo local). `header` = identidad desde un proxy/SSO |
+| `AUTH_DEFAULT_ROLE` | Rol en modo abierto (default `admin`) |
+
+Modo automático:
+
+- `AUTH_SECRET` válido + al menos una credencial → **pide contraseña**.
+- Sin configurar, en local (`npm run dev`) → **modo abierto** con aviso en pantalla y selector de rol.
+- Sin configurar, en producción → **bloqueado**: el login explica qué variables faltan.
+- El valor `AUTH_MODE=dev` de la primera versión cuenta como automático (nunca apaga contraseñas).
+
+Las contraseñas se guardan como hash **scrypt** (`scrypt:N:r:p:sal:hash`, sin `$` para que
+dotenv no lo altere). La app nunca guarda ni registra contraseñas en claro.
+
+### Generar las contraseñas
+
+```bash
+npm run auth:setup              # imprime contraseñas nuevas + variables (no escribe nada)
+npm run auth:setup -- --write   # además guarda las variables en .env.local
+```
+
+Crea `jmartinez` (Administrador), `operaciones` (Co-administrador) y la contraseña universal, con
+contraseñas aleatorias sin caracteres ambiguos (`Izzi-XXXX-XXXX-XXXX`). Se muestran **una sola vez**:
+compártelas por un canal seguro.
+
+En Netlify: *Site configuration → Environment variables* → agrega cada variable (el valor de
+`AUTH_USERS` se pega tal cual, sin comillas) → marca `AUTH_SECRET` como secreta → *Deploys →
+Trigger deploy*.
+
+### Cambiar una contraseña o agregar una cuenta
+
+```bash
+npm run auth:hash -- "NuevaContraseñaLarga"   # imprime el hash scrypt
+```
+
+Reemplaza el `h` de esa cuenta en `AUTH_USERS` (o agrega un objeto nuevo con `u`, `n`, `r`, `h`),
+o reemplaza `AUTH_UNIVERSAL_PASSWORD_HASH`, y vuelve a desplegar. Usuario: 3 a 40 caracteres
+`a-z 0-9 . _ -`. Roles: `admin`, `coadmin`, `manager`, `viewer`.
+
+**Cerrar todas las sesiones**: cambia `AUTH_SECRET` y despliega (todas las cookies dejan de ser
+válidas). Hazlo también si alguien sale del equipo y conocía la contraseña universal, junto con
+una contraseña universal nueva.
+
+### Modo `header` (SSO)
+
+Con `AUTH_MODE=header` la identidad llega en las cabeceras `x-immc-user`, `x-immc-role` y
+`x-immc-email`. Úsalo **solo** detrás de un proxy de identidad que borre y reescriba esas
+cabeceras: si el sitio es accesible directamente, cualquiera podría enviarlas.
+
+## Registro de quién entra y qué hace
+
+Cada evento queda en la bitácora (sección **Usuarios**, solo administradores y co-administradores):
+
+- Inicio y cierre de sesión, intentos fallidos y bloqueos.
+- Acuses de alertas críticas (texto escrito, a quién se reporta y por qué canal).
+- Tickets creados y actualizados, mensajes de monitoreo guardados.
+- Cambios de configuración, estados de alertas e incidentes, presupuestos de referencia y
+  evaluaciones manuales.
+
+Por evento se guarda: fecha, persona, rol, tipo de acceso, IP **enmascarada** (`189.203.45.x`) y un
+resumen del navegador (`Chrome · macOS`). Usuarios muestra también la presencia (quién está
+activo) y el último acceso de cada persona.
+
+### Dónde se guardan
+
+| Entorno | Almacenamiento |
+|---|---|
+| Netlify | **Netlify Blobs** (store `immc-records`, consistencia fuerte). No requiere configuración |
+| Local | Archivos JSON en `.data/records` (ignorado por git) |
+| Pruebas | Memoria |
+
+`RECORDS_BACKEND=blobs|file|memory` y `RECORDS_DIR` permiten forzarlo. Estos registros no son
+métricas: las métricas viven solo en BigQuery y nunca se copian aquí.
+
+## Alerta crítica a pantalla completa
+
+Cuando hay un incidente **crítico** abierto que la persona no ha acusado, aparece una alerta a
+pantalla completa que no se puede cerrar hasta que escribe qué revisó (mínimo 20 caracteres), a
+quién lo va a reportar y por qué canal, y confirma. Un solo acuse cubre todos los críticos
+pendientes; puede crear un ticket con el historial. Cada persona acusa por su cuenta y el acuse
+queda en la bitácora. Si el problema vuelve después de resolverse (incidente nuevo), se vuelve a pedir.

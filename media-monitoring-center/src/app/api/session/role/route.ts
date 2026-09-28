@@ -1,14 +1,14 @@
 import { cookies } from "next/headers";
-import { getEnv } from "@/lib/config/env";
+import { getAuthConfig } from "@/lib/auth/config";
 import { isRole } from "@/lib/auth/roles";
 import { ROLE_COOKIE } from "@/lib/auth/session";
 import { badRequest, forbidden, json, readJson } from "@/lib/services/http";
 
 export const dynamic = "force-dynamic";
 
-/** Solo en AUTH_MODE=dev: permite probar la app con cada rol. */
+/** Solo en acceso abierto (demo local): permite probar la app con cada rol. */
 export async function POST(req: Request) {
-  if (getEnv().auth.mode !== "dev") return forbidden("El cambio de rol solo existe en modo desarrollo.");
+  if (getAuthConfig().mode !== "open") return forbidden("El cambio de rol solo existe en acceso abierto (demo).");
   const body = await readJson<{ role?: string }>(req);
   if (!isRole(body?.role)) return badRequest("Rol inválido.");
   const c = await cookies();

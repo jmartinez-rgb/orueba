@@ -1,18 +1,84 @@
-import { Activity, BellRing, GitCompareArrows, History, LayoutDashboard, Layers, Megaphone, Plug, RadioTower, Settings, Siren, Wallet, Workflow } from "lucide-react";
+import {
+  Activity,
+  BellRing,
+  BookOpenText,
+  GitCompareArrows,
+  Gauge,
+  History,
+  LayoutDashboard,
+  Layers,
+  Lightbulb,
+  Megaphone,
+  MessageSquareText,
+  Plug,
+  RadioTower,
+  Settings,
+  Siren,
+  Ticket,
+  UsersRound,
+  Wallet,
+  Workflow,
+  type LucideIcon,
+} from "lucide-react";
+import type { Permission } from "@/lib/auth/roles";
 
-export const NAV_ITEMS = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/live", label: "Live Monitoring", icon: RadioTower },
-  { href: "/platforms", label: "Platforms", icon: Layers },
-  { href: "/campaigns", label: "Campaigns", icon: Megaphone },
-  { href: "/alerts", label: "Alerts", icon: BellRing, badge: "alerts" as const },
-  { href: "/incidents", label: "Incidents", icon: Siren, badge: "incidents" as const },
-  { href: "/budget", label: "Budget Control", icon: Wallet },
-  { href: "/compare", label: "Compare", icon: GitCompareArrows },
-  { href: "/historical", label: "Historical", icon: History },
-  { href: "/integrations", label: "Integrations", icon: Plug },
-  { href: "/automation", label: "Automation", icon: Workflow },
-  { href: "/settings", label: "Settings", icon: Settings },
+export interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  badge?: "alerts" | "incidents" | "tickets";
+  permission?: Permission;
+}
+
+export interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Monitoreo",
+    items: [
+      { href: "/", label: "Overview", icon: LayoutDashboard },
+      { href: "/live", label: "Live Monitoring", icon: RadioTower },
+      { href: "/platforms", label: "Platforms", icon: Layers },
+      { href: "/campaigns", label: "Campaigns", icon: Megaphone },
+      { href: "/monitoreos", label: "Monitoreos", icon: MessageSquareText },
+    ],
+  },
+  {
+    label: "Alertas",
+    items: [
+      { href: "/alerts", label: "Alerts", icon: BellRing, badge: "alerts" },
+      { href: "/incidents", label: "Incidents", icon: Siren, badge: "incidents" },
+      { href: "/tickets", label: "Tickets", icon: Ticket, badge: "tickets" },
+    ],
+  },
+  {
+    label: "Análisis",
+    items: [
+      { href: "/budget", label: "Budget Control", icon: Wallet },
+      { href: "/compare", label: "Compare", icon: GitCompareArrows },
+      { href: "/historical", label: "Historical", icon: History },
+      { href: "/metricas", label: "Métricas", icon: Gauge },
+      { href: "/optimizaciones", label: "Optimizaciones", icon: Lightbulb },
+    ],
+  },
+  {
+    label: "Operación",
+    items: [
+      { href: "/integrations", label: "Integrations", icon: Plug },
+      { href: "/automation", label: "Automation", icon: Workflow },
+      { href: "/usuarios", label: "Usuarios y accesos", icon: UsersRound, permission: "users:view" },
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
+  },
+  {
+    label: "Ayuda",
+    items: [{ href: "/guia", label: "Guía", icon: BookOpenText }],
+  },
 ];
+
+export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 
 export const BRAND_ICON = Activity;

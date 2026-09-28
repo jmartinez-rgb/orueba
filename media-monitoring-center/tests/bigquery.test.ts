@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { parseMapping } from "@/lib/bigquery/mapping";
-import { hourlyQuery, normalizedSelect, snapshotQuery } from "@/lib/bigquery/queries";
-import { snapshotsToHourly, inferObjective } from "@/lib/bigquery/bigquery-source";
+import { executionControlQuery, fxRatesQuery, hourlyQuery, normalizedSelect, snapshotQuery } from "@/lib/bigquery/queries";
+import { currencyOf, snapshotsToHourly, inferObjective } from "@/lib/bigquery/bigquery-source";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 const resolve = (t: string) => `\`proj.ds.${t}\``;
 const mappingJson = JSON.stringify({
@@ -58,5 +60,29 @@ describe("capa BigQuery configurable", () => {
     expect(inferObjective("IZZI_CAPI WhatsApp_Nacional", null)).toBe("PURCHASES");
     expect(inferObjective("IZZI_MSG_WhatsApp_CDMX", null)).toBe("WHATSAPP");
     expect(inferObjective("izzi_Search_Competencia_Leads", null)).toBe("LEADS");
+  });
+
+  it("los mapeos de ejemplo de config/ son válidos", () => {
+    for (const file of ["bigquery.mapping.example.json", "bigquery.mapping.hourly-example.json"]) {
+      const res = parseMapping(readFileSync(path.join(process.cwd(), "config", file), "utf8"));
+      expect(res.errors, file).toEqual([]);
+      expect(res.mapping?.executionControl, file).toBeTruthy();
+      expect(res.mapping?.fxRates, file).toBeTruthy();
+    }
+  });
+
+  it("control de ejecución y tipo de cambio toleran celdas mal capturadas", () => {
+    const m = parseMapping(readFileSync(path.join(process.cwd(), "config", "bigquery.mapping.hourly-example.json"), "utf8")).mapping!;
+    const ec = m.executionControl;
+    if (ec?.type !== "bigquery") throw new Error("se esperaba executionControl de BigQuery");
+    const sql = executionControlQuery(ec, resolve);
+    expect(sql).toContain("CAST(ultima_ejecucion AS STRING) AS last_run_at"); // la zona horaria se resuelve en la app
+    expect(sql).toContain("SAFE_CAST(filas AS INT64)");
+    expect(fxRatesQuery(m.fxRates!, resolve)).toContain("SAFE_CAST(REPLACE(CAST(tasa AS STRING), ',', '.') AS FLOAT64)");
+  });
+
+  it("normaliza la moneda de la cuenta", () => {
+    for (const v of ["USD", "usd", " USD ", "US$", "Dólares", "dollar"]) expect(currencyOf(v), String(v)).toBe("USD");
+    for (const v of ["MXN", "mxn", "Pesos", "", null, undefined]) expect(currencyOf(v), String(v)).toBe("MXN");
   });
 });

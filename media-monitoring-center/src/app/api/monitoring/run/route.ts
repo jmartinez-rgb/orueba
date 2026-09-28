@@ -1,3 +1,4 @@
+import { logActivity } from "@/lib/services/activity";
 import { requirePermission } from "@/lib/auth/session";
 import { invalidate, invalidateMatching } from "@/lib/data/cache";
 import { baseSettings } from "@/lib/services/context";
@@ -27,6 +28,7 @@ export async function POST() {
     invalidateMatching((k) => k.startsWith("bq:hourly") && k.endsWith(today));
     invalidateMatching((k) => k.startsWith("bq:daily") && k.endsWith(today));
     const hook = await triggerWebhook("manualSync", { requestedBy: session.user.name, role: session.role, requestedAt: new Date().toISOString() });
+    await logActivity(session, "EVALUATION_TRIGGERED", `Actualizar ahora (${hook.mode === "live" ? (hook.ok ? "n8n OK" : "n8n con error") : "simulado"})`);
     const message =
       hook.mode === "live"
         ? hook.ok

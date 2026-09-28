@@ -6,10 +6,14 @@ import type {
   Campaign,
   CampaignObjective,
   Catalog,
+  Currency,
   DailyRow,
   DataQualityStats,
   EntityLevel,
+  ExecutionControlRow,
+  ExecutionStatus,
   FreshnessRecord,
+  FxRate,
   HourlyRow,
   MetricValues,
   PlatformId,
@@ -19,7 +23,9 @@ import { BASE_METRICS } from "@/lib/types";
 import type { DailyQuery, HourlyQuery, MonitoringDataSource } from "@/lib/data/source";
 import { cached, peek, put } from "@/lib/data/cache";
 import { addMetrics, emptyMetrics } from "@/lib/metrics";
-import { isPlatformId } from "@/lib/platforms/registry";
+import { isPlatformId, resolvePlatformAlias } from "@/lib/platforms/registry";
+import { readSheetRows } from "@/lib/google/sheets";
+import { parseDateTimeLoose } from "@/lib/time/parse";
 import { addDays, businessDate, zonedParts } from "@/lib/time/tz";
 import { fullTableName, runQuery } from "./client";
 import type { BigQueryMapping, MetricSourceMapping } from "./mapping";
@@ -45,6 +51,12 @@ function str(v: unknown): string | null {
   if (v === null || v === undefined) return null;
   if (typeof v === "object" && v && "value" in (v as Record<string, unknown>)) return String((v as { value: unknown }).value);
   return String(v);
+}
+
+/** Moneda reportada por la fuente ("USD", "usd", "US$", "Dólares"...). Todo lo demás cuenta como MXN. */
+export function currencyOf(v: unknown): Currency {
+  const t = (str(v) ?? "").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return /^(USD|US\$|U\$S|DOLAR|DOLLAR)/.test(t) ? "USD" : "MXN";
 }
 
 function metricsOf(r: Row): MetricValues {
@@ -108,7 +120,7 @@ export class BigQueryDataSource implements MonitoringDataSource {
         const platform = str(r.platform);
         if (!platform || !isPlatformId(platform)) continue;
         const accountId = str(r.account_id) ?? `${platform}-sin-cuenta`;
-        if (!accounts.has(accountId)) accounts.set(accountId, { id: accountId, platform, name: str(r.account_name) ?? accountId, currency: "MXN" });
+        if (!accounts.has(accountId)) accounts.set(accountId, { id: accountId, platform, name: str(r.account_name) ?? accountId, currency: currencyOf(r.currency) });
         const rawStatus = (str(r.campaign_status) ?? "").toUpperCase();
         const recent = num(r.recent_spend) ?? 0;
         const status: Campaign["status"] = /PAUS/.test(rawStatus) ? "PAUSED" : /END|REMOV|ELIMIN|ARCHIV/.test(rawStatus) ? "ENDED" : recent > 0 || /ACTIV|ENABL/.test(rawStatus) ? "ACTIVE" : "PAUSED";
@@ -121,6 +133,7 @@ export class BigQueryDataSource implements MonitoringDataSource {
           objective: inferObjective(name, str(r.objective)),
           status,
           conversionEvent: null,
+          sourceType: str(r.campaign_type) ?? str(r.objective),
         });
       }
       return { accounts: [...accounts.values()], campaigns };
@@ -217,9 +230,73 @@ export class BigQueryDataSource implements MonitoringDataSource {
             accountId: str(r.account_id),
             campaignId: str(r.campaign_id),
             amount: num(r.amount) ?? 0,
+            currency: currencyOf(r.currency),
           } as BudgetRow;
         })
         .filter((r) => r.amount > 0);
+    });
+  }
+
+  async getFxRates(): Promise<FxRate[]> {
+    const fx = this.opts.mapping.fxRates;
+    if (!fx) return [];
+    return cached("bq:fx", 6 * 3600 * 1000, async () => {
+      const { rows } = await runQuery<Row>("fx_rates", Q.fxRatesQuery(fx, this.resolve), {});
+      return rows.map((r) => ({ month: str(r.month) ?? "", rate: num(r.rate) ?? 0 })).filter((r) => /^\d{4}-\d{2}$/.test(r.month) && r.rate > 0);
+    });
+  }
+
+  async getExecutionControl(asOf: Date): Promise<ExecutionControlRow[]> {
+    const ec = this.opts.mapping.executionControl;
+    if (!ec) return [];
+    return cached(`bq:exec:${Math.floor(asOf.getTime() / 120000)}`, 2 * 60 * 1000, async () => {
+      const raw: Array<Record<string, unknown>> = [];
+      if (ec.type === "bigquery") {
+        const { rows } = await runQuery<Row>("execution_control", Q.executionControlQuery(ec, this.resolve), {});
+        raw.push(...rows.map((r) => ({ step: r.step, platform: r.platform, source: r.source, status: r.status, lastRunAt: r.last_run_at, rows: r.rows_loaded, message: r.message, expected: r.expected_every })));
+      } else {
+        const f = ec.fields;
+        const rows = await readSheetRows(ec.spreadsheetId, ec.range);
+        raw.push(
+          ...rows.map((r) => ({
+            step: r[f.step],
+            platform: f.platform ? r[f.platform] : null,
+            source: f.source ? r[f.source] : null,
+            status: r[f.status],
+            lastRunAt: r[f.lastRunAt],
+            rows: f.rows ? r[f.rows] : null,
+            message: f.message ? r[f.message] : null,
+            expected: f.expectedEveryMinutes ? r[f.expectedEveryMinutes] : null,
+          })),
+        );
+      }
+      const sv = ec.statusValues;
+      const statusOf = (v: string): ExecutionStatus => {
+        const t = v.trim().toLowerCase();
+        const has = (list: string[]) => list.some((x) => x.toLowerCase() === t);
+        if (has(sv.ok)) return "OK";
+        if (has(sv.error)) return "ERROR";
+        if (has(sv.running)) return "EJECUTANDO";
+        if (has(sv.partial)) return "PARCIAL";
+        if (has(sv.pending)) return "PENDIENTE";
+        return "PENDIENTE";
+      };
+      return raw
+        .filter((r) => str(r.step))
+        .map((r, i) => {
+          const src = (str(r.source) ?? "").toLowerCase();
+          return {
+            id: `exec-${i}`,
+            step: str(r.step)!,
+            platform: resolvePlatformAlias(str(r.platform)),
+            source: /slayer/.test(src) ? "dataslayer" : /script/.test(src) ? "apps_script" : /api/.test(src) ? "api" : /bigquery|bq/.test(src) ? "bigquery" : /n8n/.test(src) ? "n8n" : "otro",
+            status: statusOf(str(r.status) ?? ""),
+            lastRunAt: parseDateTimeLoose(r.lastRunAt, this.opts.timezone),
+            rows: num(r.rows),
+            message: str(r.message),
+            expectedEveryMinutes: num(r.expected),
+          } satisfies ExecutionControlRow;
+        });
     });
   }
 

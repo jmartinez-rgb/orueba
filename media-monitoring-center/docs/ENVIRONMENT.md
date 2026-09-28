@@ -4,7 +4,8 @@ Plantilla: `.env.example` (sin valores reales). Local: `.env.local` (ignorado po
 *Site configuration → Environment variables*. **Nunca** subir `.env` ni credenciales.
 
 Solo las variables con prefijo `NEXT_PUBLIC_` llegan al navegador; ninguna de ellas es secreta.
-Todo lo demás se lee en `src/lib/config/env.ts` (módulo `server-only`).
+Todo lo demás se lee en `src/lib/config/env.ts` y, lo de acceso, en `src/lib/auth/config.ts`
+(módulos `server-only`).
 
 ## App y datos
 
@@ -61,16 +62,40 @@ firmadas.
 
 El token de WhatsApp Business **no** es una variable de la app: vive en la credencial de n8n.
 
-## Autenticación
+## Acceso (ver `docs/AUTH.md`)
+
+| Variable | Secreta | Descripción |
+|---|---|---|
+| `AUTH_SECRET` | **Sí** | Firma de las sesiones (32+ caracteres aleatorios). Cambiarla cierra todas las sesiones |
+| `AUTH_USERS` | No* | JSON en una línea: `[{"u":"jmartinez","n":"J. Martínez","r":"admin","h":"scrypt:…"}]`. Roles: `admin`, `coadmin`, `manager`, `viewer` |
+| `AUTH_UNIVERSAL_PASSWORD_HASH` | No* | Hash de la contraseña universal (cada persona entra con su nombre) |
+| `AUTH_UNIVERSAL_ROLE` | No | `viewer` (default) o `manager` |
+| `AUTH_SESSION_HOURS` | No | Duración de la sesión (default 12, máximo 336) |
+| `AUTH_MODE` | No | Vacío = automático (recomendado). `open` = sin contraseña (solo demo local). `header` = identidad en `x-immc-user`, `x-immc-role`, `x-immc-email` de un proxy/SSO de confianza. El valor antiguo `dev` cuenta como automático |
+| `AUTH_DEFAULT_ROLE` | No | Rol en modo abierto (default `admin`) |
+
+\* Son hashes scrypt (no contraseñas), pero trátalos como sensibles. Se generan con
+`npm run auth:setup` o `npm run auth:hash`; las contraseñas nunca se guardan en ningún lado.
+
+Modo automático: con `AUTH_SECRET` válido y al menos una credencial pide contraseña; sin
+configurar, en local entra en modo abierto (con aviso) y en producción queda **bloqueado**.
+
+## Registros de la app
+
+Bitácora de accesos, tickets, acuses de alertas críticas e historial de mensajes de Monitoreos.
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `AUTH_MODE` | `dev` | `dev`: rol elegido desde la interfaz (desarrollo). `header`: rol en cabeceras `x-immc-role`, `x-immc-user`, `x-immc-email` puestas por un proxy/SSO de confianza |
-| `AUTH_DEFAULT_ROLE` | `admin` | Rol inicial en modo `dev`: `admin`, `manager`, `viewer` |
+| `RECORDS_BACKEND` | automático | `blobs` (Netlify Blobs, automático en Netlify), `file` (local) o `memory` |
+| `RECORDS_DIR` | `.data/records` | Carpeta para `file` (ignorada por git) |
+
+No hace falta configurar nada en Netlify: el sitio ya tiene acceso a Netlify Blobs. Las métricas
+nunca se guardan aquí (viven en BigQuery).
 
 ## Buenas prácticas
 
 - Rotar `MONITORING_API_KEY` y `N8N_WEBHOOK_SECRET` en ambos lados (Netlify y n8n) a la vez.
+- Rotar `AUTH_SECRET` y la contraseña universal cuando alguien deja el equipo.
 - Si se requiere, mover los secretos a Google Secret Manager y cargarlos en el arranque; la app
   solo necesita que existan como variables de entorno.
 - Los logs nunca imprimen secretos: el logger enmascara llaves como `token`, `secret`, `key`,

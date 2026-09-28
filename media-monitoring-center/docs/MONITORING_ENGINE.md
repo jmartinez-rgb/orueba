@@ -84,6 +84,20 @@ reporta" y se muestra como "—" o "NULL (no se reporta)".
 El objetivo se toma del catálogo, se infiere del nombre en BigQuery (`inferObjective`) o se
 asigna en **Settings → Objetivos de campaña**.
 
+### Métrica monitoreada por plataforma
+
+Cada plataforma se evalúa con **una métrica elegida** (`settings.platformMetrics[p].primary`:
+conversiones, leads, ventas, WhatsApp, llamadas, compras, clics o impresiones). Esa métrica y su
+costo (CPA, CPL…) deciden el semáforo de la plataforma y aparecen en su tarjeta del Overview, donde
+se cambia (o en **Métricas**). Además se pueden fijar hasta 6 métricas visibles por plataforma
+(`pinned`). Las campañas siguen evaluándose con el KPI de su propio objetivo.
+
+### Moneda
+
+El motor recibe todo en **MXN**: `CurrencyConvertedSource` envuelve la fuente (mock o BigQuery) y
+convierte gasto e ingresos de las cuentas en USD con la tasa del mes de cada fecha antes de
+agregar a plataforma. Sin tasa, el gasto en USD queda NULL (nunca 0). Ver `docs/DATOS.md`.
+
 Medición izzi (contexto de la cuenta): en Meta, las campañas *CAPI WhatsApp* se miden con
 On-Facebook Purchase y el resto con Compras Offline Web (Inbound) — por eso son objetivos
 distintos y no se mezclan; en Google, ventas con `MCC_Offline_Purchase` y leads con
@@ -122,7 +136,9 @@ distintos y no se mezclan; en Google, ventas con `MCC_Offline_Purchase` y leads 
   evalúan; resultados esperados bajos limitan la severidad a ATENCIÓN.
 - **Significancia**: una caída de conteos dentro de ±2·√esperado (aprox. Poisson) es ruido.
 - **Variabilidad**: si |z| < 1.5 frente al propio histórico, baja un nivel.
-- **Hora**: antes de las 08:00 (`earlyHour`) baja un nivel.
+- **Hora**: antes de las 08:00 (`earlyHour`), o mientras no ha ocurrido el 20% del volumen típico
+  del día según la curva horaria (`earlyDayShare`), baja un nivel. No aplica a "dejó de gastar"
+  (DELIVERY_CRITICAL).
 - **Materialidad**: una campaña afecta el color de su plataforma solo hasta ATENCIÓN, o hasta
   ALERTA si pesa ≥ 15% del gasto esperado.
 - **Agrupación jerárquica (anti-spam)**: si la plataforma o la cuenta tienen la misma anomalía,
@@ -139,8 +155,36 @@ distintos y no se mezclan; en Google, ventas con `MCC_Offline_Purchase` y leads 
   varianza en puntos, forecast = gasto del mes + resto de hoy + días restantes al promedio
   reciente de cada día de la semana. Estado por umbrales de sobre/subejercicio configurables.
 
-## 6. Configuración
+## 6. Confianza de datos
+
+`lib/monitoring/confidence.ts`. Por plataforma, de 0 a 100 (alta ≥ 85, media ≥ 60, baja < 60). Un
+problema grave pone un techo y el resto descuenta debajo de él:
+
+| Señal | Efecto |
+|---|---|
+| Sin datos del día / sincronización con error / datos atrasados | Techo 0 / 20 / 40 |
+| Cuentas atrasadas excluidas | −máx(10, 40 × participación en el gasto esperado) |
+| Último dato con más de la mitad del umbral de atraso | −10 |
+| Horas faltantes · duplicados · gasto NULL · última hora incompleta | −4 por hora (máx. 20) · −3 por fila (máx. 15) · −3 por fila (máx. 15) · −8 |
+| Hoja de control: error · pendiente · vencido · parcial · en ejecución | −30 · −20 · −15 · −10 · −5 por paso |
+| Tipo de cambio: mes sin tasa · mes con la tasa anterior | −25 · −5 por mes (máx. 10) |
+| Histórico incompleto | −5 por semana sin dato (máx. 15) |
+
+La confianza general es el promedio ponderado por el gasto esperado de cada plataforma. Cada punto
+descontado lleva su motivo (se ve al pasar el cursor sobre el indicador). La confianza informa; no
+cambia la severidad de las anomalías.
+
+## 7. Objetivos fijos
+
+Opcionales (`settings.fixedTargets`, sección **Métricas**): un valor diario de referencia por
+plataforma y métrica. Las métricas que se suman (gasto, conversiones…) se comparan contra la
+proyección del día (`actual ÷ participación de la curva`); las calculadas (CPA, CTR…) contra su
+valor acumulado. Se muestran en la tarjeta de la plataforma; no generan alertas por sí solos.
+
+## 8. Configuración
 
 Todo lo anterior se ajusta en **Settings** (y se valida con zod): umbrales, frecuencia y horario,
 semanas y método del esperado, zona horaria, frescura, volúmenes, reglas de detección, política
-de alertas, presupuestos, destinatarios y objetivos de campaña.
+de alertas, presupuestos, destinatarios, objetivos de campaña, tipo de cambio, moneda por cuenta y
+clasificadores. La métrica monitoreada y los objetivos fijos, en **Métricas**. Los cambios solo
+afectan cómo evalúa el monitoreo: nunca se aplica nada en las plataformas.

@@ -5,6 +5,8 @@ import { fmtCurrency, fmtMetric } from "@/lib/format";
 import { formatTimeInTz, hourLabel } from "@/lib/time/tz";
 import { cn } from "@/lib/utils";
 import { DATA_STATE_META, DeltaText, isBadDataState, PlatformMark, PlatformStatusBadge, SEVERITY_META } from "./status";
+import { ConfidenceMeter } from "./confidence-meter";
+import { MetricPicker } from "./metric-picker";
 
 function Bar({ current, expected }: { current: number | null; expected: number | null }) {
   if (current === null || !expected) return <div className="h-1.5 rounded-full bg-muted" />;
@@ -17,16 +19,12 @@ function Bar({ current, expected }: { current: number | null; expected: number |
   );
 }
 
-export function PlatformCard({ vm, timezone, weeks, attention }: { vm: PlatformCardVM; timezone: string; weeks: number; attention: number }) {
+export function PlatformCard({ vm, timezone, weeks, attention, canEdit = false }: { vm: PlatformCardVM; timezone: string; weeks: number; attention: number; canEdit?: boolean }) {
   const bad = isBadDataState(vm.dataState);
   const sev = SEVERITY_META[vm.severity];
   return (
-    <Link
-      href={`/platforms/${vm.platform}`}
-      className={cn(
-        "group relative flex flex-col overflow-hidden rounded-lg border bg-card transition-colors hover:border-foreground/25 focus-visible:ring-2 focus-visible:ring-ring/60 outline-none",
-      )}
-    >
+    <div className="group relative flex flex-col overflow-hidden rounded-lg border bg-card transition-colors hover:border-foreground/25">
+    <Link href={`/platforms/${vm.platform}`} className="flex flex-1 flex-col outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-inset">
       <span className={cn("absolute inset-y-0 left-0 w-1", bad ? "bg-status-data" : sev.dot)} aria-hidden />
       <div className={cn("flex items-center justify-between gap-2 border-b px-3.5 py-2.5 pl-4", !bad && vm.severity !== "NORMAL" && sev.tint)}>
         <div className="flex min-w-0 items-center gap-2">
@@ -85,6 +83,34 @@ export function PlatformCard({ vm, timezone, weeks, attention }: { vm: PlatformC
               vs prom. {weeks} sem. <DeltaText value={vm.spend.vsMean} attention={attention} />
             </span>
           </div>
+          {vm.pinned.length > 0 && (
+            <div className="grid grid-cols-[1fr_auto_auto] items-baseline gap-x-3 gap-y-0.5 border-t pt-2 text-xs">
+              {vm.pinned.map((m) => (
+                <span key={m.metric} className="contents">
+                  <span className="truncate text-muted-foreground">{m.label}</span>
+                  <span className="tabular text-right font-semibold">{fmtMetric(m.metric, m.current, { compact: true })}</span>
+                  <DeltaText value={m.deviation} bad={m.metric === "spend" ? "both" : undefined} className="text-right" attention={attention} />
+                </span>
+              ))}
+            </div>
+          )}
+          {vm.targets.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {vm.targets.map((t) => (
+                <span
+                  key={t.id}
+                  className={cn(
+                    "rounded border px-1.5 py-0.5 text-[10.5px] font-medium",
+                    t.ok === null ? "text-muted-foreground" : t.ok ? "border-status-normal/40 text-status-normal-text" : "border-status-alert/50 bg-status-alert/10 text-status-alert-text",
+                  )}
+                  title={t.note || undefined}
+                >
+                  {t.ok === null ? "○" : t.ok ? "✓" : "✕"} {t.label} {fmtMetric(t.metric, t.target, { compact: true })}
+                  {t.value !== null && ` · ${t.projected ? "proy. " : ""}${fmtMetric(t.metric, t.value, { compact: true })}`}
+                </span>
+              ))}
+            </div>
+          )}
           {vm.topIssue && vm.severity !== "NORMAL" && (
             <p className={cn("line-clamp-2 text-xs font-medium", SEVERITY_META[vm.topIssue.severity].text)}>
               {vm.topIssue.type}: {vm.topIssue.title}
@@ -96,20 +122,25 @@ export function PlatformCard({ vm, timezone, weeks, attention }: { vm: PlatformC
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-2 border-t px-4 py-2 text-[11px] text-muted-foreground">
-        <span>
-          Último dato <span className="tabular font-medium text-foreground">{formatTimeInTz(vm.lastDataAt, timezone)}</span>
-          {!bad && vm.lagMinutes !== null && ` · hace ${vm.lagMinutes} min`}
-        </span>
-        <span className="flex items-center gap-2">
-          {vm.alertsCount > 0 && (
-            <span className="inline-flex items-center gap-1">
-              <BellRing className="size-3" /> {vm.alertsCount}
-            </span>
-          )}
-          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+    </Link>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-t px-4 py-2 text-[11px] text-muted-foreground">
+        <MetricPicker platform={vm.platform} primary={vm.primaryMetric} choices={vm.metricChoices} pinned={vm.pinnedIds} canEdit={canEdit} />
+        <ConfidenceMeter confidence={vm.confidence} />
+        <span className="flex w-full items-center justify-between gap-2 sm:w-auto">
+          <span>
+            Último dato <span className="tabular font-medium text-foreground">{formatTimeInTz(vm.lastDataAt, timezone)}</span>
+            {!bad && vm.lagMinutes !== null && ` · hace ${vm.lagMinutes} min`}
+          </span>
+          <Link href={`/platforms/${vm.platform}`} className="inline-flex items-center gap-1 hover:text-foreground" aria-label={`Ver ${vm.name}`}>
+            {vm.alertsCount > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <BellRing className="size-3" /> {vm.alertsCount}
+              </span>
+            )}
+            <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+          </Link>
         </span>
       </div>
-    </Link>
+    </div>
   );
 }

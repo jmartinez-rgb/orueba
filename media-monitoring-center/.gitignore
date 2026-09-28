@@ -24,3 +24,6 @@ next-env.d.ts
 .DS_Store
 coverage/
 npm-debug.log*
+
+# registros locales de la app (bitácora, tickets) en desarrollo
+.data/

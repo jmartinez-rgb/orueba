@@ -6,7 +6,10 @@
       "shape": "hourly",
       "platformConstant": "google",
       "allowExpressions": true,
-      "partition": { "field": "segments_date", "type": "DATE" },
+      "partition": {
+        "field": "segments_date",
+        "type": "DATE"
+      },
       "fields": {
         "date": "segments_date",
         "hour": "segments_hour",
@@ -15,6 +18,8 @@
         "campaignId": "campaign_id",
         "campaignName": "campaign_name",
         "campaignStatus": "campaign_status",
+        "campaignType": "campaign_advertising_channel_type",
+        "currency": "customer_currency_code",
         "spend": "metrics_cost_micros / 1000000",
         "impressions": "metrics_impressions",
         "clicks": "metrics_clicks",
@@ -23,7 +28,9 @@
         "sales": "conv_mcc_offline_purchase",
         "calls": "metrics_phone_calls"
       },
-      "dedupe": { "orderBy": "_ingested_at" }
+      "dedupe": {
+        "orderBy": "_ingested_at"
+      }
     },
     {
       "name": "meta_hourly",
@@ -31,13 +38,18 @@
       "shape": "hourly",
       "platformConstant": "meta",
       "timestampTimezone": "UTC",
-      "partition": { "field": "date_start", "type": "DATE" },
+      "partition": {
+        "field": "date_start",
+        "type": "DATE"
+      },
       "fields": {
         "timestamp": "hour_start_utc",
         "accountId": "account_id",
         "accountName": "account_name",
         "campaignId": "campaign_id",
         "campaignName": "campaign_name",
+        "objective": "objective",
+        "currency": "account_currency",
         "spend": "spend",
         "impressions": "impressions",
         "clicks": "clicks",
@@ -47,5 +59,45 @@
         "leads": "leads"
       }
     }
-  ]
+  ],
+  "fxRates": {
+    "table": "NOMBRE_TABLA_TIPO_CAMBIO",
+    "fields": {
+      "month": "mes",
+      "rate": "tasa",
+      "currency": "moneda"
+    }
+  },
+  "executionControl": {
+    "type": "bigquery",
+    "table": "NOMBRE_TABLA_CONTROL_EJECUCION",
+    "fields": {
+      "step": "paso",
+      "platform": "plataforma",
+      "source": "fuente",
+      "status": "estado",
+      "lastRunAt": "ultima_ejecucion",
+      "rows": "filas",
+      "message": "mensaje",
+      "expectedEveryMinutes": "cada_minutos"
+    },
+    "statusValues": {
+      "ok": [
+        "OK",
+        "Listo"
+      ],
+      "partial": [
+        "PARCIAL"
+      ],
+      "pending": [
+        "PENDIENTE"
+      ],
+      "running": [
+        "EJECUTANDO"
+      ],
+      "error": [
+        "ERROR"
+      ]
+    }
+  }
 }

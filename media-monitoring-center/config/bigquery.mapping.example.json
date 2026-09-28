@@ -5,7 +5,10 @@
       "table": "NOMBRE_TABLA_CORTES",
       "shape": "cumulative_snapshot",
       "timestampTimezone": "UTC",
-      "partition": { "field": "fecha", "type": "DATE" },
+      "partition": {
+        "field": "fecha",
+        "type": "DATE"
+      },
       "fields": {
         "date": "fecha",
         "timestamp": "corte_ts",
@@ -15,6 +18,10 @@
         "accountName": "cuenta",
         "campaignId": "campana_id",
         "campaignName": "campana",
+        "campaignStatus": "estado_campana",
+        "objective": "objetivo",
+        "campaignType": "tipo_campana",
+        "currency": "moneda",
         "spend": "costo",
         "impressions": "impresiones",
         "clicks": "clics",
@@ -26,16 +33,59 @@
         "purchases": "compras",
         "revenue": null
       },
-      "platformValues": { "bing": "microsoft", "facebook": "meta" }
+      "platformValues": {
+        "bing": "microsoft",
+        "facebook": "meta"
+      }
     }
   ],
   "budgets": {
     "table": "NOMBRE_TABLA_PRESUPUESTOS",
-    "fields": { "month": "mes", "level": null, "platform": "plataforma", "accountId": "cuenta_id", "campaignId": "campana_id", "amount": "presupuesto" }
+    "fields": {
+      "month": "mes",
+      "level": null,
+      "platform": "plataforma",
+      "accountId": "cuenta_id",
+      "campaignId": "campana_id",
+      "amount": "presupuesto",
+      "currency": "moneda"
+    }
+  },
+  "fxRates": {
+    "table": "NOMBRE_TABLA_TIPO_CAMBIO",
+    "fields": {
+      "month": "mes",
+      "rate": "usd_mxn",
+      "currency": null
+    }
+  },
+  "executionControl": {
+    "type": "sheets",
+    "spreadsheetId": "ID_DE_LA_HOJA_DE_CONTROL",
+    "range": "Control!A1:H50",
+    "fields": {
+      "step": "Paso",
+      "platform": "Plataforma",
+      "source": "Fuente",
+      "status": "Estado",
+      "lastRunAt": "Última ejecución",
+      "rows": "Filas",
+      "message": "Mensaje",
+      "expectedEveryMinutes": "Cada (min)"
+    }
   },
   "syncLog": {
     "table": "NOMBRE_TABLA_SYNC_LOG",
-    "fields": { "platform": "plataforma", "accountId": null, "workflow": "workflow", "startedAt": "inicio", "finishedAt": "fin", "status": "estado", "rowsLoaded": "filas", "message": "mensaje" }
+    "fields": {
+      "platform": "plataforma",
+      "accountId": null,
+      "workflow": "workflow",
+      "startedAt": "inicio",
+      "finishedAt": "fin",
+      "status": "estado",
+      "rowsLoaded": "filas",
+      "message": "mensaje"
+    }
   },
   "state": {
     "alerts": "monitoring_alerts",

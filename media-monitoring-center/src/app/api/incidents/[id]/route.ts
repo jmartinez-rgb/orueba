@@ -1,3 +1,4 @@
+import { logActivity } from "@/lib/services/activity";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/session";
 import { getAppContext } from "@/lib/services/context";
@@ -21,6 +22,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   try {
     const app = await getAppContext();
     await app.store.updateIncident(id, parsed.data, session.user.name);
+    await logActivity(session, "INCIDENT_UPDATED", `${id}${parsed.data.status ? ` → ${parsed.data.status}` : ""}${parsed.data.owner !== undefined ? ` · responsable: ${parsed.data.owner ?? "—"}` : ""}${parsed.data.note ? " · nota" : ""}`);
     invalidate("state:");
     return json({ ok: true, id });
   } catch (err) {

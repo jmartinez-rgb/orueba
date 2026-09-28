@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import type { MetricId, PlatformId } from "@/lib/types";
 import { PLATFORM_IDS } from "@/lib/types";
-import type { CompareResult } from "@/lib/services/analysis";
+import type { CompareDimension, CompareResult, CompareRow } from "@/lib/services/analysis";
 import { PLATFORMS } from "@/lib/platforms/registry";
 import { METRICS } from "@/lib/metrics";
 import { fmtMetric } from "@/lib/format";
@@ -13,10 +13,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CompareChart } from "@/components/charts/compare-chart";
+import { CompareBars } from "@/components/charts/compare-bars";
+import { SeriesTable, ViewToggle, type ChartView } from "@/components/charts/data-toggle";
+import { AnimatedTabs } from "@/components/rareui/animated-tabs";
+import { LoadingSpinner } from "@/components/rareui/loading-spinner";
 import { DeltaText, PlatformMark } from "./status";
 import { StateMessage } from "./states";
 
-const METRIC_OPTIONS: MetricId[] = ["spend", "conversions", "cpa", "whatsapp", "leads", "sales", "ctr", "cpc"];
+const METRIC_OPTIONS: MetricId[] = ["spend", "conversions", "cpa", "whatsapp", "leads", "sales", "ctr", "cpc", "cpm", "impressions", "clicks"];
+
+const DIMENSIONS: Array<{ id: CompareDimension; label: string }> = [
+  { id: "platform", label: "Plataforma" },
+  { id: "account", label: "Cuenta" },
+  { id: "strategy", label: "Estrategia" },
+  { id: "objective", label: "Objetivo" },
+  { id: "campaign", label: "Campaña" },
+];
 
 export function CompareView({ initial, attention, delayed = [] }: { initial: CompareResult; attention: number; delayed?: string[] }) {
   const [date, setDate] = useState(initial.date);
@@ -24,13 +36,17 @@ export function CompareView({ initial, attention, delayed = [] }: { initial: Com
   const [weeks, setWeeks] = useState<number[]>([1, 2, 3, 4]);
   const [custom, setCustom] = useState("");
   const [metric, setMetric] = useState<MetricId>(initial.metric);
-  const [scope, setScope] = useState<PlatformId | "total">(initial.scope);
+  const [dimension, setDimension] = useState<CompareDimension>(initial.dimension);
+  const [platform, setPlatform] = useState<PlatformId | "all">(initial.platform);
+  const [focus, setFocus] = useState<string>(initial.focus);
   const [data, setData] = useState<CompareResult>(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ message: string; technical?: string } | null>(null);
+  const [lineView, setLineView] = useState<ChartView>("chart");
+  const [barView, setBarView] = useState<ChartView>("chart");
 
   useEffect(() => {
-    const params = new URLSearchParams({ date, cutoff: String(cutoff), weeks: weeks.join(","), metric, scope });
+    const params = new URLSearchParams({ date, cutoff: String(cutoff), weeks: weeks.join(","), metric, dimension, platform, focus });
     if (custom) params.set("custom", custom);
     const ctrl = new AbortController();
     const t = setTimeout(async () => {
@@ -53,87 +69,110 @@ export function CompareView({ initial, attention, delayed = [] }: { initial: Com
       clearTimeout(t);
       ctrl.abort();
     };
-  }, [date, cutoff, weeks, custom, metric, scope]);
+  }, [date, cutoff, weeks, custom, metric, dimension, platform, focus]);
 
   const fmt = (v: number | null) => fmtMetric(metric, v, { compact: METRICS[metric].format !== "percent" });
   const fmtFull = (v: number | null) => fmtMetric(metric, v);
   const bad = METRICS[metric].bad;
-  const total = data.rows.find((r) => r.id === scope) ?? data.rows[data.rows.length - 1];
-  const toggleWeek = (w: number) => setWeeks((cur) => (cur.includes(w) ? cur.filter((x) => x !== w) : [...cur, w].sort()));
+  const total = data.total;
+  const toggleWeek = (w: number) => setWeeks((cur) => (cur.includes(w) ? cur.filter((x) => x !== w) : [...cur, w].sort((a, b) => a - b)));
+  const dimLabel = DIMENSIONS.find((d) => d.id === data.dimension)?.label ?? "Plataforma";
+  const barRows = data.rows.slice(0, 12).map((r) => ({ id: r.id, name: r.name, base: r.values[0], avg: r.avg }));
+  const focusRow: CompareRow = data.focus === "total" ? total : (data.rows.find((r) => r.id === data.focus) ?? total);
 
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardContent className="flex flex-wrap items-end gap-3 pt-4">
-          <div className="space-y-1">
-            <Label htmlFor="cmp-date">Fecha base</Label>
-            <Input id="cmp-date" type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} className="h-8 w-40 text-xs" />
+        <CardContent className="space-y-3 pt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Comparar por</span>
+            <AnimatedTabs
+              label="Dimensión de comparación"
+              active={dimension}
+              onChange={(d) => {
+                setDimension(d);
+                setFocus("total");
+              }}
+              tabs={DIMENSIONS}
+            />
+            {loading && <LoadingSpinner label="Actualizando…" size={18} className="ml-auto" />}
           </div>
-          <div className="space-y-1">
-            <Label>Hora de corte</Label>
-            <Select value={String(cutoff)} onValueChange={(v) => setCutoff(Number(v))}>
-              <SelectTrigger size="sm" className="w-28">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
-                  <SelectItem key={h} value={String(h)}>{`00:00–${String(h).padStart(2, "0")}:00`}</SelectItem>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <Label>Plataforma</Label>
+              <Select
+                value={platform}
+                onValueChange={(v) => {
+                  setPlatform(v as PlatformId | "all");
+                  setFocus("total");
+                }}
+              >
+                <SelectTrigger size="sm" className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las plataformas</SelectItem>
+                  {PLATFORM_IDS.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {PLATFORMS[p].name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="cmp-date">Fecha base</Label>
+              <Input id="cmp-date" type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} className="h-8 w-40 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label>Hora de corte</Label>
+              <Select value={String(cutoff)} onValueChange={(v) => setCutoff(Number(v))}>
+                <SelectTrigger size="sm" className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
+                    <SelectItem key={h} value={String(h)}>{`00:00–${String(h).padStart(2, "0")}:00`}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Comparar contra</Label>
+              <div className="flex flex-wrap gap-1">
+                {[1, 2, 3, 4, 8, 12].map((w) => (
+                  <button
+                    key={w}
+                    type="button"
+                    onClick={() => toggleWeek(w)}
+                    aria-pressed={weeks.includes(w)}
+                    className={cn("h-8 rounded-md border px-2 text-xs font-medium", weeks.includes(w) ? "border-primary bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted")}
+                  >
+                    −{w} sem
+                  </button>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label>Comparar contra</Label>
-            <div className="flex gap-1">
-              {[1, 2, 3, 4, 8, 12].map((w) => (
-                <button
-                  key={w}
-                  type="button"
-                  onClick={() => toggleWeek(w)}
-                  aria-pressed={weeks.includes(w)}
-                  className={cn("h-8 rounded-md border px-2 text-xs font-medium", weeks.includes(w) ? "border-primary bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted")}
-                >
-                  −{w} sem
-                </button>
-              ))}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="cmp-custom">Fecha personalizada</Label>
+              <Input id="cmp-custom" type="date" value={custom} onChange={(e) => setCustom(e.target.value)} className="h-8 w-40 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label>Métrica</Label>
+              <Select value={metric} onValueChange={(v) => setMetric(v as MetricId)}>
+                <SelectTrigger size="sm" className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {METRIC_OPTIONS.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m === "whatsapp" ? "WhatsApp" : METRICS[m].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="cmp-custom">Fecha personalizada</Label>
-            <Input id="cmp-custom" type="date" value={custom} onChange={(e) => setCustom(e.target.value)} className="h-8 w-40 text-xs" />
-          </div>
-          <div className="space-y-1">
-            <Label>Métrica</Label>
-            <Select value={metric} onValueChange={(v) => setMetric(v as MetricId)}>
-              <SelectTrigger size="sm" className="w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {METRIC_OPTIONS.map((m) => (
-                  <SelectItem key={m} value={m}>
-                    {m === "whatsapp" ? "WhatsApp" : METRICS[m].label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label>Gráfica</Label>
-            <Select value={scope} onValueChange={(v) => setScope(v as PlatformId | "total")}>
-              <SelectTrigger size="sm" className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="total">Total izzi</SelectItem>
-                {PLATFORM_IDS.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {PLATFORMS[p].name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {loading && <span className="pb-2 text-xs text-muted-foreground">Actualizando…</span>}
         </CardContent>
       </Card>
 
@@ -154,31 +193,85 @@ export function CompareView({ initial, attention, delayed = [] }: { initial: Com
             <Stat label="vs promedio" value={<DeltaText value={total.vsAvg} bad={bad} attention={attention} className="text-lg" />} sub={`Promedio ${fmt(total.avg)}`} />
             <Stat label="vs mediana" value={<DeltaText value={total.vsMedian} bad={bad} attention={attention} className="text-lg" />} sub={`Mediana ${fmt(total.median)}`} />
           </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Card>
+              <CardHeader className="flex-wrap">
+                <div>
+                  <CardTitle>
+                    {data.metricLabel} por {dimLabel.toLowerCase()} · base vs promedio
+                  </CardTitle>
+                  <CardDescription>
+                    Top {barRows.length} por gasto · 00:00–{String(data.cutoffHour).padStart(2, "0")}:00. Toca una barra para ver su curva.
+                  </CardDescription>
+                </div>
+                <ViewToggle view={barView} onChange={setBarView} />
+              </CardHeader>
+              <CardContent>
+                {barRows.length === 0 ? (
+                  <StateMessage kind="empty" compact title="Sin datos para esta selección" />
+                ) : barView === "chart" ? (
+                  <CompareBars rows={barRows} format={fmt} baseLabel={data.columns[0]?.label ?? "Base"} avgLabel={`Promedio ${weeks.length} sem.`} onSelect={(id) => setFocus(id)} selected={data.focus} />
+                ) : (
+                  <SeriesTable
+                    rows={barRows.map((r) => ({ name: r.name, base: r.base, avg: r.avg }))}
+                    xKey="name"
+                    xLabel={dimLabel}
+                    columns={[
+                      { key: "base", label: data.columns[0]?.label ?? "Base" },
+                      { key: "avg", label: `Promedio ${weeks.length} sem.` },
+                    ]}
+                    format={fmtFull}
+                    highlight="base"
+                  />
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex-wrap">
+                <div>
+                  <CardTitle>
+                    {data.metricLabel} acumulado por hora · {data.focusName}
+                  </CardTitle>
+                  <CardDescription>
+                    Misma franja en cada fecha; la base se corta a las {String(data.cutoffHour).padStart(2, "0")}:00. {data.focus !== "total" && (
+                      <button type="button" className="font-medium text-primary hover:underline" onClick={() => setFocus("total")}>
+                        Ver total
+                      </button>
+                    )}
+                  </CardDescription>
+                </div>
+                <ViewToggle view={lineView} onChange={setLineView} />
+              </CardHeader>
+              <CardContent>
+                {lineView === "chart" ? (
+                  <CompareChart columns={data.columns} data={data.series} format={fmt} />
+                ) : (
+                  <SeriesTable rows={data.series} xKey="label" xLabel="Acumulado a las" columns={data.columns.map((c) => ({ key: c.key, label: c.label }))} format={fmtFull} highlight="c0" />
+                )}
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  {focusRow.name}: base {fmtFull(focusRow.values[0])} · vs promedio <DeltaText value={focusRow.vsAvg} bad={bad} attention={attention} />
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
           <Card>
             <CardHeader>
               <div>
                 <CardTitle>
-                  {data.metricLabel} acumulado por hora · {scope === "total" ? "Total izzi" : PLATFORMS[scope].name}
+                  Tabla comparativa por {dimLabel.toLowerCase()} · 00:00–{String(data.cutoffHour).padStart(2, "0")}:00
                 </CardTitle>
-                <CardDescription>Misma franja horaria en cada fecha. La fecha base se corta a las {String(data.cutoffHour).padStart(2, "0")}:00.</CardDescription>
+                <CardDescription>
+                  Métricas derivadas calculadas desde totales de cada fecha. Toca una fila para graficarla.{data.truncated > 0 && ` Se muestran ${data.rows.length}; ${data.truncated} más con menor gasto.`}
+                </CardDescription>
               </div>
             </CardHeader>
-            <CardContent>
-              <CompareChart columns={data.columns} data={data.series} format={fmt} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <div>
-                <CardTitle>Tabla comparativa · 00:00–{String(data.cutoffHour).padStart(2, "0")}:00</CardTitle>
-                <CardDescription>Métricas derivadas calculadas desde totales de cada fecha.</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Plataforma</TableHead>
+                    <TableHead>{dimLabel}</TableHead>
                     {data.columns.map((c) => (
                       <TableHead key={c.key} className="text-right">
                         {c.label}
@@ -191,12 +284,21 @@ export function CompareView({ initial, attention, delayed = [] }: { initial: Com
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.rows.map((r) => (
-                    <TableRow key={r.id} className={cn(r.id === "total" && "bg-muted/40 font-semibold")}>
-                      <TableCell className="text-xs">
+                  {[...data.rows, total].map((r) => (
+                    <TableRow
+                      key={r.id}
+                      className={cn("cursor-pointer", r.id === "total" && "bg-muted/40 font-semibold", r.id === data.focus && "ring-1 ring-primary/40 ring-inset")}
+                      onClick={() => setFocus(r.id)}
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === "Enter" && setFocus(r.id)}
+                    >
+                      <TableCell className="max-w-[300px] text-xs">
                         <span className="flex items-center gap-2">
-                          {r.id !== "total" && <PlatformMark platform={r.id} className="size-5 text-[9px]" />}
-                          {r.name}
+                          {r.platform && <PlatformMark platform={r.platform} className="size-5 text-[9px]" />}
+                          <span className="min-w-0">
+                            <span className="block truncate">{r.name}</span>
+                            {r.sub && <span className="block truncate text-[10px] font-normal text-muted-foreground">{r.sub}</span>}
+                          </span>
                         </span>
                       </TableCell>
                       {r.values.map((v, i) => (

@@ -2,7 +2,9 @@
 import { useState } from "react";
 import { Menu } from "lucide-react";
 import type { Severity } from "@/lib/types";
-import type { Role } from "@/lib/auth/roles";
+import type { Permission, Role } from "@/lib/auth/roles";
+import type { AuthMode } from "@/lib/auth/token";
+import type { AuditUserKind } from "@/lib/records/audit";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { SEVERITY_META, StatusDot } from "@/components/monitoring/status";
@@ -15,6 +17,7 @@ import { UserMenu } from "./user-menu";
 
 export interface TopbarProps {
   counts: NavCounts;
+  permissions: Permission[];
   overall: Severity | null;
   timezone: string;
   cutoffLabel: string | null;
@@ -23,7 +26,8 @@ export interface TopbarProps {
   scenarios: Array<{ id: string; name: string }>;
   role: Role;
   userName: string;
-  devAuth: boolean;
+  userKind: AuditUserKind;
+  authMode: AuthMode;
   canTrigger: boolean;
 }
 
@@ -42,7 +46,7 @@ export function Topbar(p: TopbarProps) {
             <BrandMark />
           </div>
           <div className="px-2 py-3">
-            <NavList counts={p.counts} onNavigate={() => setOpen(false)} />
+            <NavList counts={p.counts} permissions={p.permissions} onNavigate={() => setOpen(false)} />
           </div>
         </SheetContent>
       </Sheet>
@@ -70,7 +74,16 @@ export function Topbar(p: TopbarProps) {
         </div>
         <RefreshButton canTrigger={p.canTrigger} compact={false} />
         <ThemeToggle />
-        <UserMenu role={p.role} userName={p.userName} devAuth={p.devAuth} mode={p.mode} scenario={p.scenario?.id ?? null} scenarios={p.scenarios} />
+        <UserMenu
+          role={p.role}
+          userName={p.userName}
+          userKind={p.userKind}
+          authMode={p.authMode}
+          canViewUsers={p.permissions.includes("users:view")}
+          mode={p.mode}
+          scenario={p.scenario?.id ?? null}
+          scenarios={p.scenarios}
+        />
       </div>
     </header>
   );

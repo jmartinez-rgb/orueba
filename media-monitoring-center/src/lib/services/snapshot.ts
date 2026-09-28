@@ -13,9 +13,12 @@ import { maxSeverity } from "@/lib/anomaly-engine/severity";
 import { pastIncidents, PAST_INCIDENT_COUNT } from "@/lib/mock/history";
 import { listScenarios } from "@/lib/mock/scenarios";
 import { addDays, businessDate, longDateLabel, zonedTimeToUtc } from "@/lib/time/tz";
-import { can, type Permission, type Role } from "@/lib/auth/roles";
+import { can, PERMISSIONS, type Permission, type Role } from "@/lib/auth/roles";
 import { friendlyError, logger } from "@/lib/logging/logger";
 import type { RunSummary } from "@/lib/state/store";
+import { overallConfidence, platformConfidence, summarizeExecution, type ConfidenceResult, type ExecutionSummary } from "@/lib/monitoring/confidence";
+import type { CurrencyReport } from "@/lib/data/currency";
+import { PLATFORMS } from "@/lib/platforms/registry";
 import { getAppContext, type AppContext } from "./context";
 
 export interface SnapshotMeta {
@@ -59,9 +62,14 @@ export interface Snapshot {
   runs: RunSummary[];
   catalog: Catalog;
   settings: MonitoringSettings;
+  /** Confianza de los datos (0–100 %) por plataforma y general. */
+  confidence: { overall: ConfidenceResult; platforms: Record<PlatformId, ConfidenceResult> };
+  /** Hoja de control de ejecución (Dataslayer / Apps Script / API). */
+  execution: ExecutionSummary;
+  /** Cuentas en USD, tasas usadas y meses sin tasa. */
+  currency: CurrencyReport;
 }
 
-const PERMISSIONS: Permission[] = ["settings:write", "alerts:write", "incidents:write", "budgets:write", "monitoring:trigger", "technical:view"];
 
 export function summarizeRun(run: MonitoringRun, state: AlertState, notifications: number, durationMs: number, trigger: RunSummary["trigger"]): RunSummary {
   return {
@@ -216,7 +224,42 @@ export async function buildSnapshot(ctx: AppContext): Promise<Snapshot> {
   ) as Record<PlatformId, PlatformStatusView>;
   const overall = maxSeverity(...PLATFORM_IDS.map((p) => platformStatus[p].severity));
 
-  const catalog = await ctx.source.getCatalog();
+  const [catalog, execRows] = await Promise.all([ctx.source.getCatalog(), ctx.source.getExecutionControl(asOf).catch((err) => {
+    logger.warn("execution_control.failed", { error: err });
+    return [];
+  })]);
+  const execution = summarizeExecution(execRows, asOf);
+  const months = [...new Set([run.businessDate, ...run.comparisonDates].map((d) => d.slice(0, 7)))];
+  const currency = await ctx.source.currencyReport(months);
+  const confidencePlatforms = Object.fromEntries(
+    PLATFORM_IDS.map((p) => {
+      const pe = run.entities.find((e) => e.key === `platform:${p}`)!;
+      const excludedExpected = run.entities
+        .filter((e) => e.level === "account" && e.platform === p && pe.excludedAccounts.includes(e.accountId ?? ""))
+        .reduce((a, e) => a + (e.cumulative.spend?.expected ?? 0), 0);
+      const includedExpected = pe.cumulative.spend?.expected ?? 0;
+      const sheets = (ctx.settings.ingestion[p] ?? "sheets") === "sheets";
+      return [
+        p,
+        platformConfidence({
+          platform: p,
+          health: run.dataHealth[p],
+          delayedAfterMinutes: ctx.settings.freshness.delayedAfterMinutes,
+          excludedShare: excludedExpected + includedExpected > 0 ? excludedExpected / (excludedExpected + includedExpected) : 0,
+          historySamples: pe.cumulative.spend?.sampleCount ?? null,
+          historyWeeks: ctx.settings.history.weeks,
+          execution: execution.rows.filter((r) => r.platform === p || (r.platform === null && sheets)),
+          fxIssues: currency.issues.filter((i) => i.platform === p),
+        }),
+      ];
+    }),
+  ) as Record<PlatformId, ConfidenceResult>;
+  const confidence = {
+    platforms: confidencePlatforms,
+    overall: overallConfidence(
+      PLATFORM_IDS.map((p) => ({ name: PLATFORMS[p].shortName, result: confidencePlatforms[p], weight: run.entities.find((e) => e.key === `platform:${p}`)?.cumulative.spend?.expected ?? 0 })),
+    ),
+  };
   const lastDataAt = PLATFORM_IDS.map((p) => run.dataHealth[p].lastDataAt).filter(Boolean).sort().pop() ?? null;
   const lastSyncAt = PLATFORM_IDS.map((p) => run.dataHealth[p].lastSyncAt).filter(Boolean).sort().pop() ?? null;
 
@@ -246,5 +289,5 @@ export async function buildSnapshot(ctx: AppContext): Promise<Snapshot> {
     mappingErrors: ctx.mappingErrors,
   };
 
-  return { meta, run, platformStatus, overall, state, runs, catalog, settings: ctx.settings };
+  return { meta, run, platformStatus, overall, state, runs, catalog, settings: ctx.settings, confidence, execution, currency };
 }

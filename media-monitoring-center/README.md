@@ -10,6 +10,10 @@ de la semana en la misma franja horaria** (hoy 00:00–12:00 vs los 4 lunes ante
 histórica, hora, frescura del dato y peso en la inversión, agrupa todo en incidentes sin
 spam y prepara las alertas que n8n envía por WhatsApp.
 
+**Es solo de monitoreo**: no cambia campañas, presupuestos ni configuraciones en ninguna
+plataforma, y la app nunca envía WhatsApp por sí misma (las alertas las entrega n8n y el mensaje de
+monitoreo se copia y se envía a mano). El acceso es con contraseña y cada entrada queda registrada.
+
 ```
 APIs publicitarias → n8n (ingesta) → BigQuery → Data Health → Monitoring Engine → Anomaly Engine → API (Next.js) → UI (Netlify)
                                                                                    ↘ n8n → WhatsApp Business Cloud API
@@ -22,18 +26,25 @@ Requisitos: Node.js 22+.
 ```bash
 cd media-monitoring-center
 npm install
-cp .env.example .env.local   # USE_MOCK_DATA=true ya viene activo
-npm run dev                  # http://localhost:3000
+cp .env.example .env.local        # USE_MOCK_DATA=true ya viene activo
+npm run auth:setup -- --write     # opcional: contraseñas y cuentas en .env.local (ver docs/AUTH.md)
+npm run dev                       # http://localhost:3000
 ```
 
-Sin credenciales la app funciona completa en **MOCK MODE**: 15 semanas de datos horarios
-simulados, 6 plataformas, 11 cuentas, 37 campañas, presupuestos, sincronizaciones e incidentes.
-El escenario por defecto muestra:
+Sin configurar el acceso, en local se entra sin contraseña (aviso de *modo abierto*); en
+producción el sitio queda bloqueado hasta configurar `AUTH_*`. Cuentas: `jmartinez`
+(Administrador), `operaciones` (Co-administrador) y una contraseña universal con la que cada
+persona entra con su nombre.
+
+Sin credenciales de datos la app funciona completa en **MOCK MODE**: 15 semanas de datos horarios
+simulados, 6 plataformas, 26 cuentas (varias por plataforma, algunas en USD), 76 campañas con los
+nombres del equipo, presupuestos a nivel cuenta y campaña, hoja de control, sincronizaciones e
+incidentes. El escenario por defecto muestra:
 
 | Plataforma | Estado | Qué está pasando |
 |---|---|---|
-| Google Ads | 🟢 Normal | Sin anomalías |
-| Meta Ads | 🔴 Crítico | 7 campañas con caída simultánea de delivery (incidente de plataforma), una campaña activa con gasto $0 y otra con ventas en cero (tracking) |
+| Google Ads | 🟢 Normal | Sin anomalías del motor; frente a ayer hay campañas con más gasto y cuentas con menos conversiones (aparecen en el mensaje de Monitoreos) |
+| Meta Ads | 🔴 Crítico | 9 campañas con caída simultánea de delivery (incidente de plataforma), una campaña activa con gasto $0 y otra con ventas en cero (tracking) |
 | TikTok Ads | 🟢 Normal | Ayer tuvo una caída 09:00–15:00 que se recuperó (incidente resuelto con mensaje de recuperación) |
 | Microsoft Advertising | 🟡 Atención | Caída de conversiones, sobreinversión en una campaña pequeña y una cuenta con DATA DELAYED (excluida de la comparación) |
 | Spotify Ads | 🟢 Normal | — |
@@ -52,36 +63,52 @@ gastar** (datos al día, gasto en cero las últimas 3 horas).
 | `npm start` | Sirve el build |
 | `npm run typecheck` | TypeScript sin emitir |
 | `npm run lint` | ESLint (config de Next.js) |
-| `npm test` | Pruebas de motores (comparación, anomalías, incidentes, pacing, data health, BigQuery, escenarios) |
+| `npm test` | Pruebas de motores (comparación, anomalías, incidentes, pacing, data health, BigQuery, escenarios), acceso, clasificadores, monedas, confianza y mensaje de monitoreo |
 | `npm run check` | typecheck + lint + tests |
+| `npm run auth:setup` | Genera contraseñas nuevas, sus hashes y `AUTH_SECRET` (`-- --write` los guarda en `.env.local`) |
+| `npm run auth:hash -- "contraseña"` | Hash scrypt de una contraseña elegida |
 
 ## Páginas
 
-Overview · Live Monitoring · Platforms (y `/platforms/{google|meta|tiktok|microsoft|spotify|x}`) ·
-Campaigns · Alerts · Incidents · Budget Control · Compare · Historical · Integrations ·
-Automation · Settings. Modo oscuro y claro, responsive (en móvil se priorizan estado, alertas,
-incidentes y plataformas).
+| Grupo | Páginas |
+|---|---|
+| Monitoreo | Overview · Live Monitoring · Platforms (y `/platforms/{google\|meta\|tiktok\|microsoft\|spotify\|x}`) · Campaigns · **Monitoreos** (mensaje de WhatsApp manual) |
+| Alertas | Alerts · Incidents · **Tickets** |
+| Análisis | Budget Control · Compare (por plataforma, cuenta, estrategia, objetivo o campaña) · Historical · **Métricas** · **Optimizaciones** |
+| Operación | Integrations · Automation · **Usuarios** (administradores) · Settings |
+| Ayuda | **Guía** |
+
+Además: `/login`, alerta crítica a pantalla completa con acuse obligatorio, confianza de datos
+(0–100%) por plataforma, métrica monitoreada por plataforma, conversión USD→MXN con tasa mensual y
+gráficas con vista de tabla. Modo oscuro y claro, responsive.
 
 ## Estructura
 
 ```
 media-monitoring-center/
-├── src/app/                 Páginas (App Router) y API routes (/api/*)
-├── src/components/          UI: shadcn/ui (ui/), layout, monitoreo y gráficas (Recharts)
+├── src/app/                 (app)/ páginas con sesión, login/, API routes (/api/*)
+├── src/proxy.ts             Exige sesión en páginas y API (redirige a /login)
+├── src/components/          UI: shadcn/ui (ui/), RareUI (rareui/), layout, monitoreo, gráficas (Recharts)
 ├── src/lib/
 │   ├── config/              Variables de entorno (servidor) y configuración operativa
-│   ├── data/                Contrato de datos (MonitoringDataSource) y caché
+│   ├── data/                Contrato de datos (MonitoringDataSource), caché y conversión USD→MXN
 │   ├── mock/                Generador de datos simulados y escenarios de anomalías
 │   ├── bigquery/            Cliente, mapeo configurable del esquema, SQL y fuente real
-│   ├── monitoring/          MonitoringEngine, comparador histórico, PacingEngine, Data Health
+│   ├── google/              Lectura (solo lector) de la hoja de control en Google Sheets
+│   ├── classifiers/         Clasificadores de estrategia (réplica de las fórmulas de Meta y Google)
+│   ├── monitoring/          MonitoringEngine, comparador histórico, PacingEngine, Data Health, confianza, objetivos fijos
 │   ├── anomaly-engine/      AnomalyEngine (reglas de patrón y severidad)
 │   ├── alerts/              Alertas, incidentes, anti-spam, formato WhatsApp, despacho a n8n
 │   ├── n8n/                 Cliente de webhooks firmado y catálogo de workflows
 │   ├── state/               Persistencia de estado (memoria o BigQuery)
-│   ├── services/            Orquestación para páginas y API (snapshot, budget, compare...)
-│   ├── auth/                Roles (Admin, Paid Media Manager, Viewer) y sesión
+│   ├── services/            Orquestación para páginas y API (snapshot, budget, compare, reporte, críticos...)
+│   ├── reports/             Formato del mensaje de monitoreo para WhatsApp
+│   ├── optimizations/       Recomendaciones de la documentación oficial de cada plataforma
+│   ├── records/             Bitácora, tickets, acuses e historial (Netlify Blobs / archivos locales)
+│   ├── auth/                Roles, contraseñas (scrypt), sesión firmada y límite de intentos
 │   └── logging/             Logging estructurado sin secretos
-├── config/                  Ejemplos de mapeo de BigQuery
+├── config/                  Ejemplos de mapeo de BigQuery y plantilla de la hoja de control
+├── scripts/                 auth:setup y auth:hash (contraseñas y hashes, nunca se guardan en el repo)
 ├── sql/                     DDL de las tablas propias de la app
 ├── n8n/workflows/           Plantillas importables (WF07 Monitoring Runner, WF08 WhatsApp Alert)
 ├── tests/                   Vitest
@@ -91,6 +118,9 @@ media-monitoring-center/
 
 ## Documentación
 
+- [docs/GUIA.md](docs/GUIA.md): qué hay en cada sección, cómo leer el semáforo, mensaje de Monitoreos y clasificadores.
+- [docs/AUTH.md](docs/AUTH.md): cuentas, contraseña universal, roles y bitácora de accesos.
+- [docs/DATOS.md](docs/DATOS.md): API directa o Sheets, hoja de control, monedas, presupuestos y varias cuentas.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): capas, flujo de datos y decisiones.
 - [docs/MONITORING_ENGINE.md](docs/MONITORING_ENGINE.md): regla de comparación, anomalías, pacing, data health.
 - [docs/ALERTS.md](docs/ALERTS.md): alertas, incidentes, anti-spam, escalamiento y WhatsApp.
@@ -109,4 +139,5 @@ media-monitoring-center/
 | 4. Capa BigQuery, toggle mock/real, consultas, Data Health | ✅ lista para configurar |
 | 5. Integración n8n: webhooks firmados, triggers, endpoint de evaluación | ✅ lista para configurar |
 | 6. Arquitectura de WhatsApp, bitácora de notificaciones, escalamientos | ✅ lista para configurar |
-| 7. Integraciones reales (proyecto, tablas, n8n, plantillas de WhatsApp) | Pendiente de accesos |
+| 7. Acceso con contraseña, bitácora, Monitoreos, tickets, alerta crítica, monedas, clasificadores, confianza | ✅ con pruebas |
+| 8. Integraciones reales (proyecto, tablas, hoja de control, n8n, plantillas de WhatsApp) | Pendiente de accesos |

@@ -4,7 +4,9 @@ import type {
   DailyRow,
   DataQualityStats,
   EntityLevel,
+  ExecutionControlRow,
   FreshnessRecord,
+  FxRate,
   HourlyRow,
   PlatformId,
   SyncLogEntry,
@@ -40,4 +42,8 @@ export interface MonitoringDataSource {
   getFreshness(asOf: Date): Promise<FreshnessRecord[]>;
   getSyncLog(limit: number): Promise<SyncLogEntry[]>;
   getDataQuality(date: string): Promise<DataQualityStats[]>;
+  /** Hoja/tabla de control de ejecución (Dataslayer, Apps Script, API). Vacío si no está configurada. */
+  getExecutionControl(asOf: Date): Promise<ExecutionControlRow[]>;
+  /** Tasas USD→MXN que trae la fuente (tabla de BigQuery o valores simulados). Settings las puede sobrescribir. */
+  getFxRates(): Promise<FxRate[]>;
 }

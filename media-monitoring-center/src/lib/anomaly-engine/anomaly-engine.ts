@@ -292,9 +292,15 @@ function adjust(a: Anomaly, e: EntityEvaluation, ctx: AnomalyContext): Anomaly {
   if (a.type === "DATA_ISSUE") return a;
   let s = a.severity;
   const notes: string[] = [];
-  if (e.cutoffHour < settings.detection.earlyHour) {
+  const earlyShare = e.dayShare !== null && e.dayShare < settings.detection.earlyDayShare;
+  if (e.cutoffHour < settings.detection.earlyHour || (earlyShare && a.type !== "DELIVERY_CRITICAL")) {
     const d = downgrade(s);
-    if (d !== s) notes.push(`Pocas horas transcurridas (corte ${hourLabel(e.cutoffHour)}): severidad reducida un nivel.`);
+    if (d !== s)
+      notes.push(
+        e.cutoffHour < settings.detection.earlyHour
+          ? `Pocas horas transcurridas (corte ${hourLabel(e.cutoffHour)}): severidad reducida un nivel.`
+          : `A esta hora suele haber ocurrido solo el ${Math.round((e.dayShare ?? 0) * 100)}% del volumen del día: severidad reducida un nivel.`,
+      );
     s = d;
   }
   const hardEvidence = a.type === "DELIVERY_CRITICAL" || (a.type === "TRACKING_ISSUE" && a.current === 0);

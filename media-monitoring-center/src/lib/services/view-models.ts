@@ -1,7 +1,9 @@
 import type { BaseMetric, CampaignObjective, CampaignStatus, DataState, MetricId, PlatformId, Severity } from "@/lib/types";
 import { PLATFORM_IDS } from "@/lib/types";
 import { METRICS } from "@/lib/metrics";
-import { PLATFORMS } from "@/lib/platforms/registry";
+import { kpiChoices, PLATFORMS } from "@/lib/platforms/registry";
+import type { ConfidenceResult } from "@/lib/monitoring/confidence";
+import { evaluateTargets, type TargetCheck } from "@/lib/monitoring/targets";
 import type { EntityEvaluation, MetricComparison } from "@/lib/monitoring/types";
 import type { Alert, Incident } from "@/lib/alerts/types";
 import { ANOMALY_LABEL } from "@/lib/anomaly-engine/anomaly-engine";
@@ -56,6 +58,16 @@ export interface PlatformCardVM {
   topIssue: { title: string; type: string; severity: Severity } | null;
   excludedAccounts: string[];
   measurementNote: string | null;
+  /** Confianza de los datos de la plataforma (0–100 %). */
+  confidence: ConfidenceResult;
+  /** Métrica monitoreada elegida y opciones disponibles para la plataforma. */
+  primaryMetric: BaseMetric;
+  metricChoices: Array<{ metric: BaseMetric; label: string }>;
+  /** Métricas fijas que siempre se muestran en la tarjeta. */
+  pinned: Array<CompareVM & { metric: MetricId; label: string }>;
+  pinnedIds: MetricId[];
+  /** Objetivos fijos de la plataforma. */
+  targets: TargetCheck[];
 }
 
 export function platformEval(snap: Snapshot, p: PlatformId): EntityEvaluation {
@@ -88,6 +100,12 @@ export function platformCard(snap: Snapshot, p: PlatformId): PlatformCardVM {
     topIssue: top ? { title: top.title, type: ANOMALY_LABEL[top.type], severity: top.severity } : null,
     excludedAccounts: e.excludedAccounts.map((id) => accountNames.get(id) ?? id),
     measurementNote: PLATFORMS[p].measurementNote,
+    confidence: snap.confidence.platforms[p],
+    primaryMetric: e.kpi.result,
+    metricChoices: kpiChoices(p).map((m) => ({ metric: m, label: m === "clicks" ? "Clics" : m === "impressions" ? "Impresiones" : METRICS[m].label })),
+    pinned: (snap.settings.platformMetrics[p]?.pinned ?? []).map((m) => ({ ...compareVM(e.cumulative[m]), metric: m, label: m === "cpr" ? e.kpi.costLabel : METRICS[m].label })),
+    pinnedIds: snap.settings.platformMetrics[p]?.pinned ?? [],
+    targets: evaluateTargets(snap.settings, snap.run.entities).filter((t) => t.platform === p),
   };
 }
 

@@ -6,6 +6,10 @@ export function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status, headers: { "Cache-Control": "private, no-store" } });
 }
 
+export function unauthorized(message = "Tu sesión terminó. Vuelve a iniciar sesión.") {
+  return json({ ok: false, message }, 401);
+}
+
 export function forbidden(message = "Tu rol no tiene permiso para esta acción.") {
   return json({ ok: false, message }, 403);
 }

@@ -14,10 +14,15 @@ La app es Next.js 16 (App Router) y se publica con el adaptador oficial de Netli
    - Build command: `npm run build`
    - Publish directory: `.next`
    - Node 22, plugin `@netlify/plugin-nextjs`.
-4. **Environment variables**: al inicio basta con `USE_MOCK_DATA=true` y
-   `APP_TIMEZONE=America/Mexico_City` (ver `docs/ENVIRONMENT.md`).
+4. **Environment variables** (ver `docs/ENVIRONMENT.md`):
+   - `USE_MOCK_DATA=true` y `APP_TIMEZONE=America/Mexico_City` para empezar.
+   - **Acceso** (obligatorio: sin esto el sitio queda bloqueado): `AUTH_SECRET`, `AUTH_USERS`,
+     `AUTH_UNIVERSAL_PASSWORD_HASH`, `AUTH_UNIVERSAL_ROLE=viewer`, `AUTH_SESSION_HOURS=12`. Se
+     generan con `npm run auth:setup` (ver `docs/AUTH.md`). El valor de `AUTH_USERS` se pega tal
+     cual, sin comillas. Si existe `AUTH_MODE=dev` de la primera versión, bórralo o déjalo vacío.
 5. Deploy. Cada push a la rama de producción publica; los PR generan *Deploy Previews*.
-6. Verificar: `https://TU-SITIO/api/health` → `{"ok":true,"mode":"mock",…}`.
+6. Verificar: `https://TU-SITIO/api/health` → `{"ok":true,"mode":"mock",…}` y que
+   `https://TU-SITIO/` redirija a `/login`.
 
 ## Variables y el límite de 4 KB
 
@@ -28,7 +33,9 @@ máximo 4 KB**. Un JSON completo de service account ocupa ~2.3 KB. Recomendado:
 - Versionar el mapeo en `config/bigquery.mapping.json` (no es secreto) en lugar de
   `BIGQUERY_MAPPING`.
 - Marcar como *Secret* las sensibles (`GOOGLE_PRIVATE_KEY`, `MONITORING_API_KEY`,
-  `N8N_WEBHOOK_SECRET`) y limitar el scope a *Functions/Runtime* cuando aplique.
+  `N8N_WEBHOOK_SECRET`, `AUTH_SECRET`). Deja las `AUTH_*` con el alcance por defecto (todos
+  los scopes): el control de sesión (`src/proxy.ts`) corre como Edge Function y también las lee.
+- Las variables `AUTH_*` ocupan ~0.5 KB con dos cuentas.
 
 ## Pasar a datos reales
 
@@ -44,15 +51,19 @@ máximo 4 KB**. Un JSON completo de service account ocupa ~2.3 KB. Recomendado:
   evaluación.
 - La memoria de una Function caliente sirve de caché; un *cold start* solo cuesta una consulta.
 - En MOCK MODE los cambios de estado de alertas/incidentes viven en memoria de la Function y
-  pueden reiniciarse; con BigQuery quedan persistidos. La configuración en mock se guarda en una
-  cookie del navegador.
+  pueden reiniciarse; con BigQuery quedan persistidos.
+- La bitácora de accesos, tickets, acuses, historial de Monitoreos y (en MOCK MODE) la
+  configuración se guardan en **Netlify Blobs** (store `immc-records`), sin configuración extra.
+  Se ven en *Netlify → Blobs*. No contienen métricas ni secretos.
 
 ## Seguridad
 
 - Cabeceras en `next.config.ts` (`X-Frame-Options: DENY`, `nosniff`, `noindex`...) y
   `Cache-Control: private, no-store` para `/api/*` en `netlify.toml`.
-- El sitio no debe indexarse (robots `noindex`). Para restringir acceso: Netlify password
-  protection / SSO del equipo, o `AUTH_MODE=header` detrás de un proxy de identidad.
+- El sitio no debe indexarse (robots `noindex`).
+- Acceso con contraseña integrado (`docs/AUTH.md`): toda página y `/api/*` exige sesión, salvo
+  `/api/health` y `/api/monitoring/evaluate` (API key de n8n). Alternativa: `AUTH_MODE=header`
+  detrás de un proxy de identidad.
 
 ## Local con Netlify CLI (opcional)
 

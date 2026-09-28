@@ -6,13 +6,16 @@ import { PanelLeft } from "lucide-react";
 import type { Severity } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { SEVERITY_META } from "@/components/monitoring/status";
-import { NAV_ITEMS } from "./nav";
+import type { Permission } from "@/lib/auth/roles";
+import { NAV_GROUPS } from "./nav";
 
 export interface NavCounts {
   alerts: number;
   incidents: number;
+  tickets: number;
   alertsSeverity: Severity;
   incidentsSeverity: Severity;
+  ticketsSeverity: Severity;
 }
 
 export function BrandMark({ collapsed }: { collapsed?: boolean }) {
@@ -36,51 +39,64 @@ export function BrandMark({ collapsed }: { collapsed?: boolean }) {
   );
 }
 
-export function NavList({ counts, collapsed, onNavigate }: { counts: NavCounts; collapsed?: boolean; onNavigate?: () => void }) {
+export function NavList({ counts, permissions, collapsed, onNavigate }: { counts: NavCounts; permissions: Permission[]; collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
-    <nav className="flex flex-col gap-0.5" aria-label="Navegación principal">
-      {NAV_ITEMS.map((item) => {
-        const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-        const Icon = item.icon;
-        const count = item.badge ? counts[item.badge] : 0;
-        const sev = item.badge === "alerts" ? counts.alertsSeverity : counts.incidentsSeverity;
+    <nav className="flex flex-col gap-3" aria-label="Navegación principal">
+      {NAV_GROUPS.map((group) => {
+        const items = group.items.filter((i) => !i.permission || permissions.includes(i.permission));
+        if (!items.length) return null;
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onNavigate}
-            title={collapsed ? item.label : undefined}
-            className={cn(
-              "group relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium transition-colors",
-              active ? "bg-sidebar-accent text-foreground" : "text-sidebar-foreground/75 hover:bg-muted hover:text-foreground",
-              collapsed && "justify-center px-0",
+          <div key={group.label} className="flex flex-col gap-0.5">
+            {collapsed ? (
+              <span className="mx-auto mb-0.5 h-px w-6 bg-sidebar-border" aria-hidden />
+            ) : (
+              <span className="px-2.5 pb-0.5 text-[10px] font-semibold tracking-[0.12em] text-muted-foreground/80 uppercase">{group.label}</span>
             )}
-            aria-current={active ? "page" : undefined}
-          >
-            {active && <span className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-r bg-brand-teal" aria-hidden />}
-            <Icon className={cn("size-4 shrink-0", active ? "text-brand-teal" : "text-muted-foreground group-hover:text-foreground")} />
-            {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-            {count > 0 && (
-              <span
-                className={cn(
-                  "tabular inline-flex min-w-5 items-center justify-center rounded px-1 text-[10px] font-bold",
-                  collapsed ? "absolute -top-0.5 -right-0.5 min-w-4 px-0.5" : "",
-                  SEVERITY_META[sev].tint,
-                  SEVERITY_META[sev].text,
-                )}
-              >
-                {count}
-              </span>
-            )}
-          </Link>
+            {items.map((item) => {
+              const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+              const Icon = item.icon;
+              const count = item.badge ? counts[item.badge] : 0;
+              const sev = item.badge === "alerts" ? counts.alertsSeverity : item.badge === "tickets" ? counts.ticketsSeverity : counts.incidentsSeverity;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onNavigate}
+                  title={collapsed ? item.label : undefined}
+                  className={cn(
+                    "group relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium transition-colors",
+                    active ? "bg-sidebar-accent text-foreground" : "text-sidebar-foreground/75 hover:bg-muted hover:text-foreground",
+                    collapsed && "justify-center px-0",
+                  )}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {active && <span className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-r bg-brand-teal" aria-hidden />}
+                  <Icon className={cn("size-4 shrink-0", active ? "text-brand-teal" : "text-muted-foreground group-hover:text-foreground")} />
+                  {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+                  {count > 0 && (
+                    <span
+                      className={cn(
+                        "tabular inline-flex min-w-5 items-center justify-center rounded px-1 text-[10px] font-bold",
+                        collapsed ? "absolute -top-0.5 -right-0.5 min-w-4 px-0.5" : "",
+                        SEVERITY_META[sev].tint,
+                        SEVERITY_META[sev].text,
+                      )}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
         );
       })}
     </nav>
   );
 }
 
-export function Sidebar({ counts, footer }: { counts: NavCounts; footer?: React.ReactNode }) {
+export function Sidebar({ counts, permissions, footer }: { counts: NavCounts; permissions: Permission[]; footer?: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
     try {
@@ -106,7 +122,7 @@ export function Sidebar({ counts, footer }: { counts: NavCounts; footer?: React.
         <BrandMark collapsed={collapsed} />
       </div>
       <div className="flex-1 overflow-y-auto px-2 py-3">
-        <NavList counts={counts} collapsed={collapsed} />
+        <NavList counts={counts} permissions={permissions} collapsed={collapsed} />
       </div>
       {!collapsed && footer && <div className="border-t border-sidebar-border p-3">{footer}</div>}
       <button

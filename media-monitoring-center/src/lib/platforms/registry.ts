@@ -89,8 +89,32 @@ export const PLATFORMS: Record<PlatformId, PlatformDefinition> = {
   },
 };
 
-export function platformKpi(platform: PlatformId): Kpi {
+/** KPI (resultado + costo por resultado) a partir de la métrica monitoreada elegida. */
+export const KPI_BY_METRIC: Record<string, CampaignObjective> = {
+  sales: "SALES",
+  leads: "LEADS",
+  whatsapp: "WHATSAPP",
+  calls: "CALLS",
+  purchases: "PURCHASES",
+  conversions: "CONVERSIONS",
+  clicks: "TRAFFIC",
+  impressions: "AWARENESS",
+};
+
+/** Métrica monitoreada de la plataforma: la elegida en Overview/Métricas o la de su objetivo. */
+export function platformKpi(platform: PlatformId, overrides?: Partial<Record<PlatformId, { primary: string }>>): Kpi {
+  const chosen = overrides?.[platform]?.primary;
+  if (chosen && KPI_BY_METRIC[chosen]) {
+    const kpi = OBJECTIVE_KPI[KPI_BY_METRIC[chosen]];
+    return chosen === "clicks" ? { ...kpi, resultLabel: "Clics" } : kpi;
+  }
   return OBJECTIVE_KPI[PLATFORMS[platform].platformObjective];
+}
+
+/** Métricas que se pueden elegir como "monitoreada" en cada plataforma (las que reporta). */
+export function kpiChoices(platform: PlatformId): BaseMetric[] {
+  const supported = new Set(PLATFORMS[platform].supportedMetrics);
+  return (["conversions", "sales", "whatsapp", "leads", "calls", "purchases", "clicks", "impressions"] as BaseMetric[]).filter((m) => supported.has(m));
 }
 
 export function isPlatformId(v: string): v is PlatformId {

@@ -2,11 +2,11 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AppShell } from "@/components/layout/app-shell";
+import { AppToaster } from "@/components/layout/toaster";
 
 export const metadata: Metadata = {
   title: { default: "izzi Media Monitoring Center", template: "%s · izzi Media Monitoring Center" },
-  description: "Monitoreo operativo de Paid Media: Google, Meta, TikTok, Microsoft, Spotify y X.",
+  description: "Monitoreo operativo de Paid Media (solo lectura): Google, Meta, TikTok, Microsoft, Spotify y X.",
   robots: { index: false, follow: false },
   icons: { icon: "/favicon.svg" },
 };
@@ -24,7 +24,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <TooltipProvider>
-            <AppShell>{children}</AppShell>
+            {children}
+            <AppToaster />
           </TooltipProvider>
         </ThemeProvider>
       </body>

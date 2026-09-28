@@ -60,6 +60,8 @@ export interface EntityEvaluation extends EntityRef {
   recentFromHour: number;
   /** Participación en el gasto esperado de su plataforma. */
   expectedSpendShare: number | null;
+  /** Qué parte del gasto de un día completo suele haber ocurrido a la hora de corte (curva histórica). */
+  dayShare: number | null;
   /** Cuentas excluidas de la comparación por datos atrasados (solo nivel plataforma). */
   excludedAccounts: string[];
 }

@@ -1,13 +1,15 @@
+import { requireAuth } from "@/lib/auth/session";
 import type { NextRequest } from "next/server";
 import type { MetricId } from "@/lib/types";
 import { getAppContext } from "@/lib/services/context";
 import { ANALYSIS_METRICS, getHistorical } from "@/lib/services/analysis";
-import { badRequest, json, serverError } from "@/lib/services/http";
+import { badRequest, json, serverError, unauthorized } from "@/lib/services/http";
 import { businessDate, zonedParts } from "@/lib/time/tz";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  if (!(await requireAuth())) return unauthorized();
   try {
     const ctx = await getAppContext();
     const sp = req.nextUrl.searchParams;

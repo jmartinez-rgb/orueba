@@ -1,8 +1,8 @@
 import type { BaseMetric, PlatformId } from "@/lib/types";
 import { BASE_METRICS } from "@/lib/types";
 import { PLATFORMS } from "@/lib/platforms/registry";
-import { addDays, businessDate, weekdayOf, zonedParts, zonedTimeToUtc } from "@/lib/time/tz";
-import { MOCK_CAMPAIGNS, DELIVERY_PROFILE, REVENUE_PER_SALE, type MockCampaignSeed } from "./catalog";
+import { addDays, businessDate, monthOf, weekdayOf, zonedParts, zonedTimeToUtc } from "@/lib/time/tz";
+import { MOCK_CAMPAIGNS, DELIVERY_PROFILE, REVENUE_PER_SALE, mockAccount, mockFxRate, type MockCampaignSeed } from "./catalog";
 import { DAILY_TREND, DOW_COST, DOW_SPEND, HOURLY_SHARE } from "./curves";
 import { hashString, mulberry32, noiseFactory } from "./prng";
 import type { MockScenario, ScenarioEffect } from "./scenarios";
@@ -78,6 +78,8 @@ export function generateDataset(scenario: MockScenario, now: Date, timezone: str
     const share = HOURLY_SHARE[c.platform];
     const profile = DELIVERY_PROFILE[c.platform];
     const stops = stopTimes.filter((st) => st.platform === c.platform && (!st.accountId || st.accountId === c.accountId));
+    // Las cuentas en USD reportan en dólares: la app las convierte a MXN con la tasa del mes.
+    const usd = mockAccount(c.accountId)?.currency === "USD";
 
     for (let d = 0; d < days; d++) {
       const date = addDays(startDate, d);
@@ -88,6 +90,7 @@ export function generateDataset(scenario: MockScenario, now: Date, timezone: str
       const dayNoise = noise(0.03);
       const dayCost = noise(0.02);
       const base = c.dailySpend * DOW_SPEND[wd] * (1 + DAILY_TREND * dayOffset);
+      const toSource = usd ? 1 / mockFxRate(monthOf(date)) : 1;
 
       for (let h = 0; h < 24; h++) {
         const hourNoise = noise(0.05);
@@ -113,7 +116,7 @@ export function generateDataset(scenario: MockScenario, now: Date, timezone: str
 
         const idx = d * 24 + h;
         const spend = base * share[h] * dayNoise * hourNoise * spendFactor;
-        s.spend[idx] = Math.round(spend * 100) / 100;
+        s.spend[idx] = Math.round(spend * toSource * 100) / 100;
         const impressions = (spend / profile.cpm) * 1000 * imprNoise;
         s.impressions[idx] = Math.round(impressions);
         s.clicks[idx] = Math.round(impressions * profile.ctr * clickNoise);
@@ -148,7 +151,7 @@ export function generateDataset(scenario: MockScenario, now: Date, timezone: str
         }
         if (supported.has("revenue")) {
           const sales = (Number.isNaN(s.sales[idx]) ? 0 : s.sales[idx]) + (Number.isNaN(s.purchases[idx]) ? 0 : s.purchases[idx]);
-          s.revenue[idx] = sales * REVENUE_PER_SALE;
+          s.revenue[idx] = Math.round(sales * REVENUE_PER_SALE * toSource * 100) / 100;
         }
       }
     }

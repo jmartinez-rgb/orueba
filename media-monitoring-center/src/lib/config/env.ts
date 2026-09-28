@@ -65,10 +65,6 @@ export interface ServerEnv {
     templateLanguage: string;
   };
   monitoringApiKey: string | undefined;
-  auth: {
-    mode: "dev" | "header";
-    defaultRole: "admin" | "manager" | "viewer";
-  };
   logLevel: "debug" | "info" | "warn" | "error";
 }
 
@@ -83,7 +79,6 @@ export function getEnv(): ServerEnv {
   const monitoringWebhook = joinUrl(n8nBase, str("N8N_MONITORING_WEBHOOK"));
   const alertWebhook = joinUrl(n8nBase, str("N8N_ALERT_WEBHOOK"));
   const manualSyncWebhook = joinUrl(n8nBase, str("N8N_MANUAL_SYNC_WEBHOOK"));
-  const role = (str("AUTH_DEFAULT_ROLE") ?? "admin").toLowerCase();
   const level = (str("LOG_LEVEL") ?? "info").toLowerCase();
 
   cached = {
@@ -122,10 +117,6 @@ export function getEnv(): ServerEnv {
       templateLanguage: str("WHATSAPP_TEMPLATE_LANGUAGE") ?? "es_MX",
     },
     monitoringApiKey: str("MONITORING_API_KEY"),
-    auth: {
-      mode: str("AUTH_MODE") === "header" ? "header" : "dev",
-      defaultRole: role === "viewer" || role === "manager" ? role : "admin",
-    },
     logLevel: level === "debug" || level === "warn" || level === "error" ? level : "info",
   };
   return cached;

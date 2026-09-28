@@ -129,8 +129,44 @@ Settings → Destinatarios: nombre, canal (WhatsApp/email), dirección, severida
 plataformas y activo. Ej.: guardia recibe ALERTA+ de todas; el líder de Meta recibe CRÍTICO de
 Meta; el equipo recibe ATENCIÓN+ por email.
 
+## Alerta crítica a pantalla completa (acuse obligatorio)
+
+Mientras haya incidentes **CRÍTICOS** abiertos que la persona no ha acusado, la app muestra una
+alerta a pantalla completa (`CriticalAlertGate`) que no se puede cerrar ni esquivar navegando.
+Para continuar hay que:
+
+1. Escribir qué se revisó (mínimo 20 caracteres).
+2. Indicar a quién se va a reportar y por qué canal.
+3. Confirmar que se revisó y se reportará.
+
+Un solo acuse cubre todos los críticos pendientes (`POST /api/critical`). Opcionalmente crea un
+**ticket** con los incidentes, deja una nota en cada incidente y registra `CRITICAL_ACK` en la
+bitácora. El acuse es por persona e incidente: cada integrante acusa por su cuenta y, si el
+problema vuelve después de resolverse (incidente nuevo), se vuelve a pedir. Acusar no cambia nada
+en las plataformas.
+
+## Tickets
+
+Para problemas graves que hay que reportar (a la plataforma, al líder, al cliente). Cada ticket
+(`TKT-0001`) guarda título, plataforma, categoría, severidad, incidentes relacionados, a quién se
+reportó, canal, número de caso externo, responsable y un historial de actualizaciones con fecha y
+persona. Estados: Abierto → Reportado → En seguimiento → Escalado → Resuelto → Cerrado. Se crean
+desde Tickets, desde el detalle de un incidente (*Crear ticket*) o desde el acuse crítico; el
+histórico se filtra y se exporta a CSV. Cualquier rol puede levantar tickets; cambiar estado,
+responsable o número de caso requiere Paid Media Manager o superior.
+
+## Mensaje de monitoreo (manual)
+
+La sección **Monitoreos** arma el mensaje con el formato del equipo (semáforos por punto,
+conversiones por cuenta, campañas sin gasto, más gasto que ayer, caídas vs la semana pasada y vs
+ayer). Se revisa, se copia y se envía **a mano** por WhatsApp (o con el enlace `wa.me`, que solo
+abre WhatsApp con el texto). La app no lo envía y no usa el token de WhatsApp. Cada mensaje
+guardado queda en el historial con autor y fecha. Detalle del formato en `docs/GUIA.md`.
+
 ## Dónde se guarda
 
 - MOCK: memoria del servidor; el historial se reconstruye reproduciendo las corridas de ayer y hoy.
 - BigQuery: `monitoring_alerts`, `monitoring_incidents`, `monitoring_notifications`,
   `monitoring_runs` (append-only, última versión por id). DDL en `sql/monitoring_tables.sql`.
+- Acuses, tickets, historial de Monitoreos y bitácora: Netlify Blobs (en local `.data/records`).
+  Son registros operativos, no métricas.

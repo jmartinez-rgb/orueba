@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { CampaignObjective, PlatformId, Severity } from "@/lib/types";
+import { DEFAULT_CLASSIFIERS } from "@/lib/classifiers/defaults";
 
 /**
  * Configuración operativa del monitoreo. Todo lo que un Paid Media Manager podría querer
@@ -8,6 +9,27 @@ import type { CampaignObjective, PlatformId, Severity } from "@/lib/types";
  */
 
 const severity = z.enum(["NORMAL", "ATTENTION", "ALERT", "CRITICAL"]);
+const platformEnum = z.enum(["google", "meta", "tiktok", "microsoft", "spotify", "x"]);
+/** Métricas que pueden ser "la métrica monitoreada" (resultado con su costo por resultado). */
+export const KPI_METRICS = ["conversions", "sales", "whatsapp", "leads", "calls", "purchases", "clicks", "impressions"] as const;
+const kpiMetric = z.enum(KPI_METRICS);
+export const ALL_METRIC_IDS = ["spend", "impressions", "clicks", "conversions", "leads", "sales", "whatsapp", "calls", "purchases", "revenue", "cpr", "cpa", "cpl", "roas", "ctr", "cpc", "cpm"] as const;
+const metricId = z.enum(ALL_METRIC_IDS);
+
+const classifierSchema = z.object({
+  rules: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(40),
+        contains: z.string().trim().min(1).max(80),
+        field: z.enum(["campaign", "secondary"]),
+        label: z.string().trim().min(1).max(60),
+      }),
+    )
+    .max(60),
+  fallback: z.object({ type: z.enum(["label", "secondary", "objective"]), label: z.string().max(60) }),
+  secondaryLabel: z.string().max(120),
+});
 
 export const settingsSchema = z.object({
   timezone: z.string().min(1),
@@ -46,6 +68,8 @@ export const settingsSchema = z.object({
   detection: z.object({
     /** Antes de esta hora hay poco volumen: la severidad baja un nivel. */
     earlyHour: z.number().int().min(0).max(23),
+    /** Si a la hora de corte suele haber ocurrido menos de esta parte del día, la severidad baja un nivel. */
+    earlyDayShare: z.number().min(0).max(0.6),
     /** Si |z| del histórico es menor a esto, la desviación se considera ruido normal y baja un nivel. */
     zScoreFloor: z.number().min(0),
     /** Participación mínima del gasto de la plataforma para que una campaña cambie el color de su plataforma a ALERTA. */
@@ -95,6 +119,53 @@ export const settingsSchema = z.object({
     z.string(),
     z.enum(["SALES", "LEADS", "WHATSAPP", "CALLS", "TRAFFIC", "ENGAGEMENT", "VIDEO", "AWARENESS", "PURCHASES", "CONVERSIONS"]),
   ),
+  /** Métrica monitoreada por plataforma (resultado principal) y métricas fijas que siempre se muestran. */
+  platformMetrics: z.partialRecord(platformEnum, z.object({ primary: kpiMetric, pinned: z.array(metricId).max(6) })),
+  /** Objetivos fijos opcionales (p. ej. CPA máximo o conversiones mínimas por día). Solo informan: no cambian nada en plataforma. */
+  fixedTargets: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(40),
+        platform: platformEnum,
+        accountId: z.string().max(80).nullable(),
+        metric: metricId,
+        kind: z.enum(["min", "max"]),
+        value: z.number().min(0).max(1e12),
+        active: z.boolean(),
+        note: z.string().max(200),
+      }),
+    )
+    .max(80),
+  /** Moneda: todo se reporta en MXN; las cuentas en USD se convierten con la tasa del mes. */
+  currency: z.object({
+    /** 1 USD = N MXN por mes (YYYY-MM). La tasa cambia cada mes. */
+    rates: z.record(z.string().regex(/^\d{4}-\d{2}$/), z.number().positive().max(1000)),
+    /** Corrección de la moneda de una cuenta (si la fuente no la trae o viene mal). */
+    accountCurrency: z.record(z.string(), z.enum(["MXN", "USD"])),
+  }),
+  /** Nivel de presupuesto confirmado por cuenta: a nivel cuenta o por campaña. */
+  budgetLevels: z.record(z.string(), z.enum(["account", "campaign"])),
+  /** Clasificadores de estrategia por plataforma (fórmulas por nombre de campaña). */
+  classifiers: z.partialRecord(platformEnum, classifierSchema),
+  /** Cómo llegan los datos: API directa (n8n) o Google Sheets (Dataslayer + Apps Script) → BigQuery. */
+  ingestion: z.partialRecord(platformEnum, z.enum(["api", "sheets"])),
+  /** Mensaje de monitoreo para WhatsApp (se copia y envía manualmente). */
+  report: z.object({
+    platforms: z.array(platformEnum).min(1).max(6),
+    /** Gasto mayor al de ayer (misma franja) a partir de este porcentaje. */
+    spendIncreaseVsYesterday: z.number().min(0.05).max(3),
+    /** Variación de gasto vs el mismo día de la semana pasada que se reporta. */
+    spendChangeVsLastWeek: z.number().min(0.05).max(3),
+    /** Caída de conversiones (vs semana pasada o vs ayer) que se reporta como fuerte. */
+    conversionDrop: z.number().min(0.05).max(1),
+    /** Métrica de "conversiones" por plataforma para el mensaje (si no se define, la métrica monitoreada). */
+    conversionMetric: z.partialRecord(platformEnum, kpiMetric),
+    /** Plataformas cuyo detalle por cuenta ("👥 Conversiones … al momento en <cuenta>") se incluye. */
+    accountBreakdown: z.array(platformEnum).max(6),
+    /** Revisiones manuales que se marcan en cada mensaje (Zapier, línea de crédito…). */
+    manualChecks: z.array(z.object({ id: z.string().min(1).max(40), label: z.string().trim().min(1).max(80) })).max(12),
+    closingNote: z.string().max(400),
+  }),
 });
 
 export type MonitoringSettings = z.infer<typeof settingsSchema>;
@@ -109,6 +180,7 @@ export const DEFAULT_SETTINGS: MonitoringSettings = {
   volume: { minCampaignSpend: 5000, minCampaignResults: 20, minPlatformSpend: 20000, minPlatformResults: 50 },
   detection: {
     earlyHour: 8,
+    earlyDayShare: 0.2,
     zScoreFloor: 1.5,
     materialShare: 0.15,
     platformIncidentMinCampaigns: 3,
@@ -154,6 +226,25 @@ export const DEFAULT_SETTINGS: MonitoringSettings = {
     },
   ],
   objectiveOverrides: {},
+  platformMetrics: {},
+  fixedTargets: [],
+  currency: { rates: {}, accountCurrency: {} },
+  budgetLevels: {},
+  classifiers: DEFAULT_CLASSIFIERS,
+  ingestion: { google: "sheets", meta: "sheets", tiktok: "sheets", microsoft: "sheets", spotify: "sheets", x: "sheets" },
+  report: {
+    platforms: ["google", "meta"],
+    spendIncreaseVsYesterday: 0.25,
+    spendChangeVsLastWeek: 0.15,
+    conversionDrop: 0.2,
+    conversionMetric: { google: "conversions", meta: "conversions" },
+    accountBreakdown: ["meta"],
+    manualChecks: [
+      { id: "zapier-uso", label: "Uso de tasks en Zapier" },
+      { id: "zapier-flujos", label: "Tasks en Zapier (Meta, Discovery AO, Pmax AO)" },
+    ],
+    closingNote: "De igual manera es importante recordar que el día aún no termina y este gasto mayor al {umbral} puede variar a lo largo del día.",
+  },
 };
 
 /** Aplica un parche parcial sobre la configuración y valida el resultado. */
@@ -190,3 +281,44 @@ export function evaluationSlots(settings: MonitoringSettings): number[] {
 }
 
 export type { CampaignObjective, PlatformId, Severity };
+
+/**
+ * Rutas que se pueden modificar de forma puntual (PATCH) desde otras pantallas: métrica por
+ * plataforma en Overview, nivel de presupuesto en Budget Control, tasas de cambio, etc.
+ */
+export const PATCHABLE_PATHS = [
+  "platformMetrics",
+  "fixedTargets",
+  "currency.rates",
+  "currency.accountCurrency",
+  "budgetLevels",
+  "classifiers",
+  "ingestion",
+  "report",
+  "objectiveOverrides",
+] as const;
+
+export function isPatchablePath(path: string): boolean {
+  if (!/^[A-Za-z0-9_.-]{1,120}$/.test(path)) return false;
+  return PATCHABLE_PATHS.some((p) => path === p || path.startsWith(`${p}.`));
+}
+
+/** Reemplaza (o borra con null) el valor en una ruta "a.b.c" y valida el resultado completo. */
+export function setSettingAtPath(base: MonitoringSettings, path: string, value: unknown): MonitoringSettings | null {
+  if (!isPatchablePath(path)) return null;
+  const clone = structuredClone(base) as unknown as Record<string, unknown>;
+  const keys = path.split(".");
+  let cur: Record<string, unknown> = clone;
+  for (const k of keys.slice(0, -1)) {
+    if (k === "__proto__" || k === "constructor" || k === "prototype") return null;
+    const next = cur[k];
+    if (!next || typeof next !== "object" || Array.isArray(next)) cur[k] = {};
+    cur = cur[k] as Record<string, unknown>;
+  }
+  const last = keys[keys.length - 1];
+  if (last === "__proto__" || last === "constructor" || last === "prototype") return null;
+  if (value === null) delete cur[last];
+  else cur[last] = value;
+  const parsed = settingsSchema.safeParse(clone);
+  return parsed.success ? parsed.data : null;
+}

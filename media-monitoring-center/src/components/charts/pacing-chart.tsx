@@ -1,8 +1,10 @@
 "use client";
+import { useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { CurvePoint } from "@/lib/monitoring/types";
 import { fmtCurrency, fmtNumber } from "@/lib/format";
 import { axisCurrency, axisNumber, ChartTooltip, LineLegend, type SeriesDef } from "./chart-kit";
+import { SeriesTable, ViewToggle, type ChartView } from "./data-toggle";
 
 /**
  * Curva acumulada por hora: hoy vs semana anterior vs promedio N semanas (vs presupuesto esperado).
@@ -33,9 +35,23 @@ export function CumulativeChart({
   }
   const fmt = (v: number | null | undefined) => (v === null || v === undefined ? "—" : currency ? fmtCurrency(v) : fmtNumber(v));
   const last = [...data].reverse().find((d) => d.today !== null);
+  const [view, setView] = useState<ChartView>("chart");
   return (
     <div className="flex flex-col gap-2">
-      <LineLegend series={series} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <LineLegend series={series} />
+        <ViewToggle view={view} onChange={setView} />
+      </div>
+      {view === "table" ? (
+        <SeriesTable
+          rows={data.filter((d) => d.today !== null || d.avg !== null || d.prevWeek !== null).map((d) => ({ ...d }))}
+          xKey="label"
+          xLabel="Acumulado a las"
+          columns={series.map((s) => ({ key: s.key, label: s.label }))}
+          format={(v) => fmt(v)}
+          highlight="today"
+        />
+      ) : (
       <div style={{ height }} className="w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 88, bottom: 0, left: 0 }}>
@@ -83,6 +99,7 @@ export function CumulativeChart({
           </LineChart>
         </ResponsiveContainer>
       </div>
+      )}
     </div>
   );
 }

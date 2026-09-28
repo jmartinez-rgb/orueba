@@ -7,7 +7,7 @@ import { PLATFORMS, platformKpi } from "@/lib/platforms/registry";
 import { addDays, businessDate, daysInMonth, hourLabel, monthOf, sameWeekdayDates, zonedParts } from "@/lib/time/tz";
 import { detectAnomalies, platformImpactSeverity } from "@/lib/anomaly-engine/anomaly-engine";
 import { maxSeverity, severityRank } from "@/lib/anomaly-engine/severity";
-import { compareWindow, cumulativeByHour, type HourlySeries } from "./historical-comparator";
+import { compareWindow, cumulativeByHour, windowTotals, type HourlySeries } from "./historical-comparator";
 import { buildHourlyCurve, dailyPacing } from "./pacing-engine";
 import { buildPlatformDataHealth, evaluateFreshness, type FreshnessEvaluation, type PlatformDataHealth } from "./data-health";
 import type { CurvePoint, DailyPacing, EntityEvaluation, MonitoringRun, PlatformStatusInfo, ScopeCurves } from "./types";
@@ -139,12 +139,27 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     recentFromHour: Math.max(0, cut - interval),
   });
 
+  /** Parte del gasto diario que suele ocurrir antes del corte (según las fechas de referencia). */
+  const dayShareOf = (series: HourlySeries, cut: number): number | null => {
+    let part = 0;
+    let full = 0;
+    for (const d of refDates) {
+      const w = windowTotals(series, d, 0, cut)?.spend;
+      const f = windowTotals(series, d, 0, 24)?.spend;
+      if (w !== null && w !== undefined && f !== null && f !== undefined && f > 0) {
+        part += w;
+        full += f;
+      }
+    }
+    return full > 0 ? part / full : null;
+  };
+
   // 3) Evaluaciones por entidad.
   const evaluations: EntityEvaluation[] = [];
   const platformExpectedSpend = new Map<PlatformId, number>();
   for (const p of PLATFORM_IDS) {
     const pf = platformFresh.get(p)!;
-    const kpi = platformKpi(p);
+    const kpi = platformKpi(p, settings.platformMetrics);
     const cut = effCutoff.get(p)!;
     const ev = evaluate(platformSeries.get(p) ?? new Map(), kpi, cut);
     const excludedAccounts = catalog.accounts.filter((a) => a.platform === p && excluded.has(a.id)).map((a) => a.id);
@@ -168,12 +183,13 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
       cutoffHour: cut,
       ...ev,
       expectedSpendShare: 1,
+      dayShare: dayShareOf(platformSeries.get(p) ?? new Map(), cut),
       excludedAccounts,
     });
   }
   for (const acc of catalog.accounts) {
     const af = accountFresh.get(acc.id)!;
-    const kpi = platformKpi(acc.platform);
+    const kpi = platformKpi(acc.platform, settings.platformMetrics);
     const cut = excluded.has(acc.id) ? Math.min(cutoff, af.coveredUntilHour) : effCutoff.get(acc.platform)!;
     const ev = evaluate(accountSeriesAll.get(acc.id) ?? new Map(), kpi, cut);
     const pExp = platformExpectedSpend.get(acc.platform) ?? 0;
@@ -196,6 +212,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
       cutoffHour: cut,
       ...ev,
       expectedSpendShare: !excluded.has(acc.id) && pExp > 0 ? (ev.cumulative.spend?.expected ?? 0) / pExp : null,
+      dayShare: dayShareOf(accountSeriesAll.get(acc.id) ?? new Map(), cut),
       excludedAccounts: [],
     });
   }
@@ -226,6 +243,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
       cutoffHour: cut,
       ...ev,
       expectedSpendShare: !excluded.has(c.accountId) && pExp > 0 ? (ev.cumulative.spend?.expected ?? 0) / pExp : null,
+      dayShare: dayShareOf(campaignSeries.get(c.id) ?? new Map(), cut),
       excludedAccounts: [],
     });
   }
@@ -293,7 +311,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     const platformEval = evaluations.find((e) => e.key === `platform:${p}`)!;
     const spend = BAD_STATES.includes(platformEval.dataState) ? null : (platformEval.cumulative.spend?.current ?? null);
     pacing[p] = dailyPacing({ spend, cutoffHour: cut, curve, dailyBudget: daily });
-    curves[p] = buildCurves(series, cut, platformKpi(p), daily, curve.cumShare);
+    curves[p] = buildCurves(series, cut, platformKpi(p, settings.platformMetrics), daily, curve.cumShare);
     if (okPlatforms.includes(p) && daily !== null) {
       totalBudget += daily;
       curve.cumShare.forEach((v, h) => (totalBudgetCurve[h] += daily * v));

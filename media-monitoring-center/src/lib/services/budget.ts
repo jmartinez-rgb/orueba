@@ -1,5 +1,5 @@
 import "server-only";
-import type { BudgetLevel, BudgetRow, DataState, PlatformId, Severity } from "@/lib/types";
+import type { BudgetLevel, BudgetRow, Currency, DataState, PlatformId, Severity } from "@/lib/types";
 import { PLATFORM_IDS } from "@/lib/types";
 import { cached } from "@/lib/data/cache";
 import { monthlyPacing } from "@/lib/monitoring/pacing-engine";
@@ -28,6 +28,27 @@ export interface BudgetLine {
   forecastVsBudget: number | null;
   status: Severity;
   dataState: DataState;
+  /** De dónde sale el presupuesto de la línea: directo o suma de las campañas de la cuenta. */
+  budgetSource: "direct" | "campaign_sum" | null;
+  /** La cuenta tiene presupuesto a nivel cuenta y por campaña y nadie ha confirmado cuál aplica. */
+  needsConfirmation: boolean;
+  /** Moneda original de la cuenta (los montos ya están en MXN). */
+  currency: Currency;
+}
+
+export type DetectedBudgetLevel = "account" | "campaign" | "mixed" | "none";
+
+export interface AccountBudgetLevel {
+  accountId: string;
+  accountName: string;
+  platform: PlatformId;
+  currency: Currency;
+  detected: DetectedBudgetLevel;
+  confirmed: "account" | "campaign" | null;
+  effective: "account" | "campaign" | null;
+  campaignBudgets: number;
+  accountBudget: number | null;
+  campaignBudgetSum: number | null;
 }
 
 export interface BudgetControl {
@@ -35,6 +56,9 @@ export interface BudgetControl {
   daysInMonth: number;
   elapsedDays: number;
   lines: BudgetLine[];
+  accounts: AccountBudgetLevel[];
+  /** Tasa usada para convertir cuentas en USD este mes (null si no hay cuentas en USD). */
+  fxRate: number | null;
 }
 
 function statusFor(forecastVsBudget: number | null, s: MonitoringSettings["budget"]): Severity {
@@ -66,6 +90,30 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
 
   const catalog = snap.catalog;
   const accountName = new Map(catalog.accounts.map((a) => [a.id, a.name]));
+  const accountById = new Map(catalog.accounts.map((a) => [a.id, a]));
+
+  // Nivel de presupuesto por cuenta: detectado en los datos y confirmado en Settings.
+  const allBudgets = [...budgetMap.values()];
+  const accounts: AccountBudgetLevel[] = catalog.accounts.map((acc) => {
+    const accountBudget = budgetMap.get(keyOf({ level: "account", platform: acc.platform, accountId: acc.id, campaignId: null }))?.amount ?? null;
+    const camp = allBudgets.filter((b) => b.level === "campaign" && b.accountId === acc.id);
+    const detected: DetectedBudgetLevel = accountBudget !== null && camp.length ? "mixed" : accountBudget !== null ? "account" : camp.length ? "campaign" : "none";
+    const confirmed = ctx.settings.budgetLevels[acc.id] ?? null;
+    const effective = confirmed ?? (detected === "account" || detected === "campaign" ? detected : null);
+    return {
+      accountId: acc.id,
+      accountName: acc.name,
+      platform: acc.platform,
+      currency: acc.currency,
+      detected,
+      confirmed,
+      effective,
+      campaignBudgets: camp.length,
+      accountBudget,
+      campaignBudgetSum: camp.length ? camp.reduce((a, b) => a + b.amount, 0) : null,
+    };
+  });
+  const levelOf = new Map(accounts.map((a) => [a.accountId, a]));
   const campaignById = new Map(catalog.campaigns.map((c) => [c.id, c]));
   const nDays = daysInMonth(month);
   const elapsedFullDays = diffDays(today, monthStart);
@@ -119,7 +167,19 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
   for (const k of keys) {
     const [level, platform, accountId, campaignId] = k.split("|") as [BudgetLevel, string, string, string];
     const agg = aggs.get(k) ?? { mtd: 0, today: 0, byWeekday: [0, 0, 0, 0, 0, 0, 0], weekdayDays: [0, 0, 0, 0, 0, 0, 0] };
-    const b = budgetMap.get(k);
+    const info = accountId ? levelOf.get(accountId) : undefined;
+    let b = budgetMap.get(k);
+    let budgetSource: BudgetLine["budgetSource"] = b ? "direct" : null;
+    // Presupuesto por campaña confirmado: la cuenta suma sus campañas; el de cuenta se ignora.
+    if (level === "account" && info?.effective === "campaign" && info.campaignBudgetSum !== null) {
+      b = { month, level: "account", platform: info.platform, accountId: info.accountId, campaignId: null, amount: info.campaignBudgetSum };
+      budgetSource = "campaign_sum";
+    }
+    // Presupuesto a nivel cuenta confirmado: los montos por campaña no se usan para el pacing.
+    if (level === "campaign" && info?.effective === "account") {
+      b = undefined;
+      budgetSource = null;
+    }
     if (!b && agg.mtd === 0) continue;
     const p = (platform || null) as PlatformId | null;
     const share = shareFor(p);
@@ -156,9 +216,13 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
       forecastVsBudget: mp.forecastVsBudget,
       status: statusFor(mp.forecastVsBudget, ctx.settings.budget),
       dataState,
+      budgetSource,
+      needsConfirmation: Boolean(info && info.detected === "mixed" && !info.confirmed && (level === "account" || level === "campaign")),
+      currency: accountId ? (accountById.get(accountId)?.currency ?? "MXN") : "MXN",
     });
   }
   const levelRank: Record<BudgetLevel, number> = { total: 0, platform: 1, account: 2, campaign: 3 };
   lines.sort((a, b) => levelRank[a.level] - levelRank[b.level] || PLATFORM_IDS.indexOf(a.platform ?? "google") - PLATFORM_IDS.indexOf(b.platform ?? "google") || b.spend - a.spend);
-  return { month, daysInMonth: nDays, elapsedDays: elapsedFullDays, lines };
+  const fx = snap.currency.usdAccounts.length ? (snap.currency.rates.find((r) => r.month === month)?.rate ?? snap.currency.rates.filter((r) => r.month < month).pop()?.rate ?? null) : null;
+  return { month, daysInMonth: nDays, elapsedDays: elapsedFullDays, lines, accounts, fxRate: fx };
 }

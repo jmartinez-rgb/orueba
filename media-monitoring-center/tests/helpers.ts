@@ -76,6 +76,7 @@ export function evaluation(opts: {
     recent: opts.recentSpend ? { spend: cmp(opts.recentSpend[0], opts.recentSpend[1]) } : null,
     recentFromHour: (opts.cutoffHour ?? 12) - 2,
     expectedSpendShare: opts.share ?? 0.3,
+    dayShare: null,
     excludedAccounts: [],
   };
 }

@@ -37,6 +37,8 @@ configura sin cambiar código.
         "platform": "plataforma", "accountId": "cuenta_id", "accountName": "cuenta",
         "campaignId": "campana_id", "campaignName": "campana",
         "campaignStatus": null, "objective": null,
+        "campaignType": null,    // Google: SEARCH, PERFORMANCE_MAX… (respaldo del clasificador)
+        "currency": null,        // MXN / USD por cuenta (USD se convierte con la tasa del mes)
         "spend": "costo", "impressions": "impresiones", "clicks": "clics",
         "conversions": "conversiones", "leads": "leads", "sales": "ventas",
         "whatsapp": "conversaciones_whatsapp", "calls": "llamadas",
@@ -46,7 +48,9 @@ configura sin cambiar código.
       "dedupe": null             // { "orderBy": "cargado_en" } solo si la llave es única
     }
   ],
-  "budgets": { ... },            // opcional: presupuestos mensuales
+  "budgets": { ... },            // opcional: presupuestos mensuales (con "currency" opcional)
+  "fxRates": { ... },            // opcional: tipo de cambio mensual USD→MXN
+  "executionControl": { ... },   // opcional: hoja/tabla de control de ejecución
   "syncLog": { ... },            // opcional: bitácora de cargas de n8n
   "state": { "alerts": "monitoring_alerts", ... }
 }
@@ -67,6 +71,26 @@ configura sin cambiar código.
 
 Los cortes acumulados se convierten a incrementos horarios (diferencia entre cortes repartida en
 las horas del intervalo) para que el motor y las gráficas trabajen igual.
+
+## Monedas, hoja de control y estrategias
+
+Detalle completo en [`docs/DATOS.md`](DATOS.md):
+
+- **`currency`** (en `metricSources.fields` y `budgets.fields`): moneda de la cuenta o del monto.
+  Las cuentas en USD se convierten a MXN con la tasa del mes de cada fecha.
+- **`fxRates`**: tabla con `month` (cualquier valor que empiece con `AAAA-MM`), `rate` (1 USD = N
+  MXN; acepta coma decimal) y `currency` opcional (filtra filas `USD`). Las tasas capturadas en
+  Settings tienen prioridad.
+- **`executionControl`**: la hoja de control de Dataslayer / Apps Script / API. `"type": "sheets"`
+  la lee directo de Google Sheets (compartida con la service account como **Lector**, scope
+  `spreadsheets.readonly`) o `"type": "bigquery"` desde una tabla. La fecha de última ejecución se
+  lee como texto y se interpreta en la zona de negocio.
+- **`campaignType`**: campo secundario de los clasificadores de estrategia (Google: tipo de
+  campaña). Si falta, se usa `objective`.
+
+Ejemplos con todo lo anterior: `config/bigquery.mapping.example.json` (cortes acumulados + hoja de
+control en Sheets) y `config/bigquery.mapping.hourly-example.json` (tablas horarias por plataforma +
+control en BigQuery).
 
 ## Consultas y costo
 
@@ -103,3 +127,6 @@ Google, `MCC_Offline_Purchase` (`sales`) y `MCC_Offline_Lead_Contact` (`leads`).
 `monitoring_notifications`, `monitoring_runs`, `monitoring_settings` y
 `monitoring_budget_overrides`: append-only, particionadas por día, `payload` en JSON. La app lee
 la última versión por `id` con `QUALIFY ROW_NUMBER()`.
+
+La bitácora de accesos, tickets, acuses e historial de Monitoreos **no** van a BigQuery: se guardan
+en Netlify Blobs (ver `docs/AUTH.md`).

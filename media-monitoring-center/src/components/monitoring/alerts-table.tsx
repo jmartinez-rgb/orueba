@@ -1,4 +1,5 @@
 "use client";
+import { sileo } from "sileo";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -99,8 +100,10 @@ export function AlertsTable({
       if (!res.ok) {
         const d = (await res.json().catch(() => ({}))) as { message?: string };
         setError(d.message ?? "No se pudo actualizar la alerta.");
+        sileo.error({ title: "No se pudo actualizar la alerta", description: d.message });
       } else {
         setSelected((s) => (s ? { ...s, status: next } : s));
+        sileo.success({ title: `Alerta ${id}: ${next}` });
         router.refresh();
       }
     } finally {

@@ -1,12 +1,14 @@
+import { requireAuth } from "@/lib/auth/session";
 import { PLATFORM_IDS } from "@/lib/types";
 import { getSnapshot } from "@/lib/services/snapshot";
-import { json, serverError } from "@/lib/services/http";
+import { json, serverError, unauthorized } from "@/lib/services/http";
 import { platformCard } from "@/lib/services/view-models";
 
 export const dynamic = "force-dynamic";
 
 /** Resumen compacto del estado actual (para integraciones y n8n). */
 export async function GET() {
+  if (!(await requireAuth())) return unauthorized();
   try {
     const snap = await getSnapshot();
     return json({

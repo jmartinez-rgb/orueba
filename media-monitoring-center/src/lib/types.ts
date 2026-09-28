@@ -82,11 +82,15 @@ export const CAMPAIGN_OBJECTIVES: CampaignObjective[] = [
 
 export type CampaignStatus = "ACTIVE" | "PAUSED" | "ENDED";
 
+/** Monedas soportadas. Todo se reporta en MXN; las cuentas en USD se convierten con la tasa del mes. */
+export type Currency = "MXN" | "USD";
+
 export interface Account {
   id: string;
   platform: PlatformId;
   name: string;
-  currency: string;
+  /** Moneda en la que la plataforma reporta la cuenta (Settings puede corregirla). */
+  currency: Currency;
 }
 
 export interface Campaign {
@@ -98,6 +102,11 @@ export interface Campaign {
   status: CampaignStatus;
   /** Evento de conversión con el que se mide (p. ej. "MCC_Offline_Purchase"). */
   conversionEvent: string | null;
+  /**
+   * Objetivo o tipo tal como lo reporta la plataforma (Meta: OUTCOME_LEADS…; Google: SEARCH,
+   * PERFORMANCE_MAX…). Lo usan los clasificadores de estrategia como campo secundario.
+   */
+  sourceType?: string | null;
 }
 
 export interface Catalog {
@@ -137,6 +146,8 @@ export interface BudgetRow {
   accountId: string | null;
   campaignId: string | null;
   amount: number;
+  /** Moneda del monto (por defecto MXN). Los montos en USD se convierten con la tasa del mes. */
+  currency?: Currency;
 }
 
 export type SyncStatus = "SUCCESS" | "FAILED" | "RUNNING" | "UNKNOWN";
@@ -182,3 +193,32 @@ export interface DataQualityStats {
  * NO_DATA (no hay ninguna fila hoy) y PARTIAL (hay cuentas excluidas por atraso).
  */
 export type DataState = "OK" | "PARTIAL" | "DELAYED" | "ERROR" | "NO_DATA";
+
+/** Tasa de cambio mensual (1 USD = rate MXN). */
+export interface FxRate {
+  month: string;
+  rate: number;
+}
+
+/** Cómo llegan los datos de una plataforma a BigQuery. */
+export type IngestionMode = "api" | "sheets";
+
+export type ExecutionStatus = "OK" | "PARCIAL" | "PENDIENTE" | "EJECUTANDO" | "ERROR";
+
+/**
+ * Fila de la hoja/tabla de control de ejecución: confirma si Dataslayer, Apps Script o la
+ * API ya corrieron y cargaron datos, o si falta ejecutar algún paso.
+ */
+export interface ExecutionControlRow {
+  id: string;
+  /** Paso del flujo (p. ej. "Dataslayer · Meta Ads → Sheets"). */
+  step: string;
+  platform: PlatformId | null;
+  source: "dataslayer" | "apps_script" | "api" | "bigquery" | "n8n" | "otro";
+  status: ExecutionStatus;
+  lastRunAt: string | null;
+  rows: number | null;
+  message: string | null;
+  /** Cada cuánto debería correr (minutos); sirve para marcar como pendiente si no ha corrido. */
+  expectedEveryMinutes: number | null;
+}
