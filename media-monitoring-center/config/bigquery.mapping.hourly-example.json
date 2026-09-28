@@ -1,0 +1,51 @@
+{
+  "metricSources": [
+    {
+      "name": "google_hourly",
+      "table": "NOMBRE_TABLA_GOOGLE_HORARIA",
+      "shape": "hourly",
+      "platformConstant": "google",
+      "allowExpressions": true,
+      "partition": { "field": "segments_date", "type": "DATE" },
+      "fields": {
+        "date": "segments_date",
+        "hour": "segments_hour",
+        "accountId": "customer_id",
+        "accountName": "customer_descriptive_name",
+        "campaignId": "campaign_id",
+        "campaignName": "campaign_name",
+        "campaignStatus": "campaign_status",
+        "spend": "metrics_cost_micros / 1000000",
+        "impressions": "metrics_impressions",
+        "clicks": "metrics_clicks",
+        "conversions": "metrics_conversions",
+        "leads": "conv_mcc_offline_lead_contact",
+        "sales": "conv_mcc_offline_purchase",
+        "calls": "metrics_phone_calls"
+      },
+      "dedupe": { "orderBy": "_ingested_at" }
+    },
+    {
+      "name": "meta_hourly",
+      "table": "NOMBRE_TABLA_META_HORARIA",
+      "shape": "hourly",
+      "platformConstant": "meta",
+      "timestampTimezone": "UTC",
+      "partition": { "field": "date_start", "type": "DATE" },
+      "fields": {
+        "timestamp": "hour_start_utc",
+        "accountId": "account_id",
+        "accountName": "account_name",
+        "campaignId": "campaign_id",
+        "campaignName": "campaign_name",
+        "spend": "spend",
+        "impressions": "impressions",
+        "clicks": "clicks",
+        "sales": "offline_web_inbound_purchases",
+        "purchases": "onsite_purchases",
+        "whatsapp": "messaging_conversations_started",
+        "leads": "leads"
+      }
+    }
+  ]
+}

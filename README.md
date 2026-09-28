@@ -2,6 +2,7 @@
 
 | Carpeta | Qué es |
 |---|---|
+| `media-monitoring-center/` | **izzi Media Monitoring Center**: plataforma de monitoreo de Paid Media (Next.js en Netlify, BigQuery, n8n, alertas por WhatsApp). Funciona completa en modo simulado. Ver `media-monitoring-center/README.md`; en Netlify se publica como sitio aparte con *Base directory* = `media-monitoring-center`. |
 | `paid-media-os/` | Paquete listo para Netlify: `sitio/` (plataforma React compilada + plan masivo), `functions/` (API y sincronización horaria), `netlify.toml`. Cómo publicar: `paid-media-os/LEEME-PUBLICAR.md`. |
 | `n8n/` | Motor del plan masivo. `meta_bulk_motor.json` es el workflow que se importa; se genera desde `n8n/src/` con `python3 n8n/build.py`. |
 | `pruebas/` | Pruebas locales: `node pruebas/api.test.mjs`, `node pruebas/motor.test.mjs` y `node pruebas/servidor-local.mjs` (sitio + API simulada en http://localhost:8888). |

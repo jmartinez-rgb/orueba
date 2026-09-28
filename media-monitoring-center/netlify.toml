@@ -1,0 +1,21 @@
+# izzi Media Monitoring Center · Next.js en Netlify (GitHub -> deploy continuo)
+# En Netlify: Site configuration > Build & deploy > Base directory = media-monitoring-center
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+# Adaptador oficial de Netlify para Next.js (API routes y SSR como Netlify Functions).
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "private, no-store"

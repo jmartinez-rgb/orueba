@@ -1,0 +1,139 @@
+{
+  "name": "WF07 · Monitoring Runner · izzi Media Monitoring Center",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7-23/2 * * *"
+            }
+          ]
+        }
+      },
+      "id": "a1f0c7f2-0001-4c1e-9a10-000000000701",
+      "name": "Cada 2 h (07:00–23:00)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "immc-monitoring",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "a1f0c7f2-0002-4c1e-9a10-000000000702",
+      "name": "Webhook (N8N_MONITORING_WEBHOOK)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 220],
+      "webhookId": "immc-monitoring"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.IMMC_APP_URL }}/api/monitoring/evaluate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.IMMC_MONITORING_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ trigger: $json.body ? 'manual' : 'schedule' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "a1f0c7f2-0003-4c1e-9a10-000000000703",
+      "name": "Evaluar en la app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [280, 100],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1f0c7f2-0004-4c1e-9a10-000000000704",
+      "name": "¿Evaluación correcta?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [540, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Resumen de la corrida para el historial de ejecuciones de n8n.\nconst r = $input.first().json;\nreturn [{ json: { runAt: r.runAt, cutoffHour: r.cutoffHour, overall: r.overall, anomalies: r.anomalies, openIncidents: r.openIncidents, notifications: (r.notifications || []).length } }];"
+      },
+      "id": "a1f0c7f2-0005-4c1e-9a10-000000000705",
+      "name": "Resumen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 0]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ 'La evaluación de monitoreo falló: ' + ($json.message || 'sin detalle') }}"
+      },
+      "id": "a1f0c7f2-0006-4c1e-9a10-000000000706",
+      "name": "Error de evaluación",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [800, 220]
+    }
+  ],
+  "connections": {
+    "Cada 2 h (07:00–23:00)": {
+      "main": [[{ "node": "Evaluar en la app", "type": "main", "index": 0 }]]
+    },
+    "Webhook (N8N_MONITORING_WEBHOOK)": {
+      "main": [[{ "node": "Evaluar en la app", "type": "main", "index": 0 }]]
+    },
+    "Evaluar en la app": {
+      "main": [[{ "node": "¿Evaluación correcta?", "type": "main", "index": 0 }]]
+    },
+    "¿Evaluación correcta?": {
+      "main": [
+        [{ "node": "Resumen", "type": "main", "index": 0 }],
+        [{ "node": "Error de evaluación", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Mexico_City",
+    "saveManualExecutions": true
+  },
+  "active": false,
+  "pinData": {}
+}

@@ -1,0 +1,97 @@
+{
+  "name": "WF08 · WhatsApp Alert · izzi Media Monitoring Center",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "immc-alert",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "b2f0c7f2-0001-4c1e-9a10-000000000801",
+      "name": "Webhook (N8N_ALERT_WEBHOOK)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "immc-alert"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verifica la firma HMAC que pone la app: X-IMMC-Signature = sha256=HMAC(secret, `${timestamp}.${body}`).\n// Requiere NODE_FUNCTION_ALLOW_BUILTIN=crypto en n8n y la variable IMMC_WEBHOOK_SECRET (= N8N_WEBHOOK_SECRET de la app).\nconst crypto = require('crypto');\nconst item = $input.first().json;\nconst h = item.headers || {};\nconst secret = $env.IMMC_WEBHOOK_SECRET;\nconst ts = h['x-immc-timestamp'];\nconst sig = h['x-immc-signature'] || '';\nconst raw = JSON.stringify(item.body);\nif (secret) {\n  const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(`${ts}.${raw}`).digest('hex');\n  const ok = sig.length === expected.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));\n  if (!ok) throw new Error('Firma inválida: notificación rechazada');\n  if (Math.abs(Date.now() - Date.parse(ts)) > 10 * 60 * 1000) throw new Error('Firma vencida (más de 10 min)');\n}\nconst p = item.body.payload;\nif (!p || p.channel !== 'whatsapp') return [];\n// Un item por destinatario de WhatsApp.\nreturn (p.recipients || []).map((r) => ({ json: {\n  to: String(r.address).replace(/\\D/g, ''),\n  name: r.name,\n  notificationId: p.notificationId,\n  incidentId: p.incidentId,\n  kind: p.kind,\n  severity: p.severity,\n  template: p.whatsappTemplate,\n  text: p.text\n} }));"
+      },
+      "id": "b2f0c7f2-0002-4c1e-9a10-000000000802",
+      "name": "Verificar firma y destinatarios",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $env.META_API_VERSION || 'v26.0' }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $json.to, type: 'template', template: $json.template }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "b2f0c7f2-0003-4c1e-9a10-000000000803",
+      "name": "WhatsApp Cloud API (template)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CONFIGURAR",
+          "name": "WhatsApp Cloud API (Authorization: Bearer <token>)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook (N8N_ALERT_WEBHOOK)": {
+      "main": [
+        [
+          {
+            "node": "Verificar firma y destinatarios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar firma y destinatarios": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp Cloud API (template)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Mexico_City"
+  },
+  "active": false,
+  "pinData": {}
+}

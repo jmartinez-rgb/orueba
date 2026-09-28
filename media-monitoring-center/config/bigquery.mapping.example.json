@@ -1,0 +1,47 @@
+{
+  "metricSources": [
+    {
+      "name": "cortes_monitoreo",
+      "table": "NOMBRE_TABLA_CORTES",
+      "shape": "cumulative_snapshot",
+      "timestampTimezone": "UTC",
+      "partition": { "field": "fecha", "type": "DATE" },
+      "fields": {
+        "date": "fecha",
+        "timestamp": "corte_ts",
+        "ingestedAt": "cargado_en",
+        "platform": "plataforma",
+        "accountId": "cuenta_id",
+        "accountName": "cuenta",
+        "campaignId": "campana_id",
+        "campaignName": "campana",
+        "spend": "costo",
+        "impressions": "impresiones",
+        "clicks": "clics",
+        "conversions": "conversiones",
+        "leads": "leads",
+        "sales": "ventas",
+        "whatsapp": "conversaciones_whatsapp",
+        "calls": "llamadas",
+        "purchases": "compras",
+        "revenue": null
+      },
+      "platformValues": { "bing": "microsoft", "facebook": "meta" }
+    }
+  ],
+  "budgets": {
+    "table": "NOMBRE_TABLA_PRESUPUESTOS",
+    "fields": { "month": "mes", "level": null, "platform": "plataforma", "accountId": "cuenta_id", "campaignId": "campana_id", "amount": "presupuesto" }
+  },
+  "syncLog": {
+    "table": "NOMBRE_TABLA_SYNC_LOG",
+    "fields": { "platform": "plataforma", "accountId": null, "workflow": "workflow", "startedAt": "inicio", "finishedAt": "fin", "status": "estado", "rowsLoaded": "filas", "message": "mensaje" }
+  },
+  "state": {
+    "alerts": "monitoring_alerts",
+    "incidents": "monitoring_incidents",
+    "notifications": "monitoring_notifications",
+    "runs": "monitoring_runs",
+    "settings": "monitoring_settings"
+  }
+}

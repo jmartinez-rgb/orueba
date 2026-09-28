@@ -1,0 +1,186 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Tokens de diseño izzi Media Monitoring Center.
+ * Marca: teal #00C1B5 y magenta #D60270 sobre fondo casi negro.
+ * Estados (fijos, nunca reutilizados como serie): normal / atención / alerta / crítico.
+ * Paleta categórica de plataformas validada para daltonismo (orden fijo).
+ */
+:root {
+  --radius: 0.5rem;
+  --background: #f5f6f8;
+  --foreground: #0f1115;
+  --card: #ffffff;
+  --card-foreground: #0f1115;
+  --popover: #ffffff;
+  --popover-foreground: #0f1115;
+  --primary: #007a73;
+  --primary-foreground: #ffffff;
+  --secondary: #eef0f3;
+  --secondary-foreground: #1a1d23;
+  --muted: #eef0f3;
+  --muted-foreground: #5b616b;
+  --accent: #e8f5f4;
+  --accent-foreground: #0f1115;
+  --destructive: #c42b2b;
+  --border: #e2e5ea;
+  --input: #d6dae1;
+  --ring: #00a79d;
+  --brand-teal: #007a73;
+  --brand-magenta: #d60270;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1a1d23;
+  --sidebar-border: #e2e5ea;
+  --sidebar-accent: #eef7f6;
+
+  /* Estados: marca (relleno) y texto legible sobre la superficie. */
+  --status-normal: #0ca30c;
+  --status-attention: #fab219;
+  --status-alert: #ec835a;
+  --status-critical: #d03b3b;
+  --status-normal-text: #0a6b0a;
+  --status-attention-text: #855b00;
+  --status-alert-text: #a94519;
+  --status-critical-text: #b42323;
+  --status-data: #6b7280;
+  --status-data-text: #4b5563;
+
+  /* Gráficas */
+  --chart-grid: #e6e8ec;
+  --chart-axis: #8a8f98;
+  --series-today: #007a73;
+  --series-prev: #6b7079;
+  --series-avg: #2f3440;
+  --series-budget: #d60270;
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-6: #008300;
+}
+
+.dark {
+  --background: #090a0c;
+  --foreground: #eceef1;
+  --card: #111317;
+  --card-foreground: #eceef1;
+  --popover: #15181d;
+  --popover-foreground: #eceef1;
+  --primary: #00c1b5;
+  --primary-foreground: #04110f;
+  --secondary: #1a1d23;
+  --secondary-foreground: #eceef1;
+  --muted: #171a1f;
+  --muted-foreground: #9aa0a8;
+  --accent: #10231f;
+  --accent-foreground: #eceef1;
+  --destructive: #e05252;
+  --border: #23262d;
+  --input: #2b2f37;
+  --ring: #00c1b5;
+  --brand-teal: #00c1b5;
+  --brand-magenta: #e0338a;
+  --sidebar: #0c0d10;
+  --sidebar-foreground: #d8dbe0;
+  --sidebar-border: #1d2026;
+  --sidebar-accent: #12211f;
+
+  --status-normal-text: #3ecf3e;
+  --status-attention-text: #fbc24a;
+  --status-alert-text: #f29a76;
+  --status-critical-text: #f07070;
+  --status-data: #8b93a1;
+  --status-data-text: #aab1bd;
+
+  --chart-grid: #22252b;
+  --chart-axis: #7d838c;
+  --series-today: #00c1b5;
+  --series-prev: #8a9099;
+  --series-avg: #d5d8dd;
+  --series-budget: #e0338a;
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
+}
+
+@theme inline {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-magenta: var(--brand-magenta);
+  --color-status-normal: var(--status-normal);
+  --color-status-attention: var(--status-attention);
+  --color-status-alert: var(--status-alert);
+  --color-status-critical: var(--status-critical);
+  --color-status-data: var(--status-data);
+  --color-status-normal-text: var(--status-normal-text);
+  --color-status-attention-text: var(--status-attention-text);
+  --color-status-alert-text: var(--status-alert-text);
+  --color-status-critical-text: var(--status-critical-text);
+  --color-status-data-text: var(--status-data-text);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Recharts: tipografía y colores coherentes con el tema. */
+.recharts-cartesian-axis-tick-value {
+  fill: var(--chart-axis);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.recharts-cartesian-grid line {
+  stroke: var(--chart-grid);
+}
+.recharts-tooltip-cursor {
+  stroke: var(--chart-axis);
+}

@@ -1,0 +1,26 @@
+# dependencias
+node_modules/
+
+# Next.js
+.next/
+out/
+build/
+next-env.d.ts
+*.tsbuildinfo
+
+# Netlify
+.netlify/
+
+# entorno: nunca subir secretos
+.env
+.env.*
+!.env.example
+
+# credenciales de Google (por si alguien las deja aquí)
+*service-account*.json
+*-credentials.json
+
+# varios
+.DS_Store
+coverage/
+npm-debug.log*
