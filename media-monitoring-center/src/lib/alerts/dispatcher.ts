@@ -19,6 +19,10 @@ export async function dispatchNotifications(list: NotificationRecord[], settings
       out.push({ ...n, status: "SKIPPED", detail: "WHATSAPP_ALERTS_ENABLED=false: no se envió." });
       continue;
     }
+    if (!env.useMockData && !env.n8n.alertWebhook) {
+      out.push({ ...n, status: "SKIPPED", detail: "n8n no está configurado (N8N_ALERT_WEBHOOK): la alerta se ve en la app pero no se envió." });
+      continue;
+    }
     const result = await triggerWebhook("alert", {
       notificationId: n.id,
       incidentId: n.incidentId,

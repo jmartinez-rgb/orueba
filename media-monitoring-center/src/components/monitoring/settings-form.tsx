@@ -3,7 +3,7 @@ import { sileo } from "sileo";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, RotateCcw, Save, Trash2 } from "lucide-react";
-import type { CampaignObjective, PlatformId, Severity } from "@/lib/types";
+import type { CampaignObjective, PlatformId, Severity, DataMode } from "@/lib/types";
 import { CAMPAIGN_OBJECTIVES, PLATFORM_IDS } from "@/lib/types";
 import type { MonitoringSettings, Recipient } from "@/lib/config/settings";
 import { PLATFORMS } from "@/lib/platforms/registry";
@@ -119,7 +119,7 @@ export function SettingsForm({
 }: {
   initial: MonitoringSettings;
   canEdit: boolean;
-  mode: "mock" | "bigquery";
+  mode: DataMode;
   campaigns: Array<{ id: string; name: string; platform: PlatformId; objective: CampaignObjective }>;
 }) {
   const router = useRouter();
@@ -146,7 +146,7 @@ export function SettingsForm({
       setMsg({ ok: false, text: data.message ?? "No se pudo guardar." });
       sileo.error({ title: "No se pudo guardar", description: data.message });
     } else {
-      setMsg({ ok: true, text: mode === "mock" ? "Guardado para todo el equipo." : "Guardado en BigQuery para todo el equipo." });
+      setMsg({ ok: true, text: mode === "bigquery" ? "Guardado en BigQuery para todo el equipo." : "Guardado para todo el equipo." });
       sileo.success({ title: "Configuración guardada", description: "Aplica para todo el equipo. No cambia nada en las plataformas." });
       router.refresh();
     }

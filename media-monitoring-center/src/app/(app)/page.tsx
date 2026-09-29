@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { PLATFORM_IDS } from "@/lib/types";
 import { safeSnapshot } from "@/lib/services/safe";
-import { alertRows, chartProps, platformCard, totalKpis } from "@/lib/services/view-models";
+import { alertRows, chartProps, onlyMonitored, platformCard, totalKpis } from "@/lib/services/view-models";
 import { formatTimeInTz, hourLabel } from "@/lib/time/tz";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetaChip } from "@/components/monitoring/page-header";
@@ -29,7 +29,7 @@ export default async function OverviewPage() {
   const { meta, settings } = snap;
   const tz = meta.timezone;
   const attention = settings.thresholds.attention;
-  const cards = Object.fromEntries(PLATFORM_IDS.map((p) => [p, platformCard(snap, p)])) as Record<(typeof PLATFORM_IDS)[number], ReturnType<typeof platformCard>>;
+  const cards = Object.fromEntries(snap.run.platforms.map((p) => [p, platformCard(snap, p)])) as Record<(typeof PLATFORM_IDS)[number], ReturnType<typeof platformCard>>;
   const alerts = alertRows(snap);
   const activeAlerts = alerts.filter((a) => a.resolvedAt === null && !a.groupedUnder && a.status !== "FALSE_POSITIVE");
   const openIncidents = snap.state.incidents.filter((i) => i.resolvedAt === null);
@@ -62,7 +62,7 @@ export default async function OverviewPage() {
       </div>
 
       <section aria-label="Plataformas" className="order-3 grid gap-3 sm:grid-cols-2 lg:order-none xl:grid-cols-3">
-        {PLATFORM_IDS.map((p) => (
+        {snap.run.platforms.map((p) => (
           <PlatformCard key={p} vm={cards[p]} timezone={tz} weeks={meta.historyWeeks} attention={attention} canEdit={meta.permissions.includes("settings:write")} />
         ))}
       </section>
@@ -110,7 +110,7 @@ export default async function OverviewPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <FreshnessList health={snap.run.dataHealth} timezone={tz} />
+            <FreshnessList health={onlyMonitored(snap.run.dataHealth, snap.run.platforms)} timezone={tz} />
           </CardContent>
         </Card>
       </div>

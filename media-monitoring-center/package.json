@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "check": "npm run typecheck && npm run lint && npm run test",
     "auth:setup": "node scripts/auth-setup.mjs",
-    "auth:hash": "node scripts/auth-hash.mjs"
+    "auth:hash": "node scripts/auth-hash.mjs",
+    "sheets:setup": "node scripts/sheets-setup.mjs"
   },
   "dependencies": {
     "@blobatar/react": "^2.7.0",

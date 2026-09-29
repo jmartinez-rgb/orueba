@@ -1,5 +1,5 @@
 import "server-only";
-import type { Catalog, DataState, PlatformId, Severity } from "@/lib/types";
+import type { Catalog, DataState, PlatformId, Severity, DataMode } from "@/lib/types";
 import { PLATFORM_IDS } from "@/lib/types";
 import { evaluationSlots, type MonitoringSettings } from "@/lib/config/settings";
 import { getEnv } from "@/lib/config/env";
@@ -20,10 +20,11 @@ import { overallConfidence, platformConfidence, summarizeExecution, type Confide
 import type { CurrencyReport } from "@/lib/data/currency";
 import { PLATFORMS } from "@/lib/platforms/registry";
 import { getAppContext, type AppContext } from "./context";
+import { SheetsDataSource } from "@/lib/sheets/sheets-source";
 
 export interface SnapshotMeta {
   appName: string;
-  mode: "mock" | "bigquery";
+  mode: DataMode;
   scenario: { id: string; name: string; description: string } | null;
   scenarios: Array<{ id: string; name: string; description: string }>;
   timezone: string;
@@ -45,6 +46,8 @@ export interface SnapshotMeta {
   permissions: Permission[];
   integrations: { bigquery: boolean; n8n: boolean; whatsapp: boolean };
   mappingErrors: string[];
+  /** Modo Google Sheets: título de la hoja y problemas del mapeo o de las pestañas. */
+  sheets: { title: string | null; readAt?: string | null; errors: string[]; tabs: Array<{ sheet: string; platform: string; rows: number | null; updatedAt: string | null; status: string | null; found: boolean }> } | null;
 }
 
 export interface PlatformStatusView {
@@ -180,6 +183,18 @@ export async function baseAlertState(ctx: AppContext, asOf: Date, businessDay: s
   return { state, runs };
 }
 
+/** Resumen de la hoja de Dataslayer para Integrations (solo en modo Google Sheets). */
+async function sheetsMeta(ctx: AppContext): Promise<SnapshotMeta["sheets"]> {
+  if (ctx.mode !== "sheets" && !ctx.sheetsErrors.length) return null;
+  const inner = ctx.source.original;
+  if (!(inner instanceof SheetsDataSource)) return { title: null, errors: ctx.sheetsErrors, tabs: [] };
+  try {
+    return await inner.summary();
+  } catch (err) {
+    return { title: null, errors: [err instanceof Error ? err.message : String(err)], tabs: [] };
+  }
+}
+
 export class SnapshotError extends Error {
   constructor(
     public readonly friendly: string,
@@ -194,7 +209,7 @@ export async function getSnapshot(): Promise<Snapshot> {
   try {
     return await buildSnapshot(ctx);
   } catch (err) {
-    const f = friendlyError(ctx.mode === "bigquery" ? "bigquery" : "api", err);
+    const f = friendlyError(ctx.mode === "mock" ? "api" : ctx.mode, err);
     logger.error("snapshot.failed", { error: err });
     throw new SnapshotError(f.message, f.technical);
   }
@@ -222,7 +237,7 @@ export async function buildSnapshot(ctx: AppContext): Promise<Snapshot> {
       return [p, { platform: p, severity: maxSeverity(...list.map((a) => platformImpactSeverity(a, ctx.settings))), dataState: run.platformStatus[p].dataState }];
     }),
   ) as Record<PlatformId, PlatformStatusView>;
-  const overall = maxSeverity(...PLATFORM_IDS.map((p) => platformStatus[p].severity));
+  const overall = maxSeverity(...run.platforms.map((p) => platformStatus[p].severity));
 
   const [catalog, execRows] = await Promise.all([ctx.source.getCatalog(), ctx.source.getExecutionControl(asOf).catch((err) => {
     logger.warn("execution_control.failed", { error: err });
@@ -257,11 +272,11 @@ export async function buildSnapshot(ctx: AppContext): Promise<Snapshot> {
   const confidence = {
     platforms: confidencePlatforms,
     overall: overallConfidence(
-      PLATFORM_IDS.map((p) => ({ name: PLATFORMS[p].shortName, result: confidencePlatforms[p], weight: run.entities.find((e) => e.key === `platform:${p}`)?.cumulative.spend?.expected ?? 0 })),
+      run.platforms.map((p) => ({ name: PLATFORMS[p].shortName, result: confidencePlatforms[p], weight: run.entities.find((e) => e.key === `platform:${p}`)?.cumulative.spend?.expected ?? 0 })),
     ),
   };
-  const lastDataAt = PLATFORM_IDS.map((p) => run.dataHealth[p].lastDataAt).filter(Boolean).sort().pop() ?? null;
-  const lastSyncAt = PLATFORM_IDS.map((p) => run.dataHealth[p].lastSyncAt).filter(Boolean).sort().pop() ?? null;
+  const lastDataAt = run.platforms.map((p) => run.dataHealth[p].lastDataAt).filter(Boolean).sort().pop() ?? null;
+  const lastSyncAt = run.platforms.map((p) => run.dataHealth[p].lastSyncAt).filter(Boolean).sort().pop() ?? null;
 
   const meta: SnapshotMeta = {
     appName: env.appName,
@@ -287,6 +302,7 @@ export async function buildSnapshot(ctx: AppContext): Promise<Snapshot> {
     permissions: PERMISSIONS.filter((p) => can(ctx.session.role, p)),
     integrations: { bigquery: env.bigquery.configured, n8n: env.n8n.configured, whatsapp: env.whatsapp.enabled },
     mappingErrors: ctx.mappingErrors,
+    sheets: await sheetsMeta(ctx),
   };
 
   return { meta, run, platformStatus, overall, state, runs, catalog, settings: ctx.settings, confidence, execution, currency };

@@ -24,7 +24,7 @@ export default async function HistoricalPage() {
       safeSnapshot(),
     ]);
   } catch (err) {
-    const f = friendlyError(ctx.mode === "bigquery" ? "bigquery" : "api", err);
+    const f = friendlyError(ctx.mode === "mock" ? "api" : ctx.mode, err);
     return <ErrorPanel message={f.message} technical={f.technical} />;
   }
   const [initial, res] = data;

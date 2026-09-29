@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { PLATFORM_IDS } from "@/lib/types";
 import { safeSnapshot } from "@/lib/services/safe";
-import { alertRows, chartProps, platformCard } from "@/lib/services/view-models";
+import { alertRows, chartProps, onlyMonitored, platformCard } from "@/lib/services/view-models";
 import { PLATFORMS } from "@/lib/platforms/registry";
 import { ANOMALY_LABEL } from "@/lib/anomaly-engine/anomaly-engine";
 import { fmtMetric } from "@/lib/format";
@@ -30,7 +30,7 @@ export default async function LivePage() {
   const { meta, settings } = snap;
   const tz = meta.timezone;
   const attention = settings.thresholds.attention;
-  const cards = Object.fromEntries(PLATFORM_IDS.map((p) => [p, platformCard(snap, p)])) as Record<(typeof PLATFORM_IDS)[number], ReturnType<typeof platformCard>>;
+  const cards = Object.fromEntries(snap.run.platforms.map((p) => [p, platformCard(snap, p)])) as Record<(typeof PLATFORM_IDS)[number], ReturnType<typeof platformCard>>;
   const charts = chartProps(snap);
   const critical = snap.state.incidents
     .filter((i) => i.resolvedAt === null && (i.severity === "CRITICAL" || i.severity === "ALERT"))
@@ -148,7 +148,7 @@ export default async function LivePage() {
           <StatusTimeline
             runs={snap.runs}
             slots={meta.slots}
-            live={{ cutoffHour: meta.cutoffHour, overall: snap.overall, platforms: Object.fromEntries(PLATFORM_IDS.map((p) => [p, { severity: snap.platformStatus[p].severity, dataState: snap.platformStatus[p].dataState }])) as never }}
+            live={{ cutoffHour: meta.cutoffHour, overall: snap.overall, platforms: Object.fromEntries(snap.run.platforms.map((p) => [p, { severity: snap.platformStatus[p].severity, dataState: snap.platformStatus[p].dataState }])) as never }}
           />
         </CardContent>
       </Card>
@@ -161,7 +161,7 @@ export default async function LivePage() {
           </div>
         </CardHeader>
         <CardContent>
-          <DataHealthTable health={snap.run.dataHealth} timezone={tz} />
+          <DataHealthTable health={onlyMonitored(snap.run.dataHealth, snap.run.platforms)} timezone={tz} />
         </CardContent>
       </Card>
     </div>

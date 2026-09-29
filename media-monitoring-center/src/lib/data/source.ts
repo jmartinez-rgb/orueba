@@ -1,5 +1,6 @@
 import type {
   BudgetRow,
+  DataMode,
   Catalog,
   DailyRow,
   DataQualityStats,
@@ -28,10 +29,10 @@ export interface DailyQuery {
 
 /**
  * Contrato único de acceso a datos. La UI y los motores nunca saben si los datos vienen
- * del mock o de BigQuery: solo conocen esta interfaz.
+ * del mock, de Google Sheets o de BigQuery: solo conocen esta interfaz.
  */
 export interface MonitoringDataSource {
-  readonly kind: "mock" | "bigquery";
+  readonly kind: DataMode;
   /** Instante de referencia (el mock puede fijarlo con MOCK_REFERENCE_TIME). */
   now(): Date;
   getCatalog(): Promise<Catalog>;

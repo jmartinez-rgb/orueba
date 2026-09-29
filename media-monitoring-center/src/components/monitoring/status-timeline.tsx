@@ -44,7 +44,7 @@ export function StatusTimeline({
               <td key={c.key}>{c.key === "live" ? cell(live.overall, null, false, "Ahora") : cell(c.run?.overall ?? null, null, c.future, c.label)}</td>
             ))}
           </tr>
-          {PLATFORM_IDS.map((p) => (
+          {PLATFORM_IDS.filter((p) => live.platforms[p]).map((p) => (
             <tr key={p}>
               <td>
                 <span className="flex items-center gap-1.5">

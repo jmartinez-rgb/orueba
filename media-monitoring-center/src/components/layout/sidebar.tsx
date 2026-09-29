@@ -13,6 +13,8 @@ export interface NavCounts {
   alerts: number;
   incidents: number;
   tickets: number;
+  /** Bugs y sugerencias nuevos (solo el administrador los ve). */
+  feedback: number;
   alertsSeverity: Severity;
   incidentsSeverity: Severity;
   ticketsSeverity: Severity;
@@ -57,7 +59,7 @@ export function NavList({ counts, permissions, collapsed, onNavigate }: { counts
               const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
               const Icon = item.icon;
               const count = item.badge ? counts[item.badge] : 0;
-              const sev = item.badge === "alerts" ? counts.alertsSeverity : item.badge === "tickets" ? counts.ticketsSeverity : counts.incidentsSeverity;
+              const sev = item.badge === "alerts" ? counts.alertsSeverity : item.badge === "tickets" ? counts.ticketsSeverity : item.badge === "feedback" ? "ATTENTION" : counts.incidentsSeverity;
               return (
                 <Link
                   key={item.href}

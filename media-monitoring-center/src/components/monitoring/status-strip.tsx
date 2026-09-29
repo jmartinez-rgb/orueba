@@ -9,7 +9,7 @@ import { DATA_STATE_META, DeltaText, isBadDataState, PlatformMark, SEVERITY_META
 export function StatusStrip({ cards, attention }: { cards: Record<PlatformId, PlatformCardVM>; attention: number }) {
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-      {PLATFORM_IDS.map((p) => {
+      {PLATFORM_IDS.filter((p) => cards[p]).map((p) => {
         const c = cards[p];
         const bad = isBadDataState(c.dataState);
         const m = SEVERITY_META[c.severity];

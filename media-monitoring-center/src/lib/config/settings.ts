@@ -149,6 +149,8 @@ export const settingsSchema = z.object({
   classifiers: z.partialRecord(platformEnum, classifierSchema),
   /** Cómo llegan los datos: API directa (n8n) o Google Sheets (Dataslayer + Apps Script) → BigQuery. */
   ingestion: z.partialRecord(platformEnum, z.enum(["api", "sheets"])),
+  /** Plataformas que se monitorean (las demás no se evalúan ni se muestran). Con Google Sheets, las que trae la hoja. */
+  monitoredPlatforms: z.array(platformEnum).min(1).max(6),
   /** Mensaje de monitoreo para WhatsApp (se copia y envía manualmente). */
   report: z.object({
     platforms: z.array(platformEnum).min(1).max(6),
@@ -232,6 +234,7 @@ export const DEFAULT_SETTINGS: MonitoringSettings = {
   budgetLevels: {},
   classifiers: DEFAULT_CLASSIFIERS,
   ingestion: { google: "sheets", meta: "sheets", tiktok: "sheets", microsoft: "sheets", spotify: "sheets", x: "sheets" },
+  monitoredPlatforms: ["google", "meta", "tiktok", "microsoft", "spotify", "x"],
   report: {
     platforms: ["google", "meta"],
     spendIncreaseVsYesterday: 0.25,
@@ -294,6 +297,7 @@ export const PATCHABLE_PATHS = [
   "budgetLevels",
   "classifiers",
   "ingestion",
+  "monitoredPlatforms",
   "report",
   "objectiveOverrides",
 ] as const;

@@ -73,7 +73,11 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     freshness.find((f) => f.platform === p && f.accountId === accountId) ?? (accountId ? freshness.find((f) => f.platform === p && f.accountId === null) : undefined);
   const platformFresh = new Map<PlatformId, FreshnessEvaluation>();
   const accountFresh = new Map<string, FreshnessEvaluation>();
-  for (const p of PLATFORM_IDS) platformFresh.set(p, evaluateFreshness(recordFor(p, null), asOf, settings));
+  // Plataformas fuera del monitoreo (p. ej. sin pestaña en la hoja): estado neutro, sin alertas.
+  const monitored = new Set<PlatformId>(settings.monitoredPlatforms?.length ? settings.monitoredPlatforms : PLATFORM_IDS);
+  const monitoredList = PLATFORM_IDS.filter((p) => monitored.has(p));
+  const offFreshness: FreshnessEvaluation = { state: "OK", lagMinutes: null, coveredUntilHour: cutoff, reason: null, severity: "NORMAL" };
+  for (const p of PLATFORM_IDS) platformFresh.set(p, monitored.has(p) ? evaluateFreshness(recordFor(p, null), asOf, settings) : offFreshness);
   for (const acc of catalog.accounts) {
     const pf = platformFresh.get(acc.platform)!;
     accountFresh.set(acc.id, BAD_STATES.includes(pf.state) ? pf : evaluateFreshness(recordFor(acc.platform, acc.id), asOf, settings));
@@ -106,7 +110,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
   const platformSeries = new Map<string, HourlySeries>();
   const totalSeries: HourlySeries = new Map();
   const campaignById = new Map<string, Campaign>(catalog.campaigns.map((c) => [c.id, c]));
-  const okPlatforms = PLATFORM_IDS.filter((p) => !BAD_STATES.includes(platformFresh.get(p)!.state));
+  const okPlatforms = monitoredList.filter((p) => !BAD_STATES.includes(platformFresh.get(p)!.state));
   for (const r of rows as HourlyRow[]) {
     if (!r.campaignId) continue;
     const accountId = r.accountId ?? campaignById.get(r.campaignId)?.accountId ?? "";
@@ -249,7 +253,10 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
   }
 
   // 4) Anomalías y estado por plataforma.
-  const anomalies = detectAnomalies(evaluations, { settings, cutoffHour: cutoff });
+  const anomalies = detectAnomalies(
+    evaluations.filter((e) => monitored.has(e.platform)),
+    { settings, cutoffHour: cutoff },
+  );
   const platformStatus = {} as Record<PlatformId, PlatformStatusInfo>;
   for (const p of PLATFORM_IDS) {
     const list = anomalies.filter((a) => a.platform === p);
@@ -268,7 +275,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
           .sort((a, b) => severityRank(platformImpactSeverity(b, settings)) - severityRank(platformImpactSeverity(a, settings)) || LEVEL_RANK[a.level] - LEVEL_RANK[b.level])[0] ?? null,
     };
   }
-  const overall = maxSeverity(...PLATFORM_IDS.map((p) => platformStatus[p].severity));
+  const overall = maxSeverity(...monitoredList.map((p) => platformStatus[p].severity));
 
   // 5) Pacing con curva horaria histórica y curvas para gráficas.
   const monthDays = daysInMonth(monthOf(date));
@@ -348,8 +355,8 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
       record: recordFor(p, null),
       freshness: platformFresh.get(p)!,
       quality: quality.find((q) => q.platform === p),
-      missingHours: missing,
-      hasRowsToday: todayHours.some((h) => h !== null),
+      missingHours: monitored.has(p) ? missing : [],
+      hasRowsToday: !monitored.has(p) || todayHours.some((h) => h !== null),
       effectiveCutoffHour: cut,
       delayedAccounts: catalog.accounts
         .filter((a) => a.platform === p && excluded.has(a.id))
@@ -378,5 +385,6 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     dataHealth,
     totalIncludes: okPlatforms,
     totalCutoffHour: totalCutoff,
+    platforms: monitoredList,
   };
 }

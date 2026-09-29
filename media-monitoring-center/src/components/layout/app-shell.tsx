@@ -9,29 +9,34 @@ import { sessionPermissions, type Session } from "@/lib/auth/session";
 import { can } from "@/lib/auth/roles";
 import { getAuthConfig } from "@/lib/auth/config";
 import { openTicketStats } from "@/lib/records/tickets";
+import { newFeedbackCount } from "@/lib/records/feedback";
 import { touchUser } from "@/lib/records/audit";
 import { logger } from "@/lib/logging/logger";
 import { Sidebar, type NavCounts } from "./sidebar";
 import { Topbar } from "./topbar";
 import { AutoRefresh } from "./auto-refresh";
 import { CriticalAlertGate } from "@/components/monitoring/critical-alert-gate";
+import { DATA_MODE_LABEL } from "@/lib/platforms/registry";
+import type { DataMode } from "@/lib/types";
 
 /** Estructura común: sidebar + barra superior. Si el snapshot falla, la app sigue navegable. */
 export async function AppShell({ children, session }: { children: ReactNode; session: Session }) {
   const env = getEnv();
-  let counts: NavCounts = { alerts: 0, incidents: 0, tickets: 0, alertsSeverity: "NORMAL", incidentsSeverity: "NORMAL", ticketsSeverity: "NORMAL" };
+  let counts: NavCounts = { alerts: 0, incidents: 0, tickets: 0, feedback: 0, alertsSeverity: "NORMAL", incidentsSeverity: "NORMAL", ticketsSeverity: "NORMAL" };
   let overall: Severity | null = null;
   let cutoffLabel: string | null = null;
   let timezone = baseSettings().timezone;
-  let mode: "mock" | "bigquery" = env.useMockData ? "mock" : "bigquery";
+  let mode: DataMode = env.dataSource;
   let scenario: { id: string; name: string } | null = null;
   let scenarios: Array<{ id: string; name: string }> = [];
-  const [snapResult, tickets] = await Promise.all([
+  const canManageFeedback = can(session.role, "feedback:manage");
+  const [snapResult, tickets, feedbackNew] = await Promise.all([
     getSnapshot().then(
       (s) => ({ ok: true as const, s }),
       () => ({ ok: false as const }),
     ),
     openTicketStats().catch(() => ({ open: 0, severity: "NORMAL" as Severity })),
+    canManageFeedback ? newFeedbackCount().catch(() => 0) : Promise.resolve(0),
     // Presencia: última vez que se vio a la persona (máximo una escritura cada 5 min).
     touchUser({ id: session.user.id, name: session.user.name, role: session.role, kind: session.user.kind }).catch((err) => logger.warn("audit.touch_failed", { error: err })),
   ]);
@@ -43,6 +48,7 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
       alerts: activeAlerts.length,
       incidents: openIncidents.length,
       tickets: tickets.open,
+      feedback: feedbackNew,
       alertsSeverity: maxSeverity(...activeAlerts.map((a) => a.severity)),
       incidentsSeverity: maxSeverity(...openIncidents.map((i) => i.severity)),
       ticketsSeverity: tickets.severity,
@@ -54,7 +60,7 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
     scenario = snap.meta.scenario;
     scenarios = snap.meta.scenarios;
   } else {
-    counts = { ...counts, tickets: tickets.open, ticketsSeverity: tickets.severity };
+    counts = { ...counts, tickets: tickets.open, feedback: feedbackNew, ticketsSeverity: tickets.severity };
   }
   const permissions = sessionPermissions(session);
   const auth = getAuthConfig();
@@ -65,7 +71,7 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
         permissions={permissions}
         footer={
           <div className="space-y-1 text-[11px] text-muted-foreground">
-            <p className="font-medium text-foreground">{mode === "mock" ? "Datos simulados" : "BigQuery"}</p>
+            <p className="font-medium text-foreground">{DATA_MODE_LABEL[mode]}</p>
             <p>Evaluación cada 2 h · {timezone}</p>
             <p className="text-[10px] leading-snug">Solo lectura: no modifica nada en las plataformas.</p>
           </div>

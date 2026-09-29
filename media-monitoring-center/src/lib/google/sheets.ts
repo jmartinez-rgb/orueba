@@ -29,6 +29,28 @@ async function authClient() {
   return clientPromise;
 }
 
+/** GET autenticado a la API de Google Sheets (solo lectura). */
+export async function sheetsGet<T>(path: string, action: string): Promise<T> {
+  const started = Date.now();
+  try {
+    const client = await authClient();
+    const { token } = await client.getAccessToken();
+    if (!token) throw new Error("No se obtuvo token de acceso para Google Sheets.");
+    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${path}`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20000), cache: "no-store" });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      const hint = res.status === 403 || res.status === 404 ? " ¿La hoja está compartida con la cuenta de servicio como Lector y la API de Google Sheets está habilitada?" : "";
+      throw new Error(`Google Sheets respondió ${res.status}.${hint} ${detail.slice(0, 200)}`.trim());
+    }
+    const data = (await res.json()) as T;
+    recordIntegrationEvent({ target: "sheets", action, ok: true, durationMs: Date.now() - started, detail: null });
+    return data;
+  } catch (err) {
+    recordIntegrationEvent({ target: "sheets", action, ok: false, durationMs: Date.now() - started, detail: err instanceof Error ? err.message : String(err) });
+    throw err;
+  }
+}
+
 /**
  * Devuelve las filas del rango como objetos {encabezado: valor}. Valores sin formato: las fechas llegan
  * como número de serie (sin depender del idioma de la hoja) y se convierten con parseDateTimeLoose.

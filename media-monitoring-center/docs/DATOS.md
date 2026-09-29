@@ -1,8 +1,48 @@
 # Datos: conexión, hoja de control, monedas y presupuestos
 
-BigQuery sigue siendo la **fuente única de verdad**: la app solo lee BigQuery (y, opcionalmente, la
-hoja de control en Google Sheets, en modo lector). Nunca escribe en las plataformas, en las hojas
-ni en las tablas de origen. El navegador nunca se conecta a BigQuery ni a Sheets.
+La app lee los datos de **una** fuente: la **hoja de Google Sheets que llena Dataslayer**
+(`DATA_SOURCE=sheets`, la opción en uso), o BigQuery (`DATA_SOURCE=bigquery`). Solo lee: nunca
+escribe en las plataformas, en las hojas ni en las tablas. El navegador nunca se conecta a Sheets
+ni a BigQuery. La instalación completa está en [`docs/INSTALACION.md`](INSTALACION.md).
+
+## 0. Lectura directa de la hoja de Dataslayer
+
+`config/sheets.mapping.json` declara qué pestaña trae cada plataforma y cómo se llaman sus
+columnas (ya viene configurado para "Monitoreo | Big Query"):
+
+| Pestaña | Forma | Qué aporta |
+|---|---|---|
+| `Google \| General` | diaria por campaña | gasto, impresiones, clics, conversiones, tipo de campaña |
+| `Google Conversiones` | diaria por campaña, formato largo | ventas (`MCC_Offline_Purchase`) y leads (`MCC_Offline_Lead_Contact`); otras acciones se ignoran |
+| `Meta` | diaria por campaña | gasto, leads, conversaciones, ventas (Compras Offline Web), compras (On-Facebook Purchase); conversiones = ventas + compras |
+| `TikTok`, `Bing`, `Spotify` | diaria por campaña | gasto, impresiones, clics, conversiones (Spotify sin cuenta: se fija en el mapeo) |
+| `Google \| Hora`, `Meta \| Hora`, `TikTok \| Hora`, `Bing \| Hora` | por hora y cuenta (opcionales) | curva horaria real del día |
+| `DataslayerQueries` | — | hora y estado de la última actualización de cada consulta |
+
+Cómo se interpretan:
+
+- **La fila de hoy es el acumulado** hasta la actualización de Dataslayer (hora de
+  `DataslayerQueries`, convertida desde la zona de la hoja a la de negocio). Esa hora define hasta
+  dónde cubre el día y la frescura de la plataforma y de todas sus cuentas.
+- **Franja horaria**: el total diario de cada campaña se reparte por hora con la curva real de su
+  cuenta ese mismo día (pestañas por hora). Sin ellas se usa una curva típica, la app lo avisa
+  ("Curva por hora · Parcial") y baja 10 puntos de confianza. La suma de las horas siempre es el
+  total de la hoja.
+- **Campañas sin fila**: Dataslayer no escribe filas sin actividad; con la pestaña actualizada hoy,
+  una campaña que gastó ayer y hoy no aparece cuenta como **gasto cero** (así se detecta que dejó de
+  gastar). Una **celda vacía** es NULL, nunca cero.
+- **Actualización en curso** (cada 2 h, tarda 5–10 min): si una pestaña llega vacía o recortada a
+  menos del 40%, se usa la última lectura completa (hasta 6 h) y se marca "en ejecución".
+- **Números**: se leen sin formato (moneda, porcentaje o separadores de la hoja no afectan).
+- **Caché**: la hoja se vuelve a leer como máximo cada 3 minutos (`cacheSeconds`), en una sola
+  lectura en lote. *Actualizar ahora* fuerza una lectura nueva y guarda la evaluación.
+- **Plataformas**: solo se monitorean las que aparecen en el mapeo; las demás no se muestran.
+- **Estado de alertas e incidentes**: en este modo se guarda en Netlify Blobs (no hay tablas de
+  BigQuery).
+
+Para cambiar el mapeo (pestaña renombrada, columna nueva) basta editar `config/sheets.mapping.json`:
+cada columna acepta un nombre o una lista de alternativas, y una métrica puede sumar columnas
+(`{"sum": [...]}`) o salir de un formato largo (`pivot`).
 
 ## 1. Dos caminos de ingesta por plataforma
 
@@ -16,6 +56,10 @@ El modo de cada plataforma se ve en **Integrations → Flujo de datos** y se gua
 control y qué pasos se esperan; la lectura de métricas es la misma (BigQuery).
 
 ## 2. Hoja de control de ejecución
+
+> Con la lectura directa de la hoja (sección 0), la pestaña **`DataslayerQueries`** cumple esta
+> función sola: no hay que crear nada. Lo que sigue aplica al modo BigQuery o a pasos adicionales
+> (por ejemplo, un Apps Script propio).
 
 Confirma en todo momento si **ya se ejecutó todo o hay que ejecutar algo**. Su estado aparece en el
 Overview (chip *Carga de datos*), en Integrations y en el mensaje de Monitoreos, y baja la

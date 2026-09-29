@@ -9,8 +9,8 @@ export async function GET() {
     ok: true,
     app: env.appName,
     version: "0.1.0",
-    mode: env.useMockData ? "mock" : "bigquery",
+    mode: env.dataSource,
     time: new Date().toISOString(),
-    integrations: { bigquery: env.bigquery.configured, n8n: env.n8n.configured, whatsapp: env.whatsapp.enabled },
+    integrations: { sheets: env.sheets.configured, bigquery: env.bigquery.configured, n8n: env.n8n.configured, whatsapp: env.whatsapp.enabled },
   });
 }

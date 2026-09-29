@@ -15,9 +15,13 @@ plataforma, y la app nunca envía WhatsApp por sí misma (las alertas las entreg
 monitoreo se copia y se envía a mano). El acceso es con contraseña y cada entrada queda registrada.
 
 ```
-APIs publicitarias → n8n (ingesta) → BigQuery → Data Health → Monitoring Engine → Anomaly Engine → API (Next.js) → UI (Netlify)
-                                                                                   ↘ n8n → WhatsApp Business Cloud API
+Plataformas → Dataslayer (cada 2 h) → Google Sheets ─┐
+            → n8n (ingesta) → BigQuery ──────────────┴→ Data Health → Monitoring Engine → Anomaly Engine → API (Next.js) → UI (Netlify)
+                                                                                           ↘ n8n → WhatsApp Business Cloud API
 ```
+
+**Instalación paso a paso:** [docs/INSTALACION.md](docs/INSTALACION.md) (hoja de Dataslayer,
+cuenta de servicio, computadora, Netlify).
 
 ## Arranque rápido
 
@@ -35,6 +39,10 @@ Sin configurar el acceso, en local se entra sin contraseña (aviso de *modo abie
 producción el sitio queda bloqueado hasta configurar `AUTH_*`. Cuentas: `jmartinez`
 (Administrador), `operaciones` (Co-administrador) y una contraseña universal con la que cada
 persona entra con su nombre.
+
+Fuente de datos (`DATA_SOURCE`): **`sheets`** lee directamente la hoja de Google Sheets que
+actualiza Dataslayer ("Monitoreo | Big Query"; `npm run sheets:setup` la conecta), `bigquery` lee
+BigQuery y `mock` usa datos simulados.
 
 Sin credenciales de datos la app funciona completa en **MOCK MODE**: 15 semanas de datos horarios
 simulados, 6 plataformas, 26 cuentas (varias por plataforma, algunas en USD), 76 campañas con los
@@ -67,6 +75,7 @@ gastar** (datos al día, gasto en cero las últimas 3 horas).
 | `npm run check` | typecheck + lint + tests |
 | `npm run auth:setup` | Genera contraseñas nuevas, sus hashes y `AUTH_SECRET` (`-- --write` los guarda en `.env.local`) |
 | `npm run auth:hash -- "contraseña"` | Hash scrypt de una contraseña elegida |
+| `npm run sheets:setup -- llave.json "URL de la hoja"` | Conecta la hoja de Dataslayer: guarda en `.env.local` el ID y la cuenta de servicio (no muestra la llave) |
 
 ## Páginas
 
@@ -76,7 +85,7 @@ gastar** (datos al día, gasto en cero las últimas 3 horas).
 | Alertas | Alerts · Incidents · **Tickets** |
 | Análisis | Budget Control · Compare (por plataforma, cuenta, estrategia, objetivo o campaña) · Historical · **Métricas** · **Optimizaciones** |
 | Operación | Integrations · Automation · **Usuarios** (administradores) · Settings |
-| Ayuda | **Guía** |
+| Ayuda | **Guía** · **Bugs y sugerencias** (cualquiera envía; solo el administrador recibe) |
 
 Además: `/login`, alerta crítica a pantalla completa con acuse obligatorio, confianza de datos
 (0–100%) por plataforma, métrica monitoreada por plataforma, conversión USD→MXN con tasa mensual y
@@ -94,7 +103,8 @@ media-monitoring-center/
 │   ├── data/                Contrato de datos (MonitoringDataSource), caché y conversión USD→MXN
 │   ├── mock/                Generador de datos simulados y escenarios de anomalías
 │   ├── bigquery/            Cliente, mapeo configurable del esquema, SQL y fuente real
-│   ├── google/              Lectura (solo lector) de la hoja de control en Google Sheets
+│   ├── sheets/              Lectura de la hoja de Dataslayer: mapeo, celdas, reparto horario, fuente de datos
+│   ├── google/              Cliente de solo lectura de Google Sheets (cuenta de servicio)
 │   ├── classifiers/         Clasificadores de estrategia (réplica de las fórmulas de Meta y Google)
 │   ├── monitoring/          MonitoringEngine, comparador histórico, PacingEngine, Data Health, confianza, objetivos fijos
 │   ├── anomaly-engine/      AnomalyEngine (reglas de patrón y severidad)
@@ -107,8 +117,8 @@ media-monitoring-center/
 │   ├── records/             Bitácora, tickets, acuses e historial (Netlify Blobs / archivos locales)
 │   ├── auth/                Roles, contraseñas (scrypt), sesión firmada y límite de intentos
 │   └── logging/             Logging estructurado sin secretos
-├── config/                  Ejemplos de mapeo de BigQuery y plantilla de la hoja de control
-├── scripts/                 auth:setup y auth:hash (contraseñas y hashes, nunca se guardan en el repo)
+├── config/                  Mapeo de la hoja de Dataslayer, ejemplos de BigQuery y plantillas (control, presupuestos, tipo de cambio)
+├── scripts/                 auth:setup, auth:hash y sheets:setup (credenciales solo en .env.local, nunca en el repo)
 ├── sql/                     DDL de las tablas propias de la app
 ├── n8n/workflows/           Plantillas importables (WF07 Monitoring Runner, WF08 WhatsApp Alert)
 ├── tests/                   Vitest
@@ -118,9 +128,10 @@ media-monitoring-center/
 
 ## Documentación
 
+- [docs/INSTALACION.md](docs/INSTALACION.md): instalación paso a paso con la hoja de Dataslayer.
 - [docs/GUIA.md](docs/GUIA.md): qué hay en cada sección, cómo leer el semáforo, mensaje de Monitoreos y clasificadores.
 - [docs/AUTH.md](docs/AUTH.md): cuentas, contraseña universal, roles y bitácora de accesos.
-- [docs/DATOS.md](docs/DATOS.md): API directa o Sheets, hoja de control, monedas, presupuestos y varias cuentas.
+- [docs/DATOS.md](docs/DATOS.md): lectura de la hoja de Dataslayer, hoja de control, monedas, presupuestos y varias cuentas.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): capas, flujo de datos y decisiones.
 - [docs/MONITORING_ENGINE.md](docs/MONITORING_ENGINE.md): regla de comparación, anomalías, pacing, data health.
 - [docs/ALERTS.md](docs/ALERTS.md): alertas, incidentes, anti-spam, escalamiento y WhatsApp.
@@ -140,4 +151,5 @@ media-monitoring-center/
 | 5. Integración n8n: webhooks firmados, triggers, endpoint de evaluación | ✅ lista para configurar |
 | 6. Arquitectura de WhatsApp, bitácora de notificaciones, escalamientos | ✅ lista para configurar |
 | 7. Acceso con contraseña, bitácora, Monitoreos, tickets, alerta crítica, monedas, clasificadores, confianza | ✅ con pruebas |
-| 8. Integraciones reales (proyecto, tablas, hoja de control, n8n, plantillas de WhatsApp) | Pendiente de accesos |
+| 8. Lectura directa de la hoja de Dataslayer, bugs y sugerencias | ✅ con pruebas |
+| 9. Conexión real (cuenta de servicio, hoja compartida, Netlify, n8n y plantillas de WhatsApp) | Pendiente de accesos |

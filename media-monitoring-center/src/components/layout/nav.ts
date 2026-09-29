@@ -2,6 +2,7 @@ import {
   Activity,
   BellRing,
   BookOpenText,
+  Bug,
   GitCompareArrows,
   Gauge,
   History,
@@ -26,7 +27,7 @@ export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  badge?: "alerts" | "incidents" | "tickets";
+  badge?: "alerts" | "incidents" | "tickets" | "feedback";
   permission?: Permission;
 }
 
@@ -75,7 +76,10 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Ayuda",
-    items: [{ href: "/guia", label: "Guía", icon: BookOpenText }],
+    items: [
+      { href: "/guia", label: "Guía", icon: BookOpenText },
+      { href: "/sugerencias", label: "Bugs y sugerencias", icon: Bug, badge: "feedback" },
+    ],
   },
 ];
 

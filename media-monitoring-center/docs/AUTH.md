@@ -36,6 +36,8 @@ Página `/login`. Todo lo demás (páginas y `/api/*`) exige sesión, salvo `/ap
 | Gestionar tickets (estado, responsable, número de caso) | ✅ | ✅ | ✅ | — |
 | Settings, métricas monitoreadas, métricas fijas, tipo de cambio, clasificadores, nivel de presupuesto | ✅ | ✅ | — | — |
 | Usuarios y bitácora de accesos | ✅ | ✅ | — | — |
+| Enviar bugs y sugerencias | ✅ | ✅ | ✅ | ✅ |
+| Bandeja de bugs y sugerencias (ver todos, estado y respuesta) | ✅ | — | — | — |
 
 ## Configuración (variables de entorno)
 
@@ -121,6 +123,18 @@ activo) y el último acceso de cada persona.
 
 `RECORDS_BACKEND=blobs|file|memory` y `RECORDS_DIR` permiten forzarlo. Estos registros no son
 métricas: las métricas viven solo en BigQuery y nunca se copian aquí.
+
+## Bugs y sugerencias
+
+Sección **Bugs y sugerencias** (`/sugerencias`, también desde el menú de usuario → *Reportar bug
+o sugerencia*, que guarda la sección desde donde se abrió). Cualquier persona con sesión envía un
+bug o una sugerencia (título, descripción, sección e impacto); recibe un folio `FB-0001`.
+
+- **Solo el administrador** ve la bandeja completa, cambia el estado (Nuevo → En revisión → En
+  proceso → Resuelto / Descartado), responde y exporta a CSV. El menú le muestra cuántos hay nuevos.
+- Cada persona ve únicamente **sus propios envíos**, con su estado y la respuesta del administrador.
+- El co-administrador no ve la bandeja (permiso `feedback:manage`, solo del rol administrador).
+- Envíos y cambios quedan en la bitácora. Límite: 30 envíos por persona al día.
 
 ## Alerta crítica a pantalla completa
 

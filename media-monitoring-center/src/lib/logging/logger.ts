@@ -8,7 +8,7 @@ type Level = "debug" | "info" | "warn" | "error";
 const LEVELS: Record<Level, number> = { debug: 10, info: 20, warn: 30, error: 40 };
 const SECRET_KEY = /(token|secret|password|passwd|credential|authorization|private|api[_-]?key|service[_-]?account|signature)/i;
 
-export type IntegrationTarget = "bigquery" | "n8n" | "whatsapp" | "api";
+export type IntegrationTarget = "bigquery" | "sheets" | "n8n" | "whatsapp" | "api";
 
 export interface IntegrationEvent {
   at: string;
@@ -81,6 +81,7 @@ export function friendlyError(target: IntegrationTarget, err: unknown): { messag
   const technical = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
   const map: Record<IntegrationTarget, string> = {
     bigquery: "No pudimos consultar BigQuery.",
+    sheets: "No pudimos leer la hoja de Google Sheets.",
     n8n: "No pudimos comunicarnos con n8n.",
     whatsapp: "No pudimos enviar la notificación de WhatsApp.",
     api: "Ocurrió un error al procesar la solicitud.",

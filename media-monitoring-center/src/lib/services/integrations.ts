@@ -1,6 +1,5 @@
 import "server-only";
 import type { PlatformId } from "@/lib/types";
-import { PLATFORM_IDS } from "@/lib/types";
 import { getEnv } from "@/lib/config/env";
 import { PLATFORMS } from "@/lib/platforms/registry";
 import { lastIntegrationEvent } from "@/lib/logging/logger";
@@ -19,14 +18,14 @@ export interface IntegrationItem {
   lastAt: string | null;
   detail: string;
   facts: Array<{ label: string; value: string }>;
-  testable?: "bigquery" | "n8n";
+  testable?: "bigquery" | "sheets" | "n8n";
 }
 
 export function getIntegrations(snap: Snapshot): IntegrationItem[] {
   const env = getEnv();
   const mock = snap.meta.mode === "mock";
   const items: IntegrationItem[] = [];
-  for (const p of PLATFORM_IDS) {
+  for (const p of snap.run.platforms) {
     const h = snap.run.dataHealth[p];
     const wf = WORKFLOWS.find((w) => w.platform === p);
     const status: IntegrationStatus = h.state === "OK" ? "CONNECTED" : h.state === "PARTIAL" ? "DEGRADED" : h.state === "DELAYED" ? "DELAYED" : "ERROR";
@@ -38,24 +37,54 @@ export function getIntegrations(snap: Snapshot): IntegrationItem[] {
       status,
       lastLabel: "Last data received",
       lastAt: h.lastDataAt,
-      detail: `${wf?.id ?? "n8n"} → BigQuery. ${h.checks.filter((c) => c.status !== "OK").map((c) => c.detail).join(" · ") || "Sin incidencias de datos."}`,
+      detail: `${snap.meta.mode === "sheets" ? "Dataslayer → Google Sheets" : `${wf?.id ?? "n8n"} → BigQuery`}. ${h.checks.filter((c) => c.status !== "OK").map((c) => c.detail).join(" · ") || "Sin incidencias de datos."}`,
       facts: [
         { label: "Última sync", value: h.lastSyncStatus },
         { label: "Salud del dato", value: `${h.score}/100` },
-        { label: "Origen", value: mock ? "Simulado" : "BigQuery" },
+        { label: "Origen", value: mock ? "Simulado" : snap.meta.mode === "sheets" ? "Google Sheets" : "BigQuery" },
       ],
     });
   }
+
+  const sheetsEvent = lastIntegrationEvent("sheets");
+  const sm = snap.meta.sheets;
+  const sheetsActive = snap.meta.mode === "sheets";
+  items.push({
+    id: "sheets",
+    name: "Google Sheets (Dataslayer)",
+    group: "core",
+    status: sheetsActive ? (sm?.errors.length ? "DEGRADED" : sheetsEvent && !sheetsEvent.ok ? "ERROR" : "CONNECTED") : env.requestedDataSource === "sheets" ? "ERROR" : "NOT_CONFIGURED",
+    lastLabel: "Last read",
+    lastAt: sheetsActive ? (sheetsEvent?.at ?? sm?.readAt ?? null) : null,
+    detail: sheetsActive
+      ? sm?.errors.length
+        ? sm.errors.join(" · ")
+        : `${sm?.title ? `"${sm.title}"` : "Hoja"}: ${sm?.tabs.filter((t) => t.found).length ?? 0} pestañas leídas. La app solo lee (cuenta de servicio con permiso de Lector).`
+      : env.requestedDataSource === "sheets"
+        ? `DATA_SOURCE=sheets pero falta configuración: ${[!env.sheets.spreadsheetId && "SHEETS_SPREADSHEET_ID", !env.sheets.credentials && "GOOGLE_CLIENT_EMAIL + GOOGLE_PRIVATE_KEY", ...(snap.meta.sheets?.errors ?? [])].filter(Boolean).join(", ")}. Mientras tanto se usan datos simulados.`
+        : "Para leer la hoja de Dataslayer: DATA_SOURCE=sheets, SHEETS_SPREADSHEET_ID y la cuenta de servicio (docs/INSTALACION.md).",
+    facts: [
+      { label: "Hoja", value: sm?.title ?? (env.sheets.spreadsheetId ? "Configurada" : "—") },
+      { label: "Credenciales", value: env.sheets.credentials ? "Cuenta de servicio configurada" : env.sheets.fixtureFile ? "Archivo de prueba" : "—" },
+      ...(sm?.tabs ?? []).map((t) => ({
+        label: `${t.platform} · ${t.sheet}`,
+        value: !t.found ? "No encontrada" : `${t.rows ?? 0} filas${t.updatedAt ? ` · ${new Date(t.updatedAt).toLocaleString("es-MX", { timeZone: snap.settings.timezone, day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}` : ""}`,
+      })),
+    ],
+    testable: "sheets",
+  });
 
   const bqEvent = lastIntegrationEvent("bigquery");
   items.push({
     id: "bigquery",
     name: "Google BigQuery",
     group: "core",
-    status: mock ? (env.bigquery.configured && snap.meta.mappingErrors.length ? "ERROR" : "MOCK") : bqEvent && !bqEvent.ok ? "ERROR" : "CONNECTED",
+    status: sheetsActive && !env.bigquery.configured ? "NOT_CONFIGURED" : mock ? (env.bigquery.configured && snap.meta.mappingErrors.length ? "ERROR" : "MOCK") : bqEvent && !bqEvent.ok ? "ERROR" : "CONNECTED",
     lastLabel: "Last query",
     lastAt: mock ? null : (bqEvent?.at ?? null),
-    detail: mock
+    detail: sheetsActive
+      ? "No se usa: los datos se leen directamente de la hoja de Google Sheets (Dataslayer)."
+      : mock
       ? snap.meta.mappingErrors.length
         ? `Configurado pero el mapeo es inválido; se usa MOCK: ${snap.meta.mappingErrors.join(" · ")}`
         : "MOCK MODE activo (USE_MOCK_DATA=true). La capa de datos está lista: define proyecto, dataset y BIGQUERY_MAPPING."

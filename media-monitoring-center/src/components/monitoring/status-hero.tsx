@@ -12,11 +12,12 @@ const ORDER: Severity[] = ["CRITICAL", "ALERT", "ATTENTION", "NORMAL"];
 export function StatusHero({ overall, cards, openIncidents, activeAlerts }: { overall: Severity; cards: Record<PlatformId, PlatformCardVM>; openIncidents: number; activeAlerts: number }) {
   const m = SEVERITY_META[overall];
   const Icon = m.Icon;
-  const problems = PLATFORM_IDS.filter((p) => cards[p].severity !== "NORMAL" || isBadDataState(cards[p].dataState)).sort(
+  const ids = PLATFORM_IDS.filter((p) => cards[p]);
+  const problems = ids.filter((p) => cards[p].severity !== "NORMAL" || isBadDataState(cards[p].dataState)).sort(
     (a, b) => ORDER.indexOf(cards[a].severity) - ORDER.indexOf(cards[b].severity),
   );
-  const counts = ORDER.map((s) => ({ s, n: PLATFORM_IDS.filter((p) => cards[p].severity === s && !isBadDataState(cards[p].dataState)).length }));
-  const delayed = PLATFORM_IDS.filter((p) => isBadDataState(cards[p].dataState)).length;
+  const counts = ORDER.map((s) => ({ s, n: ids.filter((p) => cards[p].severity === s && !isBadDataState(cards[p].dataState)).length }));
+  const delayed = ids.filter((p) => isBadDataState(cards[p].dataState)).length;
   const answer =
     overall === "NORMAL" && delayed === 0
       ? "Sí. Todas las plataformas operan dentro de parámetros."

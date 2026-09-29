@@ -12,11 +12,26 @@ Todo lo demás se lee en `src/lib/config/env.ts` y, lo de acceso, en `src/lib/au
 | Variable | Default | Descripción |
 |---|---|---|
 | `NEXT_PUBLIC_APP_NAME` | izzi Media Monitoring Center | Nombre visible |
-| `USE_MOCK_DATA` | `true` | `true` = datos simulados. `false` = BigQuery (si falta configuración válida, vuelve a mock y lo avisa en Integrations) |
+| `DATA_SOURCE` | `mock` | `mock` (simulados), `sheets` (hoja de Google Sheets que llena Dataslayer) o `bigquery`. Si falta la configuración de la fuente elegida, usa datos simulados y lo avisa en Integrations |
+| `USE_MOCK_DATA` | `true` | Compatibilidad: sin `DATA_SOURCE`, `false` elige Sheets o BigQuery según lo configurado |
 | `MOCK_SCENARIO` | `default` | `default`, `normal`, `meta-delayed`, `tiktok-stopped` |
 | `MOCK_REFERENCE_TIME` | — | Hora fija del mock (ISO) para demos reproducibles |
 | `APP_TIMEZONE` | `America/Mexico_City` | Zona horaria de negocio (Settings puede cambiarla) |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+
+## Google Sheets (Dataslayer)
+
+Ver `docs/INSTALACION.md` y `docs/DATOS.md`. Se configura con `npm run sheets:setup`.
+
+| Variable | Secreta | Descripción |
+|---|---|---|
+| `SHEETS_SPREADSHEET_ID` | No* | ID de la hoja (entre `/d/` y `/edit` en la URL) |
+| `SHEETS_MAPPING` | No | Mapeo JSON de pestañas y columnas (alternativa al archivo) |
+| `SHEETS_MAPPING_FILE` | No | Ruta del mapeo (default `config/sheets.mapping.json`, versionado) |
+| `GOOGLE_CLIENT_EMAIL` / `GOOGLE_PRIVATE_KEY` | **Sí** (la llave) | Cuenta de servicio con permiso de **Lector** en la hoja (compartida con ese correo) |
+| `SHEETS_FIXTURE_FILE` | No | Solo desarrollo: lee la hoja desde un JSON local (pruebas sin Google). Se ignora en producción |
+
+\* El ID no da acceso por sí solo (la hoja debe estar compartida), pero no la publiques en internet.
 
 ## BigQuery
 

@@ -267,6 +267,11 @@ export function platformOrder(): PlatformId[] {
   return PLATFORM_IDS;
 }
 
+/** Deja solo las plataformas monitoreadas de un registro por plataforma. */
+export function onlyMonitored<T>(rec: Record<PlatformId, T>, platforms: PlatformId[]): Record<PlatformId, T> {
+  return Object.fromEntries(platforms.map((p) => [p, rec[p]])) as Record<PlatformId, T>;
+}
+
 type Scope = PlatformId | "total";
 
 /** Props de las gráficas de pacing (gasto y resultados) para todas las plataformas + total. */
@@ -275,12 +280,12 @@ export function chartProps(snap: Snapshot, only?: PlatformId) {
   if (!only) {
     scopes.push({
       id: "total",
-      label: snap.run.totalIncludes.length === PLATFORM_IDS.length ? "Total izzi" : `Total (${snap.run.totalIncludes.length} de ${PLATFORM_IDS.length})`,
+      label: snap.run.totalIncludes.length === snap.run.platforms.length ? "Total izzi" : `Total (${snap.run.totalIncludes.length} de ${snap.run.platforms.length})`,
       cutoffHour: snap.run.totalCutoffHour,
       unavailable: null,
     });
   }
-  for (const p of only ? [only] : PLATFORM_IDS) {
+  for (const p of only ? [only] : snap.run.platforms) {
     const st = snap.platformStatus[p].dataState;
     const bad = st === "DELAYED" || st === "ERROR" || st === "NO_DATA";
     scopes.push({

@@ -60,14 +60,14 @@ Spotify, X ──────┤ WF09 Escalamiento · WF10 Recuperación        
 | Configuración | `lib/config` | `env.ts` (solo servidor), `settings.ts` (umbrales, frecuencia, histórico, zona horaria, destinatarios; validado con zod) |
 | Tiempo | `lib/time/tz.ts` | Fechas y horas de negocio con `Intl`; conversión explícita UTC ↔ local |
 | Acceso | `proxy.ts`, `lib/auth` | Sesión firmada (HMAC, Web Crypto), contraseñas scrypt, roles, límite de intentos |
-| Datos | `lib/data`, `lib/mock`, `lib/bigquery`, `lib/google` | Contrato, caché TTL por fecha, conversión USD→MXN, mock determinista, SQL parametrizado, hoja de control (Sheets, solo lectura) |
+| Datos | `lib/data`, `lib/mock`, `lib/sheets`, `lib/bigquery`, `lib/google` | Contrato, caché, conversión USD→MXN, mock determinista, lectura de la hoja de Dataslayer (solo lectura, reparto horario, protección durante la actualización), SQL parametrizado |
 | Clasificadores | `lib/classifiers` | Estrategia por nombre de campaña (réplica de las fórmulas de la hoja) |
 | Monitoreo | `lib/monitoring` | Data Health, comparador (mismo día + franja), PacingEngine, MonitoringEngine |
 | Anomalías | `lib/anomaly-engine` | Reglas de patrón (casos 1–7), severidad, agrupación jerárquica |
 | Alertas | `lib/alerts` | Alertas → incidentes, anti-spam, escalamiento, formato WhatsApp, despacho a n8n |
 | Estado | `lib/state` | Memoria (mock/dev) o BigQuery (append-only) |
 | Servicios | `lib/services` | Snapshot (con confianza y control de ejecución), budget, compare, historical, reporte de Monitoreos, críticos, integraciones, evaluación programada |
-| Registros | `lib/records` | Bitácora, usuarios, tickets, acuses e historial (Netlify Blobs / archivos locales / memoria) |
+| Registros | `lib/records`, `lib/state/records-store.ts` | Bitácora, usuarios, tickets, acuses, historial, bugs y sugerencias y, con Google Sheets, el estado de alertas (Netlify Blobs / archivos locales / memoria) |
 | Reportes y guías | `lib/reports`, `lib/optimizations` | Formato del mensaje de WhatsApp; recomendaciones de la documentación oficial |
 | UI | `src/app`, `src/components` | Páginas, tablas, gráficas, estados vacíos/errores |
 

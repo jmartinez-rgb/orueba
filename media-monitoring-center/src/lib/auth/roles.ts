@@ -17,7 +17,8 @@ export type Permission =
   | "users:view"
   | "tickets:write"
   | "tickets:manage"
-  | "reports:write";
+  | "reports:write"
+  | "feedback:manage";
 
 export const PERMISSIONS: Permission[] = [
   "settings:write",
@@ -30,11 +31,13 @@ export const PERMISSIONS: Permission[] = [
   "tickets:write",
   "tickets:manage",
   "reports:write",
+  "feedback:manage",
 ];
 
 const MATRIX: Record<Role, Permission[]> = {
   admin: PERMISSIONS,
-  coadmin: PERMISSIONS,
+  // Todo menos la bandeja de bugs y sugerencias, que solo le llega al administrador.
+  coadmin: PERMISSIONS.filter((p) => p !== "feedback:manage"),
   manager: ["alerts:write", "incidents:write", "monitoring:trigger", "technical:view", "tickets:write", "tickets:manage", "reports:write"],
   // Consulta: puede acusar alertas críticas, levantar tickets y generar el mensaje de monitoreo.
   viewer: ["tickets:write", "reports:write"],
@@ -48,8 +51,8 @@ export const ROLE_LABEL: Record<Role, string> = {
 };
 
 export const ROLE_DESCRIPTION: Record<Role, string> = {
-  admin: "Todo: configuración, métricas, presupuestos de referencia, usuarios y bitácora.",
-  coadmin: "Igual que el administrador (configuración, métricas, bitácora de accesos).",
+  admin: "Todo: configuración, métricas, presupuestos de referencia, usuarios, bitácora y la bandeja de bugs y sugerencias.",
+  coadmin: "Igual que el administrador (configuración, métricas, bitácora de accesos), salvo la bandeja de bugs y sugerencias.",
   manager: "Gestiona alertas, incidentes y tickets; ejecuta evaluaciones manuales.",
   viewer: "Consulta el monitoreo, acusa alertas críticas, levanta tickets y genera el mensaje de monitoreo.",
 };

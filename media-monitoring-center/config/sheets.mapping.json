@@ -1,0 +1,192 @@
+{
+  "refreshEveryMinutes": 120,
+  "refreshDurationMinutes": 15,
+  "cacheSeconds": 180,
+  "control": {
+    "sheet": "DataslayerQueries",
+    "timeZone": "sheet",
+    "columns": { "sheet": "Sheet name", "updated": "Updated", "status": "Last status", "dataSource": "Data source", "range": "Range address" }
+  },
+  "sources": [
+    {
+      "sheet": "Google | General",
+      "platform": "google",
+      "shape": "daily",
+      "columns": {
+        "date": "Date",
+        "accountId": "Account ID",
+        "accountName": "Account",
+        "campaignId": "Campaign ID",
+        "campaignName": "Campaign",
+        "campaignType": "Advertising channel type",
+        "spend": "Cost",
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "conversions": "Conversions"
+      }
+    },
+    {
+      "sheet": "Google Conversiones",
+      "platform": "google",
+      "shape": "daily",
+      "columns": {
+        "date": "Date",
+        "accountId": "Account ID",
+        "accountName": "Account",
+        "campaignId": "Campaign ID",
+        "campaignName": "Campaign",
+        "campaignType": "Advertising channel type"
+      },
+      "pivot": {
+        "column": "Conversion Action Name",
+        "value": "Conversions",
+        "metrics": { "MCC_Offline_Purchase": "sales", "MCC_Offline_Lead_Contact": "leads" }
+      }
+    },
+    {
+      "sheet": "Meta",
+      "platform": "meta",
+      "shape": "daily",
+      "columns": {
+        "date": "Date",
+        "accountId": "Account id",
+        "accountName": "Account name",
+        "campaignId": "Campaign id",
+        "campaignName": "Campaign name",
+        "objective": "Objective",
+        "spend": "Total Cost",
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "leads": "On Facebook Leads",
+        "whatsapp": "Messaging conversations started",
+        "sales": "Compras Offline Web (Inbound)",
+        "purchases": "On-Facebook Purchase actions",
+        "conversions": { "sum": ["Compras Offline Web (Inbound)", "On-Facebook Purchase actions"] }
+      }
+    },
+    {
+      "sheet": "TikTok",
+      "platform": "tiktok",
+      "shape": "daily",
+      "columns": {
+        "date": "Date",
+        "accountId": "Advertiser ID",
+        "accountName": "Advertiser name",
+        "campaignId": "Campaign ID",
+        "campaignName": "Campaign name",
+        "objective": "Campaign objective type",
+        "spend": "Cost",
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "conversions": "Conversions"
+      }
+    },
+    {
+      "sheet": "Bing",
+      "platform": "microsoft",
+      "shape": "daily",
+      "columns": {
+        "date": "Date",
+        "accountId": "Account ID",
+        "accountName": "Account Name",
+        "campaignId": "Campaign ID",
+        "campaignName": "Campaign Name",
+        "spend": "Cost",
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "conversions": "Conversions"
+      }
+    },
+    {
+      "sheet": "Spotify",
+      "platform": "spotify",
+      "shape": "daily",
+      "constants": { "accountId": "spotify-izzi-mxn", "accountName": "izzi - MXN" },
+      "columns": {
+        "date": "Date",
+        "campaignId": "Campaign ID",
+        "campaignName": "Campaign Name",
+        "spend": "Spend",
+        "impressions": "Impressions On Spotify",
+        "clicks": "Clicks"
+      }
+    },
+    {
+      "sheet": "Google | Hora",
+      "platform": "google",
+      "shape": "hourly",
+      "level": "account",
+      "optional": true,
+      "columns": {
+        "date": "Date",
+        "hour": ["Hour of day", "Hour", "Hora"],
+        "accountId": ["Account ID", "Customer ID"],
+        "accountName": ["Account", "Account name"],
+        "spend": "Cost",
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "conversions": "Conversions"
+      }
+    },
+    {
+      "sheet": "Meta | Hora",
+      "platform": "meta",
+      "shape": "hourly",
+      "level": "account",
+      "optional": true,
+      "columns": {
+        "date": "Date",
+        "hour": ["Hourly stats aggregated by advertiser time zone", "Hour", "Hour of day", "Hora"],
+        "accountId": ["Account id", "Account ID"],
+        "accountName": ["Account name", "Account"],
+        "spend": ["Total Cost", "Cost", "Amount spent"],
+        "impressions": "Impressions",
+        "clicks": "Clicks"
+      }
+    },
+    {
+      "sheet": "TikTok | Hora",
+      "platform": "tiktok",
+      "shape": "hourly",
+      "level": "account",
+      "optional": true,
+      "columns": {
+        "date": ["Date", "Stat time hour", "Hour"],
+        "hour": ["Stat time hour", "Hour", "Hour of day", "Hora"],
+        "accountId": ["Advertiser ID", "Account ID"],
+        "accountName": ["Advertiser name", "Account name"],
+        "spend": "Cost",
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "conversions": "Conversions"
+      }
+    },
+    {
+      "sheet": "Bing | Hora",
+      "platform": "microsoft",
+      "shape": "hourly",
+      "level": "account",
+      "optional": true,
+      "columns": {
+        "date": "Date",
+        "hour": ["Hour of day", "Hour", "Hora"],
+        "accountId": "Account ID",
+        "accountName": ["Account Name", "Account name"],
+        "spend": "Cost",
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "conversions": "Conversions"
+      }
+    }
+  ],
+  "budgets": {
+    "sheet": "Presupuestos",
+    "optional": true,
+    "columns": { "month": "Mes", "platform": "Plataforma", "account": "Cuenta", "campaign": "Campaña", "amount": "Monto", "currency": "Moneda", "level": "Nivel" }
+  },
+  "fxRates": {
+    "sheet": "Tipo de cambio",
+    "optional": true,
+    "columns": { "month": "Mes", "rate": "USD a MXN" }
+  }
+}

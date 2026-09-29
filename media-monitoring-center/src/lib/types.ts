@@ -200,6 +200,9 @@ export interface FxRate {
   rate: number;
 }
 
+/** Fuente de datos de la app: simulada, Google Sheets (Dataslayer) o BigQuery. */
+export type DataMode = "mock" | "sheets" | "bigquery";
+
 /** Cómo llegan los datos de una plataforma a BigQuery. */
 export type IngestionMode = "api" | "sheets";
 

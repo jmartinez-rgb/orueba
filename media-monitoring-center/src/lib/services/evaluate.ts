@@ -22,6 +22,7 @@ export async function evaluateNow(ctx: AppContext, opts: { dryRun: boolean; trig
   const asOf = ctx.source.now();
   const today = businessDate(asOf, ctx.settings.timezone);
   invalidate("live:");
+  invalidate("sheets:dataset");
   invalidateMatching((k) => (k.startsWith("bq:hourly") || k.startsWith("bq:freshness") || k.startsWith("bq:quality")) && (k.endsWith(today) || k.startsWith("bq:freshness") || k.startsWith("bq:quality")));
 
   const run = await runMonitoring(ctx.source, { settings: ctx.settings, asOf });

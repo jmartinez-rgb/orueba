@@ -58,7 +58,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <svg viewBox="0 0 600 120" className="pointer-events-none absolute right-0 bottom-24 left-0 w-full opacity-30" aria-hidden>
           <path d="M0 80 L120 80 L160 30 L210 110 L250 60 L330 60 L370 20 L420 95 L460 60 L600 60" fill="none" stroke="#00C1B5" strokeWidth="2" />
         </svg>
-        <p className="relative text-[11px] text-[#7d838c]">Stragic · ABCW Global — uso interno.</p>
+        <p className="relative text-[11px] text-[#7d838c]">ABCW Global · uso interno.</p>
       </section>
 
       <section className="flex items-center justify-center px-4 py-10 sm:px-8">

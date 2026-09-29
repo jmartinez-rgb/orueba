@@ -157,7 +157,7 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
   // Problemas con plataformas: datos, incidentes de plataforma y control de ejecución.
   const problems: string[] = [];
   let pStatus: ReportStatus = "ok";
-  for (const p of PLATFORM_IDS) {
+  for (const p of snap.run.platforms) {
     const st = snap.platformStatus[p];
     if (st.dataState === "ERROR" || st.dataState === "NO_DATA") {
       pStatus = "bad";

@@ -29,7 +29,7 @@ export interface UserOverrides {
 }
 
 export interface StateStore {
-  readonly kind: "memory" | "bigquery";
+  readonly kind: "memory" | "bigquery" | "records";
   loadAlertState(): Promise<AlertState>;
   saveAlertState(state: AlertState): Promise<void>;
   saveNotifications(list: NotificationRecord[]): Promise<void>;

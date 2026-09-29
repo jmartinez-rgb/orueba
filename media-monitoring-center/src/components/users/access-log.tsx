@@ -24,6 +24,8 @@ const LABEL: Record<AuditType, string> = {
   INCIDENT_UPDATED: "Incidente",
   BUDGET_REFERENCE: "Presupuesto ref.",
   EVALUATION_TRIGGERED: "Evaluación manual",
+  FEEDBACK_SENT: "Bug/sugerencia enviado",
+  FEEDBACK_UPDATED: "Bug/sugerencia actualizado",
 };
 
 const TONE: Partial<Record<AuditType, string>> = {

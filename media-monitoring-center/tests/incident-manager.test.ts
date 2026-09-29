@@ -60,6 +60,7 @@ function run(hour: number, anomalies: Anomaly[]): MonitoringRun {
     dataHealth: {} as MonitoringRun["dataHealth"],
     totalIncludes: [],
     totalCutoffHour: hour,
+    platforms: ["google", "meta", "tiktok", "microsoft", "spotify", "x"],
   };
 }
 

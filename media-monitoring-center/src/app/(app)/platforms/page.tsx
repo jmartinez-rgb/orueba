@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PLATFORM_IDS } from "@/lib/types";
 import { safeSnapshot } from "@/lib/services/safe";
 import { platformCard } from "@/lib/services/view-models";
 import { fmtCurrency, fmtMetric, fmtPercent } from "@/lib/format";
@@ -21,7 +20,7 @@ export default async function PlatformsPage() {
   const snap = res.snap;
   const tz = snap.meta.timezone;
   const attention = snap.settings.thresholds.attention;
-  const cards = PLATFORM_IDS.map((p) => platformCard(snap, p));
+  const cards = snap.run.platforms.map((p) => platformCard(snap, p));
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Platforms" subtitle="Estado, gasto, resultados y pacing por plataforma. Selecciona una para ver campañas, alertas, incidentes y calidad de datos." />

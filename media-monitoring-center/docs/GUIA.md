@@ -65,6 +65,7 @@ atrasada se muestra DATA DELAYED en gris.
 | Operación | Usuarios | Personas, accesos y bitácora (solo administradores) | Saber quién entró y qué hizo |
 | Operación | Settings | Umbrales, horarios, histórico, destinatarios, tipo de cambio, moneda por cuenta y clasificadores | Ajustar cómo evalúa el monitoreo |
 | Ayuda | Guía | Esta guía | Resolver dudas |
+| Ayuda | Bugs y sugerencias | Enviar un bug o una idea; ver el estado de lo enviado. El administrador tiene la bandeja completa | Cuando algo falla o se te ocurre una mejora |
 
 ## Monitoreos: el mensaje de WhatsApp
 
@@ -173,6 +174,12 @@ Puntos a cuidar:
 - La regla 3 asigna "DEMAND GEN" (con espacio) y el respaldo usa el tipo "DEMAND_GEN": aparecen
   como dos estrategias distintas en Compare. Conviene unificar el texto de la regla.
 - TikTok, Microsoft, Spotify y X usan el objetivo reportado por la plataforma.
+
+## Bugs y sugerencias
+
+¿Algo no funciona o se te ocurre una mejora? Menú de usuario → *Reportar bug o sugerencia* (o
+Ayuda → Bugs y sugerencias). Escribe qué pasó o la idea, la sección y el impacto. Solo el
+administrador lo recibe; tú ves el estado y su respuesta en "Mis envíos".
 
 ## Tickets
 

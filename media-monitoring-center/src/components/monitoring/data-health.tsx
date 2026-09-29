@@ -13,7 +13,7 @@ const CHECK_TONE = { OK: "text-status-normal-text", WARN: "text-status-attention
 export function FreshnessList({ health, timezone }: { health: Record<PlatformId, PlatformDataHealth>; timezone: string }) {
   return (
     <ul className="divide-y">
-      {PLATFORM_IDS.map((p) => {
+      {PLATFORM_IDS.filter((p) => health[p]).map((p) => {
         const h = health[p];
         return (
           <li key={p} className="flex items-center gap-2.5 py-2">
@@ -44,7 +44,7 @@ export function DataHealthTable({ health, timezone }: { health: Record<PlatformI
         </TableRow>
       </TableHeader>
       <TableBody>
-        {PLATFORM_IDS.map((p) => {
+        {PLATFORM_IDS.filter((p) => health[p]).map((p) => {
           const h = health[p];
           return (
             <TableRow key={p}>

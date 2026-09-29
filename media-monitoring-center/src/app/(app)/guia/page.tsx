@@ -34,6 +34,7 @@ const SECTION_HELP: Record<string, { what: string; when: string }> = {
   "/usuarios": { what: "Personas, accesos y bitácora de actividad (solo administradores).", when: "Para saber quién entró y qué hizo." },
   "/settings": { what: "Umbrales, horarios, histórico, destinatarios, tipo de cambio mensual, moneda por cuenta y clasificadores de estrategia.", when: "Para ajustar cómo evalúa el monitoreo (no cambia nada en las plataformas)." },
   "/guia": { what: "Esta guía.", when: "Siempre que haya dudas." },
+  "/sugerencias": { what: "Envía un bug o una sugerencia y consulta su estado. Solo el administrador recibe la bandeja completa y responde.", when: "Cuando algo no funciona o se te ocurre una mejora." },
 };
 
 const GLOSSARY: Array<[string, string]> = [
@@ -207,17 +208,18 @@ export default async function GuidePage() {
             <CardHeader>
               <div>
                 <CardTitle>Datos, monedas y presupuestos</CardTitle>
-                <CardDescription>BigQuery es la fuente única de verdad. La app nunca se conecta a BigQuery desde el navegador.</CardDescription>
+                <CardDescription>La app solo lee los datos (hoja de Dataslayer o BigQuery) y nunca se conecta a ellos desde el navegador.</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <ol className="list-decimal space-y-1.5 pl-5">
                 <li>
-                  <strong>Conexión directa (preferida):</strong> n8n lee la API de cada plataforma y carga BigQuery.
+                  <strong>Hoja de Dataslayer:</strong> Dataslayer actualiza la hoja “Monitoreo | Big Query” cada 2 horas (tarda 5–10 minutos) y la app la lee directamente, solo lectura. La
+                  pestaña DataslayerQueries dice cuándo se actualizó cada plataforma; su estado aparece en el Overview (“Carga de datos”) y en Integrations.
                 </li>
                 <li>
-                  <strong>Respaldo por Google Sheets:</strong> Dataslayer actualiza las hojas, Apps Script las sube a BigQuery y una <strong>hoja de control</strong> confirma si ya se ejecutó todo o
-                  qué falta ejecutar. Su estado aparece en el Overview (“Carga de datos”) y en Integrations.
+                  <strong>Franja horaria:</strong> la fila de hoy es el acumulado a la hora de la actualización. Con las pestañas por hora de Dataslayer la comparación de la misma franja es exacta; sin
+                  ellas se estima con una curva típica y la app lo avisa.
                 </li>
                 <li>
                   <strong>Varias cuentas por plataforma:</strong> cada cuenta se evalúa por separado y también dentro de su plataforma; una cuenta atrasada se excluye sin afectar a las demás.

@@ -168,4 +168,6 @@ export interface MonitoringRun {
   /** Plataformas incluidas en el total (las que tienen datos al día). */
   totalIncludes: PlatformId[];
   totalCutoffHour: number;
+  /** Plataformas monitoreadas, en orden (las demás tienen estado neutro y no se muestran). */
+  platforms: PlatformId[];
 }

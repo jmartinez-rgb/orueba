@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { BookOpenText, FlaskConical, LogOut, UsersRound } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { BookOpenText, Bug, FlaskConical, LogOut, UsersRound } from "lucide-react";
 import { sileo } from "sileo";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import { ROLE_LABEL, ROLES, type Role } from "@/lib/auth/roles";
 import type { AuthMode } from "@/lib/auth/token";
 import type { AuditUserKind } from "@/lib/records/audit";
 import { UserAvatar } from "@/components/users/user-avatar";
+import type { DataMode } from "@/lib/types";
 
 const KIND_LABEL: Record<AuditUserKind, string> = {
   named: "Cuenta nominal",
@@ -42,11 +43,12 @@ export function UserMenu({
   userKind: AuditUserKind;
   authMode: AuthMode;
   canViewUsers: boolean;
-  mode: "mock" | "bigquery";
+  mode: DataMode;
   scenario: string | null;
   scenarios: Array<{ id: string; name: string }>;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   async function post(url: string, body: unknown, success?: string) {
     const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (res.ok) {
@@ -118,6 +120,11 @@ export function UserMenu({
         <DropdownMenuItem asChild>
           <Link href="/guia">
             <BookOpenText /> Guía de uso
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/sugerencias?from=${encodeURIComponent(pathname)}`}>
+            <Bug /> Reportar bug o sugerencia
           </Link>
         </DropdownMenuItem>
         {authMode === "password" && (

@@ -22,7 +22,9 @@ export type AuditType =
   | "ALERT_STATUS"
   | "INCIDENT_UPDATED"
   | "BUDGET_REFERENCE"
-  | "EVALUATION_TRIGGERED";
+  | "EVALUATION_TRIGGERED"
+  | "FEEDBACK_SENT"
+  | "FEEDBACK_UPDATED";
 
 export const AUDIT_LABEL: Record<AuditType, string> = {
   LOGIN_OK: "Inicio de sesión",
@@ -38,6 +40,8 @@ export const AUDIT_LABEL: Record<AuditType, string> = {
   INCIDENT_UPDATED: "Incidente actualizado",
   BUDGET_REFERENCE: "Presupuesto de referencia",
   EVALUATION_TRIGGERED: "Evaluación manual",
+  FEEDBACK_SENT: "Bug o sugerencia enviado",
+  FEEDBACK_UPDATED: "Bug o sugerencia actualizado",
 };
 
 export type AuditUserKind = "named" | "universal" | "open" | "header" | "anon";

@@ -19,8 +19,8 @@ const STATUS = {
   ERROR: { label: "Error", tone: "text-status-critical-text", Icon: CircleX },
 } as const;
 
-/** Diagrama del flujo: API directa (preferida) o respaldo por Google Sheets. */
-export function PipelineDiagram() {
+/** Diagrama del flujo: lectura directa de la hoja de Dataslayer, o API/Sheets → BigQuery. */
+export function PipelineDiagram({ mode = "bigquery" }: { mode?: "mock" | "sheets" | "bigquery" }) {
   const step = (Icon: typeof Plug, title: string, sub: string, tone = "border-border") => (
     <div className={cn("flex min-w-[130px] flex-1 flex-col gap-1 rounded-lg border bg-card px-3 py-2", tone)}>
       <span className="flex items-center gap-1.5 text-xs font-semibold">
@@ -30,6 +30,19 @@ export function PipelineDiagram() {
     </div>
   );
   const arrow = <ArrowRight className="hidden size-4 shrink-0 text-muted-foreground md:block" aria-hidden />;
+  if (mode === "sheets") {
+    return (
+      <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center">
+        {step(Radar, "Plataformas", "Google, Meta, TikTok, Bing y Spotify")}
+        {arrow}
+        {step(FileSpreadsheet, "Dataslayer", "Actualiza la hoja cada 2 horas (tarda 5–10 minutos).", "border-primary/40")}
+        {arrow}
+        {step(FileSpreadsheet, "Google Sheets", "Una pestaña por plataforma + DataslayerQueries (hora y estado de cada actualización).")}
+        {arrow}
+        {step(ScrollText, "Monitoring Center", "Solo lee la hoja: evalúa, alerta y reporta.")}
+      </div>
+    );
+  }
   return (
     <div className="space-y-2.5">
       <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center">
@@ -59,11 +72,14 @@ export function ExecutionTable({
   ingestion,
   timezone,
   canEdit,
+  fixedSource,
 }: {
   execution: ExecutionSummary;
   ingestion: Partial<Record<PlatformId, IngestionMode>>;
   timezone: string;
   canEdit: boolean;
+  /** Con la hoja de Dataslayer como fuente, la conexión no se elige: siempre es Google Sheets. */
+  fixedSource?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<PlatformId | null>(null);
@@ -108,7 +124,7 @@ export function ExecutionTable({
         <TableBody>
           {execution.rows.map((r) => {
             const st = r.stale && r.status !== "ERROR" && r.status !== "PENDIENTE" ? { label: "Vencido", tone: "text-status-attention-text", Icon: Clock3 } : STATUS[r.status];
-            const mode = r.platform ? (ingestion[r.platform] ?? "sheets") : null;
+            const mode = r.platform ? (fixedSource ? "sheets" : (ingestion[r.platform] ?? "sheets")) : null;
             return (
               <TableRow key={r.id}>
                 <TableCell>
@@ -119,7 +135,7 @@ export function ExecutionTable({
                 </TableCell>
                 <TableCell>
                   {r.platform && mode ? (
-                    canEdit ? (
+                    canEdit && !fixedSource ? (
                       <div className="inline-flex rounded-md border p-0.5" role="radiogroup" aria-label={`Conexión de ${PLATFORMS[r.platform].name}`}>
                         {(["api", "sheets"] as IngestionMode[]).map((m) => (
                           <button

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Menu } from "lucide-react";
-import type { Severity } from "@/lib/types";
+import type { Severity, DataMode } from "@/lib/types";
 import type { Permission, Role } from "@/lib/auth/roles";
 import type { AuthMode } from "@/lib/auth/token";
 import type { AuditUserKind } from "@/lib/records/audit";
@@ -21,7 +21,7 @@ export interface TopbarProps {
   overall: Severity | null;
   timezone: string;
   cutoffLabel: string | null;
-  mode: "mock" | "bigquery";
+  mode: DataMode;
   scenario: { id: string; name: string } | null;
   scenarios: Array<{ id: string; name: string }>;
   role: Role;

@@ -33,7 +33,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       focus: null,
     });
   } catch (err) {
-    const f = friendlyError(ctx.mode === "bigquery" ? "bigquery" : "api", err);
+    const f = friendlyError(ctx.mode === "mock" ? "api" : ctx.mode, err);
     return <ErrorPanel message={f.message} technical={f.technical} />;
   }
   const res = await safeSnapshot();

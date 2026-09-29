@@ -21,7 +21,7 @@ export default async function MonitoreosPage() {
   try {
     data = await buildReportData(ctx, snap);
   } catch (err) {
-    const f = friendlyError(ctx.mode === "bigquery" ? "bigquery" : "api", err);
+    const f = friendlyError(ctx.mode === "mock" ? "api" : ctx.mode, err);
     return <ErrorPanel message={f.message} technical={f.technical} />;
   }
   const history = (await listReports(30).catch(() => [])).map((r) => ({ id: r.id, at: r.at, by: r.by, text: r.text, summary: r.summary, cutoffHour: r.cutoffHour }));

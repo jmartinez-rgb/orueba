@@ -30,8 +30,14 @@ function joinUrl(base: string | undefined, pathOrUrl: string | undefined): strin
   return `${base.replace(/\/+$/, "")}/${pathOrUrl.replace(/^\/+/, "")}`;
 }
 
+export type DataSourceKind = "mock" | "sheets" | "bigquery";
+
 export interface ServerEnv {
   appName: string;
+  /** Fuente de datos efectiva: simulada, Google Sheets (Dataslayer) o BigQuery. */
+  dataSource: DataSourceKind;
+  /** Lo que se pidió en DATA_SOURCE (si se pidió y falta configuración, se usa mock y se avisa). */
+  requestedDataSource: DataSourceKind | null;
   useMockData: boolean;
   mockScenario: string | undefined;
   mockReferenceTime: string | undefined;
@@ -47,6 +53,15 @@ export interface ServerEnv {
     mappingJson: string | undefined;
     mappingFile: string;
     maxBytesBilled: number;
+    configured: boolean;
+  };
+  sheets: {
+    spreadsheetId: string | undefined;
+    mappingJson: string | undefined;
+    mappingFile: string;
+    /** Solo fuera de producción: lee la hoja desde un archivo JSON (pruebas sin Google). */
+    fixtureFile: string | undefined;
+    credentials: boolean;
     configured: boolean;
   };
   n8n: {
@@ -81,10 +96,28 @@ export function getEnv(): ServerEnv {
   const manualSyncWebhook = joinUrl(n8nBase, str("N8N_MANUAL_SYNC_WEBHOOK"));
   const level = (str("LOG_LEVEL") ?? "info").toLowerCase();
 
+  const serviceAccountJson = str("GOOGLE_SERVICE_ACCOUNT");
+  const clientEmail = str("GOOGLE_CLIENT_EMAIL");
+  const privateKey = str("GOOGLE_PRIVATE_KEY");
+  const credentials = Boolean(serviceAccountJson || (clientEmail && privateKey));
+  const spreadsheetId = str("SHEETS_SPREADSHEET_ID");
+  const fixtureFile = process.env.NODE_ENV !== "production" ? str("SHEETS_FIXTURE_FILE") : undefined;
+  const sheetsConfigured = Boolean(spreadsheetId && (credentials || fixtureFile));
+  const requestedRaw = (str("DATA_SOURCE") ?? "").toLowerCase();
+  const requested: DataSourceKind | null = requestedRaw === "sheets" || requestedRaw === "bigquery" || requestedRaw === "mock" ? requestedRaw : null;
+  // DATA_SOURCE manda; si no se define, USE_MOCK_DATA=false elige Sheets o BigQuery según lo configurado.
+  // Si falta configuración, se usa el modo simulado para no romper la app (Integrations lo avisa).
+  let dataSource: DataSourceKind;
+  if (requested === "sheets") dataSource = sheetsConfigured ? "sheets" : "mock";
+  else if (requested === "bigquery") dataSource = bqConfigured ? "bigquery" : "mock";
+  else if (requested === "mock" || bool("USE_MOCK_DATA", true)) dataSource = "mock";
+  else dataSource = sheetsConfigured ? "sheets" : bqConfigured ? "bigquery" : "mock";
+
   cached = {
     appName: str("NEXT_PUBLIC_APP_NAME") ?? "izzi Media Monitoring Center",
-    // Sin BigQuery configurado, el modo mock es obligatorio para no romper la app.
-    useMockData: bool("USE_MOCK_DATA", true) || !bqConfigured,
+    dataSource,
+    requestedDataSource: requested,
+    useMockData: dataSource === "mock",
     mockScenario: str("MOCK_SCENARIO"),
     mockReferenceTime: str("MOCK_REFERENCE_TIME"),
     timezone: str("APP_TIMEZONE"),
@@ -93,13 +126,21 @@ export function getEnv(): ServerEnv {
       dataset,
       stateDataset: str("BIGQUERY_STATE_DATASET") ?? dataset,
       location: str("BIGQUERY_LOCATION") ?? "US",
-      serviceAccountJson: str("GOOGLE_SERVICE_ACCOUNT"),
-      clientEmail: str("GOOGLE_CLIENT_EMAIL"),
-      privateKey: str("GOOGLE_PRIVATE_KEY"),
+      serviceAccountJson,
+      clientEmail,
+      privateKey,
       mappingJson: str("BIGQUERY_MAPPING"),
       mappingFile: str("BIGQUERY_MAPPING_FILE") ?? "config/bigquery.mapping.json",
       maxBytesBilled: int("BIGQUERY_MAX_BYTES_BILLED", 5 * 1024 ** 3),
       configured: bqConfigured,
+    },
+    sheets: {
+      spreadsheetId,
+      mappingJson: str("SHEETS_MAPPING"),
+      mappingFile: str("SHEETS_MAPPING_FILE") ?? "config/sheets.mapping.json",
+      fixtureFile,
+      credentials,
+      configured: sheetsConfigured,
     },
     n8n: {
       baseUrl: n8nBase,
