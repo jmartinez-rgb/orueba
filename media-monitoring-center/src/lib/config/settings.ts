@@ -80,6 +80,10 @@ export const settingsSchema = z.object({
     platformIncidentMinShare: z.number().min(0).max(1),
     /** Caída en la ventana reciente (últimas horas) que se considera "dejó de gastar". */
     stoppedSpendDrop: z.number().min(0.5).max(1),
+    /** Días completos seguidos con el mismo cambio de gasto para tomarlo como un nuevo nivel (cambio sostenido). */
+    sustainedDays: z.number().int().min(2).max(7),
+    /** Métricas que llegan con retraso por plataforma (conversiones offline): en el día no se evalúan. */
+    laggingMetrics: z.partialRecord(platformEnum, z.array(metricId)),
   }),
   alerts: z.object({
     /** Severidad a partir de la cual una anomalía se vuelve incidente en la primera detección. */
@@ -188,6 +192,8 @@ export const DEFAULT_SETTINGS: MonitoringSettings = {
     platformIncidentMinCampaigns: 3,
     platformIncidentMinShare: 0.4,
     stoppedSpendDrop: 0.9,
+    sustainedDays: 3,
+    laggingMetrics: {},
   },
   alerts: {
     incidentMinSeverity: "ALERT",

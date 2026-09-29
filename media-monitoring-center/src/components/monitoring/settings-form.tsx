@@ -242,6 +242,7 @@ export function SettingsForm({
         <Num label="Incidente de plataforma: campañas" value={s.detection.platformIncidentMinCampaigns} onChange={set(["detection", "platformIncidentMinCampaigns"])} min={2} disabled={d} />
         <Num label="…y participación mínima" value={s.detection.platformIncidentMinShare} onChange={set(["detection", "platformIncidentMinShare"])} percent disabled={d} />
         <Num label="“Dejó de gastar” (ventana reciente)" value={s.detection.stoppedSpendDrop} onChange={set(["detection", "stoppedSpendDrop"])} percent disabled={d} />
+        <Num label="Cambio sostenido: días seguidos" value={s.detection.sustainedDays} onChange={set(["detection", "sustainedDays"])} min={2} max={7} suffix="días" disabled={d} hint="Si el gasto lleva estos días en otro nivel, la severidad se mide contra ese nivel nuevo." />
       </Section>
 
       <Section title="Alertas y escalamiento" description="Anti-spam: una alerta por anomalía; se notifica solo al abrir, escalar, empeorar, superar la duración o recuperarse.">

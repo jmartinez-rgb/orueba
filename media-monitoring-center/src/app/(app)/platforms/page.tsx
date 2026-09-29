@@ -83,7 +83,7 @@ export default async function PlatformsPage() {
                       <span className="font-medium">{bad ? "—" : fmtMetric(c.result.metric, c.result.current, { compact: true })}</span> <span className="text-muted-foreground">{c.result.label}</span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <DeltaText value={bad ? null : c.result.deviation} bad="down" attention={attention} />
+                      <DeltaText value={bad ? null : c.result.deviation} bad={c.result.lagging ? "none" : "down"} attention={attention} />
                     </TableCell>
                     <TableCell className="text-right text-xs">
                       {bad ? "—" : fmtMetric("cpr", c.cost.current)} <DeltaText value={bad ? null : c.cost.deviation} bad="up" attention={attention} />

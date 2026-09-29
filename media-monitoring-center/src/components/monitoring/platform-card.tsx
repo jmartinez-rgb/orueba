@@ -65,15 +65,18 @@ export function PlatformCard({ vm, timezone, weeks, attention, canEdit = false }
           </div>
           <Bar current={vm.spend.current} expected={vm.spend.expected} />
           <div className="grid grid-cols-[1fr_auto_auto] items-baseline gap-x-3 text-xs">
-            <span className="truncate text-muted-foreground">{vm.result.label}</span>
+            <span className="truncate text-muted-foreground" title={vm.result.lagging ? "Conversiones offline: llegan horas después. En el día no se juzgan; se revisan con el día cerrado." : undefined}>
+              {vm.result.label}
+              {vm.result.lagging && <span className="ml-1 text-[10px]">(llegan con retraso)</span>}
+            </span>
             <span className="tabular text-right font-semibold">
               {fmtMetric(vm.result.metric, vm.result.current, { compact: true })}
               <span className="font-normal text-muted-foreground"> / {fmtMetric(vm.result.metric, vm.result.expected, { compact: true })}</span>
             </span>
-            <DeltaText value={vm.result.deviation} bad="down" className="text-right" attention={attention} />
+            <DeltaText value={vm.result.deviation} bad={vm.result.lagging ? "none" : "down"} className="text-right" attention={attention} />
             <span className="truncate text-muted-foreground">{vm.cost.label}</span>
             <span className="tabular text-right font-semibold">{fmtMetric("cpr", vm.cost.current)}</span>
-            <DeltaText value={vm.cost.deviation} bad="up" className="text-right" attention={attention} />
+            <DeltaText value={vm.cost.deviation} bad={vm.result.lagging ? "none" : "up"} className="text-right" attention={attention} />
           </div>
           <div className="grid grid-cols-2 gap-2 rounded-md bg-muted/60 px-2.5 py-1.5 text-[11px]">
             <span className="text-muted-foreground">

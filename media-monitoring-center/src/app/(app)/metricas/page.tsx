@@ -84,7 +84,7 @@ export default async function MetricsPage() {
                     <TableCell className="text-right text-xs font-semibold">{fmtMetric(vm.result.metric, vm.result.current)}</TableCell>
                     <TableCell className="text-right text-xs text-muted-foreground">{fmtMetric(vm.result.metric, vm.result.expected)}</TableCell>
                     <TableCell className="text-right text-xs">
-                      <DeltaText value={vm.result.deviation} bad="down" attention={attention} />
+                      <DeltaText value={vm.result.deviation} bad={vm.result.lagging ? "none" : "down"} attention={attention} />
                     </TableCell>
                     <TableCell className="text-xs">{vm.pinned.length ? vm.pinned.map((m) => m.label).join(", ") : <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell>

@@ -109,7 +109,14 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
         <Tile label="Gasto" value={fmtCurrency(card.spend.current)} sub={`Esperado ${fmtCurrency(card.spend.expected)}`} delta={card.spend.deviation} attention={attention} />
-        <Tile label={card.result.label} value={fmtMetric(card.result.metric, card.result.current)} sub={`Esperado ${fmtMetric(card.result.metric, card.result.expected)}`} delta={card.result.deviation} bad="down" attention={attention} />
+        <Tile
+          label={card.result.label}
+          value={fmtMetric(card.result.metric, card.result.current)}
+          sub={card.result.lagging ? "Llegan con retraso: se juzgan con el día cerrado" : `Esperado ${fmtMetric(card.result.metric, card.result.expected)}`}
+          delta={card.result.deviation}
+          bad={card.result.lagging ? "none" : "down"}
+          attention={attention}
+        />
         <Tile label={card.cost.label} value={fmtMetric("cpr", card.cost.current)} sub={`Esperado ${fmtMetric("cpr", card.cost.expected)}`} delta={card.cost.deviation} bad="up" attention={attention} />
         <Tile label="Pacing vs presupuesto" value={fmtPercent(pacing.pctOfExpected, 0)} sub={`Esperado ${fmtCurrency(pacing.expectedByCurve)} (${fmtPercent(pacing.curveShare, 0)} del día)`} delta={pacing.deviation} attention={attention} />
         <Tile label="Forecast cierre del día" value={fmtCurrency(pacing.forecastClose)} sub={`Presupuesto diario ${fmtCurrency(pacing.dailyBudget)}`} delta={pacing.forecastVsBudget} attention={attention} />
@@ -375,7 +382,7 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
   );
 }
 
-function Tile({ label, value, sub, delta, bad = "both", attention }: { label: string; value: string; sub: string; delta: number | null; bad?: "both" | "down" | "up"; attention: number }) {
+function Tile({ label, value, sub, delta, bad = "both", attention }: { label: string; value: string; sub: string; delta: number | null; bad?: "both" | "down" | "up" | "none"; attention: number }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-lg border bg-card px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">

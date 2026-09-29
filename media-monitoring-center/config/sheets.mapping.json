@@ -2,6 +2,8 @@
   "refreshEveryMinutes": 120,
   "refreshDurationMinutes": 15,
   "cacheSeconds": 300,
+  "defaultKpi": { "tiktok": "conversions" },
+  "laggingMetrics": { "google": ["conversions", "sales", "leads", "calls"], "meta": ["sales", "conversions"] },
   "control": {
     "sheet": "DataslayerQueries",
     "timeZone": "sheet",

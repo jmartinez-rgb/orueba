@@ -46,6 +46,22 @@ objetivo; cada plataforma con su métrica monitoreada).
 **NULL no es cero y un atraso no es una caída**: sin dato se muestra "sin dato"; con la fuente
 atrasada se muestra DATA DELAYED en gris.
 
+Tres reglas más, pensadas para los datos reales de la hoja:
+
+- **Conversiones que llegan con retraso.** Las conversiones de Google y las ventas offline de Meta
+  (Compras Offline Web) se suben horas o días después. En el día no se juzgan (ni tracking, ni
+  caída, ni costo por resultado); la tarjeta las marca "(llegan con retraso)" y en gris. El gasto sí
+  se evalúa.
+- **Curva típica.** Si la hoja solo trae el acumulado del día (sin pestañas por hora), el esperado
+  a la hora de corte sale de una curva típica. Las alertas que dependen de ese esperado bajan un
+  nivel (máximo Alerta) y la app no declara "dejó de gastar", porque no puede saber a qué hora
+  paró. El gasto en cero sigue siendo crítico. Con las pestañas por hora (INSTALACION.md, A4) se
+  vuelve exacto.
+- **Cambio sostenido.** Si una cuenta o campaña lleva 3 días completos en otro nivel (por ejemplo,
+  se le movió presupuesto), la severidad se mide contra ese nivel nuevo. Si hoy sigue igual, queda
+  en Atención con la nota "parece un cambio de presupuesto"; si hoy cae además, conserva la alerta y
+  dice cuánto cayó contra ese nivel. Los días se cambian en Settings.
+
 ## Flujo diario sugerido
 
 1. **Overview**: el estado general y el color de cada plataforma responden si todo está bien.

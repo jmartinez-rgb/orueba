@@ -696,6 +696,10 @@ export class SheetsDataSource implements MonitoringDataSource {
     return { title: ds.info.title || null, readAt: ds.readAt, errors, tabs };
   }
 
+  async estimatedHourly(date: string): Promise<PlatformId[]> {
+    return date === this.today() ? this.estimatedToday() : [];
+  }
+
   /** Plataformas que hoy reparten el acumulado con la curva típica (no hay pestaña por hora). */
   async estimatedToday(): Promise<PlatformId[]> {
     const ds = await this.dataset();

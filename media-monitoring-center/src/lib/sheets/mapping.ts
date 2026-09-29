@@ -80,6 +80,10 @@ export const sheetsMappingSchema = z.object({
    * lo necesario para la comparación (semanas de Settings) y el mes en curso.
    */
   historyDays: z.number().int().min(14).max(800).optional(),
+  /** Métrica monitoreada por omisión cuando la hoja no trae la del objetivo de la plataforma (p. ej. TikTok sin leads). */
+  defaultKpi: z.partialRecord(z.enum(["google", "meta", "tiktok", "microsoft", "spotify", "x"]), z.enum(["conversions", "sales", "whatsapp", "leads", "calls", "purchases", "clicks", "impressions"])).default({}),
+  /** Métricas que llegan con retraso por plataforma (conversiones offline): en el día no se evalúan. */
+  laggingMetrics: z.partialRecord(z.enum(["google", "meta", "tiktok", "microsoft", "spotify", "x"]), z.array(z.enum(BASE_METRICS as unknown as [BaseMetric, ...BaseMetric[]]))).default({}),
   control: z
     .object({
       sheet: z.string().default("DataslayerQueries"),

@@ -49,7 +49,8 @@ export interface PlatformCardVM {
   lagMinutes: number | null;
   cutoffHour: number;
   spend: CompareVM;
-  result: CompareVM & { metric: BaseMetric; label: string };
+  /** `lagging`: llega con retraso (conversiones offline); en el día no se juzga. */
+  result: CompareVM & { metric: BaseMetric; label: string; lagging: boolean };
   cost: CompareVM & { label: string };
   pacingPct: number | null;
   forecastClose: number | null;
@@ -91,7 +92,7 @@ export function platformCard(snap: Snapshot, p: PlatformId): PlatformCardVM {
     lagMinutes: e.lagMinutes,
     cutoffHour: e.cutoffHour,
     spend: compareVM(e.cumulative.spend),
-    result: { ...compareVM(e.cumulative[e.kpi.result]), metric: e.kpi.result, label: e.kpi.resultLabel },
+    result: { ...compareVM(e.cumulative[e.kpi.result]), metric: e.kpi.result, label: e.kpi.resultLabel, lagging: Boolean(e.resultLagging) },
     cost: { ...compareVM(e.cumulative.cpr), label: e.kpi.costLabel },
     pacingPct: pacing.pctOfExpected,
     forecastClose: pacing.forecastClose,
@@ -180,6 +181,8 @@ export interface CampaignRowVM {
   results: number | null;
   resultsExpected: number | null;
   resultsDeviation: number | null;
+  /** El resultado llega con retraso (conversiones offline): en el día no se juzga. */
+  resultLagging: boolean;
   costLabel: string;
   cost: number | null;
   costDeviation: number | null;
@@ -220,6 +223,7 @@ export function campaignRows(snap: Snapshot): CampaignRowVM[] {
         results: r?.current ?? null,
         resultsExpected: r?.expected ?? null,
         resultsDeviation: r?.deltaVsExpected ?? null,
+        resultLagging: Boolean(e.resultLagging),
         costLabel: e.kpi.costLabel,
         cost: c?.current ?? null,
         costDeviation: c?.deltaVsExpected ?? null,

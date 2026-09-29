@@ -45,6 +45,10 @@ export const ANOMALY_LABEL: Record<AnomalyType, string> = {
 const SPEND_DROP_TYPES: AnomalyType[] = ["DELIVERY_ISSUE", "UNDERSPEND"];
 /** Resultados peores que el gasto: misma causa raíz vista como caída de resultados o como costo al alza. */
 const RESULT_DROP_TYPES: AnomalyType[] = ["PERFORMANCE_ISSUE", "COST_INCREASE"];
+/** Se juzgan con el gasto esperado a la hora de corte, que depende de la curva horaria. */
+const CURVE_TYPES: AnomalyType[] = ["DELIVERY_ISSUE", "UNDERSPEND", "OVERSPEND", "PLATFORM_INCIDENT"];
+/** Alertas de nivel de gasto que se revisan contra un cambio sostenido de los últimos días. */
+const SUSTAINED_TYPES: AnomalyType[] = ["DELIVERY_CRITICAL", "DELIVERY_ISSUE", "UNDERSPEND", "OVERSPEND"];
 
 export interface AnomalyContext {
   settings: MonitoringSettings;
@@ -135,10 +139,12 @@ function entityName(e: EntityEvaluation): string {
 function detectPerformance(e: EntityEvaluation, ctx: AnomalyContext): Anomaly | null {
   const { settings } = ctx;
   const t = settings.thresholds;
+  // Resultados que llegan con retraso (conversiones offline): hoy solo se juzga el gasto.
+  const lagging = Boolean(e.resultLagging);
   const sig: Signals = {
     spend: e.cumulative.spend,
-    result: e.cumulative[e.kpi.result],
-    cost: e.cumulative.cpr,
+    result: lagging ? undefined : e.cumulative[e.kpi.result],
+    cost: lagging ? undefined : e.cumulative.cpr,
     clicks: e.cumulative.clicks,
   };
   const minSpend = minSpendFor(e, settings);
@@ -156,12 +162,16 @@ function detectPerformance(e: EntityEvaluation, ctx: AnomalyContext): Anomaly | 
   const resultSignificant = isSignificantCount(sig.result);
   const name = entityName(e);
   const window = `00:00–${hourLabel(e.cutoffHour)}`;
-  const spendEv: MetricId[] = ["spend", e.kpi.result, "cpr"];
+  const spendEv: MetricId[] = lagging ? ["spend"] : ["spend", e.kpi.result, "cpr"];
 
   // CASO: dejó de gastar en la ventana reciente (paro súbito aunque el acumulado aún no lo refleje).
-  const rs = e.recent?.spend;
+  // Con curva estimada la ventana reciente es el acumulado repartido: no dice cuándo dejó de gastar.
+  const rs = e.curveEstimated ? undefined : e.recent?.spend;
   if (rs && rs.expected !== null && rs.expected >= minSpend * 0.25 && rs.current !== null) {
-    const drop = rs.deltaVsExpected ?? 0;
+    const raw = rs.deltaVsExpected ?? 0;
+    // Si el gasto ya venía en un nivel más bajo desde hace días, la caída se mide contra ese nivel.
+    const level = e.sustained?.direction === "down" && e.sustained.ratio > 0.05 ? e.sustained.ratio : 1;
+    const drop = level < 1 ? (1 + raw) / level - 1 : raw;
     if (rs.current === 0 || drop <= -settings.detection.stoppedSpendDrop) {
       return makeAnomaly(
         e,
@@ -170,7 +180,7 @@ function detectPerformance(e: EntityEvaluation, ctx: AnomalyContext): Anomaly | 
         "spend",
         rs,
         `${name} dejó de gastar`,
-        `Gasto de ${hourLabel(e.recentFromHour)} a ${hourLabel(e.cutoffHour)} ${pct(drop)} vs el mismo horario de semanas anteriores. Los datos están al día: es un problema real de delivery (presupuesto, pago, aprobación o pausa), no de datos.`,
+        `Gasto de ${hourLabel(e.recentFromHour)} a ${hourLabel(e.cutoffHour)} ${pct(raw)} vs el mismo horario de semanas anteriores${level < 1 ? ` (${pct(drop)} contra su nivel de los últimos ${e.sustained!.days} días)` : ""}. Los datos están al día: es un problema real de delivery (presupuesto, pago, aprobación o pausa), no de datos.`,
         spendEv,
       );
     }
@@ -248,8 +258,10 @@ function detectPerformance(e: EntityEvaluation, ctx: AnomalyContext): Anomaly | 
     const clicksNormal = dK !== null && Math.abs(dK) < t.attention;
     metric = e.kpi.result;
     cmp = sig.result;
-    severity = classifyDeviation(Math.abs(dR!), t);
-    if (clicksNormal && dR! < -t.critical) {
+    // Con curva estimada el esperado de gasto y de resultados comparte el mismo sesgo: se mide la caída relativa al gasto.
+    const dRel = e.curveEstimated && dS !== null && dS > -1 ? (1 + dR!) / (1 + dS) - 1 : dR!;
+    severity = classifyDeviation(Math.abs(dRel), t);
+    if (clicksNormal && dRel < -t.critical) {
       type = "TRACKING_ISSUE";
       title = `Caída de ${e.kpi.resultLabel.toLowerCase()} con tráfico normal`;
       diagnosis = `Gasto (${pct(dS)}) y clics (${pct(dK)}) normales, pero ${e.kpi.resultLabel.toLowerCase()} ${pct(dR)}. El tráfico llega igual: posible problema de tracking o de atribución.`;
@@ -262,7 +274,8 @@ function detectPerformance(e: EntityEvaluation, ctx: AnomalyContext): Anomaly | 
     // CASO 3: gasto ↑ con resultados que no acompañan → eficiencia; si acompañan → sobreinversión.
     if (dC !== null && dC >= t.attention) {
       type = "EFFICIENCY_ISSUE";
-      severity = classifyDeviation(Math.max(dS, dC), t);
+      // El costo por resultado no depende de la curva horaria; el gasto vs esperado sí.
+      severity = classifyDeviation(e.curveEstimated ? dC : Math.max(dS, dC), t);
       metric = "cpr";
       cmp = sig.cost;
       title = `Gasto al alza con ${e.kpi.costLabel} +${(dC * 100).toFixed(0)}%`;
@@ -271,7 +284,7 @@ function detectPerformance(e: EntityEvaluation, ctx: AnomalyContext): Anomaly | 
       type = "OVERSPEND";
       severity = classifyDeviation(dS, t);
       title = "Sobreinversión";
-      diagnosis = `Gasto ${pct(dS)} vs el mismo día y franja de semanas anteriores, con ${e.kpi.resultLabel.toLowerCase()} ${pct(dR)}. Revisar presupuesto y pacing para no agotar el mensual antes de tiempo.`;
+      diagnosis = `Gasto ${pct(dS)} vs el mismo día y franja de semanas anteriores${dR !== null ? `, con ${e.kpi.resultLabel.toLowerCase()} ${pct(dR)}` : ""}. Revisar presupuesto y pacing para no agotar el mensual antes de tiempo.`;
     }
   } else if (resultEvaluable && resultSignificant && dC !== null && dC >= t.attention) {
     type = "COST_INCREASE";
@@ -317,6 +330,25 @@ function adjust(a: Anomaly, e: EntityEvaluation, ctx: AnomalyContext): Anomaly {
       s = "ATTENTION";
       notes.push("Volumen de resultados bajo: se limita a ATENCIÓN para evitar ruido estadístico.");
     }
+  }
+  // Cambio sostenido: si el gasto ya lleva días en otro nivel, la severidad mide lo que cambió hoy contra ese nivel.
+  const lvl = e.sustained;
+  const d = e.cumulative.spend?.deltaVsExpected ?? null;
+  if (lvl && SUSTAINED_TYPES.includes(a.type) && a.metric === "spend" && d !== null && lvl.direction === (d < 0 ? "down" : "up")) {
+    const t = settings.thresholds;
+    const today = 1 + d;
+    const rel = lvl.ratio > 0.05 ? today / lvl.ratio - 1 : today < 0.05 ? 0 : null;
+    const since = `Viene así desde hace ${lvl.days} días (gasto ${pct(lvl.ratio - 1)} vs semanas anteriores)`;
+    if (rel !== null && Math.abs(rel) < t.attention) {
+      s = minSeverity(s, "ATTENTION");
+      notes.push(`${since} y hoy sigue en ese nivel: parece un cambio de presupuesto o de estrategia, no una falla de hoy. Si no fue planeado, revisar.`);
+    } else if (rel !== null) {
+      s = minSeverity(s, maxSeverity(classifyDeviation(Math.abs(rel), t), "ATTENTION"));
+      notes.push(`${since}; hoy va ${pct(rel)} contra ese nivel.`);
+    }
+  }
+  if (e.resultLagging && a.family === "delivery") {
+    notes.push(`${e.kpi.resultLabel} de ${PLATFORMS[e.platform].shortName} llegan con retraso (conversiones offline): en el día solo se evalúa el gasto.`);
   }
   return { ...a, severity: s, adjustments: notes };
 }
@@ -396,6 +428,20 @@ export function detectAnomalies(evaluations: EntityEvaluation[], ctx: AnomalyCon
         ),
       });
     }
+  }
+
+  // Curva horaria estimada: el esperado a la hora de corte es aproximado. Las alertas que dependen de
+  // él bajan un nivel (máximo ALERTA); gasto en cero sigue siendo evidencia firme.
+  for (const a of out) {
+    const e = byKey.get(a.key);
+    if (!e?.curveEstimated || !CURVE_TYPES.includes(a.type) || a.current === 0) continue;
+    const capped = maxSeverity(minSeverity(downgrade(a.severity), "ALERT"), "ATTENTION");
+    if (capped === a.severity) continue;
+    a.severity = capped;
+    a.adjustments = [
+      ...a.adjustments,
+      "La hoja solo trae el acumulado del día: el esperado a esta hora sale de una curva típica, no de datos por hora. Severidad reducida un nivel hasta tener la consulta por hora de Dataslayer.",
+    ];
   }
 
   // Anti-spam jerárquico: una anomalía hija con el mismo tipo que su padre se agrupa bajo él.

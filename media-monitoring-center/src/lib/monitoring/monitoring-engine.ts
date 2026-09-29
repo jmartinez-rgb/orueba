@@ -8,9 +8,10 @@ import { addDays, businessDate, daysInMonth, hourLabel, monthOf, sameWeekdayDate
 import { detectAnomalies, platformImpactSeverity } from "@/lib/anomaly-engine/anomaly-engine";
 import { maxSeverity, severityRank } from "@/lib/anomaly-engine/severity";
 import { compareWindow, cumulativeByHour, windowTotals, type HourlySeries } from "./historical-comparator";
+import { sustainedLevel } from "./sustained";
 import { buildHourlyCurve, dailyPacing } from "./pacing-engine";
 import { buildPlatformDataHealth, evaluateFreshness, type FreshnessEvaluation, type PlatformDataHealth } from "./data-health";
-import type { CurvePoint, DailyPacing, EntityEvaluation, MonitoringRun, PlatformStatusInfo, ScopeCurves } from "./types";
+import type { CurvePoint, DailyPacing, EntityEvaluation, MonitoringRun, PlatformStatusInfo, ScopeCurves, SustainedLevel } from "./types";
 
 /**
  * MonitoringEngine: obtiene valores actuales e histórico, calcula esperado, pacing y
@@ -60,13 +61,18 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
   const refDates = sameWeekdayDates(date, weeks);
   const interval = settings.schedule.intervalHours;
 
-  const [catalog, freshness, quality, rows, budgets] = await Promise.all([
+  const sustainedDays = settings.detection.sustainedDays;
+  const [catalog, freshness, quality, rows, budgets, recentDaily, estimated] = await Promise.all([
     source.getCatalog(),
     source.getFreshness(asOf),
     source.getDataQuality(date),
     source.getHourly({ dates: [date, ...refDates], level: "campaign" }),
     source.getBudgets(monthOf(date)),
+    // Días completos recientes y su referencia: distinguen un cambio de nivel sostenido de una falla de hoy.
+    source.getDaily({ from: addDays(date, -(sustainedDays + 7 * weeks)), to: addDays(date, -1), level: "campaign" }),
+    source.estimatedHourly?.(date) ?? Promise.resolve([] as PlatformId[]),
   ]);
+  const estimatedCurve = new Set<PlatformId>(estimated);
 
   // 1) Frescura por plataforma y por cuenta (antes de cualquier análisis de rendimiento).
   const recordFor = (p: PlatformId, accountId: string | null): FreshnessRecord | undefined =>
@@ -124,6 +130,47 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
 
   const baseline = settings.history.baseline;
   const minSamples = settings.history.minSamples;
+
+  // Gasto diario por entidad para detectar cambios sostenidos (p. ej. una reasignación de presupuesto).
+  const dailySpend = new Map<string, Map<string, number>>();
+  const platformDates = new Map<PlatformId, Set<string>>();
+  const addDaily = (key: string, d: string, v: number) => {
+    let m = dailySpend.get(key);
+    if (!m) dailySpend.set(key, (m = new Map()));
+    m.set(d, (m.get(d) ?? 0) + v);
+  };
+  for (const r of recentDaily) {
+    const spend = r.metrics.spend;
+    if (spend === null || !r.campaignId) continue;
+    const accountId = r.accountId ?? campaignById.get(r.campaignId)?.accountId ?? "";
+    let dates = platformDates.get(r.platform);
+    if (!dates) platformDates.set(r.platform, (dates = new Set()));
+    dates.add(r.date);
+    addDaily(`campaign:${r.platform}:${r.campaignId}`, r.date, spend);
+    addDaily(`account:${r.platform}:${accountId}`, r.date, spend);
+    addDaily(`platform:${r.platform}`, r.date, spend);
+  }
+  const sustainedOf = (key: string, p: PlatformId): SustainedLevel | null => {
+    const byDate = dailySpend.get(key);
+    const known = platformDates.get(p);
+    if (!byDate || !known) return null;
+    return sustainedLevel({
+      date,
+      days: sustainedDays,
+      weeks,
+      baseline,
+      minSamples,
+      threshold: settings.thresholds.attention,
+      // Sin fila un día con datos de la plataforma = no gastó (Dataslayer no escribe filas vacías).
+      valueOn: (d) => (known.has(d) ? (byDate.get(d) ?? 0) : null),
+    });
+  };
+  const laggingFor = (p: PlatformId) => settings.detection.laggingMetrics[p] ?? [];
+  const extras = (key: string, p: PlatformId, kpi: Kpi, cut: number) => ({
+    curveEstimated: cut < 24 && estimatedCurve.has(p),
+    resultLagging: cut < 24 && laggingFor(p).includes(kpi.result),
+    sustained: sustainedOf(key, p),
+  });
   const evaluate = (series: HourlySeries, kpi: Kpi, cut: number) => ({
     cumulative: compareWindow({ series, date, referenceDates: refDates, fromHour: 0, toHour: cut, kpi, baseline, minSamples }),
     recent:
@@ -189,6 +236,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
       expectedSpendShare: 1,
       dayShare: dayShareOf(platformSeries.get(p) ?? new Map(), cut),
       excludedAccounts,
+      ...extras(`platform:${p}`, p, kpi, cut),
     });
   }
   for (const acc of catalog.accounts) {
@@ -218,6 +266,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
       expectedSpendShare: !excluded.has(acc.id) && pExp > 0 ? (ev.cumulative.spend?.expected ?? 0) / pExp : null,
       dayShare: dayShareOf(accountSeriesAll.get(acc.id) ?? new Map(), cut),
       excludedAccounts: [],
+      ...extras(`account:${acc.platform}:${acc.id}`, acc.platform, kpi, cut),
     });
   }
   const accountName = new Map(catalog.accounts.map((a) => [a.id, a.name]));
@@ -249,6 +298,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
       expectedSpendShare: !excluded.has(c.accountId) && pExp > 0 ? (ev.cumulative.spend?.expected ?? 0) / pExp : null,
       dayShare: dayShareOf(campaignSeries.get(c.id) ?? new Map(), cut),
       excludedAccounts: [],
+      ...extras(`campaign:${c.platform}:${c.id}`, c.platform, kpi, cut),
     });
   }
 

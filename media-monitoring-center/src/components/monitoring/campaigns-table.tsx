@@ -220,14 +220,17 @@ export function CampaignsTable({
                   </TableCell>
                   <TableCell className="text-right text-xs">
                     <span className="font-medium">{bad ? "—" : fmtMetric(r.resultMetric, r.results, { compact: true })}</span>
-                    <span className="block text-[10px] text-muted-foreground">{r.resultLabel}</span>
+                    <span className="block text-[10px] text-muted-foreground">
+                      {r.resultLabel}
+                      {r.resultLagging && " · con retraso"}
+                    </span>
                   </TableCell>
                   <TableCell className="text-right text-xs">
-                    <span className="font-medium">{bad ? "—" : fmtMetric("cpr", r.cost)}</span> <DeltaText value={bad ? null : r.costDeviation} bad="up" attention={attention} className="text-[11px]" />
+                    <span className="font-medium">{bad ? "—" : fmtMetric("cpr", r.cost)}</span> <DeltaText value={bad ? null : r.costDeviation} bad={r.resultLagging ? "none" : "up"} attention={attention} className="text-[11px]" />
                     <span className="block text-[10px] text-muted-foreground">{r.costLabel}</span>
                   </TableCell>
                   <TableCell className="text-right text-xs">
-                    <DeltaText value={bad ? null : r.histDeviation} bad="down" attention={attention} />
+                    <DeltaText value={bad ? null : r.histDeviation} bad={r.resultLagging ? "none" : "down"} attention={attention} />
                   </TableCell>
                   <TableCell>
                     {r.alertSeverity ? (

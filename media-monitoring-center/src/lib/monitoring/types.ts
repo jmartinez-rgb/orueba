@@ -64,6 +64,19 @@ export interface EntityEvaluation extends EntityRef {
   dayShare: number | null;
   /** Cuentas excluidas de la comparación por datos atrasados (solo nivel plataforma). */
   excludedAccounts: string[];
+  /** Hoy la franja horaria sale de una curva típica (la fuente solo trae el acumulado del día). */
+  curveEstimated?: boolean;
+  /** El resultado del KPI llega con retraso (conversiones offline): en el día no se evalúa. */
+  resultLagging?: boolean;
+  /** Gasto de los últimos días completos en un nivel distinto al de semanas anteriores (cambio sostenido). */
+  sustained?: SustainedLevel | null;
+}
+
+export interface SustainedLevel {
+  /** Gasto de esos días ÷ su referencia (mismo día de semanas anteriores). */
+  ratio: number;
+  days: number;
+  direction: "down" | "up";
 }
 
 export type AnomalyType =

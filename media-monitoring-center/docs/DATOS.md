@@ -37,7 +37,16 @@ Cómo se interpretan:
 - **Franja horaria**: el total diario de cada campaña se reparte por hora con la curva real de su
   cuenta ese mismo día (pestañas por hora). Sin ellas se usa una curva típica, la app lo avisa
   ("Curva por hora · Parcial") y baja 10 puntos de confianza. La suma de las horas siempre es el
-  total de la hoja.
+  total de la hoja. Con curva típica, las alertas que dependen del gasto esperado a esa hora bajan
+  un nivel (máximo ALERTA) y no se declara "dejó de gastar"; el costo por resultado y el gasto en
+  cero no dependen de la curva y se evalúan igual.
+- **Métricas con retraso** (`laggingMetrics` en el mapeo): las conversiones de Google
+  (`conversions`, `sales`, `leads`, `calls`) y las de Meta que incluyen ventas offline (`sales`,
+  `conversions`) se suben horas o días después. En la evaluación del día no se juzgan; al cierre sí.
+  Medido con la hoja: a las 11:00 Google llevaba 4% de sus conversiones de un martes normal con 22%
+  del gasto, y las Compras Offline Web de Meta iban en cero.
+- **Métrica monitoreada por omisión** (`defaultKpi`): TikTok usa `conversions` porque la hoja no
+  trae leads. Lo que se elija en la tarjeta de la plataforma (Overview o Métricas) manda.
 - **Campañas sin fila**: Dataslayer no escribe filas sin actividad; con la pestaña actualizada hoy,
   una campaña que gastó ayer y hoy no aparece cuenta como **gasto cero** (así se detecta que dejó de
   gastar). Una **celda vacía** es NULL, nunca cero.

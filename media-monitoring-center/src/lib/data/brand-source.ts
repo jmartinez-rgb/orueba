@@ -167,4 +167,8 @@ export class BrandScopedSource implements MonitoringDataSource {
   getFxRates() {
     return this.inner.getFxRates();
   }
+
+  async estimatedHourly(date: string): Promise<PlatformId[]> {
+    return (await this.inner.estimatedHourly?.(date)) ?? [];
+  }
 }

@@ -162,6 +162,9 @@ export class CurrencyConvertedSource implements MonitoringDataSource {
   getExecutionControl(asOf: Date) {
     return this.inner.getExecutionControl(asOf);
   }
+  async estimatedHourly(date: string): Promise<PlatformId[]> {
+    return (await this.inner.estimatedHourly?.(date)) ?? [];
+  }
   async getFxRates(): Promise<FxRate[]> {
     const list = await this.inner.getFxRates();
     const table = new Map<string, number>(list.map((r) => [r.month, r.rate]));

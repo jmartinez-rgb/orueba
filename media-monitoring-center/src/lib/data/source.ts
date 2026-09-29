@@ -47,4 +47,6 @@ export interface MonitoringDataSource {
   getExecutionControl(asOf: Date): Promise<ExecutionControlRow[]>;
   /** Tasas USD→MXN que trae la fuente (tabla de BigQuery o valores simulados). Settings las puede sobrescribir. */
   getFxRates(): Promise<FxRate[]>;
+  /** Plataformas cuya franja horaria de esa fecha se estima con una curva típica (la fuente solo trae el acumulado del día). */
+  estimatedHourly?(date: string): Promise<PlatformId[]>;
 }

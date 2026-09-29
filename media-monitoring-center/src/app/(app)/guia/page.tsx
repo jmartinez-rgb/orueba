@@ -224,7 +224,15 @@ export default async function GuidePage() {
                 </li>
                 <li>
                   <strong>Franja horaria:</strong> la fila de hoy es el acumulado a la hora de la actualización. Con las pestañas por hora de Dataslayer la comparación de la misma franja es exacta; sin
-                  ellas se estima con una curva típica y la app lo avisa.
+                  ellas se estima con una curva típica, la app lo avisa y las alertas que dependen del gasto esperado a esa hora bajan un nivel (máximo Alerta).
+                </li>
+                <li>
+                  <strong>Conversiones con retraso:</strong> las de Google y las ventas offline de Meta se suben horas o días después. En el día no se juzgan (se muestran en gris con la nota “llegan con
+                  retraso”); el gasto sí se evalúa.
+                </li>
+                <li>
+                  <strong>Cambio sostenido:</strong> si una cuenta o campaña lleva 3 días en otro nivel de gasto (por ejemplo, se le movió presupuesto), la severidad se mide contra ese nivel nuevo. Si hoy
+                  sigue igual, queda en Atención con la nota “parece un cambio de presupuesto”.
                 </li>
                 <li>
                   <strong>Varias cuentas por plataforma:</strong> cada cuenta se evalúa por separado y también dentro de su plataforma; una cuenta atrasada se excluye sin afectar a las demás.

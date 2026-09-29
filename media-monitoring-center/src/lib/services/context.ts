@@ -86,6 +86,13 @@ function adaptToSheets(settings: MonitoringSettings, mapping: SheetsMapping): Mo
     monitoredPlatforms: chosen.length ? chosen : live.length ? live : inSheet,
     ingestion: { ...settings.ingestion, ...Object.fromEntries(inSheet.map((p) => [p, "sheets" as const])) },
     freshness: { ...settings.freshness, delayedAfterMinutes: delayed, criticalAfterMinutes: Math.max(settings.freshness.criticalAfterMinutes, delayed + 120) },
+    // Métrica monitoreada por omisión según lo que trae la hoja (lo elegido en Overview/Métricas manda).
+    platformMetrics: {
+      ...Object.fromEntries(Object.entries(mapping.defaultKpi).map(([p, primary]) => [p, { primary, pinned: [] }])),
+      ...settings.platformMetrics,
+    },
+    // Las conversiones offline llegan horas después: el mapeo dice cuáles no se evalúan en el día.
+    detection: { ...settings.detection, laggingMetrics: { ...settings.detection.laggingMetrics, ...mapping.laggingMetrics } },
   };
 }
 
