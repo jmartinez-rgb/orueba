@@ -181,18 +181,35 @@ npm install
 
 ### C3. Conecta la hoja
 
-Con el archivo JSON que te dio el administrador y el ID de la hoja "MONITOREO":
+Se necesitan dos cosas distintas:
+
+- **La hoja "MONITOREO"** (está en Drive; solo se usa su URL).
+- **La llave JSON de la cuenta de servicio**: un archivo aparte (termina en `.json`) que da el
+  administrador. No es la hoja ni se descarga desde ella. Guárdalo en Descargas.
+
+Luego pega solo la URL de la hoja:
 
 ```
-npm run sheets:setup -- ~/Downloads/NOMBRE-DEL-ARCHIVO.json "1WjLM2CSsIiuNuJrGSRFe-5SMkvhI59cKp5cZpq7fxCc"
+npm run sheets:setup -- "https://docs.google.com/spreadsheets/d/1WjLM2CSsIiuNuJrGSRFe-5SMkvhI59cKp5cZpq7fxCc/edit"
 ```
 
-Si ya lo habías corrido con la hoja anterior, vuelve a correrlo con el ID nuevo: reemplaza
-`SHEETS_SPREADSHEET_ID` en `.env.local`.
+El comando busca la llave en Descargas, Escritorio y la carpeta actual:
 
-(Arrastra el archivo JSON a la Terminal para pegar su ruta.) El comando guarda en `.env.local`:
-`DATA_SOURCE=sheets`, `SHEETS_SPREADSHEET_ID`, `GOOGLE_CLIENT_EMAIL` y `GOOGLE_PRIVATE_KEY`, y te
-recuerda compartir la hoja. No muestra la llave en pantalla.
+- Si hay una, la usa y lo dice ("Uso la llave encontrada: ...").
+- Si hay varias, muestra el comando exacto para cada una; copia el de la llave correcta.
+- Si no hay ninguna, avisa que falta el archivo JSON. Pídelo al administrador y vuelve a correrlo.
+
+Si la llave está en otra carpeta, indícala antes de la URL (arrastra el archivo a la Terminal
+para pegar su ruta):
+
+```
+npm run sheets:setup -- ~/Documents/llave.json "https://docs.google.com/spreadsheets/d/1WjLM2CSsIiuNuJrGSRFe-5SMkvhI59cKp5cZpq7fxCc/edit"
+```
+
+El comando guarda en `.env.local`: `DATA_SOURCE=sheets`, `SHEETS_SPREADSHEET_ID`,
+`GOOGLE_CLIENT_EMAIL` y `GOOGLE_PRIVATE_KEY`, y te recuerda con qué correo debe estar compartida la
+hoja. No muestra la llave en pantalla. Si ya lo habías corrido con la hoja anterior, vuelve a
+correrlo: reemplaza el ID en `.env.local`.
 
 Si aún no agregaste las contraseñas de acceso, pega también el bloque `AUTH_*` que te pasé por
 chat al final de `.env.local` (ver `docs/AUTH.md`).
