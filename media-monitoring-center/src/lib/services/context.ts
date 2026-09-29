@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { getEnv } from "@/lib/config/env";
-import { DEFAULT_SETTINGS, mergeSettings, type MonitoringSettings } from "@/lib/config/settings";
+import { DEFAULT_SETTINGS, mergeSettings, settingsDiff, type MonitoringSettings } from "@/lib/config/settings";
 import type { MonitoringDataSource } from "@/lib/data/source";
 import { CurrencyConvertedSource } from "@/lib/data/currency";
 import { MockDataSource } from "@/lib/mock/mock-source";
@@ -20,7 +20,7 @@ import { RecordsCurveMemory } from "@/lib/sheets/curve-memory-store";
 import type { DataMode } from "@/lib/types";
 import { isValidTimeZone } from "@/lib/time/tz";
 import { getSession, type Session } from "@/lib/auth/session";
-import { cached } from "@/lib/data/cache";
+import { cached, invalidate } from "@/lib/data/cache";
 import { getRecordStore } from "@/lib/records/store";
 import { logger } from "@/lib/logging/logger";
 import { BrandScopedSource } from "@/lib/data/brand-source";
@@ -80,12 +80,13 @@ function adaptToSheets(settings: MonitoringSettings, mapping: SheetsMapping): Mo
   const inSheet = [...new Set(mapping.sources.map((s) => s.platform))];
   // Las plataformas que llegan con un día de atraso (intraday: false) no se pueden vigilar en vivo.
   const live = inSheet.filter((p) => mapping.sources.some((s) => s.platform === p && s.intraday));
-  const chosen = settings.monitoredPlatforms.filter((p) => live.includes(p));
   const cycle = mapping.refreshEveryMinutes + mapping.refreshDurationMinutes + 20;
   const delayed = Math.max(settings.freshness.delayedAfterMinutes, cycle);
   return {
     ...settings,
-    monitoredPlatforms: chosen.length ? chosen : live.length ? live : inSheet,
+    // La hoja decide qué se vigila (no hay pantalla para elegirlo); así una lista guardada por
+    // error desde una marca (Sky sin Bing) no deja a la otra sin plataformas.
+    monitoredPlatforms: live.length ? live : inSheet,
     ingestion: { ...settings.ingestion, ...Object.fromEntries(inSheet.map((p) => [p, "sheets" as const])) },
     freshness: { ...settings.freshness, delayedAfterMinutes: delayed, criticalAfterMinutes: Math.max(settings.freshness.criticalAfterMinutes, delayed + 120) },
     // Métrica monitoreada por omisión según lo que trae la hoja (lo elegido en Overview/Métricas manda).
@@ -115,6 +116,30 @@ export function baseSettings(): MonitoringSettings {
   const env = getEnv();
   const tz = env.timezone && isValidTimeZone(env.timezone) ? env.timezone : DEFAULT_SETTINGS.timezone;
   return { ...DEFAULT_SETTINGS, timezone: tz };
+}
+
+/**
+ * Configuración guardada por el equipo (valores por omisión + cambios), leída directo del
+ * almacén y sin los ajustes que la app calcula por marca u hoja. Es la base de todo guardado:
+ * partir de la configuración vigente fijaba esos ajustes (p. ej. guardar desde Sky dejaba a
+ * izzi sin Bing).
+ */
+export async function loadStoredSettings(ctx: Pick<AppContext, "mode" | "store">): Promise<MonitoringSettings> {
+  const patch = ctx.mode === "bigquery" && ctx.store.loadSettingsPatch ? await ctx.store.loadSettingsPatch() : await getRecordStore().get<unknown>(SETTINGS_RECORD_KEY);
+  return mergeSettings(baseSettings(), patch);
+}
+
+/** Guarda solo lo que difiere de los valores por omisión y limpia las copias en memoria. */
+export async function saveStoredSettings(ctx: Pick<AppContext, "mode" | "store">, next: MonitoringSettings | null, by: string): Promise<void> {
+  const patch = next ? settingsDiff(baseSettings(), next) : null;
+  if (ctx.mode === "bigquery" && ctx.store.saveSettingsPatch) await ctx.store.saveSettingsPatch(patch, by);
+  else if (patch) await getRecordStore().set(SETTINGS_RECORD_KEY, patch);
+  else await getRecordStore().delete(SETTINGS_RECORD_KEY);
+  invalidate("live:");
+  invalidate("replay:");
+  invalidate("settings:");
+  invalidate("brandstatus:");
+  invalidate("report:");
 }
 
 function hash(value: unknown): string {
@@ -154,7 +179,8 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
     }
   } else {
     try {
-      const patch = await cached("settings:records", 30 * 1000, () => getRecordStore().get<unknown>(SETTINGS_RECORD_KEY));
+      // TTL corto: en Netlify cada instancia tiene su copia y un cambio debe verse en segundos en todas.
+      const patch = await cached("settings:records", 5 * 1000, () => getRecordStore().get<unknown>(SETTINGS_RECORD_KEY));
       settings = mergeSettings(settings, patch);
     } catch (err) {
       logger.warn("settings.load_failed", { error: err });

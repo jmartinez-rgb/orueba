@@ -43,6 +43,7 @@ export default async function HistoricalPage() {
           <CardContent>
             <IncidentsTable
               incidents={res.snap.state.incidents.filter((i) => i.resolvedAt !== null)}
+              alerts={res.snap.state.alerts.filter((a) => a.incidentId !== null)}
               notifications={res.snap.state.notifications}
               timezone={tz}
               asOf={res.snap.meta.asOf}

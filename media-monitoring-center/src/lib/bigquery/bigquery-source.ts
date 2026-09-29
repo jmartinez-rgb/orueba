@@ -30,6 +30,7 @@ import { addDays, businessDate, zonedParts } from "@/lib/time/tz";
 import { fullTableName, runQuery } from "./client";
 import type { BigQueryMapping, MetricSourceMapping } from "./mapping";
 import * as Q from "./queries";
+import { parseCampaignStatus } from "@/lib/platforms/campaign-status";
 
 /**
  * Fuente de datos real sobre BigQuery. Implementa el mismo contrato que el mock.
@@ -107,9 +108,7 @@ export class BigQueryDataSource implements MonitoringDataSource {
         if (!platform || !isPlatformId(platform)) continue;
         const accountId = str(r.account_id) ?? `${platform}-sin-cuenta`;
         if (!accounts.has(accountId)) accounts.set(accountId, { id: accountId, platform, name: str(r.account_name) ?? accountId, currency: currencyOf(r.currency) });
-        const rawStatus = (str(r.campaign_status) ?? "").toUpperCase();
-        const recent = num(r.recent_spend) ?? 0;
-        const status: Campaign["status"] = /PAUS/.test(rawStatus) ? "PAUSED" : /END|REMOV|ELIMIN|ARCHIV/.test(rawStatus) ? "ENDED" : recent > 0 || /ACTIV|ENABL/.test(rawStatus) ? "ACTIVE" : "PAUSED";
+        const st = parseCampaignStatus(str(r.campaign_status), num(r.recent_spend) ?? 0);
         const name = str(r.campaign_name);
         campaigns.push({
           id: str(r.campaign_id)!,
@@ -117,7 +116,11 @@ export class BigQueryDataSource implements MonitoringDataSource {
           accountId,
           name: name ?? str(r.campaign_id)!,
           objective: inferObjective(name, str(r.objective)),
-          status,
+          status: st.status,
+          statusText: st.text,
+          statusSource: st.source,
+          statusIssue: st.issue,
+          statusSilent: st.silent,
           conversionEvent: null,
           sourceType: str(r.campaign_type) ?? str(r.objective),
         });

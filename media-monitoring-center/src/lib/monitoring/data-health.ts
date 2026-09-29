@@ -151,7 +151,7 @@ export function buildPlatformDataHealth(params: {
     detail:
       delayedAccounts.length === 0
         ? "Todas las cuentas al día"
-        : delayedAccounts.map((a) => `${a.accountName}: ${a.state === "ERROR" ? "ERROR" : "DATA DELAYED"}`).join(" · "),
+        : delayedAccounts.map((a) => `${a.accountName}: ${a.state === "ERROR" ? "error de sincronización" : "datos atrasados"}`).join(" · "),
   });
 
   const score = Math.max(0, 100 - checks.reduce((a, c) => a + (c.status === "FAIL" ? 40 : c.status === "WARN" ? 12 : 0), 0));

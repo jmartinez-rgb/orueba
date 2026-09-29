@@ -1,4 +1,5 @@
-import type { Account, BaseMetric, Campaign, CampaignStatus, Currency, HourlyRow, MetricValues, PlatformId } from "@/lib/types";
+import type { Account, BaseMetric, Campaign, Currency, HourlyRow, MetricValues, PlatformId } from "@/lib/types";
+import { parseCampaignStatus } from "@/lib/platforms/campaign-status";
 import { BASE_METRICS } from "@/lib/types";
 import { addMetrics, emptyMetrics } from "@/lib/metrics";
 import { inferObjective } from "@/lib/classifiers/objective";
@@ -275,18 +276,10 @@ export function mergeRecords(records: SheetRecord[]): SheetRecord[] {
   return [...map.values()];
 }
 
-function statusOf(raw: string | null, recentSpend: number): CampaignStatus {
-  const s = (raw ?? "").toUpperCase();
-  if (/PAUS/.test(s)) return "PAUSED";
-  if (/END|REMOV|ELIMIN|ARCHIV|DELET/.test(s)) return "ENDED";
-  if (/ACTIV|ENABL/.test(s)) return "ACTIVE";
-  return recentSpend > 0 ? "ACTIVE" : "PAUSED";
-}
-
 /**
- * Cuentas y campañas vistas en la hoja. Sin columna de estado, una campaña está activa si
- * gastó hoy o ayer (una campaña que gastó ayer y hoy no, sigue contando como activa: así se
- * detecta que dejó de gastar).
+ * Cuentas y campañas vistas en la hoja. El estado sale de la columna de estado de la plataforma
+ * (el más reciente); sin ella, una campaña está activa si gastó hoy o ayer (una campaña que
+ * gastó ayer y hoy no, sigue contando como activa: así se detecta que dejó de gastar).
  */
 export function buildCatalog(records: SheetRecord[], today: string, yesterday: string): { accounts: Account[]; campaigns: Campaign[] } {
   const accounts = new Map<string, Account & { lastDate: string }>();
@@ -325,7 +318,10 @@ export function buildCatalog(records: SheetRecord[], today: string, yesterday: s
   }
   return {
     accounts: [...accounts.values()].map((a) => ({ id: a.id, platform: a.platform, name: a.name, currency: a.currency })),
-    campaigns: [...campaigns.values()].map(({ c, recent, rawStatus }) => ({ ...c, status: statusOf(rawStatus, recent) })),
+    campaigns: [...campaigns.values()].map(({ c, recent, rawStatus }) => {
+      const st = parseCampaignStatus(rawStatus, recent);
+      return { ...c, status: st.status, statusText: st.text, statusSource: st.source, statusIssue: st.issue, statusSilent: st.silent };
+    }),
   };
 }
 

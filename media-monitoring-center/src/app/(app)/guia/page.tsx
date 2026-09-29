@@ -42,7 +42,7 @@ const GLOSSARY: Array<[string, string]> = [
   ["Esperado", "Promedio (o mediana) de las semanas de referencia en la misma franja."],
   ["Desviación", "(Hoy − esperado) ÷ esperado."],
   ["NULL", "No hay dato (no se reporta, no aplica o la fuente está atrasada). Nunca se interpreta como cero."],
-  ["DATA DELAYED", "La fuente no ha enviado datos recientes: no se evalúa rendimiento para no confundir un atraso con una caída."],
+  ["Datos atrasados", "La fuente no ha enviado datos recientes: no se evalúa rendimiento para no confundir un atraso con una caída."],
   ["Parcial", "Una o más cuentas de la plataforma están atrasadas y se excluyen de la comparación."],
   ["Confianza de datos", "0–100 %: baja con atrasos, errores, cuentas excluidas, horas faltantes, duplicados, pasos de carga pendientes, tipo de cambio faltante o histórico incompleto."],
   ["Alerta", "Una anomalía detectada en una evaluación."],
@@ -154,7 +154,7 @@ export default async function GuidePage() {
                 <li>Volumen: entidades con poco gasto o pocos resultados no generan alertas (evita ruido estadístico).</li>
                 <li>Variabilidad histórica: si la desviación está dentro de lo normal para esa entidad, baja un nivel.</li>
                 <li>Hora del día: temprano, o cuando todavía no ocurre ni el 20% del volumen del día, baja un nivel.</li>
-                <li>Frescura: con datos atrasados no se evalúa rendimiento (DATA DELAYED, en gris).</li>
+                <li>Frescura: con datos atrasados no se evalúa rendimiento (datos atrasados, en gris).</li>
                 <li>Peso: una campaña pequeña no pinta de rojo toda la plataforma; varias campañas cayendo a la vez sí (incidente de plataforma).</li>
                 <li>Objetivo: cada campaña se evalúa con el KPI de su objetivo; cada plataforma con su métrica monitoreada (se elige en el Overview o en Métricas).</li>
               </ul>

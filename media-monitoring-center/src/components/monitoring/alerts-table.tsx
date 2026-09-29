@@ -24,11 +24,11 @@ import { DeltaText, PlatformMark, SeverityBadge } from "./status";
 import { StateMessage } from "./states";
 
 export const ALERT_STATUS_LABEL: Record<AlertStatus, string> = {
-  NEW: "NEW",
-  ACKNOWLEDGED: "ACKNOWLEDGED",
-  INVESTIGATING: "INVESTIGATING",
-  RESOLVED: "RESOLVED",
-  FALSE_POSITIVE: "FALSE POSITIVE",
+  NEW: "Nueva",
+  ACKNOWLEDGED: "Reconocida",
+  INVESTIGATING: "En revisión",
+  RESOLVED: "Resuelta",
+  FALSE_POSITIVE: "Falso positivo",
 };
 
 const STATUS_TONE: Record<AlertStatus, string> = {
@@ -230,7 +230,7 @@ export function AlertsTable({
                   <span className="block">{r.typeLabel}</span>
                   {!compact && <span className="block text-[10px] text-muted-foreground">{r.metricLabel}</span>}
                 </TableCell>
-                {!compact && <TableCell className="text-right text-xs font-medium">{r.type === "DATA_ISSUE" ? "DATA DELAYED" : fmtMetric(r.metric, r.currentValue, { compact: true })}</TableCell>}
+                {!compact && <TableCell className="text-right text-xs font-medium">{r.type === "DATA_ISSUE" ? "Datos atrasados" : fmtMetric(r.metric, r.currentValue, { compact: true })}</TableCell>}
                 {!compact && <TableCell className="text-right text-xs text-muted-foreground">{r.type === "DATA_ISSUE" ? "—" : fmtMetric(r.metric, r.expectedValue, { compact: true })}</TableCell>}
                 <TableCell className="text-right text-xs">
                   <DeltaText value={r.deviation} attention={attention} />

@@ -157,7 +157,7 @@ export default async function LivePage() {
         <CardHeader>
           <div>
             <CardTitle>Estado de datos</CardTitle>
-            <CardDescription>Data Health: se valida la calidad del dato antes de evaluar rendimiento (0 ≠ NULL ≠ DATA DELAYED ≠ ERROR).</CardDescription>
+            <CardDescription>Data Health: se valida la calidad del dato antes de evaluar rendimiento (cero no es lo mismo que vacío, atraso o error).</CardDescription>
           </div>
         </CardHeader>
         <CardContent>

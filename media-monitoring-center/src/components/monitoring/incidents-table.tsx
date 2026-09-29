@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BellRing, Search, Ticket } from "lucide-react";
 import { sileo } from "sileo";
-import type { Incident, NotificationRecord } from "@/lib/alerts/types";
+import type { Alert, Incident, NotificationRecord } from "@/lib/alerts/types";
 import { PLATFORMS } from "@/lib/platforms/registry";
 import { ANOMALY_LABEL } from "@/lib/anomaly-engine/anomaly-engine";
-import { fmtDelta } from "@/lib/format";
+import { fmtDelta, fmtMetric } from "@/lib/format";
+import { METRICS } from "@/lib/metrics";
 import { durationLabel, formatDateTimeInTz, formatTimeInTz } from "@/lib/time/tz";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,9 +17,10 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { DeltaText, PlatformMark, SeverityBadge, SEVERITY_META } from "./status";
+import { AlertStatusBadge } from "./alerts-table";
 import { StateMessage } from "./states";
 
-const STATUS_LABEL: Record<Incident["status"], string> = { OPEN: "OPEN", ACKNOWLEDGED: "ACKNOWLEDGED", INVESTIGATING: "INVESTIGATING", RESOLVED: "RESOLVED" };
+const STATUS_LABEL: Record<Incident["status"], string> = { OPEN: "Abierto", ACKNOWLEDGED: "Reconocido", INVESTIGATING: "En revisión", RESOLVED: "Resuelto" };
 const KIND_LABEL: Record<string, string> = {
   OPENED: "Apertura",
   UPDATED: "Actualización",
@@ -32,12 +34,84 @@ const KIND_LABEL: Record<string, string> = {
   NOTE: "Nota",
 };
 
+const NOTIFICATION_KIND: Record<NotificationRecord["kind"], string> = {
+  OPENED: "Apertura",
+  ESCALATED: "Escalamiento",
+  WORSENED: "Empeora",
+  DURATION_EXCEEDED: "Duración excedida",
+  RECOVERED: "Recuperación",
+};
+const NOTIFICATION_STATUS: Record<NotificationRecord["status"], string> = {
+  SENT: "Enviado",
+  SIMULATED: "Simulado (demo)",
+  FAILED: "Falló",
+  SKIPPED: "No enviado",
+  PENDING: "Pendiente",
+};
+const SEVERITY_RANK = ["NORMAL", "ATTENTION", "ALERT", "CRITICAL"];
+
+/** Alertas que forman el incidente: la principal primero y luego las agrupadas bajo ella, de la más grave a la menos. */
+function incidentAlerts(inc: Incident, alerts: Alert[]): Alert[] {
+  const own = alerts.filter((a) => a.id === inc.alertId || a.incidentId === inc.id || inc.childAlertIds.includes(a.id));
+  return own.sort(
+    (a, b) =>
+      Number(b.id === inc.alertId) - Number(a.id === inc.alertId) ||
+      SEVERITY_RANK.indexOf(b.maxSeverity) - SEVERITY_RANK.indexOf(a.maxSeverity) ||
+      Math.abs(b.maxDeviation ?? 0) - Math.abs(a.maxDeviation ?? 0),
+  );
+}
+
+function IncidentAlertItem({ alert: a, main, timezone, attention }: { alert: Alert; main: boolean; timezone: string; attention: number }) {
+  const scope = a.campaignName ?? (a.accountName ? `Cuenta: ${a.accountName}` : `Toda ${PLATFORMS[a.platform].shortName}`);
+  const metricLabel = METRICS[a.metric]?.label ?? a.metric;
+  return (
+    <li>
+      <details className="group rounded-xl bg-foreground/[0.03] px-3 py-2.5 text-xs open:bg-foreground/[0.05]">
+        <summary className="flex cursor-pointer list-none flex-col gap-1 [&::-webkit-details-marker]:hidden">
+          <span className="flex flex-wrap items-center gap-1.5">
+            <SeverityBadge severity={a.resolvedAt ? a.maxSeverity : a.severity} />
+            {main && <span className="rounded-full bg-foreground/[0.07] px-2 py-[3px] text-[11px] font-semibold">Principal</span>}
+            <AlertStatusBadge status={a.status} />
+            <span className="ml-auto tabular text-[11px] text-muted-foreground">{formatTimeInTz(a.detectedAt, timezone)}</span>
+          </span>
+          <span className="font-semibold text-foreground">{a.title}</span>
+          <span className="flex flex-wrap items-center gap-x-2 text-muted-foreground">
+            <span className="max-w-full truncate">{scope}</span>
+            <span aria-hidden>·</span>
+            <span>{ANOMALY_LABEL[a.type]}</span>
+            {a.currentValue !== null && (
+              <>
+                <span aria-hidden>·</span>
+                <span>
+                  {metricLabel} <span className="tabular font-medium text-foreground">{fmtMetric(a.metric, a.currentValue, { compact: true })}</span>
+                  {a.expectedValue !== null && <> vs {fmtMetric(a.metric, a.expectedValue, { compact: true })}</>}
+                </span>
+              </>
+            )}
+            {a.deviation !== null && <DeltaText value={a.deviation} attention={attention} />}
+          </span>
+        </summary>
+        <div className="mt-2 space-y-1.5 border-t border-(--hairline) pt-2 text-muted-foreground">
+          <p className="text-foreground">{a.diagnosis}</p>
+          {a.adjustments.map((t, i) => (
+            <p key={i}>· {t}</p>
+          ))}
+          <p className="text-[11px]">
+            {a.id} · {a.consecutiveRuns} {a.consecutiveRuns === 1 ? "evaluación" : "evaluaciones"} · desviación máxima {fmtDelta(a.maxDeviation)}
+            {a.resolvedAt ? ` · se normalizó ${formatTimeInTz(a.resolvedAt, timezone)}` : ""}
+          </p>
+        </div>
+      </details>
+    </li>
+  );
+}
+
 export function IncidentStatusBadge({ status }: { status: Incident["status"] }) {
   return (
     <span
       className={cn(
-        "inline-flex rounded-md border px-1.5 py-0.5 text-[10.5px] font-semibold",
-        status === "RESOLVED" ? "border-status-normal/40 bg-status-normal/10 text-status-normal-text" : status === "OPEN" ? "border-primary/30 bg-primary/15 text-primary" : "bg-muted",
+        "inline-flex rounded-full px-2 py-[3px] text-[11px] font-semibold whitespace-nowrap",
+        status === "RESOLVED" ? "bg-status-normal/12 text-status-normal-text" : status === "OPEN" ? "bg-primary/12 text-primary" : status === "INVESTIGATING" ? "bg-status-attention/12 text-status-attention-text" : "bg-muted text-foreground",
       )}
     >
       {STATUS_LABEL[status]}
@@ -47,6 +121,7 @@ export function IncidentStatusBadge({ status }: { status: Incident["status"] }) 
 
 export function IncidentsTable({
   incidents,
+  alerts = [],
   notifications,
   timezone,
   asOf,
@@ -57,6 +132,8 @@ export function IncidentsTable({
   initialTab = "open",
 }: {
   incidents: Incident[];
+  /** Alertas ligadas a incidentes: el panel muestra las que formaron cada uno. */
+  alerts?: Alert[];
   notifications: NotificationRecord[];
   timezone: string;
   asOf: string;
@@ -89,6 +166,7 @@ export function IncidentsTable({
 
   const selected = incidents.find((i) => i.id === selectedId) ?? null;
   const selNotifications = selected ? notifications.filter((n) => n.incidentId === selected.id) : [];
+  const selAlerts = selected ? incidentAlerts(selected, alerts) : [];
 
   async function patch(body: Record<string, unknown>) {
     if (!selected) return;
@@ -229,6 +307,21 @@ export function IncidentsTable({
                 </div>
 
                 <div>
+                  <p className="mb-2 text-[13px] font-semibold text-foreground">
+                    Alertas del incidente <span className="font-normal text-muted-foreground">({selAlerts.length})</span>
+                  </p>
+                  {selAlerts.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Las alertas de este incidente ya no están en el registro (se depuran un tiempo después de normalizarse).</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {selAlerts.map((a) => (
+                        <IncidentAlertItem key={a.id} alert={a} main={a.id === selected.alertId} timezone={timezone} attention={attention} />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div>
                   <p className="mb-2 text-[13px] font-semibold text-foreground">Línea de tiempo</p>
                   <ol className="relative space-y-3 border-l pl-4">
                     {selected.timeline.map((e, idx) => (
@@ -252,17 +345,18 @@ export function IncidentsTable({
 
                 {selNotifications.length > 0 && (
                   <div>
-                    <p className="mb-2 text-[13px] font-semibold text-foreground">Notificaciones enviadas vía n8n</p>
-                    <div className="space-y-2">
+                    <p className="mb-2 text-[13px] font-semibold text-foreground">Notificaciones por WhatsApp</p>
+                    <div className="space-y-1.5">
                       {selNotifications
                         .filter((n) => n.channel === "whatsapp")
                         .map((n) => (
-                          <details key={n.id} className="rounded-md border p-2 text-xs">
+                          <details key={n.id} className="rounded-xl bg-foreground/[0.03] px-3 py-2 text-xs">
                             <summary className="cursor-pointer">
-                              <span className="font-mono">{n.id}</span> · {n.kind} · {formatTimeInTz(n.createdAt, timezone)} · <span className="text-muted-foreground">{n.status}</span>
+                              <span className="font-mono">{n.id}</span> · {NOTIFICATION_KIND[n.kind] ?? n.kind} · {formatTimeInTz(n.createdAt, timezone)} · <span className="text-muted-foreground">{NOTIFICATION_STATUS[n.status] ?? n.status}</span>
                             </summary>
+                            {n.detail && <p className="mt-2 text-[11px] text-muted-foreground">{n.detail}</p>}
                             <pre className="mt-2 font-sans whitespace-pre-wrap">{n.text}</pre>
-                            <p className="mt-1 text-[11px] text-muted-foreground">Para: {n.recipients.join(", ")}</p>
+                            <p className="mt-1 text-[11px] text-muted-foreground">Para: {n.recipients.join(", ") || "sin destinatarios"}</p>
                           </details>
                         ))}
                     </div>
@@ -276,7 +370,7 @@ export function IncidentsTable({
                   ) : (
                     <ul className="space-y-1.5">
                       {selected.notes.map((n, idx) => (
-                        <li key={idx} className="rounded-md border px-2.5 py-1.5 text-xs">
+                        <li key={idx} className="rounded-xl bg-foreground/[0.03] px-3 py-2 text-xs">
                           <p>{n.text}</p>
                           <p className="text-[10px] text-muted-foreground">
                             {n.author} · {formatDateTimeInTz(n.at, timezone)}
@@ -286,7 +380,7 @@ export function IncidentsTable({
                     </ul>
                   )}
                 </div>
-                <div className="flex items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2.5">
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-foreground/[0.03] px-3 py-2.5">
                   <div className="text-xs">
                     <p className="font-semibold">¿El problema es grave?</p>
                     <p className="text-muted-foreground">Documenta a quién se reportó y el número de caso en un ticket.</p>
@@ -301,7 +395,7 @@ export function IncidentsTable({
               {canWrite ? (
                 <div className="space-y-2 border-t px-5 py-3">
                   <div className="flex gap-2">
-                    <Input value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="Owner (p. ej. Paid Media · Meta)" className="h-8 text-xs" aria-label="Owner" />
+                    <Input value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="Responsable (p. ej. Paid Media · Meta)" className="h-8 text-xs" aria-label="Responsable" />
                     <Button size="sm" variant="outline" disabled={saving} onClick={() => patch({ owner: owner || null })}>
                       Asignar
                     </Button>
@@ -314,7 +408,7 @@ export function IncidentsTable({
                     {selected.resolvedAt === null &&
                       (["ACKNOWLEDGED", "INVESTIGATING"] as const).map((s) => (
                         <Button key={s} size="sm" variant="outline" disabled={saving || selected.status === s} onClick={() => patch({ status: s })}>
-                          {s}
+                          {s === "ACKNOWLEDGED" ? "Marcar reconocido" : "Marcar en revisión"}
                         </Button>
                       ))}
                   </div>
@@ -332,8 +426,8 @@ export function IncidentsTable({
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border px-2 py-1.5">
-      <p className="text-[10px] text-muted-foreground">{label}</p>
+    <div className="rounded-xl bg-foreground/[0.03] px-3 py-2">
+      <p className="text-[11px] text-muted-foreground">{label}</p>
       <p className="tabular font-medium">{value}</p>
     </div>
   );

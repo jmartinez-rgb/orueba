@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import type { MetricId, PlatformId } from "@/lib/types";
+import { CHART_RESULT_METRICS } from "@/lib/types";
 import { isPlatformId, PLATFORMS } from "@/lib/platforms/registry";
 import { safeSnapshot } from "@/lib/services/safe";
 import { alertRows, campaignRows, chartProps, compareVM, platformCard, platformEval } from "@/lib/services/view-models";
@@ -49,7 +50,8 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
   const charts = chartProps(snap, p);
   const health = snap.run.dataHealth[p];
   const accounts = snap.run.entities.filter((e) => e.level === "account" && e.platform === p);
-  const tableMetrics: MetricId[] = ["spend", ev.kpi.result, "cpr", "impressions", "clicks", "ctr", "cpc", "cpm", ...PLATFORMS[p].secondaryResults.filter((m) => m !== ev.kpi.result)];
+  // Sin repetidos: la métrica monitoreada puede ser clics o impresiones.
+  const tableMetrics: MetricId[] = [...new Set<MetricId>(["spend", ev.kpi.result, "cpr", "impressions", "clicks", "ctr", "cpc", "cpm", ...PLATFORMS[p].secondaryResults])];
   const pacing = snap.run.pacing[p];
   const currencyOf = new Map(snap.catalog.accounts.map((a) => [a.id, a.currency]));
   const accountRows = [...accounts].sort((a, b) => (b.cumulative.spend?.expected ?? 0) - (a.cumulative.spend?.expected ?? 0));
@@ -232,8 +234,9 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <SpendPacingCard curves={charts.spendCurves} pacing={charts.pacing} scopes={charts.scopes} weeks={charts.weeks} initial={p} title="Hourly curve · gasto" />
-        <ResultsPacingCard curves={charts.resultCurves} scopes={charts.scopes} weeks={charts.weeks} initial={p} initialMetric={(["conversions", "sales", "whatsapp", "leads", "calls", "purchases"] as const).find((m) => m === ev.kpi.result) ?? "conversions"} available={charts.available} height={270} />
+        <SpendPacingCard curves={charts.spendCurves} pacing={charts.pacing} scopes={charts.scopes} weeks={charts.weeks} initial={p} title="Curva horaria de gasto" />
+        {/* key: si cambia la métrica monitoreada, la gráfica arranca en la nueva. */}
+        <ResultsPacingCard key={ev.kpi.result} curves={charts.resultCurves} scopes={charts.scopes} weeks={charts.weeks} initial={p} initialMetric={CHART_RESULT_METRICS.find((m) => m === ev.kpi.result) ?? "conversions"} available={charts.available} height={270} />
       </div>
 
       <Card>
@@ -325,7 +328,7 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
             <CardTitle>Incidents</CardTitle>
           </CardHeader>
           <CardContent>
-            <IncidentsTable incidents={snap.state.incidents.filter((i) => i.platform === p)} notifications={snap.state.notifications} timezone={tz} asOf={meta.asOf} canWrite={meta.permissions.includes("incidents:write")} compact attention={attention} />
+            <IncidentsTable incidents={snap.state.incidents.filter((i) => i.platform === p)} alerts={snap.state.alerts.filter((a) => a.incidentId !== null && a.platform === p)} notifications={snap.state.notifications} timezone={tz} asOf={meta.asOf} canWrite={meta.permissions.includes("incidents:write")} compact attention={attention} />
           </CardContent>
         </Card>
       </div>
@@ -368,7 +371,7 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
                     <DataStateBadge state={a.dataState} />
                   </TableCell>
                   <TableCell className="tabular text-xs">{formatTimeInTz(a.lastDataAt, tz)}</TableCell>
-                  <TableCell className="text-right text-xs">{isBadDataState(a.dataState) ? "DATA DELAYED" : fmtCurrency(a.cumulative.spend?.current ?? null)}</TableCell>
+                  <TableCell className="text-right text-xs">{isBadDataState(a.dataState) ? "Datos atrasados" : fmtCurrency(a.cumulative.spend?.current ?? null)}</TableCell>
                   <TableCell className="text-right text-xs">
                     <DeltaText value={isBadDataState(a.dataState) ? null : (a.cumulative.spend?.deltaVsExpected ?? null)} attention={attention} />
                   </TableCell>

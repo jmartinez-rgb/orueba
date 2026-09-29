@@ -161,11 +161,26 @@ Pasa el cursor sobre el indicador para ver el motivo de cada punto descontado.
 ## Métricas monitoreadas y fijas
 
 - **Métrica monitoreada** de cada plataforma (conversiones, leads, ventas, WhatsApp, llamadas,
-  compras…): es la que decide su semáforo. Se cambia en la tarjeta del Overview o en Métricas.
-- **Métricas fijas**: hasta 6 por plataforma, siempre visibles en su tarjeta.
+  compras, clics o impresiones): es la que decide su semáforo. Se cambia en la tarjeta del Overview
+  o en Métricas y aplica al momento para todo el equipo: tarjeta, detalle de la plataforma y la
+  gráfica "Ritmo de resultados".
+- **Métricas fijas**: hasta 3 por plataforma, siempre visibles en su tarjeta.
 - **Objetivos fijos** (opcionales): un valor diario de referencia por métrica. Las métricas que se
   suman (gasto, conversiones…) se comparan contra la proyección del día; las calculadas (CPA,
   CTR…) contra su valor acumulado. CPA = SUMA(costo) ÷ SUMA(conversiones), nunca un promedio.
+
+## Estado de campaña
+
+Cuando la hoja trae la columna de estado de la campaña, la app usa el estado que reporta cada
+plataforma (en Campañas se ve junto a su texto original; sin la columna dice "por gasto").
+
+- **Pausada o terminada a propósito**: no genera alertas propias, y si explica una caída del gasto
+  de su plataforma o cuenta, la alerta baja a Atención con la explicación ("la caída se explica por
+  la campaña X, pausada…"). Si solo explica una parte, la severidad sale del resto.
+- **Pausada por presupuesto, rechazada, en revisión o sin pago** no cuenta como pausa planeada: la
+  caída se sigue alertando y la alerta cita el estado de la plataforma.
+- **Activa en la plataforma pero sin gasto desde ayer**: queda como Alerta (no Crítico), con la
+  sugerencia de revisar conjuntos, anuncios, pago o aprobación.
 
 ## Clasificadores de estrategia
 

@@ -97,7 +97,7 @@ export default async function OverviewPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            <IncidentsTable incidents={snap.state.incidents} notifications={[]} timezone={tz} asOf={meta.asOf} canWrite={canWrite} compact attention={attention} />
+            <IncidentsTable incidents={snap.state.incidents} alerts={snap.state.alerts.filter((a) => a.incidentId !== null)} notifications={[]} timezone={tz} asOf={meta.asOf} canWrite={canWrite} compact attention={attention} />
           </CardContent>
         </Card>
       </div>

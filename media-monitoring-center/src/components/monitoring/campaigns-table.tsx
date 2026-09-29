@@ -18,6 +18,30 @@ import { StateMessage } from "./states";
 
 export type CampaignSort = "drop" | "increase" | "spend" | "deviation" | "cpa" | "impact";
 
+const STATUS_LABEL: Record<CampaignRowVM["status"], string> = { ACTIVE: "Activa", PAUSED: "Pausada", ENDED: "Finalizada" };
+
+/** Estado de la campaña: el que reporta la plataforma (con su texto original) o, sin columna de estado, el deducido por gasto. */
+function CampaignStatusCell({ row: r }: { row: CampaignRowVM }) {
+  const warn = r.statusIssue || r.statusSilent;
+  const hint =
+    r.statusText === null
+      ? "La hoja no trae el estado de esta campaña: se deduce por gasto (activa si gastó hoy o ayer)."
+      : `${PLATFORMS[r.platform].shortName} reporta: ${r.statusText}${r.statusSilent ? ". Sin gasto desde ayer." : ""}`;
+  return (
+    <span className="flex flex-col gap-0.5" title={hint}>
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+        <span className={cn("size-1.5 shrink-0 rounded-full", warn ? "bg-status-attention" : r.status === "ACTIVE" ? "bg-status-normal" : "bg-muted-foreground/50")} aria-hidden />
+        {STATUS_LABEL[r.status]}
+      </span>
+      {r.statusText === null ? (
+        <span className="text-[10px] text-muted-foreground">por gasto</span>
+      ) : warn ? (
+        <span className="max-w-32 truncate text-[10px] text-status-attention-text">{r.statusSilent && !r.statusIssue ? "sin gasto desde ayer" : r.statusText}</span>
+      ) : null}
+    </span>
+  );
+}
+
 const SORTS: Record<CampaignSort, string> = {
   impact: "Mayor impacto",
   drop: "Mayor caída",
@@ -219,7 +243,7 @@ export function CampaignsTable({
                     </TableCell>
                   )}
                   <TableCell className="text-xs">{OBJECTIVE_LABEL[r.objective]}</TableCell>
-                  <TableCell className="text-xs">{bad ? <DataStateBadge state={r.dataState} /> : r.status === "ACTIVE" ? "Activa" : r.status === "PAUSED" ? "Pausada" : "Finalizada"}</TableCell>
+                  <TableCell className="text-xs">{bad ? <DataStateBadge state={r.dataState} /> : <CampaignStatusCell row={r} />}</TableCell>
                   <TableCell className="text-right text-xs font-medium">{bad ? "—" : fmtCurrency(r.spend)}</TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground">{fmtCurrency(r.expected)}</TableCell>
                   <TableCell className="text-right text-xs">

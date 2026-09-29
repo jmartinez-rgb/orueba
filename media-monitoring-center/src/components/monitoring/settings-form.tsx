@@ -222,8 +222,8 @@ export function SettingsForm({
         </Select>
       </Section>
 
-      <Section title="Frescura de datos" description="Una fuente atrasada muestra DATA DELAYED y no se evalúa su rendimiento.">
-        <Num label="DATA DELAYED después de" value={s.freshness.delayedAfterMinutes} onChange={set(["freshness", "delayedAfterMinutes"])} suffix="min" disabled={d} />
+      <Section title="Frescura de datos" description="Una fuente atrasada se marca como datos atrasados y no se evalúa su rendimiento.">
+        <Num label="Datos atrasados después de" value={s.freshness.delayedAfterMinutes} onChange={set(["freshness", "delayedAfterMinutes"])} suffix="min" disabled={d} />
         <Num label="Atraso crítico después de" value={s.freshness.criticalAfterMinutes} onChange={set(["freshness", "criticalAfterMinutes"])} suffix="min" disabled={d} />
         <Num label="Tolerancia de hora completa" value={s.freshness.cutoffToleranceMinutes} onChange={set(["freshness", "cutoffToleranceMinutes"])} suffix="min" disabled={d} hint="Un dato a las 11:54 cuenta como corte 12:00." />
       </Section>

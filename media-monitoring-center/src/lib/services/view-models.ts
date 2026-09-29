@@ -1,5 +1,5 @@
-import type { BaseMetric, CampaignObjective, CampaignStatus, DataState, MetricId, PlatformId, Severity } from "@/lib/types";
-import { PLATFORM_IDS } from "@/lib/types";
+import type { BaseMetric, CampaignObjective, CampaignStatus, ChartResultMetric, DataState, MetricId, PlatformId, Severity } from "@/lib/types";
+import { CHART_RESULT_METRICS, PLATFORM_IDS } from "@/lib/types";
 import { METRICS } from "@/lib/metrics";
 import { kpiChoices, PLATFORMS } from "@/lib/platforms/registry";
 import type { ConfidenceResult } from "@/lib/monitoring/confidence";
@@ -170,6 +170,10 @@ export interface CampaignRowVM {
   accountName: string;
   objective: CampaignObjective;
   status: CampaignStatus;
+  /** Estado tal como lo reporta la plataforma, o null si se dedujo por gasto. */
+  statusText: string | null;
+  statusIssue: boolean;
+  statusSilent: boolean;
   dataState: DataState;
   spend: number | null;
   expected: number | null;
@@ -212,6 +216,9 @@ export function campaignRows(snap: Snapshot): CampaignRowVM[] {
         accountName: e.accountName ?? "",
         objective: e.objective,
         status: e.status ?? "ACTIVE",
+        statusText: e.statusSource === "platform" ? (e.statusText ?? null) : null,
+        statusIssue: Boolean(e.statusIssue),
+        statusSilent: Boolean(e.statusSilent),
         dataState: e.dataState,
         spend: s?.current ?? null,
         expected: s?.expected ?? null,
@@ -296,19 +303,18 @@ export function chartProps(snap: Snapshot, only?: PlatformId) {
       id: p,
       label: PLATFORMS[p].name,
       cutoffHour: platformEval(snap, p).cutoffHour,
-      unavailable: bad ? `${PLATFORMS[p].name}: ${st === "DELAYED" ? "DATA DELAYED" : st === "ERROR" ? "ERROR de sincronización" : "sin datos"}. La curva de hoy no se compara hasta recibir datos.` : null,
+      unavailable: bad ? `${PLATFORMS[p].name}: ${st === "DELAYED" ? "datos atrasados" : st === "ERROR" ? "error de sincronización" : "sin datos"}. La curva de hoy no se compara hasta recibir datos.` : null,
     });
   }
   const ids = scopes.map((s) => s.id);
   const spendCurves = Object.fromEntries(ids.map((id) => [id, snap.run.curves[id].spend])) as Record<Scope, (typeof snap.run.curves)["total"]["spend"]>;
   const resultCurves = Object.fromEntries(ids.map((id) => [id, snap.run.curves[id].results])) as Record<Scope, (typeof snap.run.curves)["total"]["results"]>;
   const pacing = Object.fromEntries(ids.map((id) => [id, snap.run.pacing[id]])) as Record<Scope, (typeof snap.run.pacing)["total"]>;
-  const results = ["conversions", "sales", "whatsapp", "leads", "calls", "purchases"] as const;
   const available = Object.fromEntries(
     ids.map((id) => [
       id,
-      id === "total" ? [...results] : results.filter((m) => PLATFORMS[id as PlatformId].supportedMetrics.includes(m)),
+      id === "total" ? [...CHART_RESULT_METRICS] : CHART_RESULT_METRICS.filter((m) => PLATFORMS[id as PlatformId].supportedMetrics.includes(m)),
     ]),
-  ) as Partial<Record<Scope, Array<(typeof results)[number]>>>;
+  ) as Partial<Record<Scope, ChartResultMetric[]>>;
   return { scopes, spendCurves, resultCurves, pacing, available, weeks: snap.meta.historyWeeks };
 }

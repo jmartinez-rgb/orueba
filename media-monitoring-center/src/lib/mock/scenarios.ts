@@ -144,7 +144,7 @@ export const SCENARIOS: Record<string, MockScenario> = {
     id: "meta-delayed",
     name: "Meta sin datos recientes",
     description:
-      "Meta no envía datos desde hace más de 3 horas: se muestra DATA DELAYED (no $0) y no se evalúa rendimiento. La cuenta de X falla al sincronizar (ERROR).",
+      "Meta no envía datos desde hace más de 3 horas: se muestra como datos atrasados (no $0) y no se evalúa rendimiento. La cuenta de X falla al sincronizar (ERROR).",
     expected: { google: "NORMAL", meta: "DATA", tiktok: "NORMAL", microsoft: "NORMAL", spotify: "NORMAL", x: "DATA" },
     effects: [yesterdayTikTok],
     outages: [

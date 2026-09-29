@@ -264,6 +264,17 @@ function toDate(v) {
   return null;
 }
 
+/** Cómo lee la app el estado de campaña (mismas reglas que src/lib/platforms/campaign-status.ts). */
+function campaignStatusLabel(raw) {
+  const s = String(raw ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  const words = new Set(s.split(/[^A-Z]+/).filter(Boolean));
+  const issue = /ISSUE|DISAPPROV|REJECT|RECHAZ|ERROR|BILLING|PAYMENT|PAGO|PENDING|REVIEW|REVISION|IN_PROCESS|BUDGET|PRESUPUEST|NOT[ _]?DELIVER|NOT[ _]?ELIGIBLE|MISCONFIG|SIN ENTREGA|NO SE ENTREGA|SUSPEND|FAIL/.test(s) || words.has("LIMITED");
+  if (/REMOV|ELIMIN|ARCHIV|DELET|BORRAD|COMPLET|FINALIZ|TERMIN|EXPIR|CADUC/.test(s) || words.has("END") || words.has("ENDED") || words.has("FINISHED")) return "terminada";
+  if (/PAUS|DISABL|INACTIV|SUSPEND|DETENID|INHABIL|DESACTIV|APAGAD/.test(s) || words.has("OFF") || words.has("STOPPED")) return issue ? "pausada (con problema)" : "pausada";
+  if (/ACTIV|ENABL|HABILIT|ELIGIBLE|SERVING|DELIVER|RUNNING|LEARNING|APRENDIZAJE|EN CURSO/.test(s) || words.has("ON") || issue) return issue ? "activa (con problema)" : "activa";
+  return null;
+}
+
 /** Columnas sin las que la app no puede leer la pestaña (mismas reglas que la app). */
 function missingColumns(source, headers) {
   const c = source.columns ?? {};
@@ -325,6 +336,29 @@ async function report(token, id, meta, email) {
     : { valueRanges: [] };
   const datesOf = new Map(dateRanges.map((r, i) => [r.sheet, (dateData.valueRanges?.[i]?.values?.[0] ?? []).map(toDate).filter(Boolean)]));
 
+  // Estado de campaña (opcional): qué valores trae y cómo los va a leer la app.
+  const statusRanges = [];
+  for (const s of sources) {
+    const t = titleOf(s.sheet);
+    const h = t ? headersOf.get(t) : null;
+    if (!t || !h?.length || !s.columns?.campaignStatus) continue;
+    const si = findCol(h, s.columns.campaignStatus);
+    if (si >= 0) statusRanges.push({ sheet: s.sheet, header: h[si], range: a1(t, `${letter(si)}2:${letter(si)}`) });
+  }
+  const statusData = statusRanges.length
+    ? await api(token, `${encodeURIComponent(id)}/values:batchGet?majorDimension=COLUMNS&${statusRanges.map((r) => `ranges=${encodeURIComponent(r.range)}`).join("&")}`)
+    : { valueRanges: [] };
+  const statusOf = new Map(
+    statusRanges.map((r, i) => {
+      const counts = new Map();
+      for (const v of statusData.valueRanges?.[i]?.values?.[0] ?? []) {
+        const k = String(v ?? "").trim();
+        if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
+      }
+      return [r.sheet, { header: r.header, counts }];
+    }),
+  );
+
   // Estado de Dataslayer (pestaña de control).
   const control = new Map();
   const sheetTz = meta.properties?.timeZone || tz;
@@ -383,6 +417,16 @@ async function report(token, id, meta, email) {
       console.log(`  FALTA  ${label} columnas no encontradas: ${miss.join(", ")}`);
       warn(`En "${s.sheet}" faltan columnas: ${miss.join(", ")}. Agrégalas en la consulta de Dataslayer (o avísame el nombre que usa para añadirlo al mapeo).`);
     } else console.log(`  OK     ${label} ${dateInfo}${state}`);
+    if (!miss.length && s.columns?.campaignStatus && (s.level ?? "campaign") === "campaign") {
+      const st = statusOf.get(s.sheet);
+      if (!st) console.log(`         estado de campaña: sin columna (la app lo deduce por gasto: activa si gastó hoy o ayer)`);
+      else {
+        const vals = [...st.counts.entries()].sort((a, b) => b[1] - a[1]);
+        const unknown = vals.filter(([v]) => campaignStatusLabel(v) === null).map(([v]) => v);
+        console.log(`         estado de campaña: columna "${st.header}" · ${vals.slice(0, 8).map(([v, n]) => `${v} = ${campaignStatusLabel(v) ?? "¿?"} (${n})`).join(", ") || "vacía"}`);
+        if (unknown.length) warn(`En "${s.sheet}" hay estados que la app no reconoce: ${unknown.slice(0, 5).join(", ")}. Para esas campañas deduce el estado por gasto; avísame el texto para añadirlo.`);
+      }
+    }
     if (!miss.length && !last) warn(`En "${s.sheet}" no se pudieron leer fechas en la columna de fecha.`);
     if (!miss.length && last && s.intraday !== false && !hasToday && s.shape !== "hourly") warn(`"${s.sheet}" no trae datos de hoy (última fecha ${last}). Revisa que el rango de la consulta incluya hoy y que se haya actualizado.`);
     if (!miss.length && s.shape === "hourly" && fullDays < 2)

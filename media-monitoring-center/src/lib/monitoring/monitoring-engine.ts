@@ -1,5 +1,5 @@
 import type { BudgetRow, Campaign, DataState, FreshnessRecord, HourlyRow, MetricValues, PlatformId, Severity } from "@/lib/types";
-import { PLATFORM_IDS, RESULT_METRICS } from "@/lib/types";
+import { CHART_RESULT_METRICS, PLATFORM_IDS } from "@/lib/types";
 import type { MonitoringSettings } from "@/lib/config/settings";
 import type { MonitoringDataSource } from "@/lib/data/source";
 import { addMetrics, emptyMetrics, OBJECTIVE_KPI, type Kpi } from "@/lib/metrics";
@@ -288,6 +288,10 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
       objective,
       kpi,
       status: c.status,
+      statusSource: c.statusSource,
+      statusText: c.statusText,
+      statusIssue: c.statusIssue,
+      statusSilent: c.statusSilent,
       dataState: af.state,
       dataStateReason: af.reason,
       dataSeverity: af.severity,
@@ -355,7 +359,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     };
     return {
       spend: make("spend", true),
-      results: Object.fromEntries(RESULT_METRICS.map((m) => [m, make(m, false)])) as ScopeCurves["results"],
+      results: Object.fromEntries(CHART_RESULT_METRICS.map((m) => [m, make(m, false)])) as ScopeCurves["results"],
     };
   };
 

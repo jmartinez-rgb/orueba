@@ -53,6 +53,10 @@ export type ResultMetric = "conversions" | "leads" | "sales" | "whatsapp" | "cal
 
 export const RESULT_METRICS: ResultMetric[] = ["conversions", "sales", "whatsapp", "leads", "calls", "purchases"];
 
+/** Métricas con curva acumulada por hora: los resultados más clics e impresiones (también se pueden monitorear). */
+export type ChartResultMetric = ResultMetric | "clicks" | "impressions";
+export const CHART_RESULT_METRICS: ChartResultMetric[] = [...RESULT_METRICS, "clicks", "impressions"];
+
 export type MetricValues = Record<BaseMetric, number | null>;
 
 export type CampaignObjective =
@@ -107,6 +111,14 @@ export interface Campaign {
    * PERFORMANCE_MAX…). Lo usan los clasificadores de estrategia como campo secundario.
    */
   sourceType?: string | null;
+  /** Texto del estado tal como lo reporta la plataforma (si la hoja trae la columna). */
+  statusText?: string | null;
+  /** "platform" = estado leído de la plataforma; "spend" = deducido porque gastó hoy o ayer. */
+  statusSource?: "platform" | "spend";
+  /** Estado con problema de entrega (en revisión, rechazada, sin pago, pausada por presupuesto). */
+  statusIssue?: boolean;
+  /** La plataforma la reporta activa, pero no gastó ni ayer ni hoy. */
+  statusSilent?: boolean;
 }
 
 export interface Catalog {

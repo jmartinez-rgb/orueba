@@ -20,6 +20,7 @@ export default async function AlertsPage() {
   const primary = active.filter((r) => !r.groupedUnder);
   const grouped = active.length - primary.length;
   const bySev = (["CRITICAL", "ALERT", "ATTENTION"] as Severity[]).map((s) => ({ s, n: primary.filter((r) => r.severity === s).length }));
+  const STATUS_LABEL = { NEW: "Nuevas", ACKNOWLEDGED: "Reconocidas", INVESTIGATING: "En revisión" } as const;
   const byStatus = (["NEW", "ACKNOWLEDGED", "INVESTIGATING"] as const).map((s) => ({ s, n: primary.filter((r) => r.status === s).length }));
   const resolved = rows.filter((r) => r.resolvedAt !== null).length;
   const whatsappPreview: Record<string, string> = {};
@@ -39,12 +40,12 @@ export default async function AlertsPage() {
         ))}
         {byStatus.map(({ s, n }) => (
           <div key={s} className="surface rounded-xl px-4 py-3">
-            <p className="text-[11px] text-muted-foreground">{s}</p>
+            <p className="text-xs text-muted-foreground">{STATUS_LABEL[s]}</p>
             <p className="tabular text-[22px] leading-tight font-semibold tracking-[-0.02em]">{n}</p>
           </div>
         ))}
         <div className="surface rounded-xl px-4 py-3">
-          <p className="text-[11px] text-muted-foreground">Agrupadas / resueltas 36 h</p>
+          <p className="text-xs text-muted-foreground">Agrupadas / resueltas 36 h</p>
           <p className="tabular text-[22px] leading-tight font-semibold tracking-[-0.02em]">
             {grouped} <span className="text-sm font-medium text-muted-foreground">/ {resolved}</span>
           </p>

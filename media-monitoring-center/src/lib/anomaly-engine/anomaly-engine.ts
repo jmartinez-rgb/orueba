@@ -3,6 +3,7 @@ import { PLATFORM_IDS } from "@/lib/types";
 import type { MonitoringSettings } from "@/lib/config/settings";
 import { METRICS } from "@/lib/metrics";
 import { PLATFORMS } from "@/lib/platforms/registry";
+import { isIntentionalStop } from "@/lib/platforms/campaign-status";
 import { hourLabel } from "@/lib/time/tz";
 import type { Anomaly, AnomalyEvidence, AnomalyFamily, AnomalyType, EntityEvaluation, MetricComparison } from "@/lib/monitoring/types";
 import { classifyDeviation, downgrade, maxSeverity, minSeverity, severityRank, upgrade } from "./severity";
@@ -28,15 +29,15 @@ const TYPE_FAMILY: Record<AnomalyType, AnomalyFamily> = {
 };
 
 export const ANOMALY_LABEL: Record<AnomalyType, string> = {
-  DATA_ISSUE: "Data issue",
-  DELIVERY_CRITICAL: "Delivery critical",
-  PLATFORM_INCIDENT: "Platform incident",
-  DELIVERY_ISSUE: "Delivery issue",
+  DATA_ISSUE: "Problema de datos",
+  DELIVERY_CRITICAL: "Paro de entrega",
+  PLATFORM_INCIDENT: "Incidente de plataforma",
+  DELIVERY_ISSUE: "Caída de entrega",
   UNDERSPEND: "Bajo delivery",
   OVERSPEND: "Sobreinversión",
-  TRACKING_ISSUE: "Tracking issue",
-  PERFORMANCE_ISSUE: "Performance issue",
-  EFFICIENCY_ISSUE: "Efficiency issue",
+  TRACKING_ISSUE: "Problema de medición",
+  PERFORMANCE_ISSUE: "Caída de resultados",
+  EFFICIENCY_ISSUE: "Eficiencia baja",
   COST_INCREASE: "Incremento de costo",
   PACING_DEVIATION: "Desviación de pacing",
 };
@@ -47,6 +48,8 @@ const SPEND_DROP_TYPES: AnomalyType[] = ["DELIVERY_ISSUE", "UNDERSPEND"];
 const RESULT_DROP_TYPES: AnomalyType[] = ["PERFORMANCE_ISSUE", "COST_INCREASE"];
 /** Se juzgan con el gasto esperado a la hora de corte, que depende de la curva horaria. */
 const CURVE_TYPES: AnomalyType[] = ["DELIVERY_ISSUE", "UNDERSPEND", "OVERSPEND", "PLATFORM_INCIDENT"];
+/** Caídas de gasto de plataforma o cuenta que una pausa intencional de campañas puede explicar. */
+const STOP_EXPLAINED_TYPES: AnomalyType[] = ["DELIVERY_CRITICAL", "DELIVERY_ISSUE", "UNDERSPEND"];
 /** Alertas de nivel de gasto que se revisan contra un cambio sostenido de los últimos días. */
 const SUSTAINED_TYPES: AnomalyType[] = ["DELIVERY_CRITICAL", "DELIVERY_ISSUE", "UNDERSPEND", "OVERSPEND"];
 
@@ -350,12 +353,22 @@ function adjust(a: Anomaly, e: EntityEvaluation, ctx: AnomalyContext): Anomaly {
   if (e.resultLagging && a.family === "delivery") {
     notes.push(`${e.kpi.resultLabel} de ${PLATFORMS[e.platform].shortName} llegan con retraso (conversiones offline): en el día solo se evalúa el gasto.`);
   }
+  // Estado que reporta la plataforma para la campaña (columna de estado de la hoja).
+  if (e.level === "campaign" && e.statusSource === "platform") {
+    const where = PLATFORMS[e.platform].shortName;
+    if (e.statusSilent && a.family === "delivery" && severityRank(s) > severityRank("ALERT")) {
+      s = "ALERT";
+      notes.push(`${where} la reporta activa ("${e.statusText}") pero no gasta desde ayer: revisar si se apagaron sus conjuntos o anuncios, el pago o la aprobación. Severidad limitada a ALERTA.`);
+    } else if (e.statusIssue) {
+      notes.push(`Estado en ${where}: "${e.statusText}".`);
+    }
+  }
   return { ...a, severity: s, adjustments: notes };
 }
 
 function dataIssue(e: EntityEvaluation): Anomaly {
   const state = e.dataState;
-  const label = state === "ERROR" ? "ERROR de sincronización" : state === "NO_DATA" ? "Sin datos" : "DATA DELAYED";
+  const label = state === "ERROR" ? "Error de sincronización" : state === "NO_DATA" ? "Sin datos" : "Datos atrasados";
   return makeAnomaly(
     e,
     "DATA_ISSUE",
@@ -394,6 +407,40 @@ export function detectAnomalies(evaluations: EntityEvaluation[], ctx: AnomalyCon
       const adjusted = adjust(a, e, ctx);
       if (adjusted.severity !== "NORMAL") out.push(adjusted);
     }
+  }
+
+  // Pausas intencionales: si la plataforma reporta campañas pausadas o terminadas (no por presupuesto,
+  // pago o rechazo), su gasto esperado no es una caída de la plataforma ni de la cuenta.
+  for (const a of out) {
+    if (a.level === "campaign" || a.metric !== "spend" || !STOP_EXPLAINED_TYPES.includes(a.type)) continue;
+    const e = byKey.get(a.key);
+    if (!e) continue;
+    const useRecent = a.type === "DELIVERY_CRITICAL" && e.recent?.spend !== undefined && a.expected === e.recent.spend.expected;
+    const pick = (x: EntityEvaluation) => (useRecent ? x.recent?.spend : x.cumulative.spend);
+    const stopped = evaluations.filter(
+      (c) => c.level === "campaign" && c.platform === a.platform && (a.level === "platform" || c.accountId === a.accountId) && isIntentionalStop(c) && (pick(c)?.expected ?? 0) > 0,
+    );
+    const cmp = pick(e);
+    if (!stopped.length || !cmp || cmp.expected === null || cmp.current === null) continue;
+    const stoppedExpected = stopped.reduce((acc, c) => acc + (pick(c)?.expected ?? 0), 0);
+    const stoppedCurrent = stopped.reduce((acc, c) => acc + (pick(c)?.current ?? 0), 0);
+    const restExpected = cmp.expected - stoppedExpected;
+    const restCurrent = Math.max(0, cmp.current - stoppedCurrent);
+    const who = `${stopped.length === 1 ? `la campaña ${stopped[0].campaignName ?? stopped[0].campaignId}, pausada o terminada` : `${stopped.length} campañas pausadas o terminadas`} en ${PLATFORMS[a.platform].shortName}`;
+    const money = (v: number) => `${Math.round(v).toLocaleString("es-MX")} MXN`;
+    if (restExpected <= Math.max(1, cmp.expected * 0.05)) {
+      a.severity = minSeverity(a.severity, "ATTENTION");
+      a.adjustments = [...a.adjustments, `La caída se explica por ${who} (se esperaban ${money(stoppedExpected)} de ahí). Confirmar que la pausa fue planeada.`];
+      continue;
+    }
+    const rel = restCurrent / restExpected - 1;
+    const sev = rel >= 0 ? "ATTENTION" : maxSeverity(classifyDeviation(Math.abs(rel), ctx.settings.thresholds), "ATTENTION");
+    if (severityRank(sev) >= severityRank(a.severity)) {
+      a.adjustments = [...a.adjustments, `Incluye ${who} (${money(stoppedExpected)} del esperado); sin ellas el gasto va ${pct(rel)}.`];
+      continue;
+    }
+    a.severity = sev;
+    a.adjustments = [...a.adjustments, `Parte de la caída es por ${who} (${money(stoppedExpected)} del esperado). Sin ellas, el gasto va ${pct(rel)} vs lo esperado: severidad ajustada.`];
   }
 
   // CASO 5: varias campañas de una plataforma caen al mismo tiempo → incidente de plataforma.

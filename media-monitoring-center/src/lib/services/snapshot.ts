@@ -223,7 +223,8 @@ export async function getSnapshot(): Promise<Snapshot> {
   }
 }
 
-const autoRuns = new Map<string, Promise<boolean>>();
+// Compartido entre páginas y API routes (ver data/cache.ts): una sola evaluación automática por minuto.
+const autoRuns = ((globalThis as unknown as { __immcAutoRuns?: Map<string, Promise<boolean>> }).__immcAutoRuns ??= new Map<string, Promise<boolean>>());
 
 /**
  * Google Sheets sin n8n: nadie llama a la evaluación programada, así que la app la guarda sola

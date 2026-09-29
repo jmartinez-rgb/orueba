@@ -1,9 +1,7 @@
 import { getSession, requirePermission, requireAuth, hasPermission } from "@/lib/auth/session";
-import { isPatchablePath, mergeSettings, setSettingAtPath, settingsSchema } from "@/lib/config/settings";
+import { applyEditedSettings, isPatchablePath, setSettingAtPath, settingsSchema } from "@/lib/config/settings";
 import { maskAddress } from "@/lib/format";
-import { invalidate } from "@/lib/data/cache";
-import { baseSettings, getAppContext, SETTINGS_RECORD_KEY } from "@/lib/services/context";
-import { getRecordStore } from "@/lib/records/store";
+import { getAppContext, loadStoredSettings, saveStoredSettings } from "@/lib/services/context";
 import { logActivity } from "@/lib/services/activity";
 import { badRequest, forbidden, json, readJson, serverError, unauthorized } from "@/lib/services/http";
 import { isValidTimeZone } from "@/lib/time/tz";
@@ -31,18 +29,12 @@ export async function PUT(req: Request) {
   if (!(s.thresholds.attention < s.thresholds.alert && s.thresholds.alert < s.thresholds.critical)) return badRequest("Los umbrales deben cumplir atención < alerta < crítico.");
   if (!isValidTimeZone(s.timezone)) return badRequest("Zona horaria inválida.");
   if (s.schedule.startHour > s.schedule.endHour) return badRequest("La hora de inicio debe ser menor o igual a la de fin.");
-  const merged = mergeSettings(baseSettings(), s);
   try {
     const ctx = await getAppContext();
-    if (ctx.mode === "bigquery" && ctx.store.saveSettingsPatch) {
-      await ctx.store.saveSettingsPatch(merged, session.user.name);
-    } else {
-      await getRecordStore().set(SETTINGS_RECORD_KEY, merged);
-    }
+    const merged = applyEditedSettings(await loadStoredSettings(ctx), ctx.settings, s);
+    if (!merged) return badRequest("Configuración inválida.");
+    await saveStoredSettings(ctx, merged, session.user.name);
     await logActivity(session, "SETTINGS_CHANGED", "Configuración del monitoreo actualizada.");
-    invalidate("live:");
-    invalidate("replay:");
-    invalidate("settings:");
     return json({ ok: true, settings: merged });
   } catch (err) {
     return serverError("api", err, "settings");
@@ -53,12 +45,8 @@ export async function DELETE() {
   const session = await requirePermission("settings:write");
   if (!session) return forbidden();
   const ctx = await getAppContext();
-  if (ctx.mode === "bigquery" && ctx.store.saveSettingsPatch) await ctx.store.saveSettingsPatch(null, session.user.name);
-  else await getRecordStore().delete(SETTINGS_RECORD_KEY);
+  await saveStoredSettings(ctx, null, session.user.name);
   await logActivity(session, "SETTINGS_CHANGED", "Configuración restablecida a valores por defecto.");
-  invalidate("live:");
-  invalidate("replay:");
-  invalidate("settings:");
   return json({ ok: true });
 }
 
@@ -82,13 +70,10 @@ export async function PATCH(req: Request) {
   if (!body || typeof body.path !== "string" || !isPatchablePath(body.path) || body.value === undefined) return badRequest("Cambio inválido.");
   try {
     const ctx = await getAppContext();
-    const next = setSettingAtPath(ctx.settings, body.path, body.value);
+    // Sobre lo guardado (leído en este momento), no sobre la configuración vigente de la marca.
+    const next = setSettingAtPath(await loadStoredSettings(ctx), body.path, body.value);
     if (!next) return badRequest("El valor no es válido para esta configuración.");
-    if (ctx.mode === "bigquery" && ctx.store.saveSettingsPatch) await ctx.store.saveSettingsPatch(next, session.user.name);
-    else await getRecordStore().set(SETTINGS_RECORD_KEY, next);
-    invalidate("live:");
-    invalidate("replay:");
-    invalidate("settings:");
+    await saveStoredSettings(ctx, next, session.user.name);
     const root = Object.keys(PATH_LABEL).find((k) => body.path === k || body.path!.startsWith(`${k}.`)) ?? body.path;
     await logActivity(session, "SETTINGS_CHANGED", `${PATH_LABEL[root] ?? root} (${body.path})`);
     return json({ ok: true, settings: next });

@@ -35,6 +35,7 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
         <CardContent className="pt-4">
           <IncidentsTable
             incidents={snap.state.incidents}
+            alerts={snap.state.alerts.filter((a) => a.incidentId !== null)}
             notifications={snap.state.notifications}
             timezone={snap.meta.timezone}
             asOf={snap.meta.asOf}

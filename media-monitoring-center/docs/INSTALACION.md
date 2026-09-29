@@ -128,6 +128,16 @@ Comprobación: en la app, Integrations deja de mostrar "Curva por hora · Parcia
 plataforma. Si Dataslayer nombra la columna de hora de otra forma, Integrations mostrará "faltan
 columnas" con el nombre esperado; ese nombre se agrega en `config/sheets.mapping.json`.
 
+**Estado de campaña (opcional, recomendado).** Agrega la dimensión de estado de la campaña a las
+consultas diarias (Google, Meta, TikTok, Bing y Spotify). La app reconoce los nombres habituales de
+Dataslayer (`Campaign status`, `Campaign effective status`, `Campaign delivery`, `Primary status`,
+`Operation status`, `Estado`) y los valores de cada plataforma, en inglés o español (ENABLED,
+PAUSED, REMOVED, ACTIVE, CAMPAIGN_STATUS_DISABLE, BudgetPaused, Not delivering, Activa, Pausada…).
+En Meta conviene `Campaign delivery` o `Campaign effective status`: reflejan si la campaña
+realmente entrega aunque la hayan apagado desde sus conjuntos. Sin esta columna la app deduce el
+estado por el gasto (activa si gastó hoy o ayer). `npm run sheets:check` muestra la columna que
+encontró en cada pestaña, sus valores y cómo los interpreta.
+
 
 ### A5. Zona horaria de la hoja
 

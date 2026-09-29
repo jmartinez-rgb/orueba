@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import type { PlatformId, ResultMetric } from "@/lib/types";
+import type { ChartResultMetric, PlatformId } from "@/lib/types";
 import type { CurvePoint, DailyPacing } from "@/lib/monitoring/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,13 +17,15 @@ export interface ScopeOption {
   unavailable?: string | null;
 }
 
-const RESULT_LABELS: Record<ResultMetric, string> = {
+const RESULT_LABELS: Record<ChartResultMetric, string> = {
   conversions: "Conversiones",
   sales: "Ventas",
   whatsapp: "WhatsApp",
   leads: "Leads",
   calls: "Llamadas",
   purchases: "Compras",
+  clicks: "Clics",
+  impressions: "Impresiones",
 };
 
 function ScopeSelect({ value, onChange, scopes }: { value: Scope; onChange: (s: Scope) => void; scopes: ScopeOption[] }) {
@@ -49,7 +51,7 @@ export function SpendPacingCard({
   scopes,
   weeks,
   initial = "total",
-  title = "Spend pacing",
+  title = "Ritmo de gasto",
   height,
 }: {
   curves: Record<Scope, CurvePoint[]>;
@@ -116,28 +118,28 @@ export function ResultsPacingCard({
   available,
   height,
 }: {
-  curves: Record<Scope, Record<ResultMetric, CurvePoint[]>>;
+  curves: Record<Scope, Record<ChartResultMetric, CurvePoint[]>>;
   scopes: ScopeOption[];
   weeks: number;
   initial?: Scope;
-  initialMetric?: ResultMetric;
-  available?: Partial<Record<Scope, ResultMetric[]>>;
+  initialMetric?: ChartResultMetric;
+  available?: Partial<Record<Scope, ChartResultMetric[]>>;
   height?: number;
 }) {
   const [scope, setScope] = useState<Scope>(initial);
-  const metrics = available?.[scope] ?? (Object.keys(RESULT_LABELS) as ResultMetric[]);
-  const [metricState, setMetric] = useState<ResultMetric>(initialMetric);
+  const metrics = available?.[scope] ?? (Object.keys(RESULT_LABELS) as ChartResultMetric[]);
+  const [metricState, setMetric] = useState<ChartResultMetric>(initialMetric);
   const metric = metrics.includes(metricState) ? metricState : metrics[0];
   const opt = scopes.find((s) => s.id === scope) ?? scopes[0];
   return (
     <Card>
       <CardHeader className="flex-wrap">
         <div>
-          <CardTitle>Conversion pacing</CardTitle>
-          <CardDescription>Resultados acumulados por hora vs mismo día de semanas anteriores</CardDescription>
+          <CardTitle>Ritmo de resultados</CardTitle>
+          <CardDescription>Acumulado por hora vs el mismo día de semanas anteriores</CardDescription>
         </div>
         <div className="flex gap-2">
-          <Select value={metric} onValueChange={(v) => setMetric(v as ResultMetric)}>
+          <Select value={metric} onValueChange={(v) => setMetric(v as ChartResultMetric)}>
             <SelectTrigger size="sm" className="w-36" aria-label="Métrica">
               <SelectValue />
             </SelectTrigger>

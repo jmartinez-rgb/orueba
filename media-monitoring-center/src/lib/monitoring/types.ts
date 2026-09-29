@@ -5,7 +5,7 @@ import type {
   EntityLevel,
   MetricId,
   PlatformId,
-  ResultMetric,
+  ChartResultMetric,
   Severity,
 } from "@/lib/types";
 import type { Kpi } from "@/lib/metrics";
@@ -45,6 +45,11 @@ export interface EntityEvaluation extends EntityRef {
   objective: CampaignObjective;
   kpi: Kpi;
   status: CampaignStatus | null;
+  /** Solo campañas: de dónde sale el estado y cómo lo reporta la plataforma (ver Campaign). */
+  statusSource?: "platform" | "spend";
+  statusText?: string | null;
+  statusIssue?: boolean;
+  statusSilent?: boolean;
   dataState: DataState;
   dataStateReason: string | null;
   /** Severidad del problema de datos (NORMAL si los datos están al día). */
@@ -159,7 +164,7 @@ export interface CurvePoint {
 
 export interface ScopeCurves {
   spend: CurvePoint[];
-  results: Record<ResultMetric, CurvePoint[]>;
+  results: Record<ChartResultMetric, CurvePoint[]>;
 }
 
 export interface MonitoringRun {

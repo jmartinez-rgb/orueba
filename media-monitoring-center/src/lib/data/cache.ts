@@ -10,8 +10,12 @@ interface Entry<T> {
   expires: number;
 }
 
-const store = new Map<string, Entry<unknown>>();
-const inflight = new Map<string, Promise<unknown>>();
+// Vive en globalThis: Next empaqueta cada página y cada API route por separado y, sin esto,
+// cada una tendría su propia copia. Un cambio guardado desde una API route (métrica, umbral,
+// acuse, "Actualizar") no limpiaría la copia que lee la página y se vería hasta que venciera.
+const g = globalThis as unknown as { __immcCache?: Map<string, Entry<unknown>>; __immcInflight?: Map<string, Promise<unknown>> };
+const store = (g.__immcCache ??= new Map<string, Entry<unknown>>());
+const inflight = (g.__immcInflight ??= new Map<string, Promise<unknown>>());
 const MAX_ENTRIES = 500;
 
 export async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {

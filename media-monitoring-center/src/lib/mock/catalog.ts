@@ -241,6 +241,11 @@ export function toCampaign(seed: MockCampaignSeed): Campaign {
     name: seed.name,
     objective: seed.objective,
     status: seed.status,
+    // El demo simula la columna de estado de la plataforma.
+    statusText: seed.status === "ACTIVE" ? "ENABLED" : seed.status === "PAUSED" ? "PAUSED" : "REMOVED",
+    statusSource: "platform",
+    statusIssue: false,
+    statusSilent: false,
     conversionEvent: seed.conversionEvent,
     sourceType: seed.sourceType,
   };

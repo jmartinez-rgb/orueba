@@ -51,19 +51,32 @@ export function MetricPicker({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const current = choices.find((c) => c.metric === primary)?.label ?? METRICS[primary].label;
+  // La elección se ve al instante; al llegar los datos nuevos del servidor manda lo que diga él.
+  const [chosen, setChosen] = useState<{ primary: BaseMetric; pinned: MetricId[] } | null>(null);
+  const [seen, setSeen] = useState({ primary, pinned });
+  if (seen.primary !== primary || seen.pinned.join() !== pinned.join()) {
+    setSeen({ primary, pinned });
+    setChosen(null);
+  }
+  const view = chosen ?? { primary, pinned };
+  const current = choices.find((c) => c.metric === view.primary)?.label ?? METRICS[view.primary].label;
 
   async function save(next: { primary: BaseMetric; pinned: MetricId[] }, message: string) {
     setBusy(true);
+    setChosen(next);
     try {
       const res = await fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: `platformMetrics.${platform}`, value: next }) });
       const d = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
       if (!res.ok || !d.ok) {
+        setChosen(null);
         sileo.error({ title: "No se pudo guardar", description: d.message });
         return;
       }
       sileo.success({ title: message, description: `${PLATFORMS[platform].name} · aplica para todo el equipo` });
       router.refresh();
+    } catch {
+      setChosen(null);
+      sileo.error({ title: "No se pudo guardar", description: "Sin conexión con el servidor. Intenta de nuevo." });
     } finally {
       setBusy(false);
     }
@@ -82,7 +95,7 @@ export function MetricPicker({
     );
   }
 
-  const options = pinnableMetrics(platform).filter((m) => m !== primary);
+  const options = pinnableMetrics(platform).filter((m) => m !== view.primary);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -97,7 +110,7 @@ export function MetricPicker({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
         <DropdownMenuLabel>Métrica monitoreada</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={primary} onValueChange={(v) => save({ primary: v as BaseMetric, pinned: pinned.filter((m) => m !== v) }, "Métrica monitoreada actualizada")}>
+        <DropdownMenuRadioGroup value={view.primary} onValueChange={(v) => save({ primary: v as BaseMetric, pinned: view.pinned.filter((m) => m !== v) }, "Métrica monitoreada actualizada")}>
           {choices.map((c) => (
             <DropdownMenuRadioItem key={c.metric} value={c.metric}>
               {c.label}
@@ -108,14 +121,14 @@ export function MetricPicker({
         <DropdownMenuLabel>Métricas fijas en la tarjeta (máx. {MAX_PINNED})</DropdownMenuLabel>
         <div className="max-h-56 overflow-y-auto">
           {options.map((m) => {
-            const checked = pinned.includes(m);
+            const checked = view.pinned.includes(m);
             return (
               <DropdownMenuCheckboxItem
                 key={m}
                 checked={checked}
-                disabled={!checked && pinned.length >= MAX_PINNED}
+                disabled={busy || (!checked && view.pinned.length >= MAX_PINNED)}
                 onSelect={(e) => e.preventDefault()}
-                onCheckedChange={(v) => save({ primary, pinned: v ? [...pinned, m].slice(0, MAX_PINNED) : pinned.filter((x) => x !== m) }, v ? `${METRICS[m].label} fijada` : `${METRICS[m].label} quitada`)}
+                onCheckedChange={(v) => save({ primary: view.primary, pinned: v ? [...view.pinned, m].slice(0, MAX_PINNED) : view.pinned.filter((x) => x !== m) }, v ? `${METRICS[m].label} fijada` : `${METRICS[m].label} quitada`)}
               >
                 {m === "cpr" ? "Costo por resultado" : METRICS[m].label}
               </DropdownMenuCheckboxItem>

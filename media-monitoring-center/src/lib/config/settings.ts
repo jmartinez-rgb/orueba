@@ -281,6 +281,63 @@ function deepMerge(a: Record<string, unknown>, b: Record<string, unknown>): Reco
   return out;
 }
 
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === "object" && !Array.isArray(v);
+}
+
+/** Igualdad profunda sin importar el orden de las llaves (la validación las reordena). */
+function same(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (Array.isArray(a) || Array.isArray(b)) return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => same(v, b[i]));
+  if (isPlainObject(a) && isPlainObject(b)) {
+    const ka = Object.keys(a).filter((k) => a[k] !== undefined);
+    const kb = Object.keys(b).filter((k) => b[k] !== undefined);
+    return ka.length === kb.length && ka.every((k) => same(a[k], b[k]));
+  }
+  return false;
+}
+
+/**
+ * Lo que se guarda: solo lo que difiere de los valores por omisión. Así un valor que la app
+ * calcula en el momento (plataformas de la marca, atraso según Dataslayer) nunca queda fijo.
+ */
+export function settingsDiff(base: MonitoringSettings, next: MonitoringSettings): Record<string, unknown> {
+  const walk = (a: unknown, b: unknown): unknown => {
+    if (isPlainObject(a) && isPlainObject(b)) {
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(b)) {
+        const d = walk(a[k], v);
+        if (d !== undefined) out[k] = d;
+      }
+      return Object.keys(out).length ? out : undefined;
+    }
+    return same(a, b) ? undefined : b;
+  };
+  return (walk(base, next) as Record<string, unknown> | undefined) ?? {};
+}
+
+/**
+ * Aplica lo editado en la pantalla de Configuración sobre lo guardado. La pantalla muestra la
+ * configuración vigente (con los ajustes por marca y por hoja ya aplicados); lo que el usuario
+ * no tocó conserva el valor guardado para no congelar esos ajustes calculados.
+ */
+export function applyEditedSettings(stored: MonitoringSettings, effective: MonitoringSettings, submitted: MonitoringSettings): MonitoringSettings | null {
+  const out = structuredClone(stored) as unknown as Record<string, unknown>;
+  const eff = effective as unknown as Record<string, unknown>;
+  for (const [k, v] of Object.entries(submitted as unknown as Record<string, unknown>)) {
+    const e = eff[k];
+    const st = out[k];
+    if (isPlainObject(v) && isPlainObject(e) && isPlainObject(st)) {
+      for (const k2 of new Set([...Object.keys(v), ...Object.keys(e)])) {
+        if (!(k2 in v)) delete st[k2];
+        else if (!same(v[k2], e[k2])) st[k2] = v[k2];
+      }
+    } else if (!same(v, e)) out[k] = v;
+  }
+  const parsed = settingsSchema.safeParse(out);
+  return parsed.success ? parsed.data : null;
+}
+
 /** Horas de evaluación del día según la frecuencia configurada (p. ej. 07, 09, ..., 23). */
 export function evaluationSlots(settings: MonitoringSettings): number[] {
   const { intervalHours, startHour, endHour } = settings.schedule;
