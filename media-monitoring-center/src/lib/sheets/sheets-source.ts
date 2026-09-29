@@ -25,7 +25,7 @@ import { logger } from "@/lib/logging/logger";
 import type { SheetSource, SheetsMapping } from "./mapping";
 import { a1Range, cleanSheetName, columnLetter, normHeader, parseDateLoose, parseNumberLoose, rowsFromRange, usesDecimalComma, type Cell } from "./parse";
 import type { SheetsInfo, SheetsReader } from "./reader";
-import { buildCatalog, findColumn, harmonizeIds, mergeRecords, parseTab, synthesizeHourly, type SheetRecord } from "./transform";
+import { buildCatalog, findColumn, harmonizeIds, learnCurves, mergeRecords, parseTab, synthesizeHourly, type LearnedCurves, type SheetRecord } from "./transform";
 
 /**
  * Fuente de datos: la hoja de Google Sheets que actualiza Dataslayer (cada 2 horas; tarda 5–10
@@ -499,6 +499,14 @@ export class SheetsDataSource implements MonitoringDataSource {
     return Math.min(24, parts.hour + parts.minute / 60);
   }
 
+  /** Curva real por cuenta y plataforma aprendida de la pestaña por hora (con una semana basta). */
+  private learnedCurves(ds: SheetsDataset, p: PlatformId): LearnedCurves | undefined {
+    return this.remember(ds, `learned:${p}:${this.today()}`, () => {
+      const pd = ds.platforms.get(p);
+      return pd?.hourlyAccount.size ? learnCurves(pd.hourlyAccount, this.today()) : undefined;
+    });
+  }
+
   private hourlyFor(ds: SheetsDataset, p: PlatformId, date: string): { rows: HourlyRow[]; estimated: boolean } {
     return this.remember(ds, `h:${p}:${date}:${this.today()}`, () => {
       const pd = ds.platforms.get(p);
@@ -520,6 +528,7 @@ export class SheetsDataSource implements MonitoringDataSource {
           hourlyAccount,
           coverHours: date === this.today() ? this.coverHoursToday(ds, p) : null,
           defaultCurve: HOURLY_SHARE[p],
+          learned: this.learnedCurves(ds, p),
         });
       }
       return {

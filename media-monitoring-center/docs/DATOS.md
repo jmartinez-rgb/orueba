@@ -37,7 +37,9 @@ Cómo se interpretan:
 - **Franja horaria**: el total diario de cada campaña se reparte por hora con la curva real de su
   cuenta ese mismo día (pestañas por hora). Sin ellas se usa una curva típica, la app lo avisa
   ("Curva por hora · Parcial") y baja 10 puntos de confianza. La suma de las horas siempre es el
-  total de la hoja. Con curva típica, las alertas que dependen del gasto esperado a esa hora bajan
+  total de la hoja. Con una semana en la pestaña por hora basta: la app aprende la curva real de
+  cada cuenta (y de la plataforma) con esos días y la usa para repartir los días que no tienen datos
+  por hora, como las semanas de referencia más viejas. Con curva típica, las alertas que dependen del gasto esperado a esa hora bajan
   un nivel (máximo ALERTA) y no se declara "dejó de gastar"; el costo por resultado y el gasto en
   cero no dependen de la curva y se evalúan igual.
 - **Métricas con retraso** (`laggingMetrics` en el mapeo): las conversiones de Google

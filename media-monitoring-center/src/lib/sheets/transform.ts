@@ -362,6 +362,53 @@ export function curveShares(curve: number[], coverHours: number): number[] | nul
   return shares(w);
 }
 
+/** Curvas de gasto por hora aprendidas de los días con pestaña por hora (cada día normalizado a 1). */
+export interface LearnedCurves {
+  platform: number[] | null;
+  accounts: Map<string, number[]>;
+}
+
+/**
+ * Aprende la curva horaria típica de la plataforma y de cada cuenta con los días completos que trae
+ * la pestaña por hora (basta una semana). Se usa para repartir los días que no tienen datos por
+ * hora (p. ej. las semanas de referencia más viejas) en lugar de la curva genérica.
+ */
+export function learnCurves(hourlyByDate: Map<string, SheetRecord[]>, excludeDate: string, minDays = 3): LearnedCurves {
+  const add = (acc: Map<string, number[][]>, key: string, day: number[]) => {
+    const total = day.reduce((a, b) => a + b, 0);
+    if (total <= 0) return;
+    const list = acc.get(key);
+    const norm = day.map((v) => v / total);
+    if (list) list.push(norm);
+    else acc.set(key, [norm]);
+  };
+  const byAccount = new Map<string, number[][]>();
+  const byPlatform = new Map<string, number[][]>();
+  for (const [date, records] of hourlyByDate) {
+    if (date === excludeDate) continue; // hoy va a medias
+    const platformDay = new Array(24).fill(0);
+    const accountDays = new Map<string, number[]>();
+    for (const r of records) {
+      const v = r.metrics.spend;
+      if (r.hour === null || v === null || v <= 0) continue;
+      platformDay[r.hour] += v;
+      let d = accountDays.get(r.accountId);
+      if (!d) accountDays.set(r.accountId, (d = new Array(24).fill(0)));
+      d[r.hour] += v;
+    }
+    add(byPlatform, "p", platformDay);
+    for (const [id, d] of accountDays) add(byAccount, id, d);
+  }
+  const average = (days: number[][] | undefined) =>
+    days && days.length >= minDays ? Array.from({ length: 24 }, (_, h) => days.reduce((a, d) => a + d[h], 0) / days.length) : null;
+  const accounts = new Map<string, number[]>();
+  for (const [id, days] of byAccount) {
+    const c = average(days);
+    if (c) accounts.set(id, c);
+  }
+  return { platform: average(byPlatform.get("p")), accounts };
+}
+
 export interface SynthesisInput {
   platform: PlatformId;
   date: string;
@@ -372,6 +419,8 @@ export interface SynthesisInput {
   /** Hasta qué hora (con decimales) cubre el acumulado de hoy; null = día completo. */
   coverHours: number | null;
   defaultCurve: number[];
+  /** Curvas reales aprendidas de otros días con datos por hora (van antes que la curva genérica). */
+  learned?: LearnedCurves;
 }
 
 /**
@@ -381,7 +430,7 @@ export interface SynthesisInput {
  * La suma de las horas siempre es igual al total diario de la hoja.
  */
 export function synthesizeHourly(input: SynthesisInput): { rows: HourlyRow[]; estimated: boolean } {
-  const { platform, date, daily, hourlyAccount, coverHours, defaultCurve } = input;
+  const { platform, date, daily, hourlyAccount, coverHours, defaultCurve, learned } = input;
   const byAccount = new Map<string, SheetRecord[]>();
   for (const r of hourlyAccount) {
     const list = byAccount.get(r.accountId);
@@ -391,6 +440,7 @@ export function synthesizeHourly(input: SynthesisInput): { rows: HourlyRow[]; es
   const accountProfiles = new Map<string, Profile>();
   const platformProfile = profileOf(hourlyAccount);
   const fallback = curveShares(defaultCurve, coverHours ?? 24);
+  const learnedPlatform = learned?.platform ? curveShares(learned.platform, coverHours ?? 24) : null;
   let estimated = false;
   const cache = new Map<string, number[] | null>();
   const sharesFor = (accountId: string, m: BaseMetric): number[] | null => {
@@ -401,7 +451,14 @@ export function synthesizeHourly(input: SynthesisInput): { rows: HourlyRow[]; es
       prof = profileOf(byAccount.get(accountId) ?? []);
       accountProfiles.set(accountId, prof);
     }
-    let s = shares(prof.get(m)) ?? shares(prof.get("spend")) ?? shares(platformProfile.get(m)) ?? shares(platformProfile.get("spend"));
+    const learnedAccount = learned?.accounts.get(accountId);
+    let s =
+      shares(prof.get(m)) ??
+      shares(prof.get("spend")) ??
+      shares(platformProfile.get(m)) ??
+      shares(platformProfile.get("spend")) ??
+      (learnedAccount ? curveShares(learnedAccount, coverHours ?? 24) : null) ??
+      learnedPlatform;
     if (!s) {
       s = fallback;
       if (s) estimated = true;

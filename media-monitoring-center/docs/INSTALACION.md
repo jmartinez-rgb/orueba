@@ -101,8 +101,11 @@ Para cada plataforma (Google Ads, Meta, TikTok y Microsoft/Bing):
    - **Agrega la dimensión de hora**: en Google Ads y Microsoft se llama *Hour of day*; en Meta es la
      desagregación por hora del anunciante (*Hourly stats aggregated by advertiser time zone*); en
      TikTok, *Stat time hour*.
-   - Deja las mismas métricas (costo, impresiones, clics, conversiones).
-   - **Rango de fechas**: los últimos 35 días, incluyendo hoy.
+   - Deja solo costo, impresiones y clics (y conversiones en Google, TikTok y Bing). En Meta, Reach,
+     Frequency y Unique clicks no existen por hora y hacen fallar la consulta.
+   - **Rango de fechas**: los **últimos 7 días, incluyendo hoy**. Con una semana la app aprende la
+     curva real de cada cuenta y la usa también para las semanas de referencia más viejas. Un rango
+     de 35 días por hora puede tardar más de una hora en Dataslayer y no hace falta.
 3. Que escriba en una **pestaña nueva** con este nombre exacto:
 
    | Plataforma | Nombre de la pestaña |
@@ -112,7 +115,9 @@ Para cada plataforma (Google Ads, Meta, TikTok y Microsoft/Bing):
    | TikTok | `TikTok \| Hora` |
    | Microsoft (Bing) | `Bing \| Hora` |
 
-4. Programa la consulta **cada 2 horas**, como las demás.
+4. Programa la consulta **cada 2 horas**, como las demás. Cada consulta usa unas 12 llamadas
+   diarias del plan de Dataslayer (se ve abajo en el panel, "Daily API calls"): empieza por Meta y
+   agrega las demás cuando veas que hay margen.
 
 Comprobación: en la app, Integrations deja de mostrar "Curva por hora · Parcial" para esa
 plataforma. Si Dataslayer nombra la columna de hora de otra forma, Integrations mostrará "faltan
