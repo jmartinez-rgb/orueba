@@ -370,10 +370,10 @@ export interface LearnedCurves {
 
 /**
  * Aprende la curva horaria típica de la plataforma y de cada cuenta con los días completos que trae
- * la pestaña por hora (basta una semana). Se usa para repartir los días que no tienen datos por
+ * la pestaña por hora (desde 2 días; lo ideal, una semana). Se usa para repartir los días que no tienen datos por
  * hora (p. ej. las semanas de referencia más viejas) en lugar de la curva genérica.
  */
-export function learnCurves(hourlyByDate: Map<string, SheetRecord[]>, excludeDate: string, minDays = 3): LearnedCurves {
+export function learnCurves(hourlyByDate: Map<string, SheetRecord[]>, excludeDate: string, minDays = 2): LearnedCurves {
   const add = (acc: Map<string, number[][]>, key: string, day: number[]) => {
     const total = day.reduce((a, b) => a + b, 0);
     if (total <= 0) return;

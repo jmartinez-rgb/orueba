@@ -124,12 +124,13 @@ describe("curva aprendida de una semana de datos por hora", () => {
   const afternoonDay = (date: string) => Array.from({ length: 24 }, (_, h) => rec(date, h, h >= 12 ? 100 : 0));
   const hourly = new Map(["2026-09-24", "2026-09-25", "2026-09-26", "2026-09-29"].map((d) => [d, afternoonDay(d)]));
 
-  it("aprende la curva de cada cuenta con al menos 3 días completos (sin contar hoy)", () => {
+  it("aprende la curva de cada cuenta con al menos 2 días completos (sin contar hoy)", () => {
     const learned = learnCurves(hourly, "2026-09-29");
     const acc = learned.accounts.get("acc-1")!;
     expect(acc.slice(0, 12).reduce((a, b) => a + b, 0)).toBeCloseTo(0, 6);
     expect(acc.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 6);
-    expect(learnCurves(new Map([...hourly].slice(0, 2)), "2026-09-29").accounts.size).toBe(0);
+    expect(learnCurves(new Map([...hourly].slice(0, 2)), "2026-09-29").accounts.size).toBe(1);
+    expect(learnCurves(new Map([...hourly].slice(0, 1)), "2026-09-29").accounts.size).toBe(0);
   });
 
   it("reparte un día sin datos por hora con la curva aprendida, no con la genérica", () => {

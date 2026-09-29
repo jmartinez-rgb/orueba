@@ -218,6 +218,33 @@ const letter = (i) => {
 };
 const a1 = (title, range) => `'${title.replace(/'/g, "''")}'!${range}`;
 
+/** Instante UTC de una fecha y hora escritas en la zona horaria de la hoja. */
+function localToUtc(parts, tz) {
+  const guess = Date.UTC(parts[0], parts[1] - 1, parts[2], parts[3] ?? 0, parts[4] ?? 0, parts[5] ?? 0);
+  const f = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      .formatToParts(new Date(guess))
+      .map((x) => [x.type, x.value]),
+  );
+  const shown = Date.UTC(+f.year, +f.month - 1, +f.day, +f.hour, +f.minute, +f.second);
+  return new Date(guess - (shown - guess));
+}
+
+/** Cuándo se actualizó una consulta (la pestaña de control la escribe en la zona de la hoja). */
+function stampToDate(v, tz) {
+  if (typeof v === "number" && v > 30000) {
+    const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 86400000));
+    return localToUtc([d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()], tz);
+  }
+  const m = String(v ?? "").match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  return m ? localToUtc(m.slice(1).map((x) => (x === undefined ? 0 : Number(x))), tz) : null;
+}
+
+const ago = (ms) => {
+  const min = Math.round(ms / 60000);
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")} min`;
+};
+
 /** Fecha y hora de la pestaña de control (texto de la hoja o número de serie). */
 function stamp(v) {
   if (typeof v !== "number") return String(v ?? "").trim();
@@ -282,7 +309,7 @@ async function report(token, id, meta, email) {
   const headerData = unique.length ? await api(token, `${encodeURIComponent(id)}/values:batchGet?${unique.map((t) => `ranges=${encodeURIComponent(a1(t, "1:1"))}`).join("&")}`) : { valueRanges: [] };
   const headersOf = new Map(unique.map((t, i) => [t, (headerData.valueRanges?.[i]?.values?.[0] ?? []).map(norm)]));
 
-  // Fechas: solo la columna de fecha de las últimas ~4,000 filas de cada pestaña.
+  // Fechas: solo la columna de fecha de cada pestaña.
   const dateRanges = [];
   for (const s of sources) {
     const t = titleOf(s.sheet);
@@ -290,8 +317,8 @@ async function report(token, id, meta, email) {
     if (!t || !h?.length) continue;
     const di = findCol(h, s.columns?.date);
     if (di < 0) continue;
-    const rows = tabs.get(norm(t))?.gridProperties?.rowCount ?? 1000;
-    dateRanges.push({ sheet: s.sheet, title: t, range: a1(t, `${letter(di)}${Math.max(2, rows - 4000)}:${letter(di)}${rows}`) });
+    // Columna completa: Google omite las celdas vacías del final (hay pestañas con miles de filas vacías).
+    dateRanges.push({ sheet: s.sheet, title: t, range: a1(t, `${letter(di)}2:${letter(di)}`) });
   }
   const dateData = dateRanges.length
     ? await api(token, `${encodeURIComponent(id)}/values:batchGet?majorDimension=COLUMNS&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER&${dateRanges.map((r) => `ranges=${encodeURIComponent(r.range)}`).join("&")}`)
@@ -300,6 +327,9 @@ async function report(token, id, meta, email) {
 
   // Estado de Dataslayer (pestaña de control).
   const control = new Map();
+  const sheetTz = meta.properties?.timeZone || tz;
+  // Igual que la app: pasado el ciclo de Dataslayer (cada 2 h + 15 min + 20 de margen) la plataforma se marca atrasada.
+  const staleMin = (mapping.refreshEveryMinutes ?? 120) + (mapping.refreshDurationMinutes ?? 15) + 20;
   const ctlTitle = mapping.control?.sheet ? titleOf(mapping.control.sheet) : null;
   if (ctlTitle) {
     const data = await api(token, `${encodeURIComponent(id)}/values/${encodeURIComponent(a1(ctlTitle, "A1:AZ200"))}`);
@@ -316,10 +346,12 @@ async function report(token, id, meta, email) {
     const iStatus = ci(cols.status, "Last status");
     for (const r of rows) {
       if (iSheet < 0) break;
-      control.set(norm(r[iSheet]), { updated: stamp((iUpdated >= 0 && r[iUpdated]) || (iCreated >= 0 && r[iCreated]) || ""), status: iStatus >= 0 ? String(r[iStatus] ?? "") : "" });
+      const raw = (iUpdated >= 0 && r[iUpdated]) || (iCreated >= 0 && r[iCreated]) || "";
+      control.set(norm(r[iSheet]), { updated: stamp(raw), at: stampToDate(raw, sheetTz), status: iStatus >= 0 ? String(r[iStatus] ?? "") : "" });
     }
   }
 
+  const stale = [];
   console.log("\nPestañas de datos:");
   for (const s of sources) {
     const t = titleOf(s.sheet);
@@ -341,20 +373,27 @@ async function report(token, id, meta, email) {
     const miss = missingColumns(s, headers);
     const dates = datesOf.get(s.sheet) ?? [];
     const last = dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : null;
-    const days7 = new Set(dates.filter((d) => d > weekAgo)).size;
+    const fullDays = new Set(dates.filter((d) => d > weekAgo && d < today)).size;
     const hasToday = dates.includes(today);
     const ctl = control.get(norm(s.controlName ?? s.sheet));
-    const state = ctl ? ` · Dataslayer: ${ctl.status || "sin estado"} (${ctl.updated || "sin hora"})` : "";
-    const dateInfo = last ? `última fecha ${last}${hasToday ? " (hoy)" : ""}${s.shape === "hourly" ? ` · ${days7} de 7 días recientes` : ""}` : "sin fechas legibles";
+    const age = ctl?.at ? Date.now() - ctl.at.getTime() : null;
+    const state = ctl ? ` · Dataslayer: ${ctl.status || "sin estado"} (${ctl.updated || "sin hora"}${age !== null ? `, hace ${ago(age)}` : ""})` : "";
+    const dateInfo = last ? `última fecha ${last}${hasToday ? " (hoy)" : ""}${s.shape === "hourly" ? ` · ${fullDays} días completos${hasToday ? " + hoy" : ""}` : ""}` : "sin fechas legibles";
     if (miss.length) {
       console.log(`  FALTA  ${label} columnas no encontradas: ${miss.join(", ")}`);
       warn(`En "${s.sheet}" faltan columnas: ${miss.join(", ")}. Agrégalas en la consulta de Dataslayer (o avísame el nombre que usa para añadirlo al mapeo).`);
     } else console.log(`  OK     ${label} ${dateInfo}${state}`);
     if (!miss.length && !last) warn(`En "${s.sheet}" no se pudieron leer fechas en la columna de fecha.`);
     if (!miss.length && last && s.intraday !== false && !hasToday && s.shape !== "hourly") warn(`"${s.sheet}" no trae datos de hoy (última fecha ${last}). Revisa que el rango de la consulta incluya hoy y que se haya actualizado.`);
-    if (!miss.length && s.shape === "hourly" && days7 < 3) warn(`"${s.sheet}" trae ${days7} días por hora; para aprender la curva conviene el rango "últimos 7 días, incluyendo hoy".`);
+    if (!miss.length && s.shape === "hourly" && fullDays < 2)
+      warn(`"${s.sheet}" trae ${fullDays} día(s) completo(s) por hora; la app necesita al menos 2 para aprender la curva (lo ideal: rango "últimos 7 días, incluyendo hoy").`);
+    if (s.intraday !== false && age !== null && age > staleMin * 60000) stale.push(`${s.sheet} (hace ${ago(age)})`);
     if (ctl && /error|fail/i.test(ctl.status)) warn(`Dataslayer reporta error en "${s.sheet}": ${ctl.status}. Ábrela en Dataslayer y vuelve a correrla.`);
   }
+  if (stale.length)
+    warn(
+      `Dataslayer no actualiza desde hace más de ${ago(staleMin * 60000)}: ${stale.join(", ")}. La app las marca como atrasadas y no evalúa esas plataformas. En Dataslayer revisa que estén programadas cada 2 horas y que ninguna consulta larga esté ocupando la cola.`,
+    );
   for (const e of extra) {
     const t = titleOf(e.sheet);
     const name = { control: "estado de Dataslayer", budgets: "presupuestos", fx: "tipo de cambio" }[e.kind];
