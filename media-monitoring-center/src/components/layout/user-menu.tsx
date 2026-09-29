@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { BookOpenText, Bug, FlaskConical, KeyRound, LogOut, UsersRound } from "lucide-react";
+import { BellRing, BookOpenText, Bug, FlaskConical, KeyRound, LogOut, UsersRound } from "lucide-react";
 import { sileo } from "sileo";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +52,16 @@ export function UserMenu({
   const router = useRouter();
   const pathname = usePathname();
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [notify, setNotify] = useState<NotificationPermission | "unsupported">("unsupported");
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- el permiso de avisos solo existe en el navegador
+    setNotify(typeof Notification === "undefined" ? "unsupported" : Notification.permission);
+  }, []);
+  async function enableNotifications() {
+    const r = await Notification.requestPermission();
+    setNotify(r);
+    if (r === "granted") sileo.success({ title: "Avisos activados", description: "Te avisaremos en el escritorio cuando entre un incidente crítico nuevo." });
+  }
   async function post(url: string, body: unknown, success?: string) {
     const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (res.ok) {
@@ -68,7 +78,7 @@ export function UserMenu({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gap-2 px-1.5" aria-label={`Usuario: ${userName}`}>
+          <Button variant="ghost" size="sm" className="gap-2 rounded-full px-1.5" aria-label={`Usuario: ${userName}`}>
             <UserAvatar name={userName} size={26} animate />
             <span className="hidden max-w-32 flex-col items-start leading-tight xl:flex">
               <span className="truncate text-xs font-semibold">{userName}</span>
@@ -131,13 +141,23 @@ export function UserMenu({
               <Bug /> Reportar bug o sugerencia
             </Link>
           </DropdownMenuItem>
+          {notify === "default" && (
+            <DropdownMenuItem onSelect={enableNotifications}>
+              <BellRing /> Avisarme de críticos en el escritorio
+            </DropdownMenuItem>
+          )}
+          {notify === "granted" && (
+            <DropdownMenuItem disabled>
+              <BellRing /> Avisos de escritorio activados
+            </DropdownMenuItem>
+          )}
           {authMode === "password" && userKind === "named" && (
             <DropdownMenuItem onSelect={() => setPasswordOpen(true)}>
               <KeyRound /> Cambiar mi contraseña
             </DropdownMenuItem>
           )}
           {authMode === "password" && (
-            <DropdownMenuItem onSelect={logout} className="text-status-critical-text focus:text-status-critical-text">
+            <DropdownMenuItem onSelect={logout} className="text-status-critical-text focus:bg-status-critical focus:text-white">
               <LogOut /> Cerrar sesión
             </DropdownMenuItem>
           )}

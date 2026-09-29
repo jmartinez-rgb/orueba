@@ -229,7 +229,7 @@ export function IncidentsTable({
                 </div>
 
                 <div>
-                  <p className="mb-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Línea de tiempo</p>
+                  <p className="mb-2 text-[13px] font-semibold text-foreground">Línea de tiempo</p>
                   <ol className="relative space-y-3 border-l pl-4">
                     {selected.timeline.map((e, idx) => (
                       <li key={idx} className="relative text-xs">
@@ -252,7 +252,7 @@ export function IncidentsTable({
 
                 {selNotifications.length > 0 && (
                   <div>
-                    <p className="mb-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Notificaciones enviadas vía n8n</p>
+                    <p className="mb-2 text-[13px] font-semibold text-foreground">Notificaciones enviadas vía n8n</p>
                     <div className="space-y-2">
                       {selNotifications
                         .filter((n) => n.channel === "whatsapp")
@@ -270,7 +270,7 @@ export function IncidentsTable({
                 )}
 
                 <div>
-                  <p className="mb-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Notas</p>
+                  <p className="mb-2 text-[13px] font-semibold text-foreground">Notas</p>
                   {selected.notes.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Sin notas.</p>
                   ) : (

@@ -85,8 +85,8 @@ export default async function GuidePage() {
     <div className="flex flex-col gap-4">
       <PageHeader title="Guía" subtitle="Qué hay en cada parte del Monitoring Center, cómo leerlo y cómo funciona por dentro." />
       <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
-        <nav aria-label="Contenido de la guía" className="h-fit rounded-lg border bg-card p-3 text-sm lg:sticky lg:top-20">
-          <p className="mb-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Contenido</p>
+        <nav aria-label="Contenido de la guía" className="h-fit surface rounded-xl p-3 text-sm lg:sticky lg:top-20">
+          <p className="mb-2 text-[13px] font-semibold text-foreground">Contenido</p>
           <ol className="space-y-1">
             {toc.map(([id, label], i) => (
               <li key={id}>
@@ -187,13 +187,13 @@ export default async function GuidePage() {
             <CardContent className="space-y-4">
               {NAV_GROUPS.map((g) => (
                 <div key={g.label}>
-                  <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{g.label}</p>
+                  <p className="mb-1.5 text-[13px] font-semibold text-foreground">{g.label}</p>
                   <div className="grid gap-2 md:grid-cols-2">
                     {g.items.map((item) => {
                       const Icon = item.icon;
                       const help = SECTION_HELP[item.href];
                       return (
-                        <Link key={item.href} href={item.href} className="flex gap-3 rounded-md border px-3 py-2.5 transition-colors hover:border-foreground/25">
+                        <Link key={item.href} href={item.href} className="flex gap-3 rounded-md border px-3 py-2.5 transition-colors hover:shadow-(--shadow-card-hover)">
                           <Icon className="mt-0.5 size-4 shrink-0 text-brand-teal" />
                           <span className="min-w-0">
                             <span className="block text-sm font-semibold">{item.label}</span>

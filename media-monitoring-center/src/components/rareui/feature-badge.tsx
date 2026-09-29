@@ -16,7 +16,7 @@ export function FeatureBadge({ badge, children, className, tone = "teal" }: { ba
           transition={{ repeat: Infinity, repeatType: "loop", duration: 3, ease: "linear", repeatDelay: 2 }}
         />
       )}
-      <span className={cn("relative z-10 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase", tone === "teal" ? "bg-brand-teal text-[#04201e]" : "bg-foreground text-background")}>{badge}</span>
+      <span className={cn("relative z-10 rounded-full px-2 py-0.5 text-[11px] font-semibold", tone === "teal" ? "bg-brand-teal text-[#04201e]" : "bg-foreground text-background")}>{badge}</span>
       <span className="relative z-10 font-medium text-muted-foreground">{children}</span>
     </span>
   );

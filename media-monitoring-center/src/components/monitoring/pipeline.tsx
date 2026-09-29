@@ -22,7 +22,7 @@ const STATUS = {
 /** Diagrama del flujo: lectura directa de la hoja de Dataslayer, o API/Sheets → BigQuery. */
 export function PipelineDiagram({ mode = "bigquery" }: { mode?: "mock" | "sheets" | "bigquery" }) {
   const step = (Icon: typeof Plug, title: string, sub: string, tone = "border-border") => (
-    <div className={cn("flex min-w-[130px] flex-1 flex-col gap-1 rounded-lg border bg-card px-3 py-2", tone)}>
+    <div className={cn("flex min-w-[130px] flex-1 flex-col gap-1 surface rounded-xl px-4 py-3", tone)}>
       <span className="flex items-center gap-1.5 text-xs font-semibold">
         <Icon className="size-3.5 text-brand-teal" /> {title}
       </span>

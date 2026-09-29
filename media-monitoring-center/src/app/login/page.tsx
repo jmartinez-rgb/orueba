@@ -24,21 +24,21 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <main className="grid min-h-dvh lg:grid-cols-[1.1fr_1fr]">
       <section className="relative hidden overflow-hidden bg-[#07080a] p-10 text-[#eceef1] lg:flex lg:flex-col lg:justify-between">
         <div className="flex items-center gap-3">
-          <span className="inline-flex size-10 items-center justify-center rounded-xl bg-[#0b0c0f] ring-1 ring-white/10">
+          <span className="inline-flex size-10 items-center justify-center rounded-[12px] bg-[#0b0c0f] shadow-[inset_0_0_0_0.5px_rgb(255_255_255/0.16),0_1px_2px_rgb(0_0_0/0.4)]">
             <svg viewBox="0 0 32 32" className="size-7" aria-hidden>
               <path d="M4 20 L10 20 L13 11 L17 25 L20 16 L28 16" fill="none" stroke="#00C1B5" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
               <circle cx="28" cy="16" r="2.4" fill="#D60270" />
             </svg>
           </span>
           <div className="leading-tight">
-            <p className="text-lg font-extrabold tracking-tight">
+            <p className="text-lg font-semibold tracking-tight">
               <span className="text-[#00C1B5]">izzi</span> Media
             </p>
-            <p className="text-[11px] tracking-[0.14em] text-[#9aa0a8] uppercase">Monitoring Center</p>
+            <p className="text-xs text-[#9aa0a8]">Monitoring Center</p>
           </div>
         </div>
         <div className="max-w-lg space-y-5">
-          <h1 className="text-4xl leading-tight font-extrabold tracking-tight">¿Está todo izzi funcionando correctamente?</h1>
+          <h1 className="text-[40px] leading-[1.08] font-semibold tracking-[-0.03em]">¿Está todo izzi funcionando correctamente?</h1>
           <p className="text-sm leading-relaxed text-[#b6bcc5]">
             Monitoreo de Google, Meta, TikTok, Microsoft, Spotify y X comparando el mismo día de la semana y la misma franja horaria. Alertas, incidentes, tickets y el mensaje de monitoreo para
             WhatsApp en un solo lugar.
@@ -64,13 +64,13 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <section className="flex items-center justify-center px-4 py-10 sm:px-8">
         <div className="w-full max-w-sm space-y-6">
           <div className="space-y-2 lg:hidden">
-            <p className="text-lg font-extrabold tracking-tight">
+            <p className="text-lg font-semibold tracking-tight">
               <span className="text-brand-teal">izzi</span> Media Monitoring Center
             </p>
           </div>
           <div className="space-y-2">
             <FeatureBadge badge="Solo lectura">Monitoreo sin cambios en plataformas</FeatureBadge>
-            <h2 className="text-2xl font-bold tracking-tight">Iniciar sesión</h2>
+            <h2 className="text-[28px] leading-tight font-semibold tracking-[-0.025em]">Iniciar sesión</h2>
             {cfg.mode === "password" && (
               <p className="text-sm text-muted-foreground">
                 Usa tu <strong className="text-foreground">usuario</strong> si tienes cuenta. Si no, escribe tu <strong className="text-foreground">nombre y apellido</strong> y la contraseña universal del

@@ -32,7 +32,7 @@ export const ALERT_STATUS_LABEL: Record<AlertStatus, string> = {
 };
 
 const STATUS_TONE: Record<AlertStatus, string> = {
-  NEW: "bg-primary/15 text-primary border-primary/30",
+  NEW: "bg-primary/12 text-primary",
   ACKNOWLEDGED: "bg-muted text-foreground",
   INVESTIGATING: "bg-status-attention/12 text-status-attention-text border-status-attention/40",
   RESOLVED: "bg-status-normal/10 text-status-normal-text border-status-normal/40",
@@ -40,7 +40,7 @@ const STATUS_TONE: Record<AlertStatus, string> = {
 };
 
 export function AlertStatusBadge({ status }: { status: AlertStatus }) {
-  return <span className={cn("inline-flex rounded-md border px-1.5 py-0.5 text-[10.5px] font-semibold whitespace-nowrap", STATUS_TONE[status])}>{ALERT_STATUS_LABEL[status]}</span>;
+  return <span className={cn("inline-flex rounded-full px-2 py-[3px] text-[11px] font-semibold whitespace-nowrap", STATUS_TONE[status])}>{ALERT_STATUS_LABEL[status]}</span>;
 }
 
 const SEVERITIES: Severity[] = ["CRITICAL", "ALERT", "ATTENTION"];
@@ -281,7 +281,7 @@ export function AlertsTable({
                 </div>
                 {selected.evidence.length > 0 && (
                   <div>
-                    <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Evidencia · mismo día y franja ({`00:00–${String(selected.cutoffHour).padStart(2, "0")}:00`})</p>
+                    <p className="mb-1 text-[13px] font-semibold text-foreground">Evidencia · mismo día y franja ({`00:00–${String(selected.cutoffHour).padStart(2, "0")}:00`})</p>
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -335,7 +335,7 @@ export function AlertsTable({
                 )}
                 {selected.incidentId && whatsappPreview[selected.incidentId] && (
                   <div>
-                    <p className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Último mensaje de WhatsApp (vía n8n)</p>
+                    <p className="mb-1 text-[13px] font-semibold text-foreground">Último mensaje de WhatsApp (vía n8n)</p>
                     <pre className="rounded-md border bg-muted/50 p-3 font-sans text-xs whitespace-pre-wrap">{whatsappPreview[selected.incidentId]}</pre>
                   </div>
                 )}

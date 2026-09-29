@@ -38,9 +38,9 @@ export function RefreshButton({ canTrigger, size = "sm", compact }: { canTrigger
 
   const spinning = busy || pending;
   return (
-    <Button size={size} onClick={run} aria-label="Actualizar ahora" disabled={!canTrigger || spinning} title={canTrigger ? "Consultar de nuevo y disparar la sincronización" : "Tu rol no puede disparar evaluaciones"}>
-      <RefreshCw className={cn(spinning && "animate-spin")} />
-      {!compact && <span className="hidden sm:inline">{spinning ? "Actualizando…" : "Actualizar ahora"}</span>}
+    <Button variant="secondary" size={size} className="rounded-full" onClick={run} aria-label="Actualizar ahora" disabled={!canTrigger || spinning} title={canTrigger ? "Consultar de nuevo y disparar la sincronización" : "Tu rol no puede disparar evaluaciones"}>
+      <RefreshCw className={cn("text-primary", spinning && "animate-spin")} />
+      {!compact && <span className="hidden sm:inline">{spinning ? "Actualizando…" : "Actualizar"}</span>}
     </Button>
   );
 }

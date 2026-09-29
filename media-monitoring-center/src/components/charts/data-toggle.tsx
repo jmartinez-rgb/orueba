@@ -45,10 +45,10 @@ export function SeriesTable({
   highlight?: string;
 }) {
   return (
-    <div className="max-h-[360px] overflow-auto rounded-md border">
+    <div className="max-h-[360px] overflow-auto rounded-xl bg-foreground/[0.02] shadow-[inset_0_0_0_1px_var(--hairline)]">
       <table className="w-full text-xs">
         <thead className="sticky top-0 bg-card">
-          <tr className="border-b">
+          <tr className="border-b border-(--hairline)">
             <th className="px-2 py-1.5 text-left font-medium text-muted-foreground">{xLabel}</th>
             {columns.map((c) => (
               <th key={c.key} className={cn("px-2 py-1.5 text-right font-medium whitespace-nowrap text-muted-foreground", c.key === highlight && "text-foreground")}>
@@ -59,7 +59,7 @@ export function SeriesTable({
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className="border-b last:border-0">
+            <tr key={i} className="border-b border-(--hairline) last:border-0">
               <td className="tabular px-2 py-1 font-medium">{String(r[xKey] ?? "")}</td>
               {columns.map((c) => {
                 const v = r[c.key];

@@ -50,9 +50,9 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border bg-card px-3 py-2">
+    <div className="surface rounded-xl px-4 py-3">
       <p className="text-[11px] text-muted-foreground">{label}</p>
-      <p className="tabular text-xl font-bold">{value}</p>
+      <p className="tabular text-[22px] leading-tight font-semibold tracking-[-0.02em]">{value}</p>
     </div>
   );
 }

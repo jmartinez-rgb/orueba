@@ -21,7 +21,7 @@ export function ConfidenceMeter({ confidence, compact, className }: { confidence
       <span className="relative h-1.5 w-12 overflow-hidden rounded-full bg-muted" aria-hidden>
         <span className={cn("absolute inset-y-0 left-0 rounded-full", t.bar)} style={{ width: `${confidence.score}%` }} />
       </span>
-      <span className={cn("tabular text-[11px] font-bold", t.text)}>{confidence.score}%</span>
+      <span className={cn("tabular text-[11px] font-semibold", t.text)}>{confidence.score}%</span>
     </span>
   );
   return (

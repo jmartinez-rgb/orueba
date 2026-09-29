@@ -44,7 +44,7 @@ export default async function BudgetPage() {
               </>
             }
           />
-          <div className="flex flex-col justify-center gap-1 rounded-lg border bg-card px-3 py-2">
+          <div className="flex flex-col justify-center gap-1 surface rounded-xl px-4 py-3">
             <span className="text-[11px] text-muted-foreground">Estado del mes</span>
             <SeverityBadge severity={total.status} size="md" />
           </div>
@@ -84,9 +84,9 @@ export default async function BudgetPage() {
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-lg border bg-card px-3 py-2">
+    <div className="flex flex-col gap-0.5 surface rounded-xl px-4 py-3">
       <span className="text-[11px] text-muted-foreground">{label}</span>
-      <span className="text-lg leading-tight font-bold">{value}</span>
+      <span className="text-lg leading-tight font-semibold">{value}</span>
       {sub && <span className="text-[11px] text-muted-foreground">{sub}</span>}
     </div>
   );

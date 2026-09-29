@@ -59,7 +59,7 @@ export default async function UsersPage() {
             <CardContent className="flex items-center gap-3 pt-4">
               <UserRoundCheck className="size-5 text-brand-teal" />
               <div>
-                <p className="text-2xl font-bold">{online.length}</p>
+                <p className="text-2xl font-semibold">{online.length}</p>
                 <p className="text-xs text-muted-foreground">Activos en los últimos 30 min</p>
               </div>
             </CardContent>
@@ -68,7 +68,7 @@ export default async function UsersPage() {
             <CardContent className="flex items-center gap-3 pt-4">
               <ShieldCheck className="size-5 text-status-normal-text" />
               <div>
-                <p className="text-2xl font-bold">{today}</p>
+                <p className="text-2xl font-semibold">{today}</p>
                 <p className="text-xs text-muted-foreground">Inicios de sesión en 24 h</p>
               </div>
             </CardContent>
@@ -77,7 +77,7 @@ export default async function UsersPage() {
             <CardContent className="flex items-center gap-3 pt-4">
               <KeyRound className={failed ? "size-5 text-status-alert-text" : "size-5 text-muted-foreground"} />
               <div>
-                <p className="text-2xl font-bold">{failed}</p>
+                <p className="text-2xl font-semibold">{failed}</p>
                 <p className="text-xs text-muted-foreground">Intentos fallidos en 24 h</p>
               </div>
             </CardContent>
@@ -141,7 +141,7 @@ export default async function UsersPage() {
                 </div>
                 {!canManage && (
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Cuentas con usuario</p>
+                    <p className="text-[13px] font-semibold text-foreground">Cuentas con usuario</p>
                     {accounts.length === 0 && <p className="text-xs text-muted-foreground">Ninguna.</p>}
                     {accounts.map((a) => (
                       <div key={a.username} className="flex items-center gap-2.5 rounded-md border px-2.5 py-1.5">
@@ -169,7 +169,7 @@ export default async function UsersPage() {
                   </ul>
                 )}
                 <div className="space-y-1.5 border-t pt-3">
-                  <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Roles</p>
+                  <p className="text-[13px] font-semibold text-foreground">Roles</p>
                   {ROLES.map((r) => (
                     <p key={r} className="text-xs">
                       <span className="font-semibold">{ROLE_LABEL[r]}:</span> <span className="text-muted-foreground">{ROLE_DESCRIPTION[r]}</span>

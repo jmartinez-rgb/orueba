@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Siren } from "lucide-react";
+import { BellRing, LogOut, Siren } from "lucide-react";
 import { sileo } from "sileo";
 import type { PendingCritical } from "@/lib/services/critical";
 import { TICKET_CHANNEL_LABEL, TICKET_CHANNELS, type TicketChannel } from "@/lib/records/ticket-model";
@@ -38,17 +38,48 @@ export function CriticalAlertGate({ userName, canTicket }: { userName: string; c
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  const seen = useRef<Set<string> | null>(null);
+  const [notify, setNotify] = useState<NotificationPermission | "unsupported">("unsupported");
 
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/critical", { cache: "no-store" });
       if (!res.ok) return;
       const d = (await res.json()) as { ok: boolean; pending?: PendingCritical[] };
-      if (d.ok && d.pending) setPending(d.pending);
+      if (!d.ok || !d.pending) return;
+      // Aviso de escritorio solo para críticos nuevos y con la pestaña en segundo plano (la pantalla ya bloquea cuando está a la vista).
+      const known = seen.current;
+      if (known && typeof Notification !== "undefined" && Notification.permission === "granted" && document.hidden) {
+        for (const p of d.pending.filter((x) => !known.has(x.id))) {
+          const n = new Notification(`Incidente crítico · ${p.platformName}`, { body: p.title, tag: p.id });
+          n.onclick = () => {
+            window.focus();
+            n.close();
+          };
+        }
+      }
+      seen.current = new Set(d.pending.map((p) => p.id));
+      setPending(d.pending);
     } catch {
       /* sin conexión: se reintenta en el siguiente ciclo */
     }
   }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- el permiso de avisos solo existe en el navegador
+    setNotify(typeof Notification === "undefined" ? "unsupported" : Notification.permission);
+  }, []);
+
+  // Contador en el título de la pestaña mientras haya críticos sin acusar (se ve aunque la pestaña esté atrás).
+  useEffect(() => {
+    const base = document.title.replace(/^\(\d+\) /, "");
+    document.title = pending.length ? `(${pending.length}) ${base}` : base;
+  }, [pending.length]);
+
+  async function enableNotifications() {
+    if (typeof Notification === "undefined") return;
+    setNotify(await Notification.requestPermission());
+  }
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial y sondeo periódico de incidentes críticos
@@ -124,26 +155,28 @@ export function CriticalAlertGate({ userName, canTicket }: { userName: string; c
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-sm sm:items-center sm:p-6" role="alertdialog" aria-modal="true" aria-labelledby="critical-title" aria-describedby="critical-list">
-      <form onSubmit={submit} className="immc-critical-pulse my-auto w-full max-w-2xl overflow-hidden rounded-xl border-2 border-status-critical bg-card shadow-2xl">
-        <div className="flex items-start gap-3 bg-status-critical px-5 py-4 text-white">
-          <Siren className="mt-0.5 size-7 shrink-0" aria-hidden />
+    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/55 p-3 backdrop-blur-md sm:items-center sm:p-6" role="alertdialog" aria-modal="true" aria-labelledby="critical-title" aria-describedby="critical-list">
+      <form onSubmit={submit} className="immc-critical-pulse my-auto w-full max-w-2xl animate-in overflow-hidden rounded-[22px] bg-popover text-popover-foreground shadow-(--shadow-pop) duration-200 ease-out fade-in-0 zoom-in-95">
+        <div className="flex items-start gap-4 px-6 pt-6 pb-2">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-status-critical/14 text-status-critical-text" aria-hidden>
+            <Siren className="size-6" />
+          </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-bold tracking-[0.16em] uppercase opacity-90">Alerta crítica · acción requerida</p>
-            <h2 id="critical-title" className="text-lg leading-snug font-extrabold sm:text-xl">
+            <h2 id="critical-title" className="text-[19px] leading-snug font-semibold tracking-[-0.02em]">
               {pending.length === 1 ? `${pending[0].platformName}: ${pending[0].title}` : `${pending.length} incidentes críticos sin revisar`}
             </h2>
+            <p className="mt-1 text-[13px] text-muted-foreground">Acción requerida: escribe qué revisaste y a quién lo reportas para continuar.</p>
           </div>
         </div>
 
-        <div className="space-y-4 px-5 py-4">
+        <div className="space-y-4 px-6 py-4">
           <ul id="critical-list" className="max-h-56 space-y-2 overflow-y-auto pr-1">
             {pending.map((p) => (
-              <li key={p.id} className="rounded-md border border-status-critical/30 bg-status-critical/5 px-3 py-2">
+              <li key={p.id} className="rounded-xl bg-status-critical/[0.07] px-3.5 py-2.5">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                   <PlatformMark platform={p.platform} />
                   <span className="font-semibold">{p.title}</span>
-                  <span className="tabular ml-auto text-xs font-bold text-status-critical-text">{pct(p.deviation)}</span>
+                  <span className="tabular ml-auto text-xs font-semibold text-status-critical-text">{pct(p.deviation)}</span>
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   <span className="font-mono">{p.id}</span> · {p.type} · {p.entity}
@@ -218,7 +251,7 @@ export function CriticalAlertGate({ userName, canTicket }: { userName: string; c
               </span>
             </label>
           )}
-          <label className="flex items-start gap-2 rounded-md border border-status-critical/40 bg-status-critical/5 p-2.5 text-sm font-medium">
+          <label className="flex items-start gap-2.5 rounded-xl bg-status-critical/[0.07] p-3 text-sm font-medium">
             <input type="checkbox" className="mt-0.5 size-4 accent-[var(--status-critical)]" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} required />
             <span>Yo, {userName}, revisé {pending.length === 1 ? "esta alerta" : "estas alertas"} y lo voy a reportar.</span>
           </label>
@@ -229,11 +262,18 @@ export function CriticalAlertGate({ userName, canTicket }: { userName: string; c
           )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/40 px-5 py-3">
-          <button type="button" onClick={logout} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
-            <LogOut className="size-3.5" /> Cerrar sesión
-          </button>
-          <Button type="submit" disabled={!valid || busy} className="bg-status-critical text-white hover:bg-status-critical/90">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-(--hairline) px-6 py-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={logout} className="pressable inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground">
+              <LogOut className="size-3.5" /> Cerrar sesión
+            </button>
+            {notify === "default" && (
+              <button type="button" onClick={enableNotifications} className="pressable inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground">
+                <BellRing className="size-3.5" /> Avisarme en el escritorio
+              </button>
+            )}
+          </div>
+          <Button type="submit" disabled={!valid || busy} className="h-10 rounded-full bg-status-critical px-5 text-white hover:bg-status-critical/90">
             {busy ? "Registrando…" : "Registrar acuse y continuar"}
           </Button>
         </div>

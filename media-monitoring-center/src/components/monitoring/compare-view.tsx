@@ -328,9 +328,9 @@ export function CompareView({ initial, attention, delayed = [] }: { initial: Com
 
 function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: string }) {
   return (
-    <div className="rounded-lg border bg-card px-3 py-2">
+    <div className="surface rounded-xl px-4 py-3">
       <p className="truncate text-[11px] text-muted-foreground">{label}</p>
-      <p className="text-lg font-bold">{value}</p>
+      <p className="text-lg font-semibold">{value}</p>
       {sub && <p className="text-[11px] text-muted-foreground">{sub}</p>}
     </div>
   );

@@ -43,7 +43,7 @@ export function LoginForm({ next, allowUniversal }: { next: string; allowUnivers
   const preview = username.trim();
   return (
     <form onSubmit={submit} className="space-y-4" noValidate>
-      <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
+      <div className="flex items-center gap-3 surface rounded-xl p-3">
         <UserAvatar name={preview || "izzi"} size={48} animate />
         <div className="min-w-0 text-xs text-muted-foreground">
           <p className="truncate text-sm font-semibold text-foreground">{preview || "Tu avatar"}</p>

@@ -40,7 +40,7 @@ export function SameWeekdayBars({
             cursor={{ fill: "var(--muted)" }}
             content={({ active, payload }) =>
               active && payload?.[0] ? (
-                <div className="rounded-md border bg-popover px-3 py-2 text-xs shadow-lg">
+                <div className="rounded-xl bg-popover/95 px-3 py-2.5 text-xs shadow-(--shadow-pop) backdrop-blur-md">
                   <p className="text-muted-foreground">{String(payload[0].payload.name)}</p>
                   <p className="tabular font-semibold">{fmt(payload[0].value as number)}</p>
                 </div>

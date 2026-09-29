@@ -12,14 +12,14 @@ const CHECK_TONE = { OK: "text-status-normal-text", WARN: "text-status-attention
 /** Last data received por plataforma. */
 export function FreshnessList({ health, timezone }: { health: Record<PlatformId, PlatformDataHealth>; timezone: string }) {
   return (
-    <ul className="divide-y">
+    <ul className="divide-y divide-(--hairline)">
       {PLATFORM_IDS.filter((p) => health[p]).map((p) => {
         const h = health[p];
         return (
-          <li key={p} className="flex items-center gap-2.5 py-2">
-            <PlatformMark platform={p} className="size-5 text-[9px]" />
-            <span className="flex-1 truncate text-xs font-medium">{PLATFORMS[p].shortName}</span>
-            <span className="tabular text-sm font-semibold">{formatTimeInTz(h.lastDataAt, timezone)}</span>
+          <li key={p} className="flex items-center gap-3 py-2.5">
+            <PlatformMark platform={p} />
+            <span className="flex-1 truncate text-[13px] font-medium">{PLATFORMS[p].shortName}</span>
+            <span className="tabular text-[15px] font-semibold">{formatTimeInTz(h.lastDataAt, timezone)}</span>
             <span className="tabular w-16 text-right text-[11px] text-muted-foreground">{h.lagMinutes === null ? "—" : h.lagMinutes < 60 ? `${h.lagMinutes} min` : `${Math.floor(h.lagMinutes / 60)} h ${h.lagMinutes % 60} m`}</span>
             <DataStateBadge state={h.state} className="w-[96px] justify-center" />
           </li>
@@ -73,7 +73,7 @@ export function DataHealthTable({ health, timezone }: { health: Record<PlatformI
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
                   {h.checks.map((c) => (
                     <span key={c.id} title={c.detail} className="inline-flex items-center gap-1">
-                      <span className={cn("font-bold", CHECK_TONE[c.status])}>{c.status === "OK" ? "✓" : c.status === "WARN" ? "!" : "✕"}</span>
+                      <span className={cn("font-semibold", CHECK_TONE[c.status])}>{c.status === "OK" ? "✓" : c.status === "WARN" ? "!" : "✕"}</span>
                       <span className={c.status === "OK" ? "text-muted-foreground" : "text-foreground"}>{c.label}</span>
                     </span>
                   ))}

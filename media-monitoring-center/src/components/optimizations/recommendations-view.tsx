@@ -10,7 +10,7 @@ import { PlatformMark } from "@/components/monitoring/status";
 
 export function RecommendationCard({ rec, context }: { rec: Recommendation; context?: string }) {
   return (
-    <article className="flex flex-col gap-2 rounded-lg border bg-card p-3.5">
+    <article className="flex flex-col gap-2 surface rounded-xl p-3.5">
       <div className="flex items-start gap-2">
         <PlatformMark platform={rec.platform} className="size-5 text-[9px]" />
         <div className="min-w-0 flex-1">

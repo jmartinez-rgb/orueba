@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { BRAND_COOKIE, parseBrand } from "@/lib/brands";
+import "@fontsource-variable/inter";
 import "./globals.css";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,8 +16,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#090a0c" },
-    { media: "(prefers-color-scheme: light)", color: "#f5f6f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0b0d" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f5f7" },
   ],
 };
 

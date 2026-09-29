@@ -313,7 +313,7 @@ function TicketDetail({ ticket, timezone, canWrite, canManage, onClose, onSaved 
                 </div>
               )}
               <div>
-                <p className="mb-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Histórico del reporte</p>
+                <p className="mb-2 text-[13px] font-semibold text-foreground">Histórico del reporte</p>
                 <ol className="relative space-y-3 border-l pl-4">
                   {ticket.updates.map((u, i) => (
                     <li key={i} className="relative text-xs">

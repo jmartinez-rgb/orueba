@@ -38,56 +38,59 @@ export function Topbar(p: TopbarProps) {
   const [open, setOpen] = useState(false);
   const m = p.overall ? SEVERITY_META[p.overall] : null;
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center gap-2 border-b bg-background/85 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:px-4">
-      <Button variant="ghost" size="icon-sm" className="lg:hidden" onClick={() => setOpen(true)} aria-label="Abrir menú">
-        <Menu />
-      </Button>
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="p-0">
-          <SheetTitle className="sr-only">Menú</SheetTitle>
-          <div className="flex h-14 items-center border-b px-3">
-            <BrandMark brandName={p.brandName} />
-          </div>
-          <div className="px-2 py-3">
-            <NavList counts={p.counts} permissions={p.permissions} onNavigate={() => setOpen(false)} />
-          </div>
-        </SheetContent>
-      </Sheet>
-      <div className="hidden sm:block lg:hidden">
-        <BrandMark brandName={p.brandName} collapsed />
-      </div>
-      {p.brandSwitch}
-
-      {m && p.overall && (
-        <div className={cn("hidden items-center gap-2 rounded-md border px-2 py-1 sm:flex", m.tint, m.border)} title="Estado general de medios">
-          <StatusDot severity={p.overall} pulse />
-          <span className="hidden text-[11px] font-medium text-muted-foreground sm:inline">Estado general</span>
-          <span className={cn("text-xs font-bold tracking-wide", m.text)}>{m.label}</span>
+    <header className="sticky top-0 z-40 px-2 pt-2 sm:px-3">
+      {/* Barra de herramientas flotante de vidrio: el contenido se desplaza por debajo. */}
+      <div className="glass flex h-[52px] items-center gap-2 rounded-[18px] px-2 sm:px-3">
+        <Button variant="ghost" size="icon-sm" className="rounded-full lg:hidden" onClick={() => setOpen(true)} aria-label="Abrir menú">
+          <Menu />
+        </Button>
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetContent side="left" className="p-0">
+            <SheetTitle className="sr-only">Menú</SheetTitle>
+            <div className="flex h-[52px] items-center border-b border-(--hairline) px-4">
+              <BrandMark brandName={p.brandName} />
+            </div>
+            <div className="px-3 py-3">
+              <NavList counts={p.counts} permissions={p.permissions} onNavigate={() => setOpen(false)} />
+            </div>
+          </SheetContent>
+        </Sheet>
+        <div className="hidden sm:block lg:hidden">
+          <BrandMark brandName={p.brandName} collapsed />
         </div>
-      )}
-      {p.mode === "mock" && (
-        <span className="hidden items-center gap-1 rounded-md border border-dashed px-2 py-1 text-[11px] text-muted-foreground md:inline-flex" title="Datos simulados (USE_MOCK_DATA=true)">
-          MOCK · {p.scenario?.name ?? "demo"}
-        </span>
-      )}
+        {p.brandSwitch}
 
-      <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-        <div className="hidden flex-col items-end leading-tight md:flex">
-          <LiveClock timezone={p.timezone} className="tabular text-sm font-semibold" />
-          <span className="text-[10px] text-muted-foreground">{p.cutoffLabel ? `Corte ${p.cutoffLabel} · ${p.timezone.split("/").pop()?.replace("_", " ")}` : p.timezone}</span>
+        {m && p.overall && (
+          <div className={cn("hidden h-7 items-center gap-2 rounded-full px-2.5 sm:flex", m.tint)} title="Estado general de medios">
+            <StatusDot severity={p.overall} pulse />
+            <span className="hidden text-xs text-muted-foreground md:inline">Estado</span>
+            <span className={cn("text-xs font-semibold", m.text)}>{m.label}</span>
+          </div>
+        )}
+        {p.mode === "mock" && (
+          <span className="hidden h-7 items-center gap-1 rounded-full bg-foreground/[0.06] px-2.5 text-xs text-muted-foreground md:inline-flex" title="Datos simulados (USE_MOCK_DATA=true)">
+            Simulado · {p.scenario?.name ?? "demo"}
+          </span>
+        )}
+
+        <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
+          <div className="mr-1 hidden flex-col items-end leading-tight md:flex">
+            <LiveClock timezone={p.timezone} className="tabular text-[13px] font-semibold" />
+            <span className="text-[11px] text-muted-foreground">{p.cutoffLabel ? `Corte ${p.cutoffLabel} · ${p.timezone.split("/").pop()?.replace("_", " ")}` : p.timezone}</span>
+          </div>
+          <RefreshButton canTrigger={p.canTrigger} compact={false} />
+          <ThemeToggle />
+          <UserMenu
+            role={p.role}
+            userName={p.userName}
+            userKind={p.userKind}
+            authMode={p.authMode}
+            canViewUsers={p.permissions.includes("users:view") || p.permissions.includes("users:manage")}
+            mode={p.mode}
+            scenario={p.scenario?.id ?? null}
+            scenarios={p.scenarios}
+          />
         </div>
-        <RefreshButton canTrigger={p.canTrigger} compact={false} />
-        <ThemeToggle />
-        <UserMenu
-          role={p.role}
-          userName={p.userName}
-          userKind={p.userKind}
-          authMode={p.authMode}
-          canViewUsers={p.permissions.includes("users:view") || p.permissions.includes("users:manage")}
-          mode={p.mode}
-          scenario={p.scenario?.id ?? null}
-          scenarios={p.scenarios}
-        />
       </div>
     </header>
   );

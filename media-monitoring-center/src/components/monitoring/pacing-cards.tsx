@@ -98,7 +98,7 @@ export function SpendPacingCard({
           </div>
         )}
         {opt?.unavailable ? (
-          <p className="rounded-md border border-dashed p-6 text-center text-xs text-muted-foreground">{opt.unavailable}</p>
+          <p className="rounded-xl bg-foreground/[0.03] p-6 text-center text-[13px] text-muted-foreground">{opt.unavailable}</p>
         ) : (
           <CumulativeChart data={curves[scope]} cutoffHour={opt?.cutoffHour ?? 0} currency weeks={weeks} showBudget height={height} />
         )}
@@ -154,11 +154,11 @@ export function ResultsPacingCard({
       </CardHeader>
       <CardContent>
         {opt?.unavailable ? (
-          <p className="rounded-md border border-dashed p-6 text-center text-xs text-muted-foreground">{opt.unavailable}</p>
+          <p className="rounded-xl bg-foreground/[0.03] p-6 text-center text-[13px] text-muted-foreground">{opt.unavailable}</p>
         ) : metric && curves[scope]?.[metric]?.some((p) => p.avg !== null || p.today !== null) ? (
           <CumulativeChart data={curves[scope][metric]} cutoffHour={opt?.cutoffHour ?? 0} currency={false} weeks={weeks} height={height} />
         ) : (
-          <p className="rounded-md border border-dashed p-6 text-center text-xs text-muted-foreground">Esta plataforma no reporta {RESULT_LABELS[metric] ?? "esta métrica"} (NULL, no cero).</p>
+          <p className="rounded-xl bg-foreground/[0.03] p-6 text-center text-[13px] text-muted-foreground">Esta plataforma no reporta {RESULT_LABELS[metric] ?? "esta métrica"} (NULL, no cero).</p>
         )}
       </CardContent>
     </Card>

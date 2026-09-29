@@ -14,7 +14,7 @@ export function StatusStrip({ cards, attention }: { cards: Record<PlatformId, Pl
         const bad = isBadDataState(c.dataState);
         const m = SEVERITY_META[c.severity];
         return (
-          <Link key={p} href={`/platforms/${p}`} className={cn("flex items-center gap-2.5 rounded-lg border bg-card px-3 py-2.5 hover:border-foreground/25", !bad && c.severity !== "NORMAL" && m.tint, !bad && m.border)}>
+          <Link key={p} href={`/platforms/${p}`} className={cn("flex items-center gap-2.5 surface rounded-xl px-4 py-3 hover:shadow-(--shadow-card-hover)", !bad && c.severity !== "NORMAL" && m.tint, !bad && m.border)}>
             <PlatformMark platform={p} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-semibold">{c.name.replace(" Advertising", "").replace(" Ads", "")}</p>

@@ -8,7 +8,7 @@ function Tabs({ className, ...props }: React.ComponentProps<typeof TabsPrimitive
 }
 
 function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.List>) {
-  return <TabsPrimitive.List data-slot="tabs-list" className={cn("inline-flex h-8 w-fit items-center rounded-md bg-muted p-0.5 text-muted-foreground", className)} {...props} />;
+  return <TabsPrimitive.List data-slot="tabs-list" className={cn("inline-flex h-8 w-fit items-center rounded-lg bg-foreground/[0.06] p-0.5 text-muted-foreground", className)} {...props} />;
 }
 
 function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
@@ -16,7 +16,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "inline-flex h-7 items-center justify-center gap-1.5 rounded-[5px] px-2.5 text-xs font-medium whitespace-nowrap transition-colors data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm focus-visible:ring-2 focus-visible:ring-ring/60 outline-none",
+        "inline-flex h-7 items-center justify-center gap-1.5 rounded-md px-3 text-[13px] font-medium whitespace-nowrap transition-[background-color,color,box-shadow] duration-200 ease-out hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-(--shadow-control) focus-visible:ring-2 focus-visible:ring-ring/60 outline-none",
         className,
       )}
       {...props}

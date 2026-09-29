@@ -4,18 +4,18 @@ import { PLATFORMS } from "@/lib/platforms/registry";
 import { cn } from "@/lib/utils";
 
 export const SEVERITY_META: Record<Severity, { label: string; dot: string; text: string; tint: string; border: string; Icon: typeof CircleCheck }> = {
-  NORMAL: { label: "NORMAL", dot: "bg-status-normal", text: "text-status-normal-text", tint: "bg-status-normal/10", border: "border-status-normal/40", Icon: CircleCheck },
-  ATTENTION: { label: "ATENCIÓN", dot: "bg-status-attention", text: "text-status-attention-text", tint: "bg-status-attention/12", border: "border-status-attention/50", Icon: CircleAlert },
-  ALERT: { label: "ALERTA", dot: "bg-status-alert", text: "text-status-alert-text", tint: "bg-status-alert/12", border: "border-status-alert/50", Icon: TriangleAlert },
-  CRITICAL: { label: "CRÍTICO", dot: "bg-status-critical", text: "text-status-critical-text", tint: "bg-status-critical/12", border: "border-status-critical/50", Icon: OctagonAlert },
+  NORMAL: { label: "Normal", dot: "bg-status-normal", text: "text-status-normal-text", tint: "bg-status-normal/12", border: "border-status-normal/35", Icon: CircleCheck },
+  ATTENTION: { label: "Atención", dot: "bg-status-attention", text: "text-status-attention-text", tint: "bg-status-attention/16", border: "border-status-attention/45", Icon: CircleAlert },
+  ALERT: { label: "Alerta", dot: "bg-status-alert", text: "text-status-alert-text", tint: "bg-status-alert/14", border: "border-status-alert/45", Icon: TriangleAlert },
+  CRITICAL: { label: "Crítico", dot: "bg-status-critical", text: "text-status-critical-text", tint: "bg-status-critical/12", border: "border-status-critical/45", Icon: OctagonAlert },
 };
 
 export const DATA_STATE_META: Record<DataState, { label: string; Icon: typeof CircleCheck; bad: boolean }> = {
   OK: { label: "Al día", Icon: CircleCheck, bad: false },
   PARTIAL: { label: "Parcial", Icon: Layers, bad: false },
-  DELAYED: { label: "DATA DELAYED", Icon: Hourglass, bad: true },
-  ERROR: { label: "ERROR", Icon: CloudOff, bad: true },
-  NO_DATA: { label: "SIN DATOS", Icon: CircleDashed, bad: true },
+  DELAYED: { label: "Datos atrasados", Icon: Hourglass, bad: true },
+  ERROR: { label: "Error de carga", Icon: CloudOff, bad: true },
+  NO_DATA: { label: "Sin datos", Icon: CircleDashed, bad: true },
 };
 
 export function isBadDataState(s: DataState) {
@@ -38,13 +38,12 @@ export function SeverityBadge({ severity, size = "sm", className }: { severity: 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border font-semibold tracking-wide whitespace-nowrap",
+        "inline-flex items-center gap-1 rounded-full font-semibold whitespace-nowrap",
         m.tint,
         m.text,
-        m.border,
-        size === "sm" && "px-1.5 py-0.5 text-[10.5px]",
-        size === "md" && "px-2 py-1 text-xs",
-        size === "lg" && "px-2.5 py-1 text-sm",
+        size === "sm" && "px-2 py-[3px] text-[11px]",
+        size === "md" && "px-2.5 py-1 text-xs",
+        size === "lg" && "px-3 py-1 text-[13px]",
         className,
       )}
     >
@@ -60,8 +59,8 @@ export function DataStateBadge({ state, className }: { state: DataState; classNa
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10.5px] font-semibold tracking-wide whitespace-nowrap",
-        m.bad ? "border-status-data/50 bg-status-data/12 text-status-data-text" : state === "PARTIAL" ? "border-status-attention/40 text-status-attention-text" : "border-border text-muted-foreground",
+        "inline-flex items-center gap-1 rounded-full px-2 py-[3px] text-[11px] font-semibold whitespace-nowrap",
+        m.bad ? "bg-status-data/15 text-status-data-text" : state === "PARTIAL" ? "bg-status-attention/16 text-status-attention-text" : "bg-status-normal/12 text-status-normal-text",
         className,
       )}
     >
@@ -82,7 +81,7 @@ export function PlatformMark({ platform, className }: { platform: PlatformId; cl
   const initials: Record<PlatformId, string> = { google: "G", meta: "M", tiktok: "T", microsoft: "Ms", spotify: "S", x: "X" };
   return (
     <span
-      className={cn("inline-flex size-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white", className)}
+      className={cn("inline-flex size-6 shrink-0 items-center justify-center rounded-[7px] text-[10px] font-semibold text-white shadow-[inset_0_0_0_0.5px_rgb(0_0_0/0.12)]", className)}
       style={{ background: `var(--chart-${def.colorSlot})` }}
       aria-hidden
     >

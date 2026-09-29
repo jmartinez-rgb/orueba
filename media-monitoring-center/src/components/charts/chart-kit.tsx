@@ -24,7 +24,7 @@ export function ChartTooltip({
 }) {
   if (!active || rows.length === 0) return null;
   return (
-    <div className="min-w-44 rounded-md border bg-popover px-3 py-2 text-xs shadow-lg">
+    <div className="min-w-44 rounded-xl bg-popover/95 px-3 py-2.5 text-xs shadow-(--shadow-pop) backdrop-blur-md">
       <p className="mb-1.5 font-medium text-muted-foreground">{title ?? label}</p>
       <div className="space-y-1">
         {rows.map((r) => (
@@ -63,7 +63,7 @@ export function SwatchLegend({ items, className }: { items: Array<{ key: string;
     <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground", className)}>
       {items.map((s) => (
         <span key={s.key} className="inline-flex items-center gap-1.5">
-          <span className="inline-block size-2.5 rounded-[3px]" style={{ background: s.color }} aria-hidden />
+          <span className="inline-block size-2.5 rounded-full" style={{ background: s.color }} aria-hidden />
           {s.label}
         </span>
       ))}

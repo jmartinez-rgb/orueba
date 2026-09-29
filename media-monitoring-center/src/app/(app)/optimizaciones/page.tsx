@@ -35,7 +35,7 @@ export default async function OptimizationsPage() {
         title="Optimizaciones"
         subtitle="Recomendaciones basadas en la documentación oficial de cada plataforma, cruzadas con lo que detecta hoy el monitoreo. Son guías para revisar: la app no aplica cambios; el equipo decide y ejecuta en cada plataforma."
       />
-      <p className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-xs text-muted-foreground">
+      <p className="flex items-center gap-2 rounded-lg bg-card shadow-(--shadow-control) px-3 py-2 text-xs text-muted-foreground">
         <Eye className="size-4 text-brand-teal" /> Solo lectura: ninguna recomendación se ejecuta automáticamente ni modifica campañas, presupuestos o configuraciones.
       </p>
       <Card>

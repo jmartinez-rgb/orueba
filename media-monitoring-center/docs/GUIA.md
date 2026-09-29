@@ -24,6 +24,15 @@ entre ellos en un clic (se recuerda en tu navegador):
   Sky); la cuenta mixta "izzi - Sky Social" se separa por campaña ("Sky / …" y "izzi / …").
 - Si tu cuenta solo tiene acceso a una marca, no ves el botón.
 
+## Avisos de críticos
+
+- Mientras haya un incidente crítico sin acusar, la pantalla se bloquea hasta registrar qué se revisó
+  y a quién se reporta.
+- La pestaña del navegador muestra el número de críticos pendientes, por ejemplo "(2) Overview".
+- **Avisos de escritorio:** en el menú de tu usuario elige "Avisarme de críticos en el escritorio" (o
+  el botón del mismo nombre en la alerta crítica). Cuando entra un crítico nuevo con la pestaña en
+  segundo plano, llega una notificación del sistema.
+
 ## Cómo leer el semáforo
 
 Regla principal: **hoy vs el mismo día de la semana en la misma franja horaria** (00:00 → hora de

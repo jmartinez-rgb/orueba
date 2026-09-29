@@ -81,7 +81,7 @@ export function CurrencySettings({
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="min-w-0 space-y-2">
-        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Tipo de cambio por mes (1 USD = MXN)</p>
+        <p className="text-[13px] font-semibold text-foreground">Tipo de cambio por mes (1 USD = MXN)</p>
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-xs">
             <thead className="bg-muted/50 text-muted-foreground">
@@ -133,7 +133,7 @@ export function CurrencySettings({
         <p className="text-[11px] text-muted-foreground">Sin tasa de un mes se usa la del mes anterior y baja la confianza de datos; si no hay ninguna, el gasto en USD queda NULL (nunca se inventa).</p>
       </div>
       <div className="min-w-0 space-y-2">
-        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Moneda de cada cuenta</p>
+        <p className="text-[13px] font-semibold text-foreground">Moneda de cada cuenta</p>
         <div className="max-h-[420px] overflow-y-auto rounded-md border">
           <table className="w-full text-xs">
             <tbody>

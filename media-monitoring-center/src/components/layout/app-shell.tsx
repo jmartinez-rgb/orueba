@@ -92,16 +92,16 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
         counts={counts}
         permissions={permissions}
         footer={
-          <div className="space-y-1 text-[11px] text-muted-foreground">
+          <div className="space-y-0.5 text-[11px] leading-snug text-muted-foreground">
             <p className="font-medium text-foreground">{DATA_MODE_LABEL[mode]}</p>
-            <p>Evaluación cada 2 h · {timezone}</p>
-            <p className="text-[10px] leading-snug">Solo lectura: no modifica nada en las plataformas.</p>
+            <p>Evaluación cada 2 h · {timezone.replace("_", " ")}</p>
+            <p>Solo lectura: no modifica nada en las plataformas.</p>
           </div>
         }
       />
       <div className="flex min-w-0 flex-1 flex-col">
         {auth.mode === "open" && (
-          <div className="border-b border-status-attention/40 bg-status-attention/10 px-4 py-1.5 text-center text-[11px] text-status-attention-text">
+          <div className="border-b border-(--hairline) bg-status-attention/12 px-4 py-1.5 text-center text-xs text-status-attention-text">
             Acceso abierto (sin contraseña): configura AUTH_SECRET, AUTH_USERS y AUTH_UNIVERSAL_PASSWORD_HASH para exigir inicio de sesión.
           </div>
         )}
@@ -123,11 +123,11 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
           canTrigger={hasPermission(session, "monitoring:trigger")}
         />
         {!brandHasData && (
-          <div className="border-b border-status-attention/40 bg-status-attention/10 px-4 py-1.5 text-center text-[11px] text-status-attention-text">
+          <div className="border-b border-(--hairline) bg-status-attention/12 px-4 py-1.5 text-center text-xs text-status-attention-text">
             La fuente de datos no trae cuentas de {BRANDS[brand].name}. Las cuentas se asignan por su nombre (por ejemplo &quot;Sky - ABCW&quot; o &quot;izzi - Ofertas&quot;).
           </div>
         )}
-        <main className="mx-auto w-full max-w-[1680px] flex-1 px-3 py-4 sm:px-5 lg:px-6">{children}</main>
+        <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 pt-5 pb-10 sm:px-6 lg:px-7">{children}</main>
       </div>
       <AutoRefresh />
       <CriticalAlertGate userName={session.user.name} canTicket={hasPermission(session, "tickets:write")} />

@@ -218,7 +218,7 @@ export function ClassifierEditor({ initial, canEdit, initialPlatform = "meta" }:
           </Label>
           <Input id="cls-sec" value={testSecondary} onChange={(e) => setTestSecondary(e.target.value)} placeholder={platform === "google" ? "SEARCH / PERFORMANCE_MAX…" : "OUTCOME_LEADS…"} className="h-8 text-xs" />
         </div>
-        <div className="rounded-md border bg-card px-3 py-1.5 text-xs">
+        <div className="rounded-lg bg-card shadow-(--shadow-control) px-3 py-1.5 text-xs">
           <p className="text-muted-foreground">Resultado</p>
           <p className="font-semibold">{result.label}</p>
           <p className="text-[10px] text-muted-foreground">{result.ruleIndex ? `Regla ${result.ruleIndex}: “${result.rule?.contains}”` : "Respaldo"}</p>

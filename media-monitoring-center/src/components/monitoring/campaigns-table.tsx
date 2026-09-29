@@ -11,6 +11,7 @@ import { fmtCurrency, fmtMetric } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataStateBadge, DeltaText, isBadDataState, PlatformMark, SeverityBadge } from "./status";
 import { StateMessage } from "./states";
@@ -45,6 +46,8 @@ function sortRows(rows: CampaignRowVM[], sort: CampaignSort): CampaignRowVM[] {
   }
 }
 
+const PAGE = 25;
+
 export function CampaignsTable({
   rows,
   attention = 0.15,
@@ -64,6 +67,10 @@ export function CampaignsTable({
   const [status, setStatus] = useState<"ACTIVE" | "all" | "PAUSED">("ACTIVE");
   const [alert, setAlert] = useState<"all" | "with" | "without">("all");
   const [sort, setSort] = useState<CampaignSort>(initialSort);
+  // Se muestran por páginas: dibujar cientos de filas de golpe hace lenta la página. Al cambiar un filtro vuelve a la primera.
+  const signature = [q, platform, objective, status, alert, sort].join("|");
+  const [page, setPage] = useState({ signature, shown: PAGE });
+  const shown = page.signature === signature ? page.shown : PAGE;
 
   const filtered = useMemo(() => {
     let l = rows;
@@ -189,7 +196,7 @@ export function CampaignsTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((r) => {
+            {filtered.slice(0, shown).map((r) => {
               const bad = isBadDataState(r.dataState);
               return (
                 <TableRow key={r.id} className={cn(r.status !== "ACTIVE" && "opacity-60")}>
@@ -250,6 +257,16 @@ export function CampaignsTable({
             })}
           </TableBody>
         </Table>
+      )}
+      {filtered.length > shown && (
+        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+          <Button variant="secondary" size="sm" className="rounded-full" onClick={() => setPage({ signature, shown: shown + PAGE })}>
+            Mostrar {Math.min(PAGE, filtered.length - shown)} más
+          </Button>
+          <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground" onClick={() => setPage({ signature, shown: filtered.length })}>
+            Ver las {filtered.length}
+          </Button>
+        </div>
       )}
     </div>
   );

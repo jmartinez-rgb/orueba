@@ -48,8 +48,23 @@ export function BrandSwitch({ current, statuses }: { current: BrandId; statuses:
     });
   };
 
+  const index = Math.max(
+    0,
+    statuses.findIndex((s) => s.brand === (target ?? current)),
+  );
   return (
-    <div role="radiogroup" aria-label="Marca del monitoreo" className="flex items-center rounded-lg border bg-muted/60 p-0.5">
+    <div
+      role="radiogroup"
+      aria-label="Marca del monitoreo"
+      className="relative grid h-8 shrink-0 items-center rounded-[9px] bg-foreground/[0.06] p-0.5"
+      style={{ gridTemplateColumns: `repeat(${statuses.length}, minmax(0, 1fr))` }}
+    >
+      {/* Control segmentado: la pastilla se desliza a la marca elegida (se mueve al presionar, no al terminar de cargar). */}
+      <span
+        aria-hidden
+        className="absolute inset-y-0.5 left-0.5 rounded-[7px] bg-card shadow-(--shadow-control) transition-transform duration-200 ease-out motion-reduce:transition-none"
+        style={{ width: `calc((100% - 4px) / ${statuses.length})`, transform: `translateX(${index * 100}%)` }}
+      />
       {statuses.map((s) => {
         const info = BRANDS[s.brand];
         const active = s.brand === current;
@@ -65,15 +80,16 @@ export function BrandSwitch({ current, statuses }: { current: BrandId; statuses:
             disabled={pending && !loading}
             title={`${active ? "Viendo" : "Cambiar a"} ${info.name}${tone ? ` · ${tone.label}` : ""}${s.critical ? ` · ${s.critical} crítico${s.critical === 1 ? "" : "s"} abierto${s.critical === 1 ? "" : "s"}` : ""}`}
             className={cn(
-              "relative flex h-8 min-w-[56px] items-center justify-center gap-1.5 rounded-md px-2 text-[13px] sm:min-w-[64px] sm:px-2.5 font-extrabold tracking-tight transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              active ? "shadow-sm" : "text-muted-foreground hover:text-foreground",
+              "pressable relative z-10 flex h-7 min-w-[64px] items-center justify-center gap-1.5 rounded-[7px] px-3 text-[13px] font-semibold tracking-[-0.01em] outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+              active || loading ? "text-foreground" : "text-muted-foreground hover:text-foreground",
             )}
-            style={active ? { backgroundColor: info.color, color: info.ink } : undefined}
           >
-            {loading ? <Loader2 className="size-3.5 animate-spin" /> : s.overall ? <StatusDot severity={s.overall} pulse={!active && s.overall === "CRITICAL"} /> : null}
-            <span>{info.name}</span>
+            {loading ? <Loader2 className="size-3.5 animate-spin" /> : s.overall ? <StatusDot severity={s.overall} className="size-2" pulse={!active && s.overall === "CRITICAL"} /> : null}
+            <span style={active ? { color: "var(--primary)" } : undefined}>{info.name}</span>
             {!active && s.critical > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 inline-flex min-w-4 items-center justify-center rounded-full bg-status-critical px-1 text-[10px] leading-4 font-bold text-white">{s.critical}</span>
+              <span className="absolute -top-1.5 -right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-status-critical px-1 text-[10px] leading-none font-semibold text-white shadow-[0_0_0_2px_var(--background)]">
+                {s.critical}
+              </span>
             )}
           </button>
         );

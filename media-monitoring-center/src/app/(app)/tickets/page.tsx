@@ -74,9 +74,9 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border bg-card px-3 py-2">
+    <div className="surface rounded-xl px-4 py-3">
       <p className="text-[11px] text-muted-foreground">{label}</p>
-      <p className="tabular truncate text-xl font-bold">{value}</p>
+      <p className="tabular truncate text-xl font-semibold">{value}</p>
     </div>
   );
 }

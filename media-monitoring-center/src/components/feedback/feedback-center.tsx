@@ -252,7 +252,7 @@ export function FeedbackList({ items, timezone, manage, sectionLabel }: { items:
           const expanded = openId === f.id;
           const d = draft[f.id] ?? { status: f.status, note: f.adminNote ?? "" };
           return (
-            <li key={f.id} className="rounded-lg border bg-card">
+            <li key={f.id} className="surface rounded-xl">
               <button type="button" onClick={() => setOpenId(expanded ? null : f.id)} className="flex w-full items-start gap-3 px-3 py-2.5 text-left" aria-expanded={expanded}>
                 <UserAvatar name={f.author.name} size={28} />
                 <span className="min-w-0 flex-1">

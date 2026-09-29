@@ -76,7 +76,7 @@ function BrandBadges({ brands }: { brands: BrandId[] }) {
   return (
     <span className="flex flex-wrap gap-1">
       {brands.map((b) => (
-        <span key={b} className="rounded px-1.5 py-0.5 text-[11px] font-bold" style={{ backgroundColor: BRANDS[b].color, color: BRANDS[b].ink }}>
+        <span key={b} className="rounded px-1.5 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: BRANDS[b].color, color: BRANDS[b].ink }}>
           {BRANDS[b].name}
         </span>
       ))}
@@ -102,7 +102,7 @@ function BrandPicker({ value, onChange, disabled }: { value: BrandId[]; onChange
           disabled={disabled}
           onClick={() => toggle(b)}
           aria-pressed={selected(b)}
-          className={cn("flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm font-bold transition-colors disabled:opacity-50", selected(b) ? "border-transparent" : "bg-transparent text-muted-foreground")}
+          className={cn("flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm font-semibold transition-colors disabled:opacity-50", selected(b) ? "border-transparent" : "bg-transparent text-muted-foreground")}
           style={selected(b) ? { backgroundColor: BRANDS[b].color, color: BRANDS[b].ink } : { backgroundColor: "transparent" }}
         >
           {selected(b) && <Check className="size-3.5" />}
@@ -243,7 +243,7 @@ export function AccountAdmin({ initialAccounts, initialUniversal, selfId, myPerm
 
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full min-w-[760px] text-sm">
-          <thead className="bg-muted/50 text-left text-[11px] tracking-wide text-muted-foreground uppercase">
+          <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">
             <tr>
               <th className="px-3 py-2 font-semibold">Persona</th>
               <th className="px-3 py-2 font-semibold">Rol</th>

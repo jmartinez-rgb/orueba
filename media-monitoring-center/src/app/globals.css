@@ -5,57 +5,79 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Tokens de diseño izzi Media Monitoring Center.
- * Marca: teal #00C1B5 y magenta #D60270 sobre fondo casi negro.
+ * Tokens de diseño · izzi Media Monitoring Center.
+ * Dirección: tablero tipo Apple. Superficies calmadas (gris #f5f5f7 y tarjetas blancas con
+ * sombra suave; en oscuro, grafito con un filo de 1 px), un solo acento por marca (izzi teal,
+ * Sky azul), colores de estado del sistema y texto con contraste AA.
  * Estados (fijos, nunca reutilizados como serie): normal / atención / alerta / crítico.
  * Paleta categórica de plataformas validada para daltonismo (orden fijo).
  */
 :root {
-  --radius: 0.5rem;
-  --background: #f5f6f8;
-  --foreground: #0f1115;
+  --radius: 0.75rem;
+  --background: #f5f5f7;
+  --foreground: #1d1d1f;
   --card: #ffffff;
-  --card-foreground: #0f1115;
+  --card-foreground: #1d1d1f;
   --popover: #ffffff;
-  --popover-foreground: #0f1115;
+  --popover-foreground: #1d1d1f;
   --primary: #007a73;
   --primary-foreground: #ffffff;
-  --secondary: #eef0f3;
-  --secondary-foreground: #1a1d23;
-  --muted: #eef0f3;
-  --muted-foreground: #5b616b;
-  --accent: #e8f5f4;
-  --accent-foreground: #0f1115;
-  --destructive: #c42b2b;
-  --border: #e2e5ea;
-  --input: #d6dae1;
-  --ring: #00a79d;
+  --secondary: #ebebef;
+  --secondary-foreground: #1d1d1f;
+  --muted: #efeff2;
+  --muted-foreground: #6e6e73;
+  --accent: #e6f4f3;
+  --accent-foreground: #1d1d1f;
+  --destructive: #d70015;
+  --border: #e3e3e8;
+  --input: #d2d2d7;
+  --ring: #007a73;
   --brand-teal: #007a73;
-  --brand-magenta: #d60270;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #1a1d23;
-  --sidebar-border: #e2e5ea;
-  --sidebar-accent: #eef7f6;
+  --brand-magenta: #c8026a;
+  --sidebar: #ececf0;
+  --sidebar-foreground: #1d1d1f;
+  --sidebar-border: #dedee3;
+  --sidebar-accent: #ffffff;
 
-  /* Estados: marca (relleno) y texto legible sobre la superficie. */
-  --status-normal: #0ca30c;
-  --status-attention: #fab219;
-  --status-alert: #ec835a;
-  --status-critical: #d03b3b;
-  --status-normal-text: #0a6b0a;
-  --status-attention-text: #855b00;
-  --status-alert-text: #a94519;
-  --status-critical-text: #b42323;
-  --status-data: #6b7280;
-  --status-data-text: #4b5563;
+  /* Profundidad: una sola declaración por superficie (sombra en claro, filo en oscuro). */
+  --shadow-card: 0 1px 2px rgb(16 16 20 / 0.05), 0 4px 16px -6px rgb(16 16 20 / 0.08);
+  --shadow-card-hover: 0 1px 2px rgb(16 16 20 / 0.06), 0 10px 28px -10px rgb(16 16 20 / 0.16);
+  --shadow-pop: 0 1px 2px rgb(16 16 20 / 0.08), 0 16px 48px -12px rgb(16 16 20 / 0.24);
+  --shadow-control: 0 0 0 0.5px rgb(16 16 20 / 0.14), 0 1px 2px rgb(16 16 20 / 0.08);
+  --hairline: rgb(16 16 20 / 0.08);
+  --material: rgb(245 245 247 / 0.72);
+  /* Liquid Glass (estilo Apple 26/27): capa de navegación que flota sobre el contenido. */
+  --glass: rgb(255 255 255 / 0.58);
+  --glass-strong: rgb(255 255 255 / 0.74);
+  --glass-edge: inset 0 1px 0 rgb(255 255 255 / 0.85), inset 0 0 0 0.5px rgb(255 255 255 / 0.55), inset 0 -1px 0 rgb(16 16 20 / 0.04);
+  --glass-shadow: 0 1px 2px rgb(16 16 20 / 0.06), 0 12px 40px -14px rgb(16 16 20 / 0.22);
+  --ambient-1: rgb(0 193 181 / 0.10);
+  --ambient-2: rgb(10 102 216 / 0.06);
+
+  /* Movimiento (Emil Kowalski / Apple): salida fuerte, rápida; nada de ease-in en UI. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Estados: relleno (colores del sistema) y texto legible (AA) sobre la superficie. */
+  --status-normal: #34c759;
+  --status-attention: #ffcc00;
+  --status-alert: #ff9500;
+  --status-critical: #ff3b30;
+  --status-normal-text: #1e7b34;
+  --status-attention-text: #8a5200;
+  --status-alert-text: #c93400;
+  --status-critical-text: #d70015;
+  --status-data: #8e8e93;
+  --status-data-text: #6b6b70;
 
   /* Gráficas */
-  --chart-grid: #e6e8ec;
-  --chart-axis: #8a8f98;
+  --chart-grid: #ececf0;
+  --chart-axis: #8e8e93;
   --series-today: #007a73;
-  --series-prev: #6b7079;
-  --series-avg: #2f3440;
-  --series-budget: #d60270;
+  --series-prev: #aeaeb2;
+  --series-avg: #3a3a3c;
+  --series-budget: #c8026a;
   --chart-1: #2a78d6;
   --chart-2: #eb6834;
   --chart-3: #1baf7a;
@@ -65,44 +87,61 @@
 }
 
 .dark {
-  --background: #090a0c;
-  --foreground: #eceef1;
-  --card: #111317;
-  --card-foreground: #eceef1;
-  --popover: #15181d;
-  --popover-foreground: #eceef1;
+  --background: #0b0b0d;
+  --foreground: #f5f5f7;
+  --card: #161618;
+  --card-foreground: #f5f5f7;
+  --popover: #1f1f22;
+  --popover-foreground: #f5f5f7;
   --primary: #00c1b5;
   --primary-foreground: #04110f;
-  --secondary: #1a1d23;
-  --secondary-foreground: #eceef1;
-  --muted: #171a1f;
-  --muted-foreground: #9aa0a8;
-  --accent: #10231f;
-  --accent-foreground: #eceef1;
-  --destructive: #e05252;
-  --border: #23262d;
-  --input: #2b2f37;
+  --secondary: #242427;
+  --secondary-foreground: #f5f5f7;
+  --muted: #1d1d20;
+  --muted-foreground: #98989f;
+  --accent: #0f2422;
+  --accent-foreground: #f5f5f7;
+  --destructive: #ff453a;
+  --border: #2a2a2e;
+  --input: #34343a;
   --ring: #00c1b5;
   --brand-teal: #00c1b5;
-  --brand-magenta: #e0338a;
-  --sidebar: #0c0d10;
-  --sidebar-foreground: #d8dbe0;
-  --sidebar-border: #1d2026;
-  --sidebar-accent: #12211f;
+  --brand-magenta: #ff375f;
+  --sidebar: #121214;
+  --sidebar-foreground: #e5e5ea;
+  --sidebar-border: #232326;
+  --sidebar-accent: #242427;
 
-  --status-normal-text: #3ecf3e;
-  --status-attention-text: #fbc24a;
-  --status-alert-text: #f29a76;
-  --status-critical-text: #f07070;
-  --status-data: #8b93a1;
-  --status-data-text: #aab1bd;
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.06);
+  --shadow-card-hover: 0 0 0 1px rgb(255 255 255 / 0.12);
+  --shadow-pop: 0 0 0 1px rgb(255 255 255 / 0.08), 0 20px 60px -12px rgb(0 0 0 / 0.7);
+  --shadow-control: 0 0 0 1px rgb(255 255 255 / 0.1);
+  --hairline: rgb(255 255 255 / 0.08);
+  --material: rgb(11 11 13 / 0.7);
+  --glass: rgb(38 38 42 / 0.52);
+  --glass-strong: rgb(44 44 48 / 0.72);
+  --glass-edge: inset 0 1px 0 rgb(255 255 255 / 0.12), inset 0 0 0 0.5px rgb(255 255 255 / 0.1), inset 0 -1px 0 rgb(0 0 0 / 0.25);
+  --glass-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 48px -16px rgb(0 0 0 / 0.7);
+  --ambient-1: rgb(0 193 181 / 0.08);
+  --ambient-2: rgb(106 163 255 / 0.05);
 
-  --chart-grid: #22252b;
-  --chart-axis: #7d838c;
+  --status-normal: #30d158;
+  --status-attention: #ffd60a;
+  --status-alert: #ff9f0a;
+  --status-critical: #ff453a;
+  --status-normal-text: #30d158;
+  --status-attention-text: #ffd60a;
+  --status-alert-text: #ff9f0a;
+  --status-critical-text: #ff6961;
+  --status-data: #8e8e93;
+  --status-data-text: #a1a1a8;
+
+  --chart-grid: #232326;
+  --chart-axis: #8e8e93;
   --series-today: #00c1b5;
-  --series-prev: #8a9099;
-  --series-avg: #d5d8dd;
-  --series-budget: #e0338a;
+  --series-prev: #636366;
+  --series-avg: #d1d1d6;
+  --series-budget: #ff375f;
   --chart-1: #3987e5;
   --chart-2: #d95926;
   --chart-3: #199e70;
@@ -116,28 +155,30 @@
  * izzi usa los tokens de arriba. Los colores de estado y de plataformas no cambian.
  */
 [data-brand="sky"] {
-  --primary: #1f5fd6;
+  --ambient-1: rgb(10 102 216 / 0.09);
+  --ambient-2: rgb(0 193 181 / 0.04);
+  --primary: #0a66d8;
   --primary-foreground: #ffffff;
-  --ring: #3b7bf0;
-  --brand-teal: #1f5fd6;
-  --accent: #eaf1fd;
-  --sidebar-accent: #edf2fd;
-  --series-today: #1f5fd6;
+  --ring: #0a66d8;
+  --brand-teal: #0a66d8;
+  --accent: #e9f1fd;
+  --series-today: #0a66d8;
 }
 
 .dark[data-brand="sky"] {
-  --primary: #5b95ff;
-  --primary-foreground: #050b18;
-  --ring: #5b95ff;
-  --brand-teal: #5b95ff;
-  --accent: #111b2e;
-  --sidebar-accent: #101a2c;
-  --series-today: #5b95ff;
+  --ambient-1: rgb(106 163 255 / 0.08);
+  --primary: #6aa3ff;
+  --primary-foreground: #051022;
+  --ring: #6aa3ff;
+  --brand-teal: #6aa3ff;
+  --accent: #0f1a2c;
+  --series-today: #6aa3ff;
 }
 
 @theme inline {
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* SF Pro en equipos Apple; Inter (autoalojada) en los demás. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter Variable", "Inter", "Segoe UI Variable Text", "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -176,6 +217,64 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+}
+
+/* Curvas de Tailwind (ease-out / ease-in-out) con más carácter que las de fábrica. */
+@theme {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* Superficie base: tarjeta con la profundidad del tema. */
+@utility surface {
+  background-color: var(--card);
+  color: var(--card-foreground);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+/* Material traslúcido para la barra superior (el contenido pasa por debajo). */
+@utility material {
+  background-color: var(--material);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+/*
+ * Liquid Glass: traslúcido, con borde especular arriba y sombra que lo separa del contenido.
+ * Solo para la capa de navegación y controles flotantes; el contenido va en superficies sólidas.
+ */
+@utility glass {
+  background-color: var(--glass);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  backdrop-filter: blur(24px) saturate(190%);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+
+@utility glass-control {
+  background-color: var(--glass-strong);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(180%);
+  box-shadow: var(--glass-edge), 0 1px 3px rgb(16 16 20 / 0.12);
+}
+
+/* Etiqueta de dato: pequeña, en minúsculas de oración, secundaria. */
+@utility label-sm {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+/* Presión inmediata en cualquier control (Apple / Emil: responder al presionar). */
+@utility pressable {
+  transition-property: transform, background-color, color, box-shadow, opacity;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
 }
 
 @layer base {
@@ -184,16 +283,72 @@
   }
   html {
     color-scheme: light;
+    -webkit-text-size-adjust: 100%;
   }
   html.dark {
     color-scheme: dark;
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv11", "ss01";
+    /* Luz ambiental muy tenue del color de la marca: el vidrio necesita algo que refractar. */
+    background-image:
+      radial-gradient(1200px 600px at 12% -10%, var(--ambient-1), transparent 70%),
+      radial-gradient(900px 500px at 100% 0%, var(--ambient-2), transparent 70%);
+    background-attachment: fixed;
+    font-size: 14px;
+    letter-spacing: -0.006em;
+    text-rendering: optimizeLegibility;
+    caret-color: var(--primary);
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 24%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--ring) 70%, transparent);
+    outline-offset: 2px;
+  }
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Barras de desplazamiento discretas, del color del sistema. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--foreground) 22%, transparent) transparent;
   }
   .tabular {
     font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-control {
+    background-color: var(--popover);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .material {
+    background-color: var(--background);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --shadow-card: 0 0 0 1px rgb(16 16 20 / 0.35);
+    --muted-foreground: #4a4a4f;
+  }
+  .dark {
+    --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.35);
+    --muted-foreground: #c7c7cc;
   }
 }
 
@@ -210,17 +365,9 @@
   stroke: var(--chart-axis);
 }
 
-/* Destello del botón principal (adaptado de RareUI · GlassShimmerButton). */
-@keyframes immc-shimmer {
-  0% {
-    transform: translateX(-75%) skewX(-20deg);
-  }
-  100% {
-    transform: translateX(25%) skewX(-20deg);
-  }
-}
+/* El destello decorativo del botón principal se retiró: el movimiento solo comunica estado. */
 .immc-shimmer {
-  animation: immc-shimmer 2.6s infinite linear;
+  display: none;
 }
 
 /* Alerta crítica a pantalla completa: pulso del borde. */
@@ -230,11 +377,11 @@
     box-shadow: 0 0 0 0 color-mix(in oklab, var(--status-critical) 55%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 10px color-mix(in oklab, var(--status-critical) 0%, transparent);
+    box-shadow: 0 0 0 8px color-mix(in oklab, var(--status-critical) 0%, transparent);
   }
 }
 .immc-critical-pulse {
-  animation: immc-critical-pulse 1.8s ease-in-out infinite;
+  animation: immc-critical-pulse 2.4s var(--ease-in-out) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

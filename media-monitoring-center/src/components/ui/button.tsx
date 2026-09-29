@@ -4,21 +4,21 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+  "pressable inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium tracking-[-0.01em] disabled:pointer-events-none disabled:opacity-40 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "bg-primary text-primary-foreground shadow-[0_1px_2px_rgb(0_0_0/0.14)] hover:bg-primary/90",
         destructive: "bg-destructive text-white hover:bg-destructive/90",
-        outline: "border bg-card hover:bg-muted text-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-muted text-foreground",
+        outline: "bg-card text-foreground shadow-(--shadow-control) hover:bg-muted",
+        secondary: "bg-foreground/[0.06] text-foreground hover:bg-foreground/[0.1]",
+        ghost: "text-foreground hover:bg-foreground/[0.06]",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
         default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md gap-1.5 px-3 text-xs",
-        xs: "h-7 rounded-md gap-1 px-2 text-xs",
+        sm: "h-8 rounded-md gap-1.5 px-3 text-[13px]",
+        xs: "h-7 rounded-md gap-1 px-2.5 text-xs",
         lg: "h-10 rounded-md px-6",
         icon: "size-9",
         "icon-sm": "size-8",
