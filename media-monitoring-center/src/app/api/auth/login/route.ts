@@ -1,5 +1,6 @@
 import { cookies, headers } from "next/headers";
-import { getAuthConfig, findAccount, normalizeUsername } from "@/lib/auth/config";
+import { getAuthConfig, normalizeUsername } from "@/lib/auth/config";
+import { effectiveUniversal, findEffectiveAccount, listAccounts } from "@/lib/auth/users";
 import { verifyPassword } from "@/lib/auth/password";
 import { isLocked, loginKey, registerFailure, registerSuccess } from "@/lib/auth/rate-limit";
 import { randomId, SESSION_COOKIE, signSessionToken, type SessionClaims } from "@/lib/auth/token";
@@ -48,16 +49,26 @@ export async function POST(req: Request) {
     return json({ ok: false, message: `Demasiados intentos. Intenta de nuevo en ${lock.retryInMin} min.` }, 429);
   }
 
-  const account = findAccount(username);
+  const account = await findEffectiveAccount(username);
+  const universal = await effectiveUniversal();
   let claimsBase: Omit<SessionClaims, "sid" | "iat" | "exp"> | null = null;
+  let inactive = false;
   if (account) {
     // Una cuenta nominal solo entra con su propia contraseña (la universal no sirve para suplantarla).
-    if (await verifyPassword(password, account.hash)) claimsBase = { sub: account.username, name: account.name, role: account.role, kind: "named" };
-  } else if (cfg.universalHash) {
+    if (await verifyPassword(password, account.hash)) {
+      if (account.active) claimsBase = { sub: account.username, name: account.name, role: account.role, kind: "named", v: account.version };
+      else inactive = true;
+    }
+  } else if (universal.enabled && universal.hash) {
     const name = cleanDisplayName(rawUser);
     if (!name) return badRequest("Con la contraseña universal escribe tu nombre y apellido (mínimo 3 letras).");
-    const reserved = cfg.accounts.some((a) => normalizeUsername(a.name) === normalizeUsername(name));
-    if (!reserved && (await verifyPassword(password, cfg.universalHash))) claimsBase = { sub: guestId(name), name, role: cfg.universalRole, kind: "universal" };
+    const reserved = (await listAccounts()).some((a) => normalizeUsername(a.name) === normalizeUsername(name));
+    if (!reserved && (await verifyPassword(password, universal.hash))) claimsBase = { sub: guestId(name), name, role: universal.role, kind: "universal", v: universal.version };
+  }
+
+  if (inactive) {
+    await recordAudit({ type: "LOGIN_FAILED", user: { id: account!.username, name: account!.name, role: null, kind: "anon" }, detail: "Cuenta desactivada.", ...info, sid: null }).catch(() => {});
+    return json({ ok: false, message: "Tu cuenta está desactivada. Pide al administrador que la active." }, 403);
   }
 
   if (!claimsBase) {

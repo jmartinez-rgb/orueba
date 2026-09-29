@@ -24,7 +24,7 @@ export default async function MonitoreosPage() {
     const f = friendlyError(ctx.mode === "mock" ? "api" : ctx.mode, err);
     return <ErrorPanel message={f.message} technical={f.technical} />;
   }
-  const history = (await listReports(30).catch(() => [])).map((r) => ({ id: r.id, at: r.at, by: r.by, text: r.text, summary: r.summary, cutoffHour: r.cutoffHour }));
+  const history = (await listReports(30, ctx.brand).catch(() => [])).map((r) => ({ id: r.id, at: r.at, by: r.by, text: r.text, summary: r.summary, cutoffHour: r.cutoffHour }));
   const perms = snap.meta.permissions;
   return (
     <div className="flex flex-col gap-4">

@@ -15,7 +15,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (!session) return forbidden();
   const { id } = await ctx.params;
   const parsed = body.safeParse(await readJson(req));
-  if (!parsed.success || !/^ALT-[A-Z0-9]+$/.test(id)) return badRequest("Estado o id de alerta inválido.");
+  if (!parsed.success || !/^(?:[A-Z]+-)?ALT-[A-Z0-9]+$/.test(id)) return badRequest("Estado o id de alerta inválido.");
   try {
     const app = await getAppContext();
     await app.store.setAlertStatus(id, parsed.data.status as never, session.user.name);

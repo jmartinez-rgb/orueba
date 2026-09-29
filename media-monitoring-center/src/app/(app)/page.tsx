@@ -40,7 +40,9 @@ export default async function OverviewPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">IZZI MEDIA MONITORING CENTER</h1>
+          <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">
+            <span className="text-brand-teal">{meta.brand.upper}</span> MEDIA MONITORING CENTER
+          </h1>
           <p className="text-xs text-muted-foreground first-letter:uppercase">
             {meta.dateLabel} · <LiveClock timezone={tz} className="tabular font-medium text-foreground" /> · comparación: mismo día de la semana y misma franja horaria ({meta.historyWeeks} semanas)
           </p>

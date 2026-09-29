@@ -1,7 +1,7 @@
 # Instalación paso a paso
 
-Guía completa para dejar funcionando el izzi Media Monitoring Center leyendo la hoja de Google
-Sheets que actualiza Dataslayer. Síguela en orden; cada parte termina con una comprobación.
+Guía completa para dejar funcionando el Media Monitoring Center (izzi y Sky) leyendo la hoja de
+Google Sheets que actualiza Dataslayer. Síguela en orden; cada parte termina con una comprobación.
 
 | Parte | Qué haces | Tiempo aprox. |
 |---|---|---|
@@ -14,7 +14,8 @@ Sheets que actualiza Dataslayer. Síguela en orden; cada parte termina con una c
 
 **Antes de empezar necesitas:**
 
-- Permiso de edición en la hoja **"Monitoreo | Big Query"** (la que llena Dataslayer).
+- Permiso de edición en la hoja **"MONITOREO"** que llena Dataslayer (ID
+  `1WjLM2CSsIiuNuJrGSRFe-5SMkvhI59cKp5cZpq7fxCc`).
 - Una cuenta con acceso a **Google Cloud** (console.cloud.google.com).
 - Tu Mac con Node.js (ya instalado) y el proyecto clonado en `~/orueba`.
 - Acceso al sitio en **Netlify**.
@@ -30,17 +31,22 @@ Sheets que actualiza Dataslayer. Síguela en orden; cada parte termina con una c
 
 ### A1. Qué pestañas lee la app
 
-La app lee estas pestañas de "Monitoreo | Big Query" tal como las deja Dataslayer:
+La app lee estas pestañas de "MONITOREO" tal como las deja Dataslayer:
 
 | Pestaña | Plataforma | Para qué |
 |---|---|---|
-| `Google \| General` | Google Ads | Gasto, impresiones, clics y conversiones por campaña y día |
-| `Google Conversiones` | Google Ads | Ventas (`MCC_Offline_Purchase`) y leads (`MCC_Offline_Lead_Contact`) por campaña |
-| `Meta` | Meta | Gasto, leads, conversaciones, Compras Offline Web (Inbound) y On-Facebook Purchase |
-| `TikTok` | TikTok | Gasto, impresiones, clics y conversiones |
+| `Google` | Google Ads | Gasto, impresiones, clics, conversiones y moneda por campaña y día |
+| `Google Conversiones` | Google Ads | Ventas (`MCC_Offline_Purchase`), leads (`MCC_Offline_Lead_Contact`), llamadas (`Calls from ads`) y tipo de campaña |
+| `Meta` | Meta | Gasto, leads, conversaciones, llamadas de 20 s, Compras Offline Web (Inbound), On-Facebook Purchase y moneda |
+| `TikTok` | TikTok | Gasto, impresiones, clics, conversiones y moneda |
 | `Bing` | Microsoft Advertising | Gasto, impresiones, clics y conversiones |
-| `Spotify` | Spotify | Gasto, impresiones y clics |
+| `Spotify` | Spotify | Gasto, impresiones y clics (llega con un día de atraso: ver A2) |
 | `DataslayerQueries` | — | Hora y estado de la última actualización de cada consulta (Dataslayer la crea sola) |
+
+- **`Ventas Detalle` no se lee nunca** (trae teléfonos de clientes).
+- La hoja no trae IDs de cuenta ni de campaña: la app identifica cada cuenta y campaña por su
+  **nombre**. Si se renombra una campaña, la app la ve como campaña nueva desde ese día.
+- La pestaña de Google se llama `Google ` (con un espacio al final): la app la encuentra igual.
 
 - **No cambies los nombres de las pestañas ni de las columnas.** Si algún día cambian, Integrations
   lo avisa ("No existe la pestaña…" o "faltan columnas…") y se ajusta en `config/sheets.mapping.json`.
@@ -60,12 +66,21 @@ cuenta:
 
 Comprobación: en Dataslayer, cada consulta debe tener su programación cada 2 horas activa.
 
-### A3. Tamaño de la hoja (recomendado)
+**Spotify** entrega sus datos con un día de atraso (su última fila siempre es de ayer), así que no
+se puede vigilar dentro del día: queda fuera del monitoreo en vivo y del mensaje de Monitoreos. Si
+algún día llega al día, quita `"intraday": false` de Spotify en `config/sheets.mapping.json`.
 
-Hoy las consultas empiezan el 1 de julio de 2026 y terminan en 2030, así que la hoja crece todos
-los días. La app necesita como mínimo las **últimas 5 semanas**. Para que la lectura siga siendo
-rápida, cuando la hoja acumule más de unos 6 meses mueve la **fecha de inicio** de cada consulta
-para conservar solo los últimos 2 o 3 meses.
+La consulta `Google` recién creada aparece en `DataslayerQueries` como *Created successfully* y
+sin hora en *Updated*: mientras no tenga una actualización programada, la app usa su hora de
+creación y, cuando se actualice, la de *Updated*.
+
+### A3. Tamaño de la hoja
+
+La hoja ya es grande (Google Conversiones pasa de 96 mil filas y Meta de 51 mil) y crece todos los
+días. La app **no la lee completa**: primero lee solo la columna de fecha y después únicamente las
+filas de los últimos 45 días (o más si en Settings eliges más semanas de comparación). No hace
+falta recortar las consultas; si algún día Dataslayer tarda demasiado en escribirlas, puedes
+mover su **fecha de inicio** para conservar los últimos 3 a 6 meses.
 
 ### A4. Consultas por hora (recomendado, para comparar la misma franja con precisión)
 
@@ -77,8 +92,8 @@ para cada plataforma (son ligeras: una fila por cuenta y hora).
 
 Para cada plataforma (Google Ads, Meta, TikTok y Microsoft/Bing):
 
-1. En Dataslayer, **duplica** la consulta de esa plataforma (la de `Google | General`, `Meta`,
-   `TikTok` o `Bing`).
+1. En Dataslayer, **duplica** la consulta de esa plataforma (la de `Google`, `Meta`, `TikTok` o
+   `Bing`).
 2. En la copia:
    - **Quita** las dimensiones de campaña (Campaign, Campaign ID, Advertising channel type,
      Objective…). Deja **Date** y la cuenta (Account / Account ID, o Advertiser en TikTok).
@@ -102,7 +117,6 @@ Comprobación: en la app, Integrations deja de mostrar "Curva por hora · Parcia
 plataforma. Si Dataslayer nombra la columna de hora de otra forma, Integrations mostrará "faltan
 columnas" con el nombre esperado; ese nombre se agrega en `config/sheets.mapping.json`.
 
-Spotify no tiene desglose por hora: siempre usa la curva típica (su gasto es bajo).
 
 ### A5. Zona horaria de la hoja
 
@@ -116,9 +130,13 @@ la app no coincide con la de `DataslayerQueries`, se fija la zona en `config/she
 Si quieres que Budget Control lea los presupuestos de la hoja, crea una pestaña **`Presupuestos`**
 con las columnas de la plantilla `config/presupuestos.template.csv`:
 
-| Mes | Plataforma | Cuenta | Campaña | Monto | Moneda | Nivel |
-|---|---|---|---|---|---|---|
-| 2026-10 | Google | izzi - Ofertas | | 510000 | MXN | Cuenta |
+| Mes | Plataforma | Cuenta | Campaña | Monto | Moneda | Nivel | Marca |
+|---|---|---|---|---|---|---|---|
+| 2026-10 | Google | izzi - Ofertas | | 510000 | MXN | Cuenta | izzi |
+| 2026-10 | Meta | Sky Performance - MXN | | 400000 | MXN | Cuenta | Sky |
+
+La columna `Marca` es opcional: sin ella, la marca sale del nombre de la cuenta o campaña, y los
+presupuestos por plataforma o totales se asignan a izzi.
 
 Y, si prefieres capturar el tipo de cambio en la hoja en lugar de en la app, una pestaña **`Tipo de
 cambio`** (`config/tipo-de-cambio.template.csv`: `Mes`, `USD a MXN`). Ambas son opcionales: también
@@ -145,8 +163,7 @@ Es un "usuario robot" de Google con el que la app lee la hoja. Solo tendrá perm
    - Si Google dice que la creación de claves está bloqueada por una política de la organización,
      pídele al administrador de Google Workspace/Cloud que la habilite para este proyecto.
 6. Comparte la hoja con la cuenta de servicio: abre el archivo JSON con TextEdit, copia el valor de
-   `client_email` (termina en `.iam.gserviceaccount.com`), abre **"Monitoreo | Big Query" →
-   Compartir** → pega el correo → rol **Lector** → desmarca **Notificar** → **Compartir**.
+   `client_email` (termina en `.iam.gserviceaccount.com`), abre **"MONITOREO" → Compartir** → pega el correo → rol **Lector** → desmarca **Notificar** → **Compartir**.
 
 Comprobación: en *Compartir* de la hoja aparece el correo de la cuenta de servicio como Lector.
 
@@ -178,11 +195,14 @@ npm install
 
 ### C3. Conecta la hoja
 
-Con el archivo JSON de la Parte B y la URL de la hoja "Monitoreo | Big Query":
+Con el archivo JSON de la Parte B y la URL (o el ID) de la hoja "MONITOREO":
 
 ```
-npm run sheets:setup -- ~/Downloads/NOMBRE-DEL-ARCHIVO.json "URL-COMPLETA-DE-LA-HOJA"
+npm run sheets:setup -- ~/Downloads/NOMBRE-DEL-ARCHIVO.json "1WjLM2CSsIiuNuJrGSRFe-5SMkvhI59cKp5cZpq7fxCc"
 ```
+
+Si ya lo habías corrido con la hoja anterior, vuelve a correrlo con el ID nuevo: reemplaza
+`SHEETS_SPREADSHEET_ID` en `.env.local`.
 
 (Arrastra el archivo JSON a la Terminal para pegar su ruta.) El comando guarda en `.env.local`:
 `DATA_SOURCE=sheets`, `SHEETS_SPREADSHEET_ID`, `GOOGLE_CLIENT_EMAIL` y `GOOGLE_PRIVATE_KEY`, y te
@@ -200,10 +220,11 @@ npm run dev
 
 1. Abre **http://localhost:3000** e inicia sesión con `jmartinez`.
 2. Ve a **Integrations → Google Sheets (Dataslayer) → Probar conexión**. Debe decir *Conexión
-   correcta con "Monitoreo | Big Query"* y la zona horaria de la hoja.
+   correcta con "MONITOREO"* y la zona horaria de la hoja.
 3. En la misma tarjeta aparecen las pestañas con sus filas y la hora de la última actualización.
 4. Abajo a la izquierda debe decir **Google Sheets (Dataslayer)** (no "Datos simulados").
-5. En el **Overview** verás solo Google, Meta, TikTok, Microsoft y Spotify, con datos reales.
+5. En el **Overview** verás izzi con Google, Meta, TikTok y Microsoft. Arriba, junto al logo,
+   el botón **izzi | Sky** cambia de monitoreo en un clic (Sky: Google, Meta y TikTok).
 
 Si algo falla, Integrations explica qué falta (ver *Problemas frecuentes* al final).
 
@@ -218,7 +239,7 @@ Netlify → tu sitio → **Site configuration → Environment variables → Add 
 | Variable | Valor |
 |---|---|
 | `DATA_SOURCE` | `sheets` |
-| `SHEETS_SPREADSHEET_ID` | El ID de la hoja (lo imprime `npm run sheets:setup`) |
+| `SHEETS_SPREADSHEET_ID` | `1WjLM2CSsIiuNuJrGSRFe-5SMkvhI59cKp5cZpq7fxCc` (si ya existía con la hoja anterior, **edítala** y pon este valor) |
 | `GOOGLE_CLIENT_EMAIL` | El `client_email` del JSON |
 | `GOOGLE_PRIVATE_KEY` | El `private_key` del JSON, completo (desde `-----BEGIN PRIVATE KEY-----` hasta `-----END PRIVATE KEY-----`). Márcala como secreta |
 | `APP_TIMEZONE` | `America/Mexico_City` |
@@ -248,23 +269,30 @@ propio acceso. Si la dejas, el equipo tendrá que escribir dos contraseñas.
 
 ## Parte E. Ajustes dentro de la app (una sola vez)
 
-1. **Settings → Moneda**: la hoja no dice en qué moneda está cada cuenta. Marca las cuentas en
-   **USD** y captura la **tasa del mes** (1 USD = N MXN). Cada mes, captura la tasa nueva.
+1. **Settings → Moneda**: Google, Meta y TikTok traen la moneda de cada cuenta (las cuentas en
+   **USD** se detectan solas: izzi - campañas, izzi - Apple TV, izzi Discovery, izzi Universal+,
+   izzi APPLE TV, izzi ABCW US). Captura la **tasa del mes** (1 USD = N MXN) cada mes. Bing y
+   Spotify no traen moneda y se toman como MXN; corrígelo ahí si alguna no lo es.
 2. **Budget Control**: si no creaste la pestaña `Presupuestos`, captura los presupuestos de
    referencia y confirma, en las cuentas mixtas, si el presupuesto es por cuenta o por campaña.
 3. **Métricas**: elige la métrica monitoreada de cada plataforma. En Meta, "Conversiones" es la
    venta total (Compras Offline Web + On-Facebook Purchase); las campañas CAPI WhatsApp se evalúan con
    On-Facebook Purchase y el resto con Compras Offline Web.
 4. **Monitoreos → Configurar mensaje**: plataformas del mensaje, umbrales y revisiones de Zapier.
-5. Comparte las contraseñas con el equipo: cada persona entra con su nombre y la contraseña universal.
+5. **Usuarios → Cuentas, contraseñas y permisos**: crea la cuenta de cada persona (o usa la
+   contraseña universal), elige su rol, sus permisos y si ve izzi, Sky o ambas. Las contraseñas
+   se asignan ahí mismo; no hace falta tocar Netlify (ver `docs/AUTH.md`).
+6. Revisa ambos monitoreos con el botón **izzi | Sky** (cada uno tiene sus propias alertas,
+   incidentes, tickets y mensajes).
 
 ---
 
 ## Parte F. Opcional: evaluación automática y alertas por WhatsApp
 
-Sin n8n, la app evalúa cada vez que alguien la abre (vuelve a leer la hoja como máximo cada 3
-minutos) y **Actualizar ahora** vuelve a leer la hoja y guarda la evaluación (alertas e
-incidentes). Para que evalúe sola cada 2 horas y envíe alertas por WhatsApp, configura n8n (WF07
+Sin n8n, la app vuelve a leer la hoja como máximo cada 5 minutos y **guarda la evaluación sola**
+(alertas e incidentes de izzi y de Sky) cuando alguien la abre y ya pasaron 2 horas desde la
+última, o en cuanto aparece un incidente crítico nuevo. **Actualizar ahora** vuelve a leer la hoja
+y guarda la evaluación de las dos marcas en ese momento. Para que evalúe sola cada 2 horas y envíe alertas por WhatsApp, configura n8n (WF07
 Monitoring Runner y WF08 WhatsApp Alert) siguiendo `docs/N8N.md` y agrega en Netlify
 `MONITORING_API_KEY`, `N8N_BASE_URL`, `N8N_ALERT_WEBHOOK`, `N8N_WEBHOOK_SECRET` y, cuando las
 plantillas estén aprobadas, `WHATSAPP_ALERTS_ENABLED=true`. La app nunca envía WhatsApp por sí misma.
@@ -279,8 +307,18 @@ plantillas estén aprobadas, `WHATSAPP_ALERTS_ENABLED=true`. La app nunca envía
   cuenta como **gasto cero**, no como dato faltante: así se detecta que dejó de gastar y aparece en
   "campañas sin gasto" del mensaje de Monitoreos.
 - Una **celda vacía** es "sin dato" (NULL), nunca cero.
-- **Google**: ventas y leads salen solo de `MCC_Offline_Purchase` y `MCC_Offline_Lead_Contact`;
-  las demás acciones de conversión se ignoran.
+- **Google**: ventas y leads salen solo de `MCC_Offline_Purchase` y `MCC_Offline_Lead_Contact`, y
+  llamadas de `Calls from ads`; las demás acciones de conversión (clics a WhatsApp o Llamar,
+  formularios, etc.) no se suman a esas métricas. Las cuentas de Sky no usan eventos offline: en
+  Sky se vigilan gasto y conversiones de la plataforma.
+- **Los eventos offline llegan con atraso** (se cargan días después): el acumulado de ventas de hoy
+  siempre se verá bajo contra semanas anteriores. Para decidir en el día, usa gasto, conversiones
+  de plataforma, WhatsApp y leads; las ventas se leen mejor al día siguiente.
+- **izzi y Sky se separan por el nombre de la cuenta** ("Sky - ABCW", "Sky Performance - MXN",
+  "Sky México"… son Sky; "izzi - Ofertas", "MXN - izzi 1"… son izzi). La cuenta mixta
+  **"izzi - Sky Social"** se separa por campaña ("Sky / Seguidores…" va a Sky, "izzi /
+  Seguidores…" a izzi). Una campaña de una cuenta de izzi que promociona Sky Sports sigue siendo
+  de izzi.
 - Los números se leen con su valor real aunque la celda tenga formato de moneda o porcentaje.
 - **Bugs y sugerencias**: cualquier persona los envía desde el menú de usuario → *Reportar bug o
   sugerencia*; solo el administrador los recibe.
@@ -301,14 +339,17 @@ plantillas estén aprobadas, `WHATSAPP_ALERTS_ENABLED=true`. La app nunca envía
 | La hora de actualización está desfasada una hora | Zona horaria distinta en la hoja | Parte A5 |
 | "El acceso aún no está configurado" | Faltan las variables `AUTH_*` en Netlify | Parte D1 y D3 |
 | No puedo crear la llave de la cuenta de servicio | Política de la organización en Google Cloud | Pide al administrador de Google Workspace que la habilite |
-| El gasto de una cuenta en USD se ve muy bajo | La cuenta no está marcada como USD o falta la tasa del mes | Parte E1 |
+| El gasto de una cuenta en USD se ve muy bajo | Falta la tasa del mes (o la cuenta es de Bing/Spotify y no trae moneda) | Parte E1 |
+| Una cuenta aparece en la marca equivocada | Su nombre no dice "Sky" o dice ambas marcas | Renómbrala en la plataforma o avísalo en Bugs y sugerencias |
+| Spotify no aparece en el Overview | Llega con un día de atraso y no se vigila en vivo | Parte A2 |
 
 ## Lista final
 
-- [ ] La hoja tiene las 6 pestañas y `DataslayerQueries`, actualizándose cada 2 horas.
+- [ ] La hoja "MONITOREO" tiene las 6 pestañas y `DataslayerQueries`, actualizándose cada 2 horas.
 - [ ] (Recomendado) Pestañas `Google | Hora`, `Meta | Hora`, `TikTok | Hora`, `Bing | Hora`.
 - [ ] Cuenta de servicio creada, Google Sheets API habilitada y hoja compartida como Lector.
 - [ ] En local: Integrations → Probar conexión dice "Conexión correcta".
 - [ ] En Netlify: variables `DATA_SOURCE`, `SHEETS_SPREADSHEET_ID`, `GOOGLE_CLIENT_EMAIL`,
       `GOOGLE_PRIVATE_KEY`, `APP_TIMEZONE` y `AUTH_*`; deploy nuevo; `/api/health` dice `sheets`.
 - [ ] Moneda, tasa del mes, presupuestos y métricas revisados en la app.
+- [ ] Cuentas del equipo creadas en Usuarios (con sus marcas) y el botón izzi | Sky probado.

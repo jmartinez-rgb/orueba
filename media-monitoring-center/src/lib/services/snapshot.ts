@@ -1,4 +1,5 @@
 import "server-only";
+import { sessionPermissions } from "@/lib/auth/session";
 import type { Catalog, DataState, PlatformId, Severity, DataMode } from "@/lib/types";
 import { PLATFORM_IDS } from "@/lib/types";
 import { evaluationSlots, type MonitoringSettings } from "@/lib/config/settings";
@@ -13,7 +14,7 @@ import { maxSeverity } from "@/lib/anomaly-engine/severity";
 import { pastIncidents, PAST_INCIDENT_COUNT } from "@/lib/mock/history";
 import { listScenarios } from "@/lib/mock/scenarios";
 import { addDays, businessDate, longDateLabel, zonedTimeToUtc } from "@/lib/time/tz";
-import { can, PERMISSIONS, type Permission, type Role } from "@/lib/auth/roles";
+import type { Permission, Role } from "@/lib/auth/roles";
 import { friendlyError, logger } from "@/lib/logging/logger";
 import type { RunSummary } from "@/lib/state/store";
 import { overallConfidence, platformConfidence, summarizeExecution, type ConfidenceResult, type ExecutionSummary } from "@/lib/monitoring/confidence";
@@ -21,6 +22,7 @@ import type { CurrencyReport } from "@/lib/data/currency";
 import { PLATFORMS } from "@/lib/platforms/registry";
 import { getAppContext, type AppContext } from "./context";
 import { SheetsDataSource } from "@/lib/sheets/sheets-source";
+import type { BrandId, BrandInfo } from "@/lib/brands";
 
 export interface SnapshotMeta {
   appName: string;
@@ -46,6 +48,11 @@ export interface SnapshotMeta {
   permissions: Permission[];
   integrations: { bigquery: boolean; n8n: boolean; whatsapp: boolean };
   mappingErrors: string[];
+  /** Marca del monitoreo y marcas que la persona puede ver. */
+  brand: BrandInfo;
+  brands: BrandId[];
+  /** false = la fuente no trae cuentas de esta marca. */
+  brandHasData: boolean;
   /** Modo Google Sheets: título de la hoja y problemas del mapeo o de las pestañas. */
   sheets: { title: string | null; readAt?: string | null; errors: string[]; tabs: Array<{ sheet: string; platform: string; rows: number | null; updatedAt: string | null; status: string | null; found: boolean }> } | null;
 }
@@ -74,9 +81,9 @@ export interface Snapshot {
 }
 
 
-export function summarizeRun(run: MonitoringRun, state: AlertState, notifications: number, durationMs: number, trigger: RunSummary["trigger"]): RunSummary {
+export function summarizeRun(run: MonitoringRun, state: AlertState, notifications: number, durationMs: number, trigger: RunSummary["trigger"], idPrefix = ""): RunSummary {
   return {
-    id: `RUN-${run.businessDate}-${String(run.cutoffHour).padStart(2, "0")}-${trigger}`,
+    id: `${idPrefix}RUN-${run.businessDate}-${String(run.cutoffHour).padStart(2, "0")}-${trigger}`,
     at: run.runAt,
     businessDate: run.businessDate,
     cutoffHour: run.cutoffHour,
@@ -117,20 +124,21 @@ async function mockReplay(ctx: AppContext, asOf: Date): Promise<{ state: AlertSt
   return cached(key, 3 * 3600 * 1000, async () => {
     const env = getEnv();
     const today = businessDate(asOf, ctx.settings.timezone);
-    let state = emptyAlertState({ incident: PAST_INCIDENT_COUNT });
-    state.incidents.push(...pastIncidents(today, ctx.settings.timezone));
+    // El historial simulado de incidentes es de izzi; Sky arranca vacío.
+    let state = ctx.brand === "izzi" ? emptyAlertState({ incident: PAST_INCIDENT_COUNT }) : emptyAlertState();
+    if (ctx.brand === "izzi") state.incidents.push(...pastIncidents(today, ctx.settings.timezone));
     const runs: RunSummary[] = [];
     for (const t of times) {
       const started = Date.now();
       const run = await runMonitoring(ctx.source, { settings: ctx.settings, asOf: t });
-      const result = reconcile(state, run, { settings: ctx.settings, notify: true, whatsapp: env.whatsapp });
+      const result = reconcile(state, run, { settings: ctx.settings, notify: true, whatsapp: env.whatsapp, brand: ctx.brandInfo });
       // En mock las notificaciones quedan como SIMULATED (lo que n8n habría enviado).
       const sentIds = new Set(result.notifications.map((n) => n.id));
       result.state.notifications = result.state.notifications.map((n) =>
         sentIds.has(n.id) ? { ...n, status: "SIMULATED", detail: "MOCK MODE: mensaje generado, no enviado." } : n,
       );
       state = result.state;
-      runs.push(summarizeRun(run, state, result.notifications.length, Date.now() - started, "schedule"));
+      runs.push(summarizeRun(run, state, result.notifications.length, Date.now() - started, "schedule", ctx.brandInfo.idPrefix));
     }
     return { state, runs };
   });
@@ -177,8 +185,8 @@ function nextEvaluation(settings: MonitoringSettings, asOf: Date): Date {
 export async function baseAlertState(ctx: AppContext, asOf: Date, businessDay: string): Promise<{ state: AlertState; runs: RunSummary[] }> {
   if (ctx.mode === "mock") return mockReplay(ctx, asOf);
   const [state, runs] = await Promise.all([
-    cached("state:bq", 60 * 1000, () => ctx.store.loadAlertState()),
-    cached(`runs:bq:${businessDay}`, 60 * 1000, () => ctx.store.listRuns(businessDay)),
+    cached(`state:${ctx.mode}:${ctx.brand}`, 60 * 1000, () => ctx.store.loadAlertState()),
+    cached(`runs:${ctx.mode}:${ctx.brand}:${businessDay}`, 60 * 1000, () => ctx.store.listRuns(businessDay)),
   ]);
   return { state, runs };
 }
@@ -186,7 +194,7 @@ export async function baseAlertState(ctx: AppContext, asOf: Date, businessDay: s
 /** Resumen de la hoja de Dataslayer para Integrations (solo en modo Google Sheets). */
 async function sheetsMeta(ctx: AppContext): Promise<SnapshotMeta["sheets"]> {
   if (ctx.mode !== "sheets" && !ctx.sheetsErrors.length) return null;
-  const inner = ctx.source.original;
+  const inner = ctx.raw;
   if (!(inner instanceof SheetsDataSource)) return { title: null, errors: ctx.sheetsErrors, tabs: [] };
   try {
     return await inner.summary();
@@ -215,6 +223,55 @@ export async function getSnapshot(): Promise<Snapshot> {
   }
 }
 
+const autoRuns = new Map<string, Promise<boolean>>();
+
+/**
+ * Google Sheets sin n8n: nadie llama a la evaluación programada, así que la app la guarda sola
+ * cuando alguien la abre y (a) ya pasó el intervalo de evaluación desde la última guardada o
+ * (b) aparece un incidente crítico nuevo. Así los incidentes conservan su folio y su hora de
+ * inicio (el acuse de una alerta crítica no se vuelve a pedir cada minuto). Con n8n configurado
+ * no se hace: la evaluación la dispara n8n y es la que envía los WhatsApp.
+ */
+async function autoPersist(ctx: AppContext, asOf: Date, base: AlertState, preview: AlertState, runs: RunSummary[]): Promise<boolean> {
+  if (ctx.mode !== "sheets" || getEnv().n8n.configured || !ctx.brandPlatforms.length) return false;
+  const last = runs.map((r) => Date.parse(r.at)).sort((a, b) => a - b).pop();
+  const due = last === undefined || asOf.getTime() - last >= ctx.settings.schedule.intervalHours * 3600 * 1000;
+  const known = new Set(base.incidents.map((i) => i.id));
+  const newCritical = preview.incidents.some((i) => i.resolvedAt === null && i.severity === "CRITICAL" && !known.has(i.id));
+  if (!due && !newCritical) return false;
+  const key = `${ctx.brand}:${Math.floor(asOf.getTime() / 60000)}`;
+  let job = autoRuns.get(key);
+  if (!job) {
+    job = import("./evaluate")
+      .then(({ evaluateNow }) => evaluateNow(ctx, { dryRun: false, trigger: "schedule", reuseData: true }))
+      .then(() => true)
+      .catch((err) => {
+        logger.warn("auto_evaluation.failed", { brand: ctx.brand, error: err });
+        return false;
+      });
+    autoRuns.set(key, job);
+    if (autoRuns.size > 20) autoRuns.delete(autoRuns.keys().next().value!);
+  }
+  return job;
+}
+
+/** Estado resumido de una marca (para el botón izzi | Sky): se recalcula como máximo cada minuto. */
+export async function getBrandStatus(brand: BrandId): Promise<{ brand: BrandId; overall: Severity | null; critical: number } | null> {
+  try {
+    const ctx = await getAppContext({ brand });
+    if (ctx.brand !== brand) return null;
+    if (!ctx.brandPlatforms.length) return { brand, overall: null, critical: 0 };
+    const minute = Math.floor(ctx.source.now().getTime() / 60000);
+    return await cached(`brandstatus:${ctx.mode}:${ctx.scenario?.id}:${ctx.settingsHash}:${minute}`, 60 * 1000, async () => {
+      const snap = await buildSnapshot(ctx);
+      return { brand, overall: snap.overall, critical: snap.state.incidents.filter((i) => i.resolvedAt === null && i.severity === "CRITICAL").length };
+    });
+  } catch (err) {
+    logger.warn("brand_status.failed", { brand, error: err });
+    return { brand, overall: null, critical: 0 };
+  }
+}
+
 export async function buildSnapshot(ctx: AppContext): Promise<Snapshot> {
   const env = getEnv();
   const asOf = ctx.source.now();
@@ -223,10 +280,14 @@ export async function buildSnapshot(ctx: AppContext): Promise<Snapshot> {
   const liveKey = `live:${ctx.mode}:${ctx.scenario?.id}:${ctx.settingsHash}:${minuteKey}`;
   const run = await cached(liveKey, 60 * 1000, () => runMonitoring(ctx.source, { settings: ctx.settings, asOf }));
 
-  const { state: base, runs: allRuns } = await baseAlertState(ctx, asOf, run.businessDate);
-  const runs = allRuns.filter((r) => r.businessDate === run.businessDate);
+  let { state: base, runs: allRuns } = await baseAlertState(ctx, asOf, run.businessDate);
   // Vista previa en vivo: actualiza alertas/incidentes con la evaluación de este momento, sin notificar.
-  const preview = reconcile(base, run, { settings: ctx.settings, notify: false, whatsapp: env.whatsapp });
+  let preview = reconcile(base, run, { settings: ctx.settings, notify: false, whatsapp: env.whatsapp, brand: ctx.brandInfo });
+  if (await autoPersist(ctx, asOf, base, preview.state, allRuns)) {
+    ({ state: base, runs: allRuns } = await baseAlertState(ctx, asOf, run.businessDate));
+    preview = reconcile(base, run, { settings: ctx.settings, notify: false, whatsapp: env.whatsapp, brand: ctx.brandInfo });
+  }
+  const runs = allRuns.filter((r) => r.businessDate === run.businessDate);
   const overrides = await ctx.store.getOverrides();
   const state = applyOverrides(preview.state, overrides);
   // Falsos positivos no pintan el estado de la plataforma.
@@ -299,10 +360,13 @@ export async function buildSnapshot(ctx: AppContext): Promise<Snapshot> {
     comparisonDates: run.comparisonDates,
     role: ctx.session.role,
     userName: ctx.session.user.name,
-    permissions: PERMISSIONS.filter((p) => can(ctx.session.role, p)),
+    permissions: sessionPermissions(ctx.session),
     integrations: { bigquery: env.bigquery.configured, n8n: env.n8n.configured, whatsapp: env.whatsapp.enabled },
     mappingErrors: ctx.mappingErrors,
     sheets: await sheetsMeta(ctx),
+    brand: ctx.brandInfo,
+    brands: ctx.brands,
+    brandHasData: ctx.brandPlatforms.length > 0,
   };
 
   return { meta, run, platformStatus, overall, state, runs, catalog, settings: ctx.settings, confidence, execution, currency };

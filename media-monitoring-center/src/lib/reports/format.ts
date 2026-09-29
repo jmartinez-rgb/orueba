@@ -11,9 +11,9 @@ export function joinEs(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
 }
 
-/** "izzi - móvil - mxn" → "móvil - mxn" (en los párrafos se usan nombres cortos). */
+/** "izzi - móvil - mxn" → "móvil - mxn", "Sky - ABCW" → "ABCW" (en los párrafos se usan nombres cortos). */
 export function shortAccount(name: string): string {
-  return name.replace(/^izzi\s*[–-]\s*/i, "").replace(/^izzi\s+/i, "").trim() || name;
+  return name.replace(/^(izzi|sky)\s*[–-]\s*/i, "").replace(/^(izzi|sky)\s+/i, "").trim() || name;
 }
 
 const fmtInt = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 });
@@ -26,7 +26,9 @@ export function buildReportMessage(data: ReportData, options: ReportOptions): st
   const e = (s: ReportStatus) => STATUS_EMOJI[s];
   const selected = data.platforms.filter((p) => options.platforms.includes(p.platform));
   const out: string[] = [];
-  out.push(`${data.greeting} equipo, comparto el monitoreo:`, "");
+  // izzi conserva el saludo de siempre; otra marca se nombra para no confundir los mensajes.
+  const brand = data.brandName && data.brandName.toLowerCase() !== "izzi" ? ` de ${data.brandName}` : "";
+  out.push(`${data.greeting} equipo, comparto el monitoreo${brand}:`, "");
   out.push(`${e(statusOf("budget", data.budget.status, options))}Presupuesto y Línea de crédito`);
   out.push(`${e(statusOf("problems", data.platformProblems.status, options))}Problemas con Plataformas`);
   for (const p of selected) {

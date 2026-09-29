@@ -50,27 +50,32 @@ interface MemoryData {
   overrides: UserOverrides;
 }
 
-const g = globalThis as unknown as { __immcMemoryStore?: MemoryData };
+const g = globalThis as unknown as { __immcMemoryStores?: Map<string, MemoryData> };
 
-function memory(): MemoryData {
-  if (!g.__immcMemoryStore) {
-    g.__immcMemoryStore = { state: emptyAlertState(), runs: [], overrides: { alerts: {}, incidents: {}, budgets: [] } };
+function memoryOf(namespace: string): MemoryData {
+  g.__immcMemoryStores ??= new Map();
+  let m = g.__immcMemoryStores.get(namespace);
+  if (!m) {
+    m = { state: emptyAlertState(), runs: [], overrides: { alerts: {}, incidents: {}, budgets: [] } };
+    g.__immcMemoryStores.set(namespace, m);
   }
-  return g.__immcMemoryStore;
+  return m;
 }
 
 /** Almacén en memoria (mock y desarrollo). Se reinicia con cada arranque en frío del servidor. */
 export class MemoryStateStore implements StateStore {
   readonly kind = "memory" as const;
+  /** Un espacio por marca (izzi y Sky no comparten alertas ni incidentes). */
+  constructor(private readonly namespace = "izzi") {}
 
   async loadAlertState() {
-    return structuredClone(memory().state);
+    return structuredClone(memoryOf(this.namespace).state);
   }
   async saveAlertState(state: AlertState) {
-    memory().state = structuredClone(state);
+    memoryOf(this.namespace).state = structuredClone(state);
   }
   async saveNotifications(list: NotificationRecord[]) {
-    const m = memory();
+    const m = memoryOf(this.namespace);
     for (const n of list) {
       const i = m.state.notifications.findIndex((x) => x.id === n.id);
       if (i >= 0) m.state.notifications[i] = n;
@@ -78,27 +83,27 @@ export class MemoryStateStore implements StateStore {
     }
   }
   async saveRun(run: RunSummary) {
-    const m = memory();
+    const m = memoryOf(this.namespace);
     m.runs = [...m.runs.filter((r) => r.id !== run.id), run].slice(-200);
   }
   async listRuns(date: string) {
-    return memory().runs.filter((r) => r.businessDate === date);
+    return memoryOf(this.namespace).runs.filter((r) => r.businessDate === date);
   }
   async getOverrides() {
-    return structuredClone(memory().overrides);
+    return structuredClone(memoryOf(this.namespace).overrides);
   }
   async setAlertStatus(id: string, status: AlertStatus, by: string) {
-    memory().overrides.alerts[id] = { status, at: new Date().toISOString(), by };
+    memoryOf(this.namespace).overrides.alerts[id] = { status, at: new Date().toISOString(), by };
   }
   async updateIncident(id: string, patch: { owner?: string | null; status?: IncidentStatus; note?: string }, by: string) {
-    const cur = memory().overrides.incidents[id] ?? {};
+    const cur = memoryOf(this.namespace).overrides.incidents[id] ?? {};
     if (patch.owner !== undefined) cur.owner = patch.owner;
     if (patch.status) cur.status = patch.status;
     if (patch.note) cur.notes = [...(cur.notes ?? []), { at: new Date().toISOString(), author: by, text: patch.note }];
-    memory().overrides.incidents[id] = cur;
+    memoryOf(this.namespace).overrides.incidents[id] = cur;
   }
   async setBudget(row: BudgetRow) {
-    const m = memory();
+    const m = memoryOf(this.namespace);
     const same = (b: BudgetRow) => b.month === row.month && b.level === row.level && b.platform === row.platform && b.accountId === row.accountId && b.campaignId === row.campaignId;
     m.overrides.budgets = [...m.overrides.budgets.filter((b) => !same(b)), row];
   }

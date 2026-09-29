@@ -280,7 +280,7 @@ export function chartProps(snap: Snapshot, only?: PlatformId) {
   if (!only) {
     scopes.push({
       id: "total",
-      label: snap.run.totalIncludes.length === snap.run.platforms.length ? "Total izzi" : `Total (${snap.run.totalIncludes.length} de ${snap.run.platforms.length})`,
+      label: snap.run.totalIncludes.length === snap.run.platforms.length ? `Total ${snap.meta.brand.name}` : `Total (${snap.run.totalIncludes.length} de ${snap.run.platforms.length})`,
       cutoffHour: snap.run.totalCutoffHour,
       unavailable: null,
     });

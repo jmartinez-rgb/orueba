@@ -100,7 +100,7 @@ export function HistoricalView({ initial }: { initial: HistoricalResult }) {
               </button>
             </CardHeader>
             <CardContent>
-              <DailyTrend days={data.days} additive={isBaseMetric(metric)} currency={def.format === "currency"} format={fmt} />
+              <DailyTrend days={data.days} additive={isBaseMetric(metric)} currency={def.format === "currency"} format={fmt} totalLabel={`Total ${data.brandName}`} />
               {showTable && (
                 <div className="mt-3 max-h-80 overflow-auto">
                   <Table>

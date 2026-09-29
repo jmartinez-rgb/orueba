@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { headers } from "next/headers";
-import { requireAuth } from "@/lib/auth/session";
-import { can } from "@/lib/auth/roles";
+import { requireAuth, hasPermission } from "@/lib/auth/session";
 import { createFeedback, FEEDBACK_IMPACTS, listFeedback, listFeedbackBy, type FeedbackImpact } from "@/lib/records/feedback";
 import { requestInfo } from "@/lib/records/audit";
 import { logActivity } from "@/lib/services/activity";
@@ -14,7 +13,7 @@ export async function GET() {
   const session = await requireAuth();
   if (!session) return unauthorized();
   try {
-    const all = can(session.role, "feedback:manage");
+    const all = hasPermission(session, "feedback:manage");
     return json({ ok: true, scope: all ? "all" : "mine", feedback: all ? await listFeedback() : await listFeedbackBy(session.user.id) });
   } catch (err) {
     return serverError("api", err, "feedback");

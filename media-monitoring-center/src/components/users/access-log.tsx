@@ -26,6 +26,11 @@ const LABEL: Record<AuditType, string> = {
   EVALUATION_TRIGGERED: "Evaluación manual",
   FEEDBACK_SENT: "Bug/sugerencia enviado",
   FEEDBACK_UPDATED: "Bug/sugerencia actualizado",
+  USER_CREATED: "Cuenta creada",
+  USER_UPDATED: "Cuenta modificada",
+  USER_DELETED: "Cuenta eliminada",
+  PASSWORD_CHANGED: "Contraseña cambiada",
+  UNIVERSAL_UPDATED: "Contraseña universal",
 };
 
 const TONE: Partial<Record<AuditType, string>> = {
@@ -33,6 +38,11 @@ const TONE: Partial<Record<AuditType, string>> = {
   LOGIN_FAILED: "bg-status-alert/15 text-status-alert-text",
   LOGIN_BLOCKED: "bg-status-critical/15 text-status-critical-text",
   CRITICAL_ACK: "bg-status-critical/15 text-status-critical-text",
+  USER_CREATED: "bg-brand-teal/15 text-foreground",
+  USER_UPDATED: "bg-brand-teal/15 text-foreground",
+  USER_DELETED: "bg-status-alert/15 text-status-alert-text",
+  PASSWORD_CHANGED: "bg-brand-teal/15 text-foreground",
+  UNIVERSAL_UPDATED: "bg-brand-teal/15 text-foreground",
 };
 
 type Filter = "all" | "access" | "failed" | "activity";

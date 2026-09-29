@@ -13,7 +13,11 @@ Página `/login`. Todo lo demás (páginas y `/api/*`) exige sesión, salvo `/ap
 |---|---|---|---|
 | Cuenta nominal | `jmartinez` | propia | Administrador |
 | Cuenta nominal | `operaciones` | propia | Co-administrador |
+| Cuentas creadas en la app | el que asigne el administrador (p. ej. `alopez`) | la que asigne el administrador | el rol y permisos que elija |
 | Contraseña universal | Nombre y apellido de la persona (p. ej. `Ana López`) | la universal | Consulta (o Paid Media Manager si se configura) |
+
+Nada de esto usa Google: las cuentas, contraseñas y permisos viven en la app (Netlify Blobs) y,
+como respaldo, en las variables de Netlify.
 
 - Cada persona recibe un **avatar blobatar** generado a partir de su nombre, visible en el menú, en
   Usuarios, en tickets y en acuses.
@@ -38,6 +42,39 @@ Página `/login`. Todo lo demás (páginas y `/api/*`) exige sesión, salvo `/ap
 | Usuarios y bitácora de accesos | ✅ | ✅ | — | — |
 | Enviar bugs y sugerencias | ✅ | ✅ | ✅ | ✅ |
 | Bandeja de bugs y sugerencias (ver todos, estado y respuesta) | ✅ | — | — | — |
+| Usuarios y contraseñas (crear cuentas, asignar contraseñas, roles, permisos y marcas) | ✅ | — | — | — |
+
+Los roles son el punto de partida: a cada persona se le pueden dar **permisos personalizados**
+(cualquier combinación de los de arriba) y limitar las **marcas** que ve (izzi, Sky o ambas).
+
+## Cuentas, contraseñas y permisos desde la app
+
+Sección **Usuarios → Cuentas, contraseñas y permisos** (solo quien tiene el permiso *Usuarios y
+contraseñas*; de inicio, el administrador):
+
+- **Nueva cuenta**: nombre, usuario (se sugiere a partir del nombre), rol, marcas que puede ver y
+  permisos (los del rol o personalizados). La contraseña inicial se genera sola (`Mmc-XXXX-XXXX-XXXX`)
+  o se escribe; se muestra **una sola vez** para copiarla y compartirla por un canal seguro.
+- **Asignar contraseña** a cualquier cuenta, incluidas `jmartinez` y `operaciones`: la nueva
+  contraseña aplica de inmediato y **cierra las sesiones abiertas** de esa persona.
+- **Editar** rol, permisos y marcas (aplica desde la siguiente página que abra la persona),
+  **desactivar/activar** (desactivar cierra sus sesiones) y **eliminar**.
+- **Contraseña universal**: activarla o desactivarla, cambiarla, elegir su rol (Consulta o Paid
+  Media Manager, nunca administrador) y sus marcas. Cambiarla cierra las sesiones abiertas con la
+  anterior.
+- Cada persona puede **cambiar su propia contraseña** desde su menú (*Cambiar mi contraseña*).
+
+Reglas de seguridad:
+
+- Contraseñas de al menos 10 caracteres con letras y números; se guardan en hash scrypt y nadie
+  puede verlas después.
+- Nadie puede dar permisos que no tiene, ni cambiar su propio rol, permisos o estado, ni borrarse.
+- Siempre queda al menos una cuenta activa que pueda administrar usuarios.
+- Todo queda en la bitácora (cuenta creada, modificada, eliminada, contraseña cambiada).
+
+Cuentas de Netlify (`AUTH_USERS`): siguen funcionando como **respaldo**. Si una cuenta existe en
+ambos lados manda la de la app; al eliminarla en la app vuelve a la de Netlify. Mantén al menos al
+administrador en `AUTH_USERS` para no quedarte sin acceso si se borrara el almacén de la app.
 
 ## Configuración (variables de entorno)
 
@@ -73,7 +110,8 @@ npm run auth:setup -- --write   # además guarda las variables en .env.local
 
 Crea `jmartinez` (Administrador), `operaciones` (Co-administrador) y la contraseña universal, con
 contraseñas aleatorias sin caracteres ambiguos (`Izzi-XXXX-XXXX-XXXX`). Se muestran **una sola vez**:
-compártelas por un canal seguro.
+compártelas por un canal seguro. Es la configuración inicial; después, las demás cuentas y cambios
+de contraseña se hacen desde la app (sección anterior).
 
 En Netlify: *Site configuration → Environment variables* → agrega cada variable (el valor de
 `AUTH_USERS` se pega tal cual, sin comillas) → marca `AUTH_SECRET` como secreta → *Deploys →
@@ -85,7 +123,8 @@ Trigger deploy*.
 npm run auth:hash -- "NuevaContraseñaLarga"   # imprime el hash scrypt
 ```
 
-Reemplaza el `h` de esa cuenta en `AUTH_USERS` (o agrega un objeto nuevo con `u`, `n`, `r`, `h`),
+Lo más simple es hacerlo desde la app (Usuarios → Asignar contraseña). Si prefieres Netlify:
+reemplaza el `h` de esa cuenta en `AUTH_USERS` (o agrega un objeto nuevo con `u`, `n`, `r`, `h`),
 o reemplaza `AUTH_UNIVERSAL_PASSWORD_HASH`, y vuelve a desplegar. Usuario: 3 a 40 caracteres
 `a-z 0-9 . _ -`. Roles: `admin`, `coadmin`, `manager`, `viewer`.
 

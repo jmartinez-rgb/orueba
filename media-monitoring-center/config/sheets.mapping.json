@@ -1,24 +1,25 @@
 {
   "refreshEveryMinutes": 120,
   "refreshDurationMinutes": 15,
-  "cacheSeconds": 180,
+  "cacheSeconds": 300,
   "control": {
     "sheet": "DataslayerQueries",
     "timeZone": "sheet",
-    "columns": { "sheet": "Sheet name", "updated": "Updated", "status": "Last status", "dataSource": "Data source", "range": "Range address" }
+    "columns": { "sheet": "Sheet name", "updated": "Updated", "created": "Created", "status": "Last status", "dataSource": "Data source", "range": "Range address" }
   },
   "sources": [
     {
-      "sheet": "Google | General",
+      "sheet": "Google",
       "platform": "google",
       "shape": "daily",
       "columns": {
         "date": "Date",
-        "accountId": "Account ID",
+        "accountId": ["Account ID", "Customer ID"],
         "accountName": "Account",
         "campaignId": "Campaign ID",
         "campaignName": "Campaign",
         "campaignType": "Advertising channel type",
+        "currency": "Currency",
         "spend": "Cost",
         "impressions": "Impressions",
         "clicks": "Clicks",
@@ -31,7 +32,7 @@
       "shape": "daily",
       "columns": {
         "date": "Date",
-        "accountId": "Account ID",
+        "accountId": ["Account ID", "Customer ID"],
         "accountName": "Account",
         "campaignId": "Campaign ID",
         "campaignName": "Campaign",
@@ -40,7 +41,7 @@
       "pivot": {
         "column": "Conversion Action Name",
         "value": "Conversions",
-        "metrics": { "MCC_Offline_Purchase": "sales", "MCC_Offline_Lead_Contact": "leads" }
+        "metrics": { "MCC_Offline_Purchase": "sales", "MCC_Offline_Lead_Contact": "leads", "Calls from ads": "calls" }
       }
     },
     {
@@ -49,16 +50,18 @@
       "shape": "daily",
       "columns": {
         "date": "Date",
-        "accountId": "Account id",
+        "accountId": ["Account id", "Account ID"],
         "accountName": "Account name",
-        "campaignId": "Campaign id",
+        "campaignId": ["Campaign id", "Campaign ID"],
         "campaignName": "Campaign name",
         "objective": "Objective",
+        "currency": "Account Currency",
         "spend": "Total Cost",
         "impressions": "Impressions",
         "clicks": "Clicks",
         "leads": "On Facebook Leads",
         "whatsapp": "Messaging conversations started",
+        "calls": "20s Calls Placed",
         "sales": "Compras Offline Web (Inbound)",
         "purchases": "On-Facebook Purchase actions",
         "conversions": { "sum": ["Compras Offline Web (Inbound)", "On-Facebook Purchase actions"] }
@@ -70,11 +73,12 @@
       "shape": "daily",
       "columns": {
         "date": "Date",
-        "accountId": "Advertiser ID",
+        "accountId": ["Advertiser ID", "Account ID"],
         "accountName": "Advertiser name",
         "campaignId": "Campaign ID",
         "campaignName": "Campaign name",
         "objective": "Campaign objective type",
+        "currency": "Currency",
         "spend": "Cost",
         "impressions": "Impressions",
         "clicks": "Clicks",
@@ -101,7 +105,8 @@
       "sheet": "Spotify",
       "platform": "spotify",
       "shape": "daily",
-      "constants": { "accountId": "spotify-izzi-mxn", "accountName": "izzi - MXN" },
+      "intraday": false,
+      "constants": { "accountId": "spotify-izzi-mxn", "accountName": "izzi - Spotify" },
       "columns": {
         "date": "Date",
         "campaignId": "Campaign ID",
@@ -182,7 +187,7 @@
   "budgets": {
     "sheet": "Presupuestos",
     "optional": true,
-    "columns": { "month": "Mes", "platform": "Plataforma", "account": "Cuenta", "campaign": "Campaña", "amount": "Monto", "currency": "Moneda", "level": "Nivel" }
+    "columns": { "month": "Mes", "platform": "Plataforma", "account": "Cuenta", "campaign": "Campaña", "amount": "Monto", "currency": "Moneda", "level": "Nivel", "brand": "Marca" }
   },
   "fxRates": {
     "sheet": "Tipo de cambio",

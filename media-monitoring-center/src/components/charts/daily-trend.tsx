@@ -8,7 +8,7 @@ import { axisCurrency, axisNumber, ChartTooltip, SwatchLegend } from "./chart-ki
 type Day = { date: string; label: string } & Partial<Record<PlatformId | "total", number | null>>;
 
 /** Tendencia diaria: barras apiladas por plataforma (métricas aditivas) o línea total (métricas derivadas). */
-export function DailyTrend({ days, additive, currency, format, height = 260 }: { days: Day[]; additive: boolean; currency: boolean; format: (v: number | null) => string; height?: number }) {
+export function DailyTrend({ days, additive, currency, format, height = 260, totalLabel = "Total" }: { days: Day[]; additive: boolean; currency: boolean; format: (v: number | null) => string; height?: number; totalLabel?: string }) {
   const items = PLATFORM_IDS.map((p) => ({ key: p, label: PLATFORMS[p].shortName, color: `var(--chart-${PLATFORMS[p].colorSlot})` }));
   const tick = currency ? axisCurrency : axisNumber;
   return (
@@ -43,7 +43,7 @@ export function DailyTrend({ days, additive, currency, format, height = 260 }: {
               <CartesianGrid vertical={false} />
               <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: "var(--chart-grid)" }} interval="preserveStartEnd" minTickGap={24} />
               <YAxis tickFormatter={tick} tickLine={false} axisLine={false} width={56} />
-              <Tooltip content={({ active, payload, label }) => <ChartTooltip active={active} title={String(label)} rows={[{ key: "total", label: "Total izzi", color: "var(--series-today)", value: format((payload?.[0]?.payload?.total as number | null) ?? null) }]} />} />
+              <Tooltip content={({ active, payload, label }) => <ChartTooltip active={active} title={String(label)} rows={[{ key: "total", label: totalLabel, color: "var(--series-today)", value: format((payload?.[0]?.payload?.total as number | null) ?? null) }]} />} />
               <Line dataKey="total" stroke="var(--series-today)" strokeWidth={2} dot={false} isAnimationActive={false} />
             </LineChart>
           )}

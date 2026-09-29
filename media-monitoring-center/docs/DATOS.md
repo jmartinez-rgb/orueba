@@ -8,19 +8,29 @@ ni a BigQuery. La instalación completa está en [`docs/INSTALACION.md`](INSTALA
 ## 0. Lectura directa de la hoja de Dataslayer
 
 `config/sheets.mapping.json` declara qué pestaña trae cada plataforma y cómo se llaman sus
-columnas (ya viene configurado para "Monitoreo | Big Query"):
+columnas (ya viene configurado para la hoja "MONITOREO", ID
+`1WjLM2CSsIiuNuJrGSRFe-5SMkvhI59cKp5cZpq7fxCc`):
 
 | Pestaña | Forma | Qué aporta |
 |---|---|---|
-| `Google \| General` | diaria por campaña | gasto, impresiones, clics, conversiones, tipo de campaña |
-| `Google Conversiones` | diaria por campaña, formato largo | ventas (`MCC_Offline_Purchase`) y leads (`MCC_Offline_Lead_Contact`); otras acciones se ignoran |
-| `Meta` | diaria por campaña | gasto, leads, conversaciones, ventas (Compras Offline Web), compras (On-Facebook Purchase); conversiones = ventas + compras |
-| `TikTok`, `Bing`, `Spotify` | diaria por campaña | gasto, impresiones, clics, conversiones (Spotify sin cuenta: se fija en el mapeo) |
+| `Google` | diaria por campaña | gasto, impresiones, clics, conversiones, moneda |
+| `Google Conversiones` | diaria por campaña, formato largo | ventas (`MCC_Offline_Purchase`), leads (`MCC_Offline_Lead_Contact`), llamadas (`Calls from ads`) y tipo de campaña; otras acciones no suman métricas |
+| `Meta` | diaria por campaña | gasto, leads, conversaciones, llamadas (20s Calls Placed), ventas (Compras Offline Web), compras (On-Facebook Purchase), moneda; conversiones = ventas + compras |
+| `TikTok` | diaria por campaña | gasto, impresiones, clics, conversiones, moneda |
+| `Bing` | diaria por campaña | gasto, impresiones, clics, conversiones (MXN) |
+| `Spotify` | diaria por campaña, un día de atraso | gasto, impresiones, clics (sin cuenta: se fija en el mapeo). `"intraday": false`: no se vigila en vivo |
 | `Google \| Hora`, `Meta \| Hora`, `TikTok \| Hora`, `Bing \| Hora` | por hora y cuenta (opcionales) | curva horaria real del día |
 | `DataslayerQueries` | — | hora y estado de la última actualización de cada consulta |
 
 Cómo se interpretan:
 
+- **Sin IDs**: la hoja no trae IDs de cuenta ni de campaña; la llave sale del nombre
+  (`google-izzi-ofertas`, `google-izzi-ofertas-mxsur-cpc-manual`; los nombres largos llevan una
+  huella para no chocar). Si otra pestaña sí trae IDs, las llaves por nombre se unen al ID real.
+- **Solo la historia necesaria**: la app lee la fila de encabezados (en caché 10 min), la columna
+  de fecha y después solo las filas desde hace 45 días (semanas de comparación de Settings × 7 +
+  10, mínimo 45). Dataslayer escribe ordenado por fecha; si una pestaña no lo está, se lee completa.
+- `Ventas Detalle` no está en el mapeo y nunca se lee (contiene teléfonos).
 - **La fila de hoy es el acumulado** hasta la actualización de Dataslayer (hora de
   `DataslayerQueries`, convertida desde la zona de la hoja a la de negocio). Esa hora define hasta
   dónde cubre el día y la frescura de la plataforma y de todas sus cuentas.
@@ -34,11 +44,37 @@ Cómo se interpretan:
 - **Actualización en curso** (cada 2 h, tarda 5–10 min): si una pestaña llega vacía o recortada a
   menos del 40%, se usa la última lectura completa (hasta 6 h) y se marca "en ejecución".
 - **Números**: se leen sin formato (moneda, porcentaje o separadores de la hoja no afectan).
-- **Caché**: la hoja se vuelve a leer como máximo cada 3 minutos (`cacheSeconds`), en una sola
-  lectura en lote. *Actualizar ahora* fuerza una lectura nueva y guarda la evaluación.
-- **Plataformas**: solo se monitorean las que aparecen en el mapeo; las demás no se muestran.
+- **Caché**: la hoja se vuelve a leer como máximo cada 5 minutos (`cacheSeconds`), con tres
+  lecturas en lote (encabezados, fechas, filas). *Actualizar ahora* fuerza una lectura nueva y
+  guarda la evaluación de izzi y de Sky.
+- **Evaluación guardada sin n8n**: al abrir la app, si pasaron 2 horas desde la última evaluación
+  guardada o aparece un incidente crítico nuevo, se guarda sola (así los incidentes conservan folio
+  y hora de inicio).
+- **Plataformas**: solo se monitorean las que aparecen en el mapeo con datos del día
+  (`intraday`), y en cada marca solo las que tienen cuentas de esa marca.
 - **Estado de alertas e incidentes**: en este modo se guarda en Netlify Blobs (no hay tablas de
-  BigQuery).
+  BigQuery), por separado para izzi (`state/…`) y Sky (`state/sky/…`).
+
+### Marcas: izzi y Sky
+
+Cada marca es un monitoreo aparte; el botón **izzi | Sky** de la barra superior cambia entre ellas
+(se recuerda por navegador) y cada botón muestra el estado general de su marca y cuántos críticos
+tiene abiertos. La marca se decide así (`src/lib/brands.ts`):
+
+1. Por el **nombre de la cuenta**: si menciona solo "Sky" es Sky; si menciona solo "izzi", izzi.
+2. Si la cuenta es **mixta** ("izzi - Sky Social") o no menciona ninguna, decide el **nombre de la
+   campaña** ("Sky / Seguidores…" → Sky).
+3. Si tampoco, es **izzi**.
+
+Con la hoja actual: Sky = Google `Sky - ABCW`; Meta `Sky Performance - MXN`, `Sky - MXN`,
+`Sky Sports` y las campañas "Sky / …" de `izzi - Sky Social`; TikTok `Sky México` y
+`Sky Sports MXN`. Todo lo demás es izzi (incluidas campañas de izzi que promocionan Sky Sports).
+
+Cada marca tiene sus propias alertas e incidentes (los de Sky con folio `SKY-INC-0001`), tickets,
+mensajes de Monitoreos y presupuestos de referencia. Los presupuestos por plataforma o total sin
+columna `Marca` se asignan a izzi. La evaluación programada (`/api/monitoring/evaluate`) evalúa las
+dos marcas y devuelve el resultado de cada una en `brands`; los WhatsApp dicen "IZZI MEDIA ALERT" o
+"SKY MEDIA ALERT".
 
 Para cambiar el mapeo (pestaña renombrada, columna nueva) basta editar `config/sheets.mapping.json`:
 cada columna acepta un nombre o una lista de alternativas, y una métrica puede sumar columnas

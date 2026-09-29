@@ -49,6 +49,8 @@ export interface ReportData {
   manualChecks: Array<{ id: string; label: string }>;
   closingNote: string;
   accountBreakdown: PlatformId[];
+  /** Marca del monitoreo ("izzi", "Sky"); el mensaje la menciona cuando no es izzi. */
+  brandName?: string;
 }
 
 export interface ReportOptions {

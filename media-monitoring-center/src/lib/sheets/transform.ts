@@ -26,6 +26,9 @@ export interface SheetRecord {
   objective: string | null;
   currency: Currency | null;
   metrics: MetricValues;
+  /** La llave salió del nombre (la pestaña no trae la columna de ID). */
+  accountIdFromName?: boolean;
+  campaignIdFromName?: boolean;
 }
 
 export interface TabParseResult {
@@ -39,14 +42,24 @@ export interface TabParseResult {
   nullSpendByDate: Map<string, number>;
 }
 
-function slug(v: string): string {
-  return v
+function hash36(v: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < v.length; i++) h = Math.imul(h ^ v.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(36);
+}
+
+/**
+ * Llave legible a partir de un nombre (cuando la hoja no trae IDs). Los nombres largos se
+ * recortan y llevan una huella del nombre completo para que dos campañas parecidas no choquen.
+ */
+export function slugId(v: string): string {
+  const s = v
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 60);
+    .replace(/^-|-$/g, "");
+  return s.length <= 60 ? s : `${s.slice(0, 50).replace(/-$/, "")}-${hash36(v.trim().toLowerCase())}`;
 }
 
 function refList(ref: ColumnRef): string[] {
@@ -58,7 +71,7 @@ function describe(ref: ColumnRef | MetricRef): string {
   return refList(ref).join(" / ");
 }
 
-function findColumn(headers: string[], ref: ColumnRef | undefined): number {
+export function findColumn(headers: string[], ref: ColumnRef | undefined): number {
   if (!ref) return -1;
   for (const name of refList(ref)) {
     const i = headers.indexOf(normHeader(name));
@@ -105,10 +118,16 @@ export function parseTab(values: Cell[][], source: SheetSource, opts: { tz: stri
   };
   const metricCols = new Map<BaseMetric, number[]>();
   const missing: string[] = [];
-  for (const [k, idx] of Object.entries(col)) {
-    const ref = c[k as keyof typeof col];
+  // Solo se reportan las columnas sin las que no se puede leer la pestaña. Los IDs son opcionales
+  // si viene el nombre (la llave se arma con el nombre), y tipo, objetivo, estado y moneda son
+  // complementarios (pueden venir de otra pestaña de la misma plataforma).
+  const need = (ref: ColumnRef | undefined, idx: number) => {
     if (ref && idx < 0) missing.push(describe(ref));
-  }
+  };
+  need(c.date, col.date);
+  if (source.shape === "hourly") need(c.hour, col.hour);
+  if (col.accountId < 0 && col.accountName < 0 && !source.constants.accountId && !source.constants.accountName) need(c.accountName ?? c.accountId, -1);
+  if (source.level === "campaign" && col.campaignId < 0 && col.campaignName < 0) need(c.campaignName ?? c.campaignId ?? "Campaign", -1);
   for (const m of BASE_METRICS) {
     const ref = c[m];
     if (!ref) continue;
@@ -140,11 +159,17 @@ export function parseTab(values: Cell[][], source: SheetSource, opts: { tz: stri
     }
     dataRows++;
     const accountName = text(row[col.accountName]) ?? source.constants.accountName ?? null;
-    const accountId = normId(row[col.accountId]) ?? source.constants.accountId ?? (accountName ? `${source.platform}-${slug(accountName)}` : `${source.platform}-cuenta`);
+    const realAccountId = normId(row[col.accountId]) ?? source.constants.accountId ?? null;
+    const accountId = realAccountId ?? (accountName ? `${source.platform}-${slugId(accountName)}` : `${source.platform}-cuenta`);
     let campaignId: string | null = null;
+    let campaignIdFromName = false;
     const campaignName = text(row[col.campaignName]);
     if (source.level === "campaign") {
-      campaignId = normId(row[col.campaignId]) ?? (campaignName ? `${accountId}-${slug(campaignName)}` : null);
+      campaignId = normId(row[col.campaignId]);
+      if (!campaignId && campaignName) {
+        campaignId = `${accountId}-${slugId(campaignName)}`;
+        campaignIdFromName = true;
+      }
       if (!campaignId) continue;
     }
     const metrics = emptyMetrics();
@@ -152,8 +177,8 @@ export function parseTab(values: Cell[][], source: SheetSource, opts: { tz: stri
     if (source.pivot) {
       action = (text(row[pivotCol]) ?? "").toLowerCase();
       const metric = pivotMap.get(action);
-      if (!metric) continue;
-      metrics[metric] = parseNumberLoose(row[pivotVal], opts.decimalComma);
+      // Una acción que no se usa no suma métricas, pero sí aporta tipo de campaña y nombres.
+      if (metric) metrics[metric] = parseNumberLoose(row[pivotVal], opts.decimalComma);
     }
     for (const [m, idx] of metricCols) {
       const vals = idx.map((i) => parseNumberLoose(row[i], opts.decimalComma)).filter((v): v is number => v !== null);
@@ -184,12 +209,49 @@ export function parseTab(values: Cell[][], source: SheetSource, opts: { tz: stri
       objective: text(row[col.objective]),
       currency: currencyOf(row[col.currency]) ?? source.constants.currency ?? null,
       metrics,
+      accountIdFromName: realAccountId === null,
+      campaignIdFromName,
     };
     const cur = source.pivot ? records.get(rowKey) : undefined;
     if (cur) addMetrics(cur.metrics, metrics);
     else records.set(rowKey, rec);
   }
   return { records: [...records.values()], missingColumns: missing, dataRows, duplicatesByDate: duplicates, nullSpendByDate: nullSpend };
+}
+
+const normName = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
+
+/**
+ * Si una pestaña trae IDs y otra solo nombres (p. ej. la diaria sin IDs y la de conversiones
+ * con IDs), las llaves armadas con el nombre se cambian por el ID real de la misma cuenta o
+ * campaña para que ambas pestañas se unan.
+ */
+export function harmonizeIds(records: SheetRecord[]): SheetRecord[] {
+  const accounts = new Map<string, string>();
+  for (const r of records) if (!r.accountIdFromName && r.accountName) accounts.set(`${r.platform}|${normName(r.accountName)}`, r.accountId);
+  if (accounts.size) {
+    for (const r of records) {
+      if (!r.accountIdFromName || !r.accountName) continue;
+      const id = accounts.get(`${r.platform}|${normName(r.accountName)}`);
+      if (!id) continue;
+      if (r.campaignIdFromName && r.campaignId?.startsWith(`${r.accountId}-`)) r.campaignId = `${id}${r.campaignId.slice(r.accountId.length)}`;
+      r.accountId = id;
+      r.accountIdFromName = false;
+    }
+  }
+  const campaigns = new Map<string, string>();
+  for (const r of records) if (r.campaignId && !r.campaignIdFromName && r.campaignName) campaigns.set(`${r.platform}|${r.accountId}|${normName(r.campaignName)}`, r.campaignId);
+  if (campaigns.size) {
+    for (const r of records) {
+      if (!r.campaignIdFromName || !r.campaignName) continue;
+      const id = campaigns.get(`${r.platform}|${r.accountId}|${normName(r.campaignName)}`);
+      if (id) {
+        r.campaignId = id;
+        r.campaignIdFromName = false;
+      }
+    }
+  }
+  return records;
 }
 
 /** Une los registros de varias pestañas de la misma forma y nivel (p. ej. General + Conversiones de Google). */

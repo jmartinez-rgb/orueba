@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { requireSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/roles";
+import { resolveBrand } from "@/lib/services/brand";
+import { requireSession, hasPermission } from "@/lib/auth/session";
 import { listTickets, OPEN_TICKET_STATUSES, TICKET_CATEGORY_LABEL, type TicketCategory } from "@/lib/records/tickets";
 import { getRecordStore, RECORD_BACKEND_LABEL } from "@/lib/records/store";
 import { safeSnapshot } from "@/lib/services/safe";
@@ -22,7 +22,7 @@ function requestNow(): number {
 export default async function TicketsPage({ searchParams }: { searchParams: Promise<{ new?: string; id?: string }> }) {
   const session = await requireSession("/tickets");
   const sp = await searchParams;
-  const [tickets, snapRes] = await Promise.all([listTickets(), safeSnapshot()]);
+  const [tickets, snapRes] = await Promise.all([resolveBrand(session).then((b) => listTickets(b)), safeSnapshot()]);
   const tz = snapRes.ok ? snapRes.snap.meta.timezone : baseSettings().timezone;
   const incidents: IncidentOption[] = snapRes.ok
     ? snapRes.snap.state.incidents
@@ -60,9 +60,9 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
             tickets={tickets}
             incidents={incidents}
             timezone={tz}
-            canWrite={can(session.role, "tickets:write")}
-            canManage={can(session.role, "tickets:manage")}
-            prefillIncidentId={sp.new && /^INC-\d+$/.test(sp.new) ? sp.new : null}
+            canWrite={hasPermission(session, "tickets:write")}
+            canManage={hasPermission(session, "tickets:manage")}
+            prefillIncidentId={sp.new && /^(?:[A-Z]+-)?INC-\d+$/.test(sp.new) ? sp.new : null}
             initialId={sp.id && /^TKT-\d+$/.test(sp.id) ? sp.id : null}
             nowMs={requestNow()}
           />

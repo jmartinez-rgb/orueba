@@ -181,7 +181,7 @@ export async function getCompare(
     };
   };
   const all = [...groups.entries()].map(([id, g]) => buildRow(id, g.name, g.sub, g.platform, g.series)).sort((a, b) => b.spend - a.spend || a.name.localeCompare(b.name));
-  const totalName = platform === "all" ? "Total izzi" : `Total ${PLATFORMS[platform].name}`;
+  const totalName = platform === "all" ? `Total ${ctx.brandInfo.name}` : `Total ${PLATFORMS[platform].name}`;
   const totalRow = buildRow("total", totalName, null, platform === "all" ? null : platform, total);
   const focus = params.focus && groups.has(params.focus) ? params.focus : "total";
   const focusSeries = focus === "total" ? total : groups.get(focus)!.series;
@@ -219,6 +219,8 @@ export interface HistoricalResult {
   sameWeekday: Array<{ date: string; value: number | null }>;
   heatmap: number[][];
   cutoffHour: number;
+  /** Marca del monitoreo (para "Total izzi" / "Total Sky"). */
+  brandName: string;
 }
 
 export async function getHistorical(ctx: AppContext, params: { today: string; weeks: number; metric: MetricId; cutoffHour: number }): Promise<HistoricalResult> {
@@ -281,5 +283,5 @@ export async function getHistorical(ctx: AppContext, params: { today: string; we
     });
   }
   const heatmap = heat.map((row, wd) => row.map((v, h) => (cnt[wd][h] ? v / cnt[wd][h] : 0)));
-  return { from, to, weeks, metric, metricLabel: METRICS[metric].label, days, weekdayProfile, sameWeekday, heatmap, cutoffHour };
+  return { from, to, weeks, metric, metricLabel: METRICS[metric].label, days, weekdayProfile, sameWeekday, heatmap, cutoffHour, brandName: ctx.brandInfo.name };
 }

@@ -65,6 +65,8 @@ export function parseDateLoose(v: Cell, tz: string): string | null {
     const compact = t.match(/^(\d{4})(\d{2})(\d{2})$/);
     if (compact) return `${compact[1]}-${compact[2]}-${compact[3]}`;
   }
+  // Número de serie (días desde 1899-12-30 en la hora local de la hoja): aritmética directa, sin zonas.
+  if (typeof v === "number" && v >= 30000 && v <= 80000) return serialToDate(v);
   if (typeof v === "number" && v >= 19000101 && v <= 21001231) {
     const s = String(v);
     return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
@@ -98,6 +100,73 @@ export function parseHourLoose(v: Cell): number | null {
   const time = t.match(/^(\d{1,2})(?::\d{2}){0,2}/);
   if (time && Number(time[1]) <= 23) return Number(time[1]);
   return null;
+}
+
+export function serialToDate(serial: number): string {
+  return new Date(Date.UTC(1899, 11, 30 + Math.floor(serial))).toISOString().slice(0, 10);
+}
+
+/** Letra de columna: 0 → A, 25 → Z, 26 → AA. */
+export function columnLetter(index: number): string {
+  let n = index + 1;
+  let out = "";
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    out = String.fromCharCode(65 + r) + out;
+    n = Math.floor((n - 1) / 26);
+  }
+  return out;
+}
+
+export function columnIndex(letters: string): number {
+  let n = 0;
+  for (const ch of letters.toUpperCase()) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n - 1;
+}
+
+/** Rango A1 ya separado: 'Hoja'!B2:F100, 'Hoja'!1:1, 'Hoja'!C2:C (los extremos abiertos quedan en null). */
+export interface A1Parts {
+  sheet: string;
+  col1: number | null;
+  row1: number | null;
+  col2: number | null;
+  row2: number | null;
+}
+
+export function parseA1(range: string): A1Parts | null {
+  const m = range.match(/^'((?:[^']|'')*)'!([A-Z]*)(\d*)(?::([A-Z]*)(\d*))?$/i);
+  if (!m) return null;
+  const num = (v: string | undefined) => (v ? Number(v) : null);
+  const col = (v: string | undefined) => (v ? columnIndex(v) : null);
+  const [, name, c1, r1, c2, r2] = m;
+  const single = m[4] === undefined && m[5] === undefined;
+  return {
+    sheet: name.replace(/''/g, "'"),
+    col1: col(c1),
+    row1: num(r1),
+    col2: single ? col(c1) : col(c2),
+    row2: single ? num(r1) : num(r2),
+  };
+}
+
+/**
+ * Recorta rangos A1 de pestañas en memoria como lo haría la API de Sheets (sin filas vacías al
+ * final). Lo usan el lector de archivo y las pruebas.
+ */
+export function sliceRanges(tabs: Record<string, Cell[][]>, ranges: string[], majorDimension: "ROWS" | "COLUMNS" = "ROWS"): Cell[][][] {
+  return ranges.map((r) => {
+    const a1 = parseA1(r);
+    const tab = a1 ? tabs[a1.sheet] : undefined;
+    if (!a1 || !tab) return [];
+    const r1 = (a1.row1 ?? 1) - 1;
+    const r2 = a1.row2 === null ? tab.length : Math.min(tab.length, a1.row2);
+    const c1 = a1.col1 ?? 0;
+    const rows = tab.slice(r1, r2).map((row) => (a1.col2 === null ? row.slice(c1) : row.slice(c1, a1.col2 + 1)));
+    while (rows.length && rows[rows.length - 1].every((v) => v === "" || v === null || v === undefined)) rows.pop();
+    if (majorDimension === "ROWS") return rows;
+    const width = Math.max(0, ...rows.map((row) => row.length));
+    return Array.from({ length: width }, (_, c) => rows.map((row) => row[c] ?? ""));
+  });
 }
 
 /** Filas desde "$A$1:$J$6816" (DataslayerQueries): 6815 filas de datos. */

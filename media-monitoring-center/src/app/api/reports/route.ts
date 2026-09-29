@@ -2,14 +2,16 @@ import { z } from "zod";
 import { requireAuth, requirePermission } from "@/lib/auth/session";
 import { listReports, saveReport } from "@/lib/records/reports";
 import { logActivity } from "@/lib/services/activity";
+import { resolveBrand } from "@/lib/services/brand";
 import { badRequest, forbidden, json, readJson, serverError, unauthorized } from "@/lib/services/http";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  if (!(await requireAuth())) return unauthorized();
+  const session = await requireAuth();
+  if (!session) return unauthorized();
   try {
-    return json({ ok: true, reports: await listReports(30) });
+    return json({ ok: true, reports: await listReports(30, await resolveBrand(session)) });
   } catch (err) {
     return serverError("api", err, "reports");
   }
@@ -30,7 +32,7 @@ export async function POST(req: Request) {
   const parsed = body.safeParse(await readJson(req));
   if (!parsed.success) return badRequest("El mensaje está vacío o es inválido.");
   try {
-    const r = await saveReport({ ...parsed.data, by: session.user.name });
+    const r = await saveReport({ ...parsed.data, by: session.user.name, brand: await resolveBrand(session) });
     await logActivity(session, "REPORT_GENERATED", `${r.id} · corte ${String(parsed.data.cutoffHour).padStart(2, "0")}:00 · ${parsed.data.summary}`);
     return json({ ok: true, report: r });
   } catch (err) {

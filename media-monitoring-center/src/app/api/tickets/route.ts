@@ -2,14 +2,16 @@ import { z } from "zod";
 import { requireAuth, requirePermission } from "@/lib/auth/session";
 import { createTicket, listTickets, TICKET_CATEGORIES, TICKET_CHANNELS, type TicketCategory, type TicketChannel } from "@/lib/records/tickets";
 import { logActivity } from "@/lib/services/activity";
+import { resolveBrand } from "@/lib/services/brand";
 import { badRequest, forbidden, json, readJson, serverError, unauthorized } from "@/lib/services/http";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  if (!(await requireAuth())) return unauthorized();
+  const session = await requireAuth();
+  if (!session) return unauthorized();
   try {
-    return json({ ok: true, tickets: await listTickets() });
+    return json({ ok: true, tickets: await listTickets(await resolveBrand(session)) });
   } catch (err) {
     return serverError("api", err, "tickets");
   }
@@ -22,7 +24,7 @@ const body = z.object({
   category: z.enum(TICKET_CATEGORIES as [TicketCategory, ...TicketCategory[]]),
   platform: z.enum(["google", "meta", "tiktok", "microsoft", "spotify", "x"]).nullable(),
   accountName: z.string().max(120).nullable().default(null),
-  incidentIds: z.array(z.string().regex(/^INC-[0-9]+$/)).max(20).default([]),
+  incidentIds: z.array(z.string().regex(/^(?:[A-Z]+-)?INC-[0-9]+$/)).max(20).default([]),
   reportedTo: z.string().trim().max(120).default(""),
   channel: z.enum(TICKET_CHANNELS as [TicketChannel, ...TicketChannel[]]).default("WHATSAPP"),
   externalRef: z.string().max(80).nullable().default(null),
@@ -35,7 +37,7 @@ export async function POST(req: Request) {
   const parsed = body.safeParse(await readJson(req));
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? "Datos del ticket inválidos.");
   try {
-    const t = await createTicket(parsed.data, session.user.name);
+    const t = await createTicket(parsed.data, session.user.name, await resolveBrand(session));
     await logActivity(session, "TICKET_CREATED", `${t.id} · ${t.title}`);
     return json({ ok: true, ticket: t });
   } catch (err) {

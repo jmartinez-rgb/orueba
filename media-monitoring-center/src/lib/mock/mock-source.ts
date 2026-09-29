@@ -19,6 +19,7 @@ import { addMetrics, emptyMetrics } from "@/lib/metrics";
 import { addDays, businessDate, daysInMonth, diffDays, monthOf, zonedParts, zonedTimeToUtc } from "@/lib/time/tz";
 import { PLATFORMS } from "@/lib/platforms/registry";
 import { MOCK_ACCOUNTS, MOCK_CAMPAIGNS, mockFxRate, toCampaign } from "./catalog";
+import { brandOfCampaign } from "@/lib/brands";
 import { generateDataset, type MetricSeries, type MockDataset } from "./generator";
 import { getScenario } from "./scenarios";
 
@@ -64,7 +65,7 @@ export interface MockSourceOptions {
  * Nivel de presupuesto simulado por cuenta: la mayoría a nivel cuenta, algunas por campaña
  * (Universal+, Discovery) y una con ambos niveles cargados para mostrar "confirmar nivel".
  */
-const CAMPAIGN_LEVEL_ACCOUNTS = new Set(["g-107", "g-108", "m-211", "m-212"]);
+const CAMPAIGN_LEVEL_ACCOUNTS = new Set(["g-107", "g-108", "m-211", "m-212", "m-253"]);
 const MIXED_LEVEL_ACCOUNTS = new Set(["g-102"]);
 
 export class MockDataSource implements MonitoringDataSource {
@@ -147,9 +148,11 @@ export class MockDataSource implements MonitoringDataSource {
     const round = (v: number, step: number) => Math.round(v / step) * step;
     const rate = mockFxRate(month);
     let total = 0;
+    const accountName = new Map(MOCK_ACCOUNTS.map((a) => [a.id, a.name]));
     for (const p of PLATFORM_IDS) {
       const camps = MOCK_CAMPAIGNS.filter((c) => c.platform === p && c.status === "ACTIVE");
-      const daily = camps.reduce((a, c) => a + c.dailySpend, 0);
+      // Presupuestos por plataforma y total: solo izzi (Sky tiene presupuesto por cuenta o campaña).
+      const daily = camps.filter((c) => brandOfCampaign(accountName.get(c.accountId), c.name) === "izzi").reduce((a, c) => a + c.dailySpend, 0);
       const amount = round(daily * days * platformFactor[p], 1000);
       total += amount;
       out.push({ month, level: "platform", platform: p, accountId: null, campaignId: null, amount, currency: "MXN" });

@@ -111,6 +111,30 @@
   --chart-6: #008300;
 }
 
+/*
+ * Marca activa: Sky cambia el acento (azul) para que siempre sea evidente qué monitoreo se ve.
+ * izzi usa los tokens de arriba. Los colores de estado y de plataformas no cambian.
+ */
+[data-brand="sky"] {
+  --primary: #1f5fd6;
+  --primary-foreground: #ffffff;
+  --ring: #3b7bf0;
+  --brand-teal: #1f5fd6;
+  --accent: #eaf1fd;
+  --sidebar-accent: #edf2fd;
+  --series-today: #1f5fd6;
+}
+
+.dark[data-brand="sky"] {
+  --primary: #5b95ff;
+  --primary-foreground: #050b18;
+  --ring: #5b95ff;
+  --brand-teal: #5b95ff;
+  --accent: #111b2e;
+  --sidebar-accent: #101a2c;
+  --series-today: #5b95ff;
+}
+
 @theme inline {
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;

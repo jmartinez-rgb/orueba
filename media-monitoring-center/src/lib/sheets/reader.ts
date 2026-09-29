@@ -1,7 +1,7 @@
 import "server-only";
 import { readFileSync } from "node:fs";
 import { sheetsGet } from "@/lib/google/sheets";
-import type { Cell } from "./parse";
+import { sliceRanges, type Cell } from "./parse";
 
 /** Acceso de solo lectura a la hoja. Se puede sustituir en pruebas por un lector de archivo. */
 export interface SheetsInfo {
@@ -14,8 +14,15 @@ export interface SheetsInfo {
 export interface SheetsReader {
   readonly kind: "google" | "fixture";
   info(spreadsheetId: string): Promise<SheetsInfo>;
-  /** Valores sin formato de cada rango (fechas como número de serie). */
-  batchGet(spreadsheetId: string, ranges: string[]): Promise<Cell[][][]>;
+  /**
+   * Valores sin formato de cada rango (fechas como número de serie). Con majorDimension
+   * "COLUMNS" cada arreglo interno es una columna (sirve para leer solo la columna de fecha).
+   */
+  batchGet(spreadsheetId: string, ranges: string[], opts?: BatchGetOptions): Promise<Cell[][][]>;
+}
+
+export interface BatchGetOptions {
+  majorDimension?: "ROWS" | "COLUMNS";
 }
 
 export class GoogleSheetsReader implements SheetsReader {
@@ -34,11 +41,11 @@ export class GoogleSheetsReader implements SheetsReader {
     };
   }
 
-  async batchGet(spreadsheetId: string, ranges: string[]): Promise<Cell[][][]> {
+  async batchGet(spreadsheetId: string, ranges: string[], opts?: BatchGetOptions): Promise<Cell[][][]> {
     if (!ranges.length) return [];
     const qs = ranges.map((r) => `ranges=${encodeURIComponent(r)}`).join("&");
     const data = await sheetsGet<{ valueRanges?: Array<{ values?: Cell[][] }> }>(
-      `${encodeURIComponent(spreadsheetId)}/values:batchGet?${qs}&majorDimension=ROWS&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER`,
+      `${encodeURIComponent(spreadsheetId)}/values:batchGet?${qs}&majorDimension=${opts?.majorDimension ?? "ROWS"}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER`,
       "sheets.read",
     );
     return ranges.map((_, i) => data.valueRanges?.[i]?.values ?? []);
@@ -65,11 +72,7 @@ export class FixtureSheetsReader implements SheetsReader {
     const f = this.load();
     return { ...f.info, sheets: Object.keys(f.tabs) };
   }
-  async batchGet(_id: string, ranges: string[]): Promise<Cell[][][]> {
-    const f = this.load();
-    return ranges.map((r) => {
-      const name = r.replace(/^'/, "").replace(/'![A-Z0-9:]+$/i, "").replace(/''/g, "'");
-      return f.tabs[name] ?? [];
-    });
+  async batchGet(_id: string, ranges: string[], opts?: BatchGetOptions): Promise<Cell[][][]> {
+    return sliceRanges(this.load().tabs, ranges, opts?.majorDimension);
   }
 }

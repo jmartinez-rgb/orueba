@@ -11,9 +11,7 @@ import type { RunSummary, StateStore, UserOverrides } from "./store";
  * vienen de Google Sheets (no hay tablas de BigQuery donde guardarlo). No guarda métricas.
  */
 
-const STATE_KEY = "state/alerts";
-const OVERRIDES_KEY = "state/overrides";
-const runsKey = (date: string) => `state/runs/${date}`;
+
 /** Lo resuelto hace más de estos días se descarta para que el estado no crezca sin límite. */
 const KEEP_DAYS = 45;
 
@@ -29,17 +27,29 @@ function prune(state: AlertState): AlertState {
 
 export class RecordsStateStore implements StateStore {
   readonly kind = "records" as const;
+  private readonly STATE_KEY: string;
+  private readonly OVERRIDES_KEY: string;
+
+  /** izzi usa "state/…" (como siempre); Sky usa "state/sky/…". */
+  constructor(private readonly prefix = "state/") {
+    this.STATE_KEY = `${prefix}alerts`;
+    this.OVERRIDES_KEY = `${prefix}overrides`;
+  }
+
+  private runsKey(date: string) {
+    return `${this.prefix}runs/${date}`;
+  }
 
   private get store() {
     return getRecordStore();
   }
 
   async loadAlertState(): Promise<AlertState> {
-    return (await this.store.get<AlertState>(STATE_KEY)) ?? emptyAlertState();
+    return (await this.store.get<AlertState>(this.STATE_KEY)) ?? emptyAlertState();
   }
 
   async saveAlertState(state: AlertState): Promise<void> {
-    await this.store.set(STATE_KEY, prune(state));
+    await this.store.set(this.STATE_KEY, prune(state));
   }
 
   async saveNotifications(list: NotificationRecord[]): Promise<void> {
@@ -54,22 +64,22 @@ export class RecordsStateStore implements StateStore {
   }
 
   async saveRun(run: RunSummary): Promise<void> {
-    const list = (await this.store.get<RunSummary[]>(runsKey(run.businessDate))) ?? [];
-    await this.store.set(runsKey(run.businessDate), [...list.filter((r) => r.id !== run.id), run].slice(-60));
+    const list = (await this.store.get<RunSummary[]>(this.runsKey(run.businessDate))) ?? [];
+    await this.store.set(this.runsKey(run.businessDate), [...list.filter((r) => r.id !== run.id), run].slice(-60));
   }
 
   async listRuns(date: string): Promise<RunSummary[]> {
-    return (await this.store.get<RunSummary[]>(runsKey(date))) ?? [];
+    return (await this.store.get<RunSummary[]>(this.runsKey(date))) ?? [];
   }
 
   async getOverrides(): Promise<UserOverrides> {
-    return (await this.store.get<UserOverrides>(OVERRIDES_KEY)) ?? { alerts: {}, incidents: {}, budgets: [] };
+    return (await this.store.get<UserOverrides>(this.OVERRIDES_KEY)) ?? { alerts: {}, incidents: {}, budgets: [] };
   }
 
   private async updateOverrides(fn: (o: UserOverrides) => void): Promise<void> {
     const o = await this.getOverrides();
     fn(o);
-    await this.store.set(OVERRIDES_KEY, o);
+    await this.store.set(this.OVERRIDES_KEY, o);
   }
 
   async setAlertStatus(id: string, status: AlertStatus, by: string): Promise<void> {

@@ -23,9 +23,9 @@ import { PLATFORMS, resolvePlatformAlias } from "@/lib/platforms/registry";
 import { HOURLY_SHARE } from "@/lib/mock/curves";
 import { logger } from "@/lib/logging/logger";
 import type { SheetSource, SheetsMapping } from "./mapping";
-import { a1Range, cleanSheetName, normHeader, parseNumberLoose, rowsFromRange, usesDecimalComma, type Cell } from "./parse";
+import { a1Range, cleanSheetName, columnLetter, normHeader, parseDateLoose, parseNumberLoose, rowsFromRange, usesDecimalComma, type Cell } from "./parse";
 import type { SheetsInfo, SheetsReader } from "./reader";
-import { buildCatalog, mergeRecords, parseTab, synthesizeHourly, type SheetRecord } from "./transform";
+import { buildCatalog, findColumn, harmonizeIds, mergeRecords, parseTab, synthesizeHourly, type SheetRecord } from "./transform";
 
 /**
  * Fuente de datos: la hoja de Google Sheets que actualiza Dataslayer (cada 2 horas; tarda 5–10
@@ -45,9 +45,14 @@ export interface SheetsSourceOptions {
   /** Zona horaria de negocio. */
   timezone: string;
   reader: SheetsReader;
+  /** Días de historia a leer de cada pestaña si el mapeo no fija historyDays. */
+  historyDays?: number;
   /** Reloj inyectable (pruebas). */
   clock?: () => Date;
 }
+
+/** Historia por defecto: 4 semanas de comparación + el mes en curso, con margen. */
+export const DEFAULT_HISTORY_DAYS = 45;
 
 interface ControlEntry {
   sheet: string;
@@ -83,8 +88,35 @@ export interface SheetsDataset {
   tabRows: Map<string, number>;
 }
 
-const lastGood = new Map<string, { values: Cell[][]; rows: number; at: number }>();
+const lastGood = new Map<string, { values: Cell[][]; rows: number; total: number; at: number }>();
+/** Encabezados de cada pestaña (cambian muy poco): se releen cada 10 minutos. */
+const headerCache = new Map<string, { at: number; rows: Map<string, Cell[]> }>();
+const HEADER_TTL_MS = 10 * 60 * 1000;
 let datasetVersion = 0;
+
+/**
+ * Ventana de lectura de una pestaña a partir de su columna de fecha (fila 2 en adelante).
+ * Dataslayer escribe las filas ordenadas por fecha, así que basta leer desde la primera fila
+ * dentro de la historia necesaria. Si la columna no está ordenada se lee completa.
+ */
+export function readWindow(dates: Cell[], cutoff: string, tz: string): { first: number; last: number; total: number } | null {
+  let first = -1;
+  let last = -1;
+  let max = "";
+  let sorted = true;
+  for (let k = 0; k < dates.length; k++) {
+    const d = parseDateLoose(dates[k], tz);
+    if (!d) continue;
+    last = k;
+    if (d < max) sorted = false;
+    else max = d;
+    if (first < 0 && d >= cutoff) first = k;
+  }
+  if (last < 0) return null;
+  if (!sorted) return { first: 0, last, total: last + 1 };
+  if (first < 0) return { first: last + 1, last, total: last + 1 };
+  return { first, last, total: last + 1 };
+}
 
 function sheetKey(name: string): string {
   return normHeader(cleanSheetName(name));
@@ -220,10 +252,41 @@ export class SheetsDataSource implements MonitoringDataSource {
       if (title) wants.push({ kind: kind as "control", title });
       else if (!cfg.optional) missingSheets.push(cfg.sheet);
     }
-    const values = await reader.batchGet(
+    const sourceWants = wants.filter((w): w is Extract<Want, { kind: "source" }> => w.kind === "source");
+    const otherWants = wants.filter((w) => w.kind !== "source");
+    const historyDays = mapping.historyDays ?? this.opts.historyDays ?? DEFAULT_HISTORY_DAYS;
+    const cutoff = addDays(this.today(), -historyDays);
+
+    // 1) Encabezados (en caché) → columna de fecha de cada pestaña.
+    const headers = await this.headers(sourceWants.map((w) => w.title));
+    const dateCol = sourceWants.map((w) => findColumn((headers.get(w.title) ?? []).map(normHeader), w.source.columns.date));
+    // 2) Control, presupuestos y tipo de cambio completos + solo la columna de fecha de cada pestaña.
+    const withDates = sourceWants.map((w, i) => ({ w, i })).filter(({ i }) => dateCol[i] >= 0);
+    const [otherValues, dateValues] = await Promise.all([
+      reader.batchGet(spreadsheetId, otherWants.map((w) => a1Range(w.title))),
+      reader.batchGet(
+        spreadsheetId,
+        withDates.map(({ w, i }) => a1Range(w.title, `${columnLetter(dateCol[i])}2:${columnLetter(dateCol[i])}`)),
+        { majorDimension: "COLUMNS" },
+      ),
+    ]);
+    // 3) Solo las filas dentro de la historia necesaria.
+    const windows = new Map<number, { first: number; last: number; total: number }>();
+    withDates.forEach(({ i }, k) => {
+      const win = readWindow(dateValues[k]?.[0] ?? [], cutoff, timezone);
+      if (win) windows.set(i, win);
+    });
+    const toRead = [...windows.entries()].filter(([, win]) => win.first <= win.last);
+    const windowValues = await reader.batchGet(
       spreadsheetId,
-      wants.map((w) => a1Range(w.title)),
+      toRead.map(([i, win]) => {
+        const width = Math.max(1, (headers.get(sourceWants[i].title) ?? []).length);
+        return a1Range(sourceWants[i].title, `A${win.first + 2}:${columnLetter(width - 1)}${win.last + 2}`);
+      }),
     );
+    const windowByIndex = new Map(toRead.map(([i], k) => [i, windowValues[k] ?? []]));
+    const sourceIndex = new Map(sourceWants.map((w, i) => [w, i]));
+    const otherIndex = new Map(otherWants.map((w, i) => [w, i]));
 
     const refreshing: string[] = [];
     const missingColumns: SheetsDataset["missingColumns"] = [];
@@ -235,19 +298,29 @@ export class SheetsDataSource implements MonitoringDataSource {
     let fx: FxRate[] = [];
     const now = this.now().getTime();
 
-    wants.forEach((w, i) => {
-      let tab = values[i] ?? [];
+    wants.forEach((w) => {
       if (w.kind === "source") {
-        // Protección durante la actualización de Dataslayer (5–10 min): una pestaña vacía o
-        // recortada a menos del 40% se sustituye por la última lectura completa (hasta 6 h).
-        const key = `${spreadsheetId}|${sheetKey(w.title)}`;
-        const rows = Math.max(0, tab.length - 1);
+        const i = sourceIndex.get(w)!;
+        const header = headers.get(w.title) ?? [];
+        const win = windows.get(i);
+        const body = windowByIndex.get(i) ?? [];
+        let tab: Cell[][] = header.length ? [header, ...body] : [];
+        let total = win?.total ?? 0;
+        // Protección durante la actualización de Dataslayer (5–10 min): una pestaña vacía,
+        // recortada a menos del 40% o que cambió entre la lectura de fechas y la de filas se
+        // sustituye por la última lectura completa (hasta 6 h).
+        const key = `${spreadsheetId}|${sheetKey(w.title)}|${cutoff}`;
+        const rows = body.length;
+        const expected = win ? Math.max(0, win.last - win.first + 1) : 0;
         const prev = lastGood.get(key);
-        if (prev && prev.rows > 20 && rows < prev.rows * 0.4 && now - prev.at < 6 * 3600 * 1000) {
+        const cut = (prev && prev.rows > 20 && rows < prev.rows * 0.4) || (expected > 20 && rows < expected * 0.9);
+        if (cut && prev && now - prev.at < 6 * 3600 * 1000) {
           refreshing.push(w.source.sheet);
           tab = prev.values;
-        } else if (rows > 0) lastGood.set(key, { values: tab, rows, at: now });
-        tabRows.set(w.source.sheet, Math.max(0, tab.length - 1));
+          total = prev.total;
+        } else if (rows > 0) lastGood.set(key, { values: tab, rows, total, at: now });
+        else if (cut) refreshing.push(w.source.sheet);
+        if (tab.length) tabRows.set(w.source.sheet, total);
         const parsed = parseTab(tab, w.source, { tz: timezone, decimalComma });
         if (parsed.missingColumns.length) missingColumns.push({ sheet: w.source.sheet, columns: parsed.missingColumns });
         records.push(...parsed.records);
@@ -261,12 +334,15 @@ export class SheetsDataSource implements MonitoringDataSource {
           q.nullSpend += n;
           quality.set(`${w.source.platform}|${date}`, q);
         }
-      } else if (w.kind === "control" && mapping.control) control = this.parseControl(tab, sheetTz);
+        return;
+      }
+      const tab = otherValues[otherIndex.get(w)!] ?? [];
+      if (w.kind === "control" && mapping.control) control = this.parseControl(tab, sheetTz);
       else if (w.kind === "budgets" && mapping.budgets) budgets = this.parseBudgets(tab, decimalComma);
       else if (w.kind === "fx" && mapping.fxRates) fx = this.parseFx(tab, decimalComma);
     });
 
-    const merged = mergeRecords(records);
+    const merged = mergeRecords(harmonizeIds(records));
     const platforms = new Map<PlatformId, PlatformData>();
     for (const p of this.platforms()) {
       const mine = merged.filter((r) => r.platform === p);
@@ -296,6 +372,19 @@ export class SheetsDataSource implements MonitoringDataSource {
     };
   }
 
+  /** Fila de encabezados de cada pestaña (se guarda 10 min si todas vinieron completas). */
+  private async headers(titles: string[]): Promise<Map<string, Cell[]>> {
+    const { spreadsheetId, reader } = this.opts;
+    const hit = headerCache.get(spreadsheetId);
+    if (hit && Date.now() - hit.at < HEADER_TTL_MS && titles.every((t) => hit.rows.has(t))) return hit.rows;
+    const values = await reader.batchGet(spreadsheetId, titles.map((t) => a1Range(t, "1:1")));
+    const rows = new Map(titles.map((t, i) => [t, (values[i]?.[0] ?? []) as Cell[]]));
+    // Una pestaña sin encabezado puede estar a mitad de una actualización: no se guarda.
+    if ([...rows.values()].every((r) => r.length)) headerCache.set(spreadsheetId, { at: Date.now(), rows });
+    else headerCache.delete(spreadsheetId);
+    return rows;
+  }
+
   private columnIndex(headers: string[], ref: string | string[] | undefined): number {
     if (!ref) return -1;
     for (const name of Array.isArray(ref) ? ref : [ref]) {
@@ -313,6 +402,7 @@ export class SheetsDataSource implements MonitoringDataSource {
     const c = {
       sheet: this.columnIndex(headers, cfg.columns.sheet),
       updated: this.columnIndex(headers, cfg.columns.updated),
+      created: this.columnIndex(headers, cfg.columns.created),
       status: this.columnIndex(headers, cfg.columns.status),
       dataSource: this.columnIndex(headers, cfg.columns.dataSource),
       range: this.columnIndex(headers, cfg.columns.range),
@@ -322,7 +412,8 @@ export class SheetsDataSource implements MonitoringDataSource {
       const sheet = cleanSheetName(row[c.sheet]);
       if (!sheet) continue;
       const statusText = String(row[c.status] ?? "").trim();
-      const updatedAt = c.updated >= 0 ? parseDateTimeLoose(row[c.updated], tz) : null;
+      // Una consulta recién creada aún no tiene "Updated": sus datos se escribieron al crearla.
+      const updatedAt = (c.updated >= 0 ? parseDateTimeLoose(row[c.updated], tz) : null) ?? (c.created >= 0 ? parseDateTimeLoose(row[c.created], tz) : null);
       const entry: ControlEntry = {
         sheet,
         updatedAt,
@@ -389,11 +480,9 @@ export class SheetsDataSource implements MonitoringDataSource {
     const pd = ds.platforms.get(p);
     if (!pd) return null;
     const withSpend = pd.sources.filter((s) => s.columns.spend && ds.tabRows.has(s.sheet));
-    for (const s of [...withSpend, ...pd.sources]) {
-      const entry = ds.control.get(sheetKey(s.controlName ?? s.sheet));
-      if (entry) return entry;
-    }
-    return null;
+    const entries = [...withSpend, ...pd.sources].map((s) => ds.control.get(sheetKey(s.controlName ?? s.sheet))).filter((e): e is ControlEntry => Boolean(e));
+    // Primero la pestaña del gasto; si su consulta aún no tiene hora, la de otra pestaña de la plataforma.
+    return entries.find((e) => e.updatedAt) ?? entries[0] ?? null;
   }
 
   /** Hasta qué hora (con decimales, zona de negocio) cubre el acumulado de hoy de una plataforma. */

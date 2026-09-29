@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { BookOpenText, Bug, FlaskConical, LogOut, UsersRound } from "lucide-react";
+import { BookOpenText, Bug, FlaskConical, KeyRound, LogOut, UsersRound } from "lucide-react";
 import { sileo } from "sileo";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +19,7 @@ import { ROLE_LABEL, ROLES, type Role } from "@/lib/auth/roles";
 import type { AuthMode } from "@/lib/auth/token";
 import type { AuditUserKind } from "@/lib/records/audit";
 import { UserAvatar } from "@/components/users/user-avatar";
+import { ChangePasswordDialog } from "@/components/users/change-password-dialog";
 import type { DataMode } from "@/lib/types";
 
 const KIND_LABEL: Record<AuditUserKind, string> = {
@@ -49,6 +51,7 @@ export function UserMenu({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [passwordOpen, setPasswordOpen] = useState(false);
   async function post(url: string, body: unknown, success?: string) {
     const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (res.ok) {
@@ -62,77 +65,85 @@ export function UserMenu({
     router.refresh();
   }
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2 px-1.5" aria-label={`Usuario: ${userName}`}>
-          <UserAvatar name={userName} size={26} animate />
-          <span className="hidden max-w-32 flex-col items-start leading-tight xl:flex">
-            <span className="truncate text-xs font-semibold">{userName}</span>
-            <span className="text-[10px] text-muted-foreground">{ROLE_LABEL[role]}</span>
-          </span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72">
-        <div className="flex items-center gap-3 px-2 py-2">
-          <UserAvatar name={userName} size={40} animate />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{userName}</p>
-            <p className="text-xs text-muted-foreground">{ROLE_LABEL[role]}</p>
-            <p className="text-[10px] text-muted-foreground">{KIND_LABEL[userKind]}</p>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="gap-2 px-1.5" aria-label={`Usuario: ${userName}`}>
+            <UserAvatar name={userName} size={26} animate />
+            <span className="hidden max-w-32 flex-col items-start leading-tight xl:flex">
+              <span className="truncate text-xs font-semibold">{userName}</span>
+              <span className="text-[10px] text-muted-foreground">{ROLE_LABEL[role]}</span>
+            </span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-72">
+          <div className="flex items-center gap-3 px-2 py-2">
+            <UserAvatar name={userName} size={40} animate />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{userName}</p>
+              <p className="text-xs text-muted-foreground">{ROLE_LABEL[role]}</p>
+              <p className="text-[10px] text-muted-foreground">{KIND_LABEL[userKind]}</p>
+            </div>
           </div>
-        </div>
-        {authMode === "open" && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="normal-case tracking-normal">Rol (acceso abierto)</DropdownMenuLabel>
-            <DropdownMenuRadioGroup value={role} onValueChange={(v) => post("/api/session/role", { role: v }, `Rol: ${ROLE_LABEL[v as Role]}`)}>
-              {ROLES.map((r) => (
-                <DropdownMenuRadioItem key={r} value={r}>
-                  {ROLE_LABEL[r]}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </>
-        )}
-        {mode === "mock" && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="flex items-center gap-1.5 normal-case tracking-normal">
-              <FlaskConical className="size-3.5" /> Escenario simulado
-            </DropdownMenuLabel>
-            <DropdownMenuRadioGroup value={scenario ?? "default"} onValueChange={(v) => post("/api/settings/scenario", { scenario: v }, "Escenario actualizado")}>
-              {scenarios.map((s) => (
-                <DropdownMenuRadioItem key={s.id} value={s.id}>
-                  {s.name}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </>
-        )}
-        <DropdownMenuSeparator />
-        {canViewUsers && (
+          {authMode === "open" && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="normal-case tracking-normal">Rol (acceso abierto)</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={role} onValueChange={(v) => post("/api/session/role", { role: v }, `Rol: ${ROLE_LABEL[v as Role]}`)}>
+                {ROLES.map((r) => (
+                  <DropdownMenuRadioItem key={r} value={r}>
+                    {ROLE_LABEL[r]}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </>
+          )}
+          {mode === "mock" && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="flex items-center gap-1.5 normal-case tracking-normal">
+                <FlaskConical className="size-3.5" /> Escenario simulado
+              </DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={scenario ?? "default"} onValueChange={(v) => post("/api/settings/scenario", { scenario: v }, "Escenario actualizado")}>
+                {scenarios.map((s) => (
+                  <DropdownMenuRadioItem key={s.id} value={s.id}>
+                    {s.name}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </>
+          )}
+          <DropdownMenuSeparator />
+          {canViewUsers && (
+            <DropdownMenuItem asChild>
+              <Link href="/usuarios">
+                <UsersRound /> Usuarios, contraseñas y accesos
+              </Link>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem asChild>
-            <Link href="/usuarios">
-              <UsersRound /> Usuarios y accesos
+            <Link href="/guia">
+              <BookOpenText /> Guía de uso
             </Link>
           </DropdownMenuItem>
-        )}
-        <DropdownMenuItem asChild>
-          <Link href="/guia">
-            <BookOpenText /> Guía de uso
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={`/sugerencias?from=${encodeURIComponent(pathname)}`}>
-            <Bug /> Reportar bug o sugerencia
-          </Link>
-        </DropdownMenuItem>
-        {authMode === "password" && (
-          <DropdownMenuItem onSelect={logout} className="text-status-critical-text focus:text-status-critical-text">
-            <LogOut /> Cerrar sesión
+          <DropdownMenuItem asChild>
+            <Link href={`/sugerencias?from=${encodeURIComponent(pathname)}`}>
+              <Bug /> Reportar bug o sugerencia
+            </Link>
           </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {authMode === "password" && userKind === "named" && (
+            <DropdownMenuItem onSelect={() => setPasswordOpen(true)}>
+              <KeyRound /> Cambiar mi contraseña
+            </DropdownMenuItem>
+          )}
+          {authMode === "password" && (
+            <DropdownMenuItem onSelect={logout} className="text-status-critical-text focus:text-status-critical-text">
+              <LogOut /> Cerrar sesión
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
+    </>
   );
 }

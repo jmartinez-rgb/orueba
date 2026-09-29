@@ -80,7 +80,7 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
   const histStart = addDays(today, -28);
   const from = monthStart < histStart ? monthStart : histStart;
   const [daily, sourceBudgets, overrides] = await Promise.all([
-    cached(`budget:daily:${ctx.mode}:${ctx.scenario?.id}:${from}:${today}:${snap.meta.cutoffHour}`, 5 * 60 * 1000, () => ctx.source.getDaily({ from, to: today, level: "campaign" })),
+    cached(`budget:daily:${ctx.mode}:${ctx.brand}:${ctx.scenario?.id}:${from}:${today}:${snap.meta.cutoffHour}`, 5 * 60 * 1000, () => ctx.source.getDaily({ from, to: today, level: "campaign" })),
     ctx.source.getBudgets(month),
     ctx.store.getOverrides(),
   ]);
@@ -203,7 +203,7 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
       platform: p,
       accountId: accountId || null,
       campaignId: campaignId || null,
-      name: level === "total" ? "Total izzi" : level === "platform" ? PLATFORMS[p!].name : level === "account" ? (accountName.get(accountId) ?? accountId) : (camp?.name ?? campaignId),
+      name: level === "total" ? `Total ${ctx.brandInfo.name}` : level === "platform" ? PLATFORMS[p!].name : level === "account" ? (accountName.get(accountId) ?? accountId) : (camp?.name ?? campaignId),
       parentName: level === "campaign" ? (accountName.get(accountId) ?? null) : level === "account" && p ? PLATFORMS[p].name : null,
       budget: b?.amount ?? null,
       spend: agg.mtd,

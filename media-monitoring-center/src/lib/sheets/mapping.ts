@@ -29,6 +29,11 @@ export const sheetSourceSchema = z.object({
   optional: z.boolean().default(false),
   /** Nombre de la consulta en la pestaña DataslayerQueries (por defecto, el de la pestaña). */
   controlName: z.string().optional(),
+  /**
+   * false = la plataforma entrega sus datos con un día de atraso (p. ej. Spotify): no se puede
+   * vigilar dentro del día, así que queda fuera del monitoreo en vivo.
+   */
+  intraday: z.boolean().default(true),
   columns: z.object({
     date: columnRef,
     hour: columnRef.optional(),
@@ -69,7 +74,12 @@ export const sheetsMappingSchema = z.object({
   refreshEveryMinutes: z.number().int().min(15).max(1440).default(120),
   refreshDurationMinutes: z.number().int().min(0).max(120).default(15),
   /** Segundos que se reutiliza una lectura de la hoja antes de volver a pedirla. */
-  cacheSeconds: z.number().int().min(30).max(3600).default(180),
+  cacheSeconds: z.number().int().min(30).max(3600).default(300),
+  /**
+   * Días de historia que se leen de cada pestaña (las pestañas crecen todos los días). Vacío =
+   * lo necesario para la comparación (semanas de Settings) y el mes en curso.
+   */
+  historyDays: z.number().int().min(14).max(800).optional(),
   control: z
     .object({
       sheet: z.string().default("DataslayerQueries"),
@@ -79,17 +89,19 @@ export const sheetsMappingSchema = z.object({
         .object({
           sheet: columnRef.default("Sheet name"),
           updated: columnRef.default("Updated"),
+          /** Si una consulta recién creada aún no tiene "Updated", se usa su hora de creación. */
+          created: columnRef.default("Created"),
           status: columnRef.default("Last status"),
           dataSource: columnRef.default("Data source"),
           range: columnRef.default("Range address"),
         })
-        .default({ sheet: "Sheet name", updated: "Updated", status: "Last status", dataSource: "Data source", range: "Range address" }),
+        .default({ sheet: "Sheet name", updated: "Updated", created: "Created", status: "Last status", dataSource: "Data source", range: "Range address" }),
     })
     .nullable()
     .default({
       sheet: "DataslayerQueries",
       timeZone: "sheet",
-      columns: { sheet: "Sheet name", updated: "Updated", status: "Last status", dataSource: "Data source", range: "Range address" },
+      columns: { sheet: "Sheet name", updated: "Updated", created: "Created", status: "Last status", dataSource: "Data source", range: "Range address" },
     }),
   sources: z.array(sheetSourceSchema).min(1),
   budgets: z
@@ -104,6 +116,8 @@ export const sheetsMappingSchema = z.object({
         account: columnRef.optional(),
         campaign: columnRef.optional(),
         currency: columnRef.optional(),
+        /** Opcional: "izzi" o "Sky". Sin columna, la marca sale del nombre de la cuenta o campaña. */
+        brand: columnRef.optional(),
       }),
     })
     .nullable()

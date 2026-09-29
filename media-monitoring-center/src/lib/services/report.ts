@@ -179,6 +179,7 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
     cutoffHour: snap.run.cutoffHour,
     timezone: tz,
     lastWeekDay: WEEKDAYS_ES[weekdayOf(lastWeek)],
+    brandName: ctx.brandInfo.name,
     greeting: hour < 12 ? "Buenos días" : hour < 19 ? "Buenas tardes" : "Buenas noches",
     budget,
     platformProblems: { status: pStatus, details: problems },

@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 const POLL_MS = 60_000;
 const MIN_TEXT = 20;
-const REPORT_SUGGESTIONS = ["Líder de la plataforma", "Equipo Paid Media", "Soporte de la plataforma", "Cliente izzi", "Equipo de datos"];
+const REPORT_SUGGESTIONS = ["Líder de la plataforma", "Equipo Paid Media", "Soporte de la plataforma", "Cliente", "Equipo de datos"];
 
 function pct(v: number | null) {
   return v === null ? "s/d" : `${v > 0 ? "+" : ""}${(v * 100).toFixed(1)}%`;

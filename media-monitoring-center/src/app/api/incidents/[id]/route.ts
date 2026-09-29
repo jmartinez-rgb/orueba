@@ -18,7 +18,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (!session) return forbidden();
   const { id } = await ctx.params;
   const parsed = body.safeParse(await readJson(req));
-  if (!parsed.success || !/^INC-[0-9]+$/.test(id)) return badRequest("Datos o id de incidente inválidos.");
+  if (!parsed.success || !/^(?:[A-Z]+-)?INC-[0-9]+$/.test(id)) return badRequest("Datos o id de incidente inválidos.");
   try {
     const app = await getAppContext();
     await app.store.updateIncident(id, parsed.data, session.user.name);

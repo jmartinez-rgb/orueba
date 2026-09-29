@@ -53,6 +53,12 @@ export const MOCK_ACCOUNTS: Account[] = [
   { id: "b-402", platform: "microsoft", name: "izzi Bing Audience", currency: "MXN" },
   { id: "s-501", platform: "spotify", name: "izzi Spotify Audio", currency: "USD" },
   { id: "x-601", platform: "x", name: "izzi X Ads", currency: "USD" },
+  // Sky (se separa por el nombre de la cuenta; "izzi - Sky Social" es mixta y se separa por campaña)
+  { id: "g-151", platform: "google", name: "Sky - ABCW", currency: "MXN" },
+  { id: "m-251", platform: "meta", name: "Sky Performance - MXN", currency: "MXN" },
+  { id: "m-252", platform: "meta", name: "Sky Sports", currency: "MXN" },
+  { id: "m-253", platform: "meta", name: "izzi - Sky Social", currency: "MXN" },
+  { id: "t-351", platform: "tiktok", name: "Sky México", currency: "MXN" },
 ];
 
 const G_SALE = "MCC_Offline_Purchase";
@@ -160,6 +166,17 @@ export const MOCK_CAMPAIGNS: MockCampaignSeed[] = [
   m("m-2009", "m-211", "Universal+ | Brand 100% l Digital", "AWARENESS", 150000, { leads: 5000 }, "OUTCOME_AWARENESS", null),
   m("m-2020", "m-211", "Universal+ | Performance 2024 | Móvil", "LEADS", 25000, { leads: 260, sales: 3500 }, "OUTCOME_LEADS", "Lead (formulario instantáneo)"),
   m("m-2018", "m-212", "Discovery | Temporal | Caricaturas", "AWARENESS", 35000, { leads: 5200 }, "OUTCOME_AWARENESS", null),
+
+  // ── Sky ────────────────────────────────────────────────────────────────────
+  g("g-1501", "g-151", "NACIONAL | CAMPAÑA DEPORTES", "CALLS", 42000, { calls: 150, leads: 260, sales: 2400 }, "SEARCH", "ACTIVE", "LLAMADA AL TÉLEFONO | LANDING PAGE | ABCW"),
+  g("g-1502", "g-151", "NACIONAL | CAMPAÑA COMPETENCIA", "LEADS", 30000, { leads: 240, calls: 180, sales: 2600 }, "SEARCH"),
+  g("g-1503", "g-151", "PMAX | Sky Recargas", "SALES", 26000, PMAX_COSTS, "PERFORMANCE_MAX"),
+  m("m-2501", "m-251", "Sky Performance | WhatsApp | Nacional", "WHATSAPP", 120000, { whatsapp: 70, sales: 1800, leads: 950 }, "OUTCOME_ENGAGEMENT"),
+  m("m-2502", "m-251", "Sky Performance | Formulario | Paquetes", "LEADS", 60000, { leads: 230, sales: 3200 }, "OUTCOME_LEADS", "Lead (formulario instantáneo)"),
+  m("m-2503", "m-252", "Sky Sports | Liga MX | Alcance", "AWARENESS", 25000, { leads: 5200 }, "OUTCOME_AWARENESS", null),
+  m("m-2504", "m-253", "Sky / Seguidores Instagram / Septiembre 2026", "ENGAGEMENT", 8000, {}, "OUTCOME_ENGAGEMENT", null),
+  m("m-2505", "m-253", "izzi / Seguidores Instagram / Septiembre 2026", "ENGAGEMENT", 8000, {}, "OUTCOME_ENGAGEMENT", null),
+  { id: "t-3501", platform: "tiktok", accountId: "t-351", name: "Mx Sky l Septiembre 2026 l Tráfico Recargas", objective: "TRAFFIC", status: "ACTIVE", conversionEvent: null, sourceType: "TRAFFIC", dailySpend: 22000, costs: { conversions: 900, leads: 1400 } },
 
   // ── TikTok Ads ─────────────────────────────────────────────────────────────
   { id: "t-3001", platform: "tiktok", accountId: "t-301", name: "izzi_TT_Leads_Paquetes", objective: "LEADS", status: "ACTIVE", conversionEvent: "Complete Registration", sourceType: "LEAD_GENERATION", dailySpend: 180000, costs: { leads: 185, conversions: 185, sales: 3400, whatsapp: 1500 } },

@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 import type { Severity } from "@/lib/types";
 import { maxSeverity } from "@/lib/anomaly-engine/severity";
-import { getSnapshot } from "@/lib/services/snapshot";
+import { cookies } from "next/headers";
+import { getBrandStatus, getSnapshot } from "@/lib/services/snapshot";
+import { BRAND_COOKIE, BRAND_IDS, BRANDS, parseBrand, type BrandId } from "@/lib/brands";
+import { BrandSwitch, type BrandStatus } from "./brand-switch";
 import { getEnv } from "@/lib/config/env";
 import { hourLabel } from "@/lib/time/tz";
 import { baseSettings } from "@/lib/services/context";
-import { sessionPermissions, type Session } from "@/lib/auth/session";
-import { can } from "@/lib/auth/roles";
+import { sessionPermissions, type Session, hasPermission } from "@/lib/auth/session";
 import { getAuthConfig } from "@/lib/auth/config";
 import { openTicketStats } from "@/lib/records/tickets";
 import { newFeedbackCount } from "@/lib/records/feedback";
@@ -29,13 +31,17 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
   let mode: DataMode = env.dataSource;
   let scenario: { id: string; name: string } | null = null;
   let scenarios: Array<{ id: string; name: string }> = [];
-  const canManageFeedback = can(session.role, "feedback:manage");
+  const canManageFeedback = hasPermission(session, "feedback:manage");
+  const allowedBrands: BrandId[] = session.brands.length ? session.brands : BRAND_IDS;
+  const wantedBrand = parseBrand((await cookies()).get(BRAND_COOKIE)?.value);
+  let brand: BrandId = allowedBrands.includes(wantedBrand) ? wantedBrand : allowedBrands[0];
+  let brandHasData = true;
   const [snapResult, tickets, feedbackNew] = await Promise.all([
     getSnapshot().then(
       (s) => ({ ok: true as const, s }),
       () => ({ ok: false as const }),
     ),
-    openTicketStats().catch(() => ({ open: 0, severity: "NORMAL" as Severity })),
+    openTicketStats(brand).catch(() => ({ open: 0, severity: "NORMAL" as Severity })),
     canManageFeedback ? newFeedbackCount().catch(() => 0) : Promise.resolve(0),
     // Presencia: última vez que se vio a la persona (máximo una escritura cada 5 min).
     touchUser({ id: session.user.id, name: session.user.name, role: session.role, kind: session.user.kind }).catch((err) => logger.warn("audit.touch_failed", { error: err })),
@@ -59,14 +65,30 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
     mode = snap.meta.mode;
     scenario = snap.meta.scenario;
     scenarios = snap.meta.scenarios;
+    brand = snap.meta.brand.id;
+    brandHasData = snap.meta.brandHasData;
   } else {
     counts = { ...counts, tickets: tickets.open, feedback: feedbackNew, ticketsSeverity: tickets.severity };
   }
   const permissions = sessionPermissions(session);
   const auth = getAuthConfig();
+  // Estado de cada marca para el botón de cambio (la vigente sale del snapshot; las otras, en caché por minuto).
+  const brandStatuses: BrandStatus[] =
+    allowedBrands.length > 1
+      ? (
+          await Promise.all(
+            allowedBrands.map((b) =>
+              b === brand && snapResult.ok
+                ? Promise.resolve({ brand: b, overall: snapResult.s.meta.brandHasData ? snapResult.s.overall : null, critical: snapResult.s.state.incidents.filter((i) => i.resolvedAt === null && i.severity === "CRITICAL").length })
+                : getBrandStatus(b),
+            ),
+          )
+        ).filter((x): x is BrandStatus => x !== null)
+      : [];
   return (
     <div className="flex min-h-dvh">
       <Sidebar
+        brandName={BRANDS[brand].name}
         counts={counts}
         permissions={permissions}
         footer={
@@ -84,6 +106,8 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
           </div>
         )}
         <Topbar
+          brandName={BRANDS[brand].name}
+          brandSwitch={<BrandSwitch current={brand} statuses={brandStatuses} />}
           counts={counts}
           permissions={permissions}
           overall={overall}
@@ -96,12 +120,17 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
           userName={session.user.name}
           userKind={session.user.kind}
           authMode={session.mode}
-          canTrigger={can(session.role, "monitoring:trigger")}
+          canTrigger={hasPermission(session, "monitoring:trigger")}
         />
+        {!brandHasData && (
+          <div className="border-b border-status-attention/40 bg-status-attention/10 px-4 py-1.5 text-center text-[11px] text-status-attention-text">
+            La fuente de datos no trae cuentas de {BRANDS[brand].name}. Las cuentas se asignan por su nombre (por ejemplo &quot;Sky - ABCW&quot; o &quot;izzi - Ofertas&quot;).
+          </div>
+        )}
         <main className="mx-auto w-full max-w-[1680px] flex-1 px-3 py-4 sm:px-5 lg:px-6">{children}</main>
       </div>
       <AutoRefresh />
-      <CriticalAlertGate userName={session.user.name} canTicket={can(session.role, "tickets:write")} />
+      <CriticalAlertGate userName={session.user.name} canTicket={hasPermission(session, "tickets:write")} />
     </div>
   );
 }

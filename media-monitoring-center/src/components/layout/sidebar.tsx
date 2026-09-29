@@ -20,19 +20,19 @@ export interface NavCounts {
   ticketsSeverity: Severity;
 }
 
-export function BrandMark({ collapsed }: { collapsed?: boolean }) {
+export function BrandMark({ collapsed, brandName = "izzi" }: { collapsed?: boolean; brandName?: string }) {
   return (
-    <Link href="/" className="flex items-center gap-2.5 px-1" aria-label="izzi Media Monitoring Center">
+    <Link href="/" className="flex items-center gap-2.5 px-1" aria-label={`${brandName} Media Monitoring Center`}>
       <span className="relative inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#0b0c0f] ring-1 ring-white/10">
         <svg viewBox="0 0 32 32" className="size-6" aria-hidden>
-          <path d="M4 20 L10 20 L13 11 L17 25 L20 16 L28 16" fill="none" stroke="#00C1B5" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M4 20 L10 20 L13 11 L17 25 L20 16 L28 16" fill="none" stroke="var(--brand-teal)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
           <circle cx="28" cy="16" r="2.4" fill="#D60270" />
         </svg>
       </span>
       {!collapsed && (
         <span className="flex min-w-0 flex-col leading-none">
           <span className="text-[15px] font-extrabold tracking-tight">
-            <span className="text-brand-teal">izzi</span> <span className="text-foreground">Media</span>
+            <span className="text-brand-teal">{brandName}</span> <span className="text-foreground">Media</span>
           </span>
           <span className="mt-0.5 text-[10px] font-medium tracking-[0.12em] text-muted-foreground uppercase">Monitoring Center</span>
         </span>
@@ -46,7 +46,7 @@ export function NavList({ counts, permissions, collapsed, onNavigate }: { counts
   return (
     <nav className="flex flex-col gap-3" aria-label="Navegación principal">
       {NAV_GROUPS.map((group) => {
-        const items = group.items.filter((i) => !i.permission || permissions.includes(i.permission));
+        const items = group.items.filter((i) => !i.permission || [i.permission].flat().some((p) => permissions.includes(p)));
         if (!items.length) return null;
         return (
           <div key={group.label} className="flex flex-col gap-0.5">
@@ -98,7 +98,7 @@ export function NavList({ counts, permissions, collapsed, onNavigate }: { counts
   );
 }
 
-export function Sidebar({ counts, permissions, footer }: { counts: NavCounts; permissions: Permission[]; footer?: React.ReactNode }) {
+export function Sidebar({ counts, permissions, footer, brandName }: { counts: NavCounts; permissions: Permission[]; footer?: React.ReactNode; brandName?: string }) {
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
     try {
@@ -121,7 +121,7 @@ export function Sidebar({ counts, permissions, footer }: { counts: NavCounts; pe
   return (
     <aside className={cn("sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex", collapsed ? "w-[60px]" : "w-[224px]")}>
       <div className={cn("flex h-14 items-center border-b border-sidebar-border px-3", collapsed && "justify-center px-0")}>
-        <BrandMark collapsed={collapsed} />
+        <BrandMark collapsed={collapsed} brandName={brandName} />
       </div>
       <div className="flex-1 overflow-y-auto px-2 py-3">
         <NavList counts={counts} permissions={permissions} collapsed={collapsed} />

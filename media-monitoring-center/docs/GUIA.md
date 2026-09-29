@@ -8,6 +8,22 @@ vigentes y un probador de clasificadores. Explica qué hay en cada parte, cómo 
 > envía WhatsApp por sí misma: el mensaje de monitoreo se copia y se envía a mano, y las alertas
 > automáticas las entrega n8n.
 
+## izzi y Sky
+
+izzi y Sky son **dos monitoreos separados**. El botón **izzi | Sky** de la barra superior cambia
+entre ellos en un clic (se recuerda en tu navegador):
+
+- El color de la app cambia (verde izzi, azul Sky) y el título dice la marca, para que nunca haya
+  duda de qué se está viendo.
+- Cada botón muestra el estado general de su marca; si la otra marca tiene críticos abiertos, su
+  botón lleva un contador rojo.
+- Cada marca tiene sus alertas, incidentes (los de Sky con folio `SKY-INC-0001`), tickets, mensajes
+  de Monitoreos y presupuestos de referencia. El mensaje de Monitoreos de Sky dice "comparto el
+  monitoreo de Sky".
+- Las cuentas se asignan por su nombre ("Sky - ABCW", "Sky Performance - MXN", "Sky México" son
+  Sky); la cuenta mixta "izzi - Sky Social" se separa por campaña ("Sky / …" y "izzi / …").
+- Si tu cuenta solo tiene acceso a una marca, no ves el botón.
+
 ## Cómo leer el semáforo
 
 Regla principal: **hoy vs el mismo día de la semana en la misma franja horaria** (00:00 → hora de
@@ -174,6 +190,13 @@ Puntos a cuidar:
 - La regla 3 asigna "DEMAND GEN" (con espacio) y el respaldo usa el tipo "DEMAND_GEN": aparecen
   como dos estrategias distintas en Compare. Conviene unificar el texto de la regla.
 - TikTok, Microsoft, Spotify y X usan el objetivo reportado por la plataforma.
+
+## Usuarios y contraseñas
+
+Quien administra usuarios (de inicio, el administrador) crea las cuentas del equipo en **Usuarios →
+Cuentas, contraseñas y permisos**: asigna la contraseña, el rol, permisos personalizados y las
+marcas que cada persona ve. Cada persona puede cambiar su contraseña desde su menú (*Cambiar mi
+contraseña*). Detalle en `docs/AUTH.md`.
 
 ## Bugs y sugerencias
 

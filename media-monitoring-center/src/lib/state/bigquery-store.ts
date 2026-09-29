@@ -18,7 +18,20 @@ type Row = Record<string, unknown>;
 
 export class BigQueryStateStore implements StateStore {
   readonly kind = "bigquery" as const;
-  constructor(private readonly tables: BigQueryMapping["state"]) {}
+  /**
+   * idPrefix separa las marcas en las mismas tablas: izzi usa los folios de siempre
+   * (ALT-0001, INC-0001) y Sky los mismos con "SKY-" al inicio.
+   */
+  constructor(
+    private readonly tables: BigQueryMapping["state"],
+    private readonly idPrefix = "",
+    private readonly otherPrefixes: string[] = [],
+  ) {}
+
+  private mine(id: string): boolean {
+    if (this.idPrefix) return id.startsWith(this.idPrefix);
+    return !this.otherPrefixes.some((p) => p && id.startsWith(p));
+  }
 
   private dataset() {
     return getEnv().bigquery.stateDataset;
@@ -59,15 +72,15 @@ export class BigQueryStateStore implements StateStore {
       this.latest<Incident>(this.tables.incidents, 14),
       this.latest<NotificationRecord>(this.tables.notifications, 3),
     ]);
-    const maxSeq = (ids: string[]) => ids.reduce((m, id) => Math.max(m, Number(id.split("-")[1]) || 0), 0);
+    const maxSeq = (ids: string[]) => ids.reduce((m, id) => Math.max(m, Number(id.split("-").pop()) || 0), 0);
     return {
-      alerts,
-      incidents,
-      notifications,
+      alerts: alerts.filter((a) => this.mine(a.id)),
+      incidents: incidents.filter((i) => this.mine(i.id)),
+      notifications: notifications.filter((n) => this.mine(n.id)),
       seq: {
-        alert: maxSeq(alerts.map((a) => a.id)),
-        incident: maxSeq(incidents.map((i) => i.id)),
-        notification: maxSeq(notifications.map((n) => n.id)),
+        alert: maxSeq(alerts.filter((a) => this.mine(a.id)).map((a) => a.id)),
+        incident: maxSeq(incidents.filter((i) => this.mine(i.id)).map((i) => i.id)),
+        notification: maxSeq(notifications.filter((n) => this.mine(n.id)).map((n) => n.id)),
       },
     };
   }
@@ -110,12 +123,12 @@ export class BigQueryStateStore implements StateStore {
       { date },
       { date: "DATE" },
     );
-    return rows.map((r) => JSON.parse(String(r.payload)) as RunSummary);
+    return rows.map((r) => JSON.parse(String(r.payload)) as RunSummary).filter((r) => this.mine(r.id));
   }
 
   async getOverrides(): Promise<UserOverrides> {
     // En BigQuery los cambios de usuario se guardan como nuevas versiones de alertas/incidentes.
-    const budgets = await this.latest<BudgetRow & { id: string }>("monitoring_budget_overrides", 400).catch(() => []);
+    const budgets = (await this.latest<BudgetRow & { id: string }>("monitoring_budget_overrides", 400).catch(() => [])).filter((b) => this.mine(b.id));
     return { alerts: {}, incidents: {}, budgets };
   }
 
@@ -149,7 +162,7 @@ export class BigQueryStateStore implements StateStore {
   }
 
   async setBudget(row: BudgetRow): Promise<void> {
-    const id = [row.month, row.level, row.platform ?? "", row.accountId ?? "", row.campaignId ?? ""].join("|");
+    const id = this.idPrefix + [row.month, row.level, row.platform ?? "", row.accountId ?? "", row.campaignId ?? ""].join("|");
     await this.insert("monitoring_budget_overrides", [{ id, updated_at: new Date().toISOString(), payload: JSON.stringify({ ...row, id }) }]);
   }
 }

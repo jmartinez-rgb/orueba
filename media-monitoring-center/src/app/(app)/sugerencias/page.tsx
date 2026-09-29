@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Lock } from "lucide-react";
-import { requireSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/roles";
+import { requireSession, hasPermission } from "@/lib/auth/session";
 import { listFeedback, listFeedbackBy, OPEN_FEEDBACK_STATUSES } from "@/lib/records/feedback";
 import { baseSettings } from "@/lib/services/context";
 import { NAV_ITEMS } from "@/components/layout/nav";
@@ -15,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function FeedbackPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
   const session = await requireSession("/sugerencias");
   const sp = await searchParams;
-  const manage = can(session.role, "feedback:manage");
+  const manage = hasPermission(session, "feedback:manage");
   const tz = baseSettings().timezone;
   const [mine, all] = await Promise.all([listFeedbackBy(session.user.id), manage ? listFeedback() : Promise.resolve([])]);
   const sections = NAV_ITEMS.filter((i) => i.href !== "/sugerencias").map((i) => ({ href: i.href, label: i.label }));

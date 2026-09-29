@@ -24,7 +24,12 @@ export type AuditType =
   | "BUDGET_REFERENCE"
   | "EVALUATION_TRIGGERED"
   | "FEEDBACK_SENT"
-  | "FEEDBACK_UPDATED";
+  | "FEEDBACK_UPDATED"
+  | "USER_CREATED"
+  | "USER_UPDATED"
+  | "USER_DELETED"
+  | "PASSWORD_CHANGED"
+  | "UNIVERSAL_UPDATED";
 
 export const AUDIT_LABEL: Record<AuditType, string> = {
   LOGIN_OK: "Inicio de sesión",
@@ -42,6 +47,11 @@ export const AUDIT_LABEL: Record<AuditType, string> = {
   EVALUATION_TRIGGERED: "Evaluación manual",
   FEEDBACK_SENT: "Bug o sugerencia enviado",
   FEEDBACK_UPDATED: "Bug o sugerencia actualizado",
+  USER_CREATED: "Cuenta creada",
+  USER_UPDATED: "Cuenta modificada",
+  USER_DELETED: "Cuenta eliminada",
+  PASSWORD_CHANGED: "Contraseña cambiada",
+  UNIVERSAL_UPDATED: "Contraseña universal modificada",
 };
 
 export type AuditUserKind = "named" | "universal" | "open" | "header" | "anon";

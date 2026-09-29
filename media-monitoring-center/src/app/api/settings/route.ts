@@ -1,5 +1,4 @@
-import { getSession, requirePermission, requireAuth } from "@/lib/auth/session";
-import { can } from "@/lib/auth/roles";
+import { getSession, requirePermission, requireAuth, hasPermission } from "@/lib/auth/session";
 import { isPatchablePath, mergeSettings, setSettingAtPath, settingsSchema } from "@/lib/config/settings";
 import { maskAddress } from "@/lib/format";
 import { invalidate } from "@/lib/data/cache";
@@ -14,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   if (!(await requireAuth())) return unauthorized();
   const [ctx, session] = await Promise.all([getAppContext(), getSession()]);
-  const full = can(session.role, "settings:write");
+  const full = hasPermission(session, "settings:write");
   return json({
     ok: true,
     mode: ctx.mode,

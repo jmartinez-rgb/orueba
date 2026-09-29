@@ -28,7 +28,8 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   badge?: "alerts" | "incidents" | "tickets" | "feedback";
-  permission?: Permission;
+  /** Permiso necesario (con una lista basta tener cualquiera). */
+  permission?: Permission | Permission[];
 }
 
 export interface NavGroup {
@@ -70,7 +71,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/integrations", label: "Integrations", icon: Plug },
       { href: "/automation", label: "Automation", icon: Workflow },
-      { href: "/usuarios", label: "Usuarios y accesos", icon: UsersRound, permission: "users:view" },
+      { href: "/usuarios", label: "Usuarios y accesos", icon: UsersRound, permission: ["users:view", "users:manage"] },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },

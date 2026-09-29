@@ -102,14 +102,19 @@ export default async function GuidePage() {
             <CardHeader>
               <div>
                 <CardTitle>Qué es</CardTitle>
-                <CardDescription>Centro de monitoreo de Paid Media de izzi: Google, Meta, TikTok, Microsoft, Spotify y X.</CardDescription>
+                <CardDescription>Centro de monitoreo de Paid Media de izzi y Sky: Google, Meta, TikTok, Microsoft y Spotify.</CardDescription>
               </div>
               <FeatureBadge badge="Solo lectura">No modifica nada</FeatureBadge>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <p>
-                Responde en segundos <strong>“¿Está todo izzi funcionando correctamente?”</strong>: detecta caídas o picos de gasto, problemas de conversión o de tracking, datos atrasados y desvíos
+                Responde en segundos <strong>“¿Está todo funcionando correctamente?”</strong>: detecta caídas o picos de gasto, problemas de conversión o de tracking, datos atrasados y desvíos
                 de presupuesto, y ayuda a reportarlos.
+              </p>
+              <p>
+                <strong>izzi y Sky son dos monitoreos separados.</strong> El botón <strong>izzi | Sky</strong> de la barra superior cambia entre ellos en un clic; el color de la app cambia (verde
+                izzi, azul Sky) y cada botón muestra el estado de su marca y cuántos críticos tiene abiertos. Las cuentas se asignan por su nombre (&quot;Sky - ABCW&quot; es Sky, &quot;izzi -
+                Ofertas&quot; es izzi); la cuenta mixta &quot;izzi - Sky Social&quot; se separa por campaña. Cada marca tiene sus alertas, incidentes (Sky: SKY-INC-…), tickets y mensajes.
               </p>
               <p className="flex items-start gap-2 rounded-md bg-muted/60 px-3 py-2 text-xs">
                 <Eye className="mt-0.5 size-4 shrink-0 text-brand-teal" /> Es una plataforma solo de monitoreo: no cambia campañas, presupuestos ni configuraciones en ninguna plataforma. Todo ajuste se hace

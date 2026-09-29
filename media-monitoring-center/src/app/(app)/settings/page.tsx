@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { hasPermission } from "@/lib/auth/session";
 import { getAppContext } from "@/lib/services/context";
 import { maskAddress } from "@/lib/format";
-import { can, ROLE_LABEL } from "@/lib/auth/roles";
+import { ROLE_LABEL } from "@/lib/auth/roles";
 import { PageHeader } from "@/components/monitoring/page-header";
 import { SettingsForm } from "@/components/monitoring/settings-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const ctx = await getAppContext();
-  const canEdit = can(ctx.session.role, "settings:write");
+  const canEdit = hasPermission(ctx.session, "settings:write");
   const catalog = await ctx.source.getCatalog();
   const [sourceCatalog, sourceRates] = await Promise.all([ctx.source.original.getCatalog(), ctx.source.original.getFxRates().catch(() => [])]);
   const today = businessDate(ctx.source.now(), ctx.settings.timezone);

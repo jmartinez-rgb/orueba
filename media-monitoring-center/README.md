@@ -1,8 +1,9 @@
-# izzi Media Monitoring Center
+# Media Monitoring Center (izzi · Sky)
 
-Plataforma interna de monitoreo de Paid Media para izzi. Responde en segundos a la pregunta
-**¿está todo izzi funcionando correctamente en este momento?** para Google Ads, Meta Ads,
-TikTok Ads, Microsoft Advertising, Spotify Ads y X Ads.
+Plataforma interna de monitoreo de Paid Media para **izzi y Sky**, cada una como un monitoreo
+aparte que se cambia con un botón (izzi | Sky). Responde en segundos a la pregunta **¿está todo
+funcionando correctamente en este momento?** para Google Ads, Meta Ads, TikTok Ads, Microsoft
+Advertising, Spotify Ads y X Ads.
 
 No es un dashboard decorativo: compara cada plataforma, cuenta y campaña contra **el mismo día
 de la semana en la misma franja horaria** (hoy 00:00–12:00 vs los 4 lunes anteriores
@@ -12,7 +13,8 @@ spam y prepara las alertas que n8n envía por WhatsApp.
 
 **Es solo de monitoreo**: no cambia campañas, presupuestos ni configuraciones en ninguna
 plataforma, y la app nunca envía WhatsApp por sí misma (las alertas las entrega n8n y el mensaje de
-monitoreo se copia y se envía a mano). El acceso es con contraseña y cada entrada queda registrada.
+monitoreo se copia y se envía a mano). El acceso es con contraseña y cada entrada queda registrada;
+el administrador crea las cuentas, asigna contraseñas, permisos y marcas desde la propia app.
 
 ```
 Plataformas → Dataslayer (cada 2 h) → Google Sheets ─┐

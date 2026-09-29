@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Menu } from "lucide-react";
 import type { Severity, DataMode } from "@/lib/types";
 import type { Permission, Role } from "@/lib/auth/roles";
@@ -16,6 +16,9 @@ import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
 
 export interface TopbarProps {
+  /** Marca vigente (nombre en el logo) y botón de cambio izzi | Sky. */
+  brandName: string;
+  brandSwitch: ReactNode;
   counts: NavCounts;
   permissions: Permission[];
   overall: Severity | null;
@@ -43,7 +46,7 @@ export function Topbar(p: TopbarProps) {
         <SheetContent side="left" className="p-0">
           <SheetTitle className="sr-only">Menú</SheetTitle>
           <div className="flex h-14 items-center border-b px-3">
-            <BrandMark />
+            <BrandMark brandName={p.brandName} />
           </div>
           <div className="px-2 py-3">
             <NavList counts={p.counts} permissions={p.permissions} onNavigate={() => setOpen(false)} />
@@ -51,11 +54,12 @@ export function Topbar(p: TopbarProps) {
         </SheetContent>
       </Sheet>
       <div className="hidden sm:block lg:hidden">
-        <BrandMark collapsed />
+        <BrandMark brandName={p.brandName} collapsed />
       </div>
+      {p.brandSwitch}
 
       {m && p.overall && (
-        <div className={cn("flex items-center gap-2 rounded-md border px-2 py-1", m.tint, m.border)} title="Estado general de medios">
+        <div className={cn("hidden items-center gap-2 rounded-md border px-2 py-1 sm:flex", m.tint, m.border)} title="Estado general de medios">
           <StatusDot severity={p.overall} pulse />
           <span className="hidden text-[11px] font-medium text-muted-foreground sm:inline">Estado general</span>
           <span className={cn("text-xs font-bold tracking-wide", m.text)}>{m.label}</span>
@@ -79,7 +83,7 @@ export function Topbar(p: TopbarProps) {
           userName={p.userName}
           userKind={p.userKind}
           authMode={p.authMode}
-          canViewUsers={p.permissions.includes("users:view")}
+          canViewUsers={p.permissions.includes("users:view") || p.permissions.includes("users:manage")}
           mode={p.mode}
           scenario={p.scenario?.id ?? null}
           scenarios={p.scenarios}

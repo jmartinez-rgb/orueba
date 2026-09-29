@@ -19,6 +19,11 @@ export interface ReconcileOptions {
   /** false = corrida de vista previa: actualiza estado pero no genera notificaciones. */
   notify: boolean;
   whatsapp: { templateAlert: string; templateRecovery: string; templateLanguage: string };
+  /**
+   * Marca del monitoreo: sus folios llevan el prefijo de la marca (Sky: SKY-INC-0001) y los
+   * mensajes dicen de qué marca son. Sin marca = izzi con los folios de siempre.
+   */
+  brand?: { name: string; upper: string; idPrefix: string };
 }
 
 export interface ReconcileResult {
@@ -92,7 +97,8 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
   const { settings } = opts;
   const now = run.runAt;
   const notifications: NotificationRecord[] = [];
-  const ctx: MessageContext = { timezone: run.timezone, cutoffHour: run.cutoffHour, now };
+  const ctx: MessageContext = { timezone: run.timezone, cutoffHour: run.cutoffHour, now, brand: opts.brand };
+  const prefix = opts.brand?.idPrefix ?? "";
   const anomalies = new Map(run.anomalies.map((a) => [a.fingerprint, a]));
   const active = state.alerts.filter((a) => a.resolvedAt === null);
   const activeByFp = new Map(active.map((a) => [a.fingerprint, a]));
@@ -132,7 +138,7 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
   for (const a of run.anomalies) {
     if (activeByFp.has(a.fingerprint)) continue;
     state.seq.alert += 1;
-    const alert = alertFromAnomaly(a, `ALT-${pad(state.seq.alert)}`, now);
+    const alert = alertFromAnomaly(a, `${prefix}ALT-${pad(state.seq.alert)}`, now);
     state.alerts.push(alert);
     activeByFp.set(a.fingerprint, alert);
   }
@@ -153,7 +159,7 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
       if (recipients.length === 0) continue;
       state.seq.notification += 1;
       const rec: NotificationRecord = {
-        id: `NTF-${pad(state.seq.notification)}`,
+        id: `${prefix}NTF-${pad(state.seq.notification)}`,
         incidentId: inc.id,
         kind,
         severity,
@@ -274,7 +280,7 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
     if (!promote) continue;
     state.seq.incident += 1;
     const inc: Incident = {
-      id: `INC-${pad(state.seq.incident)}`,
+      id: `${prefix}INC-${pad(state.seq.incident)}`,
       fingerprint: alert.fingerprint,
       alertId: alert.id,
       level: alert.level,

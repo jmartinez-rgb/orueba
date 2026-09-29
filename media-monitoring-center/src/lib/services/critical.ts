@@ -46,7 +46,7 @@ export async function pendingCritical(session: Session): Promise<PendingCritical
   const snap = await getSnapshot();
   const critical = snap.state.incidents.filter((i) => i.resolvedAt === null && i.severity === "CRITICAL");
   if (!critical.length) return [];
-  const tickets = await listTickets().catch(() => []);
+  const tickets = await listTickets(snap.meta.brand.id).catch(() => []);
   const out: PendingCritical[] = [];
   for (const i of critical) {
     if (await hasAck(i.id, i.startedAt, session.user.id)) continue;
@@ -83,7 +83,7 @@ export async function acknowledgeCritical(
   const by = session.user.name;
   let ticketId: string | null = null;
   if (input.createTicket) {
-    const open = (await listTickets()).filter((t) => OPEN_TICKET_STATUSES.includes(t.status));
+    const open = (await listTickets(snap.meta.brand.id)).filter((t) => OPEN_TICKET_STATUSES.includes(t.status));
     const existing = open.find((t) => incidents.every((i) => t.incidentIds.includes(i.id)));
     if (existing) ticketId = existing.id;
     else {
@@ -104,13 +104,14 @@ export async function acknowledgeCritical(
           owner: by,
         },
         by,
+        snap.meta.brand.id,
       );
       ticketId = t.id;
       await recordAudit({ type: "TICKET_CREATED", user: auditUser(session), detail: `${t.id} desde acuse de ${incidents.map((i) => i.id).join(", ")}`, ...info, sid: session.sid });
     }
   }
   const at = new Date().toISOString();
-  const ctx = await getAppContext();
+  const ctx = await getAppContext({ brand: snap.meta.brand.id });
   for (const inc of incidents) {
     await saveAck({ incidentId: inc.id, openedAt: inc.startedAt, userId: session.user.id, userName: by, at, text: input.text, reportTo: input.reportTo, ticketId });
     await ctx.store.updateIncident(inc.id, { note: `Acuse de alerta crítica (${by}): ${input.text}${input.reportTo ? ` · Se reportará a: ${input.reportTo}` : ""}${ticketId ? ` · ${ticketId}` : ""}` }, by);

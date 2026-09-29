@@ -32,18 +32,26 @@ export const INCIDENT_KIND_ES: Record<AnomalyType, string> = {
   PACING_DEVIATION: "Pacing",
 };
 
-const HEADER: Record<Exclude<NotificationKind, "RECOVERED">, string> = {
-  OPENED: "🚨 IZZI MEDIA ALERT",
-  ESCALATED: "🚨 IZZI MEDIA ALERT · ESCALAMIENTO",
-  WORSENED: "🚨 IZZI MEDIA ALERT · EMPEORA",
-  DURATION_EXCEEDED: "⏱️ IZZI MEDIA ALERT · SIGUE ACTIVA",
+const HEADER_SUFFIX: Record<Exclude<NotificationKind, "RECOVERED">, string> = {
+  OPENED: "",
+  ESCALATED: " · ESCALAMIENTO",
+  WORSENED: " · EMPEORA",
+  DURATION_EXCEEDED: " · SIGUE ACTIVA",
 };
 
 export interface MessageContext {
   timezone: string;
   cutoffHour: number;
   now: string;
+  /** Marca del monitoreo (izzi por defecto): va en el encabezado y en la referencia de la plantilla. */
+  brand?: { name: string; upper: string };
 }
+
+function header(kind: Exclude<NotificationKind, "RECOVERED">, ctx: MessageContext): string {
+  return `${kind === "DURATION_EXCEEDED" ? "⏱️" : "🚨"} ${ctx.brand?.upper ?? "IZZI"} MEDIA ALERT${HEADER_SUFFIX[kind]}`;
+}
+
+const brandPrefix = (ctx: MessageContext) => (ctx.brand ? `${ctx.brand.name} · ` : "");
 
 function entityLines(inc: Incident): string[] {
   const lines = [PLATFORMS[inc.platform].name.toUpperCase()];
@@ -57,7 +65,7 @@ export function buildAlertMessage(inc: Incident, kind: Exclude<NotificationKind,
   const result = inc.evidence.find((e) => e.metric !== "spend" && e.metric !== "cpr" && !["clicks", "ctr", "cpc", "cpm"].includes(e.metric));
   const cutoff = `${String(ctx.cutoffHour % 24).padStart(2, "0")}:00`;
   const detected = formatTimeInTz(inc.startedAt, ctx.timezone);
-  const lines: string[] = [HEADER[kind], ...entityLines(inc), `Estado: ${SEVERITY_ES[inc.severity]}`, ""];
+  const lines: string[] = [header(kind, ctx), ...entityLines(inc), `Estado: ${SEVERITY_ES[inc.severity]}`, ""];
   if (inc.type === "DATA_ISSUE") {
     lines.push(inc.title, "No se evalúa rendimiento hasta recibir datos.", "");
   } else {
@@ -78,7 +86,7 @@ export function buildAlertMessage(inc: Incident, kind: Exclude<NotificationKind,
   lines.push(`Posible incidencia: ${INCIDENT_KIND_ES[inc.type]}`, `Ref: ${inc.id}`);
 
   const params = [
-    PLATFORMS[inc.platform].name + (inc.campaignName ? ` · ${inc.campaignName}` : inc.accountName ? ` · ${inc.accountName}` : ""),
+    brandPrefix(ctx) + PLATFORMS[inc.platform].name + (inc.campaignName ? ` · ${inc.campaignName}` : inc.accountName ? ` · ${inc.accountName}` : ""),
     SEVERITY_ES[inc.severity],
     fmtMetric("spend", spend?.current ?? null),
     fmtMetric("spend", spend?.expected ?? null),
@@ -96,9 +104,9 @@ export function buildRecoveryMessage(inc: Incident, ctx: MessageContext): { text
   const start = formatTimeInTz(inc.startedAt, ctx.timezone);
   const end = formatTimeInTz(inc.resolvedAt ?? ctx.now, ctx.timezone);
   const duration = durationLabel(Date.parse(inc.resolvedAt ?? ctx.now) - Date.parse(inc.startedAt));
-  const who = inc.campaignName ? `${PLATFORMS[inc.platform].name} · ${inc.campaignName}` : inc.accountName ? `${PLATFORMS[inc.platform].name} · ${inc.accountName}` : PLATFORMS[inc.platform].name;
+  const who = brandPrefix(ctx) + (inc.campaignName ? `${PLATFORMS[inc.platform].name} · ${inc.campaignName}` : inc.accountName ? `${PLATFORMS[inc.platform].name} · ${inc.accountName}` : PLATFORMS[inc.platform].name);
   const text = [
-    "✅ IZZI MEDIA RECOVERY",
+    `✅ ${ctx.brand?.upper ?? "IZZI"} MEDIA RECOVERY`,
     `${who} regresó a parámetros normales.`,
     "",
     `Inicio: ${start}`,

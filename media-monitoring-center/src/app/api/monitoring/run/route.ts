@@ -2,7 +2,8 @@ import { logActivity } from "@/lib/services/activity";
 import { requirePermission } from "@/lib/auth/session";
 import { invalidate, invalidateMatching } from "@/lib/data/cache";
 import { baseSettings, getAppContext } from "@/lib/services/context";
-import { evaluateNow } from "@/lib/services/evaluate";
+import { evaluateAllBrands } from "@/lib/services/evaluate";
+import { BRANDS } from "@/lib/brands";
 import { businessDate } from "@/lib/time/tz";
 import { triggerWebhook } from "@/lib/n8n/client";
 import { forbidden, json, serverError } from "@/lib/services/http";
@@ -31,10 +32,10 @@ export async function POST() {
     invalidateMatching((k) => k.startsWith("bq:daily") && k.endsWith(today));
     // Con Google Sheets y sin n8n: se vuelve a leer la hoja y se guarda la evaluación (alertas e incidentes).
     if (env.dataSource === "sheets" && !env.n8n.manualSyncWebhook) {
-      const ctx = await getAppContext();
-      const result = await evaluateNow(ctx, { dryRun: false, trigger: "manual" });
-      await logActivity(session, "EVALUATION_TRIGGERED", "Actualizar ahora (hoja de Google Sheets)");
-      return json({ ok: true, message: `Hoja leída de nuevo y evaluación guardada (corte ${String(result.cutoffHour).padStart(2, "0")}:00).`, webhook: { mode: "simulated", ok: true, status: null } });
+      const results = await evaluateAllBrands({ dryRun: false, trigger: "manual" });
+      await logActivity(session, "EVALUATION_TRIGGERED", `Actualizar ahora (hoja de Google Sheets · ${results.map((r) => r.brand).join(", ")})`);
+      const cutoff = results[0] ? ` (corte ${String(results[0].cutoffHour).padStart(2, "0")}:00)` : "";
+      return json({ ok: true, message: `Hoja leída de nuevo y evaluación guardada para ${results.map((r) => BRANDS[r.brand].name).join(" y ")}${cutoff}.`, webhook: { mode: "simulated", ok: true, status: null } });
     }
     const hook = await triggerWebhook("manualSync", { requestedBy: session.user.name, role: session.role, requestedAt: new Date().toISOString() });
     await logActivity(session, "EVALUATION_TRIGGERED", `Actualizar ahora (${hook.mode === "live" ? (hook.ok ? "n8n OK" : "n8n con error") : "simulado"})`);

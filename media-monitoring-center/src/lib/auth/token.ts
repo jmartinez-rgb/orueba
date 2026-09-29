@@ -22,6 +22,11 @@ export interface SessionClaims {
   /** Emitido y vence (segundos epoch). */
   iat: number;
   exp: number;
+  /**
+   * Versión de la cuenta al iniciar sesión. Cambiar la contraseña o desactivar la cuenta sube
+   * la versión y cierra sus sesiones abiertas.
+   */
+  v?: number;
 }
 
 interface EnvLike {

@@ -1,5 +1,6 @@
 import "server-only";
 import type { Severity } from "@/lib/types";
+import { DEFAULT_BRAND, type BrandId } from "@/lib/brands";
 import { getRecordStore, mapLimit } from "./store";
 import { OPEN_TICKET_STATUSES, TICKET_CHANNEL_LABEL, TICKET_STATUS_LABEL, type NewTicket, type Ticket, type TicketChannel, type TicketStatus } from "./ticket-model";
 
@@ -21,7 +22,7 @@ async function nextId(): Promise<string> {
   return `TKT-${String(n).padStart(4, "0")}`;
 }
 
-export async function createTicket(input: NewTicket, by: string): Promise<Ticket> {
+export async function createTicket(input: NewTicket, by: string, brand: BrandId = DEFAULT_BRAND): Promise<Ticket> {
   const id = await nextId();
   const now = new Date().toISOString();
   const status: TicketStatus = input.reportedTo.trim() ? "REPORTADO" : "ABIERTO";
@@ -44,6 +45,7 @@ export async function createTicket(input: NewTicket, by: string): Promise<Ticket
     updates: [{ at: now, by, status, text: "Ticket creado." }],
     resolvedAt: null,
     closedAt: null,
+    brand,
   };
   await getRecordStore().set(`tickets/${id}`, t);
   return t;
@@ -100,15 +102,16 @@ export async function updateTicket(
   return t;
 }
 
-export async function listTickets(): Promise<Ticket[]> {
+/** Tickets de una marca (sin marca = todos). Los tickets sin marca guardada son de izzi. */
+export async function listTickets(brand?: BrandId): Promise<Ticket[]> {
   const store = getRecordStore();
   const keys = (await store.list("tickets/")).filter((k) => /^tickets\/TKT-\d+$/.test(k));
   const rows = await mapLimit(keys, 16, (k) => store.get<Ticket>(k));
-  return rows.filter((t): t is Ticket => t !== null).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+  return rows.filter((t): t is Ticket => t !== null && (!brand || (t.brand ?? DEFAULT_BRAND) === brand)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
 }
 
-export async function openTicketStats(): Promise<{ open: number; severity: Severity }> {
-  const list = (await listTickets()).filter((t) => OPEN_TICKET_STATUSES.includes(t.status));
+export async function openTicketStats(brand?: BrandId): Promise<{ open: number; severity: Severity }> {
+  const list = (await listTickets(brand)).filter((t) => OPEN_TICKET_STATUSES.includes(t.status));
   const order: Severity[] = ["NORMAL", "ATTENTION", "ALERT", "CRITICAL"];
   const severity = list.reduce<Severity>((acc, t) => (order.indexOf(t.severity) > order.indexOf(acc) ? t.severity : acc), "NORMAL");
   return { open: list.length, severity };

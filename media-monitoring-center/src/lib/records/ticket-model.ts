@@ -1,4 +1,5 @@
 import type { PlatformId, Severity } from "@/lib/types";
+import type { BrandId } from "@/lib/brands";
 
 /**
  * Modelo de tickets de reporte (compartido por servidor y navegador; sin acceso a datos).
@@ -64,6 +65,8 @@ export interface Ticket {
   updates: TicketUpdate[];
   resolvedAt: string | null;
   closedAt: string | null;
+  /** Marca del monitoreo donde se levantó (sin dato = izzi, tickets anteriores a Sky). */
+  brand?: BrandId;
 }
 
 export type NewTicket = Pick<Ticket, "title" | "description" | "severity" | "category" | "platform" | "accountName" | "incidentIds" | "reportedTo" | "channel" | "externalRef" | "owner">;

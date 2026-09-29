@@ -1,7 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { getEnv } from "@/lib/config/env";
-import { getAppContext } from "@/lib/services/context";
-import { evaluateNow } from "@/lib/services/evaluate";
+import { evaluateAllBrands } from "@/lib/services/evaluate";
 import { json, readJson, serverError } from "@/lib/services/http";
 
 export const dynamic = "force-dynamic";
@@ -28,8 +27,11 @@ export async function POST(req: Request) {
   }
   const body = (await readJson<{ dryRun?: boolean; trigger?: "schedule" | "manual" }>(req)) ?? {};
   try {
-    const ctx = await getAppContext();
-    return json(await evaluateNow(ctx, { dryRun: Boolean(body.dryRun), trigger: body.trigger === "manual" ? "manual" : "schedule" }));
+    // Cada marca (izzi, Sky) se evalúa por separado; la respuesta conserva los campos de la
+    // primera y agrega "brands" con el resultado de cada una.
+    const results = await evaluateAllBrands({ dryRun: Boolean(body.dryRun), trigger: body.trigger === "manual" ? "manual" : "schedule" });
+    if (!results.length) return json({ ok: false, message: "La fuente no trae cuentas de ninguna marca." }, 503);
+    return json({ ...results[0], brands: results });
   } catch (err) {
     return serverError("bigquery", err, "monitoring/evaluate");
   }

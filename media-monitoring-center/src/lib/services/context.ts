@@ -14,7 +14,7 @@ import { BigQueryStateStore } from "@/lib/state/bigquery-store";
 import { MemoryStateStore, type StateStore } from "@/lib/state/store";
 import { RecordsStateStore } from "@/lib/state/records-store";
 import { parseSheetsMapping, type SheetsMapping } from "@/lib/sheets/mapping";
-import { SheetsDataSource } from "@/lib/sheets/sheets-source";
+import { DEFAULT_HISTORY_DAYS, SheetsDataSource } from "@/lib/sheets/sheets-source";
 import { FixtureSheetsReader, GoogleSheetsReader, type SheetsReader } from "@/lib/sheets/reader";
 import type { DataMode } from "@/lib/types";
 import { isValidTimeZone } from "@/lib/time/tz";
@@ -22,6 +22,9 @@ import { getSession, type Session } from "@/lib/auth/session";
 import { cached } from "@/lib/data/cache";
 import { getRecordStore } from "@/lib/records/store";
 import { logger } from "@/lib/logging/logger";
+import { BrandScopedSource } from "@/lib/data/brand-source";
+import { BRAND_COOKIE, BRAND_IDS, BRANDS, parseBrand, type BrandId, type BrandInfo } from "@/lib/brands";
+import type { PlatformId } from "@/lib/types";
 
 /** Llave de la configuración compartida en el almacén de registros (modo simulado). */
 export const SETTINGS_RECORD_KEY = "settings/patch";
@@ -40,10 +43,19 @@ export interface AppContext {
   sheetsMapping: SheetsMapping | null;
   sheetsErrors: string[];
   session: Session;
+  /** Marca del monitoreo (izzi o Sky): cada una con sus cuentas, alertas, incidentes y tickets. */
+  brand: BrandId;
+  brandInfo: BrandInfo;
+  /** Marcas que la persona puede ver (el botón de cambio solo muestra estas). */
+  brands: BrandId[];
+  /** Plataformas donde la marca tiene cuentas (vacío si la fuente no trae cuentas de la marca). */
+  brandPlatforms: PlatformId[];
+  /** Fuente completa, sin filtro de marca ni conversión de moneda (resúmenes técnicos). */
+  raw: MonitoringDataSource;
 }
 
-const memoryStore = new MemoryStateStore();
-const recordsStore = new RecordsStateStore();
+const memoryStores: Record<BrandId, MemoryStateStore> = { izzi: new MemoryStateStore("izzi"), sky: new MemoryStateStore("sky") };
+const recordsStores: Record<BrandId, RecordsStateStore> = { izzi: new RecordsStateStore("state/"), sky: new RecordsStateStore("state/sky/") };
 let sheetsReader: SheetsReader | null = null;
 
 /** Mapeo de la hoja de Dataslayer: SHEETS_MAPPING o config/sheets.mapping.json (no es secreto). */
@@ -64,12 +76,14 @@ function sheetsMappingSource(): string | undefined {
  */
 function adaptToSheets(settings: MonitoringSettings, mapping: SheetsMapping): MonitoringSettings {
   const inSheet = [...new Set(mapping.sources.map((s) => s.platform))];
-  const chosen = settings.monitoredPlatforms.filter((p) => inSheet.includes(p));
+  // Las plataformas que llegan con un día de atraso (intraday: false) no se pueden vigilar en vivo.
+  const live = inSheet.filter((p) => mapping.sources.some((s) => s.platform === p && s.intraday));
+  const chosen = settings.monitoredPlatforms.filter((p) => live.includes(p));
   const cycle = mapping.refreshEveryMinutes + mapping.refreshDurationMinutes + 20;
   const delayed = Math.max(settings.freshness.delayedAfterMinutes, cycle);
   return {
     ...settings,
-    monitoredPlatforms: chosen.length ? chosen : inSheet,
+    monitoredPlatforms: chosen.length ? chosen : live.length ? live : inSheet,
     ingestion: { ...settings.ingestion, ...Object.fromEntries(inSheet.map((p) => [p, "sheets" as const])) },
     freshness: { ...settings.freshness, delayedAfterMinutes: delayed, criticalAfterMinutes: Math.max(settings.freshness.criticalAfterMinutes, delayed + 120) },
   };
@@ -105,10 +119,13 @@ function hash(value: unknown): string {
  * Contexto de cada request: modo (mock/BigQuery), configuración vigente, fuente de datos
  * y almacén de estado. Los componentes y API routes solo hablan con este contexto.
  */
-export async function getAppContext(): Promise<AppContext> {
+export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<AppContext> {
   const env = getEnv();
   const c = await cookies();
   const session = await getSession();
+  const brands = session.brands.length ? session.brands : BRAND_IDS;
+  const wanted = opts.brand ?? parseBrand(c.get(BRAND_COOKIE)?.value);
+  const brand = brands.includes(wanted) ? wanted : brands[0];
   const { mapping, errors } = env.bigquery.configured ? parseMapping(mappingSource()) : { mapping: null, errors: [] as string[] };
   const sheets = env.dataSource === "sheets" ? parseSheetsMapping(sheetsMappingSource()) : { mapping: null, errors: [] as string[] };
   const mode: DataMode = env.dataSource === "sheets" && sheets.mapping ? "sheets" : env.dataSource === "bigquery" && mapping ? "bigquery" : "mock";
@@ -117,9 +134,9 @@ export async function getAppContext(): Promise<AppContext> {
   if (env.dataSource === "sheets" && !sheets.mapping) logger.warn("sheets.mapping_invalid_fallback_mock", { errors: sheets.errors });
 
   let settings = baseSettings();
-  let store: StateStore = mode === "sheets" ? recordsStore : memoryStore;
+  let store: StateStore = mode === "sheets" ? recordsStores[brand] : memoryStores[brand];
   if (mode === "bigquery" && mapping) {
-    store = new BigQueryStateStore(mapping.state);
+    store = new BigQueryStateStore(mapping.state, BRANDS[brand].idPrefix, BRAND_IDS.map((b) => BRANDS[b].idPrefix));
     try {
       const patch = await cached("settings:bq", 60 * 1000, () => store.loadSettingsPatch?.() ?? Promise.resolve(null));
       settings = mergeSettings(settings, patch);
@@ -141,18 +158,35 @@ export async function getAppContext(): Promise<AppContext> {
   let inner: MonitoringDataSource;
   if (mode === "sheets") {
     sheetsReader ??= env.sheets.fixtureFile ? new FixtureSheetsReader(env.sheets.fixtureFile) : new GoogleSheetsReader();
-    inner = new SheetsDataSource({ mapping: sheets.mapping!, spreadsheetId: sheets.mapping!.spreadsheetId ?? env.sheets.spreadsheetId!, timezone: settings.timezone, reader: sheetsReader });
+    inner = new SheetsDataSource({
+      mapping: sheets.mapping!,
+      spreadsheetId: sheets.mapping!.spreadsheetId ?? env.sheets.spreadsheetId!,
+      timezone: settings.timezone,
+      reader: sheetsReader,
+      // Semanas de comparación + margen, y al menos el mes en curso (control de presupuesto).
+      historyDays: Math.max(DEFAULT_HISTORY_DAYS, settings.history.weeks * 7 + 10),
+    });
   } else if (mode === "bigquery") {
     inner = new BigQueryDataSource({ mapping: mapping!, timezone: settings.timezone, toleranceMinutes: settings.freshness.cutoffToleranceMinutes });
   } else {
     inner = new MockDataSource({ scenarioId: scenario!.id, timezone: settings.timezone, referenceTime: env.mockReferenceTime, ingestion: settings.ingestion });
   }
-  const source = new CurrencyConvertedSource(inner, { rates: settings.currency.rates, accountCurrency: settings.currency.accountCurrency });
+  const scoped = new BrandScopedSource(inner, brand);
+  // Solo se monitorean las plataformas donde la marca tiene cuentas (Sky no tiene Bing ni Spotify).
+  let brandPlatforms: PlatformId[] = [];
+  try {
+    brandPlatforms = await scoped.platforms();
+  } catch (err) {
+    logger.warn("brand.platforms_failed", { brand, error: err });
+  }
+  const forBrand = settings.monitoredPlatforms.filter((p) => brandPlatforms.includes(p));
+  if (forBrand.length) settings = { ...settings, monitoredPlatforms: forBrand };
+  const source = new CurrencyConvertedSource(scoped, { rates: settings.currency.rates, accountCurrency: settings.currency.accountCurrency });
 
   return {
     mode,
     settings,
-    settingsHash: hash(settings),
+    settingsHash: hash({ brand, settings }),
     source,
     store,
     scenario,
@@ -161,5 +195,10 @@ export async function getAppContext(): Promise<AppContext> {
     sheetsMapping: sheets.mapping,
     sheetsErrors: sheets.errors,
     session,
+    brand,
+    brandInfo: BRANDS[brand],
+    brands,
+    brandPlatforms,
+    raw: inner,
   };
 }
