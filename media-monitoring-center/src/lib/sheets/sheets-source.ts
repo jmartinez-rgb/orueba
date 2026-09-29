@@ -25,6 +25,7 @@ import { logger } from "@/lib/logging/logger";
 import type { SheetSource, SheetsMapping } from "./mapping";
 import { a1Range, cleanSheetName, columnLetter, normHeader, parseDateLoose, parseNumberLoose, rowsFromRange, usesDecimalComma, type Cell } from "./parse";
 import type { SheetsInfo, SheetsReader } from "./reader";
+import { addPoint, curvesFromSnapshots, type CurveMemory, type IntradayPoint } from "./intraday-memory";
 import { buildCatalog, findColumn, harmonizeIds, learnCurves, mergeRecords, parseTab, synthesizeHourly, type LearnedCurves, type SheetRecord } from "./transform";
 
 /**
@@ -49,6 +50,8 @@ export interface SheetsSourceOptions {
   historyDays?: number;
   /** Reloj inyectable (pruebas). */
   clock?: () => Date;
+  /** Memoria del acumulado del día: aprende la curva horaria de plataformas sin pestaña por hora. */
+  curveMemory?: CurveMemory;
 }
 
 /** Historia por defecto: 4 semanas de comparación + el mes en curso, con margen. */
@@ -86,6 +89,8 @@ export interface SheetsDataset {
   budgets: Array<{ month: string; level: string | null; platform: string | null; account: string | null; campaign: string | null; amount: number; currency: string | null }>;
   fx: FxRate[];
   tabRows: Map<string, number>;
+  /** Curvas aprendidas de los acumulados anotados en cada actualización (plataformas sin pestaña por hora). */
+  memoryCurves: Map<PlatformId, LearnedCurves & { days: number }>;
 }
 
 const lastGood = new Map<string, { values: Cell[][]; rows: number; total: number; at: number }>();
@@ -354,7 +359,7 @@ export class SheetsDataSource implements MonitoringDataSource {
       });
     }
     if (missingSheets.length || missingColumns.length) logger.warn("sheets.mapping_mismatch", { missingSheets, missingColumns });
-    return {
+    const ds: SheetsDataset = {
       version: ++datasetVersion,
       readAt: new Date(now).toISOString(),
       info,
@@ -369,7 +374,48 @@ export class SheetsDataSource implements MonitoringDataSource {
       budgets,
       fx,
       tabRows,
+      memoryCurves: new Map(),
     };
+    if (this.opts.curveMemory) await this.learnFromMemory(ds, this.opts.curveMemory);
+    return ds;
+  }
+
+  /**
+   * Plataformas sin pestaña por hora: anota el acumulado de hoy de cada cuenta a la hora de la
+   * actualización de Dataslayer y aprende la curva con los días ya cerrados. Un error aquí nunca
+   * detiene la lectura de la hoja.
+   */
+  private async learnFromMemory(ds: SheetsDataset, memory: CurveMemory): Promise<void> {
+    const today = this.today();
+    const byAccount = (rows: SheetRecord[] | undefined) => {
+      const out = new Map<string, number>();
+      for (const r of rows ?? []) if (r.metrics.spend !== null) out.set(r.accountId, (out.get(r.accountId) ?? 0) + r.metrics.spend);
+      return out;
+    };
+    await Promise.all(
+      this.platforms().map(async (p) => {
+        const pd = ds.platforms.get(p)!;
+        // Con pestaña por hora no hace falta; las que llegan al día siguiente (Spotify) no tienen acumulado de hoy.
+        if (pd.hourlyAccount.size || pd.hourlyCampaign.size || !pd.sources.some((s) => s.intraday)) return;
+        try {
+          let days = await memory.load(p);
+          const h = Math.round(this.coverHoursToday(ds, p) * 100) / 100;
+          const todayRows = pd.daily.get(today);
+          // A mitad de una actualización o con la consulta en error, el acumulado no corresponde a esa hora.
+          const unreliable = pd.sources.some((s) => ds.refreshing.includes(s.sheet)) || this.primaryControl(ds, p)?.status === "ERROR";
+          if (todayRows?.length && h > 0 && h < 24 && !unreliable) {
+            const point: IntradayPoint = { h, spend: Object.fromEntries(byAccount(todayRows)) };
+            days = addPoint(days, today, point);
+            await memory.record(p, today, point);
+          }
+          const finals = new Map(Object.keys(days).map((d) => [d, byAccount(pd.daily.get(d))] as const));
+          const learned = curvesFromSnapshots(days, finals, today);
+          if (learned.platform || learned.accounts.size) ds.memoryCurves.set(p, learned);
+        } catch (err) {
+          logger.warn("sheets.curve_memory_failed", { platform: p, error: err });
+        }
+      }),
+    );
   }
 
   /** Fila de encabezados de cada pestaña (se guarda 10 min si todas vinieron completas). */
@@ -503,7 +549,7 @@ export class SheetsDataSource implements MonitoringDataSource {
   private learnedCurves(ds: SheetsDataset, p: PlatformId): LearnedCurves | undefined {
     return this.remember(ds, `learned:${p}:${this.today()}`, () => {
       const pd = ds.platforms.get(p);
-      return pd?.hourlyAccount.size ? learnCurves(pd.hourlyAccount, this.today()) : undefined;
+      return pd?.hourlyAccount.size ? learnCurves(pd.hourlyAccount, this.today()) : ds.memoryCurves.get(p);
     });
   }
 
@@ -770,7 +816,9 @@ export class SheetsDataSource implements MonitoringDataSource {
         status: "PARCIAL",
         lastRunAt: ds.readAt,
         rows: null,
-        message: "La hoja solo trae datos diarios: la franja horaria se estima con una curva típica. Agrega la consulta por hora en Dataslayer (docs/INSTALACION.md).",
+        message: ds.memoryCurves.has(p)
+          ? `Sin pestaña por hora: la franja se estima con la curva que la app aprendió de las actualizaciones de ${ds.memoryCurves.get(p)!.days} días.`
+          : "La hoja solo trae datos diarios: la franja se estima con una curva típica mientras la app aprende la real de las actualizaciones cada 2 h (necesita 3 días). También puedes agregar la consulta por hora en Dataslayer (docs/INSTALACION.md).",
         expectedEveryMinutes: null,
       });
     }

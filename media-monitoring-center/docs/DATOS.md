@@ -42,6 +42,13 @@ Cómo se interpretan:
   por hora, como las semanas de referencia más viejas. Con curva típica, las alertas que dependen del gasto esperado a esa hora bajan
   un nivel (máximo ALERTA) y no se declara "dejó de gastar"; el costo por resultado y el gasto en
   cero no dependen de la curva y se evalúan igual.
+- **Memoria del acumulado del día** (plataformas sin pestaña por hora, p. ej. TikTok y Bing): en
+  cada actualización de Dataslayer la app anota cuánto llevaba gastado cada cuenta a esa hora
+  (`curves/<plataforma>` en Netlify Blobs o `.data/records`, últimos 35 días). Cuando el día cierra,
+  divide cada acumulado entre el total final y, con 3 días o más, usa esa curva real en lugar de la
+  típica. Solo necesita que Dataslayer actualice cada 2 h y que la app lea la hoja en ese lapso
+  (evaluaciones de n8n o alguien abriendo la app). Spotify no aplica: sus datos llegan al día
+  siguiente.
 - **Métricas con retraso** (`laggingMetrics` en el mapeo): las conversiones de Google
   (`conversions`, `sales`, `leads`, `calls`) y las de Meta que incluyen ventas offline (`sales`,
   `conversions`) se suben horas o días después. En la evaluación del día no se juzgan; al cierre sí.

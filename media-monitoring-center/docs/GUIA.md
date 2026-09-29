@@ -56,7 +56,8 @@ Tres reglas más, pensadas para los datos reales de la hoja:
   a la hora de corte sale de una curva típica. Las alertas que dependen de ese esperado bajan un
   nivel (máximo Alerta) y la app no declara "dejó de gastar", porque no puede saber a qué hora
   paró. El gasto en cero sigue siendo crítico. Con las pestañas por hora (INSTALACION.md, A4) se
-  vuelve exacto.
+  vuelve exacto. Las plataformas sin pestaña por hora (TikTok) aprenden su curva sola: la app anota
+  el acumulado de cada actualización de Dataslayer y en 3 días usa la curva real.
 - **Cambio sostenido.** Si una cuenta o campaña lleva 3 días completos en otro nivel (por ejemplo,
   se le movió presupuesto), la severidad se mide contra ese nivel nuevo. Si hoy sigue igual, queda
   en Atención con la nota "parece un cambio de presupuesto"; si hoy cae además, conserva la alerta y

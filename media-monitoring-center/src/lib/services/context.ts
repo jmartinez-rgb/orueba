@@ -16,6 +16,7 @@ import { RecordsStateStore } from "@/lib/state/records-store";
 import { parseSheetsMapping, type SheetsMapping } from "@/lib/sheets/mapping";
 import { DEFAULT_HISTORY_DAYS, SheetsDataSource } from "@/lib/sheets/sheets-source";
 import { FixtureSheetsReader, GoogleSheetsReader, type SheetsReader } from "@/lib/sheets/reader";
+import { RecordsCurveMemory } from "@/lib/sheets/curve-memory-store";
 import type { DataMode } from "@/lib/types";
 import { isValidTimeZone } from "@/lib/time/tz";
 import { getSession, type Session } from "@/lib/auth/session";
@@ -55,6 +56,7 @@ export interface AppContext {
 }
 
 const memoryStores: Record<BrandId, MemoryStateStore> = { izzi: new MemoryStateStore("izzi"), sky: new MemoryStateStore("sky") };
+const curveMemory = new RecordsCurveMemory();
 const recordsStores: Record<BrandId, RecordsStateStore> = { izzi: new RecordsStateStore("state/"), sky: new RecordsStateStore("state/sky/") };
 let sheetsReader: SheetsReader | null = null;
 
@@ -172,6 +174,7 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
       reader: sheetsReader,
       // Semanas de comparación + margen, y al menos el mes en curso (control de presupuesto).
       historyDays: Math.max(DEFAULT_HISTORY_DAYS, settings.history.weeks * 7 + 10),
+      curveMemory,
     });
   } else if (mode === "bigquery") {
     inner = new BigQueryDataSource({ mapping: mapping!, timezone: settings.timezone, toleranceMinutes: settings.freshness.cutoffToleranceMinutes });

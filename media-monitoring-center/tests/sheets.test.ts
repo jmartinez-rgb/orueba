@@ -7,6 +7,8 @@ import { dataslayerStatus, readWindow, SheetsDataSource } from "@/lib/sheets/she
 import { columnLetter, normId, parseA1, parseDateLoose, parseHourLoose, parseNumberLoose, rowsFromRange, sliceRanges, usesDecimalComma, type Cell } from "@/lib/sheets/parse";
 import type { BatchGetOptions, SheetsInfo, SheetsReader } from "@/lib/sheets/reader";
 import { harmonizeIds, parseTab, slugId } from "@/lib/sheets/transform";
+import { addPoint, curvesFromSnapshots, type CurveMemory, type IntradayDays, type IntradayPoint } from "@/lib/sheets/intraday-memory";
+import type { PlatformId } from "@/lib/types";
 
 const TZ = "America/Mexico_City"; // UTC-6
 const SHEET_TZ = "America/Bogota"; // UTC-5, como la hoja de Dataslayer
@@ -291,5 +293,71 @@ describe("hoja grande: solo se lee la historia necesaria", () => {
     const all = harmonizeIds([...named.records, ...withIds.records]);
     expect(new Set(all.map((r) => r.accountId))).toEqual(new Set(["7367928294"]));
     expect(new Set(all.map((r) => r.campaignId))).toEqual(new Set(["111"]));
+  });
+});
+
+describe("memoria del acumulado del día (plataformas sin pestaña por hora)", () => {
+  beforeEach(() => invalidate("sheets:"));
+  const ID = "meta-mxn-izzi-1";
+  const day = (a: number, b: number, c: number): IntradayPoint[] => [
+    { h: 6, spend: { [ID]: a } },
+    { h: 12, spend: { [ID]: b } },
+    { h: 18, spend: { [ID]: c } },
+  ];
+
+  class FakeMemory implements CurveMemory {
+    recorded: Array<{ platform: string; date: string; point: IntradayPoint }> = [];
+    constructor(public days: IntradayDays) {}
+    async load() {
+      return this.days;
+    }
+    async record(platform: PlatformId, date: string, point: IntradayPoint) {
+      this.recorded.push({ platform, date, point });
+      this.days = addPoint(this.days, date, point);
+    }
+  }
+
+  it("aprende la curva con días cerrados: el acumulado anotado ÷ el total final del día", () => {
+    const finals = new Map(["2026-09-25", "2026-09-26", "2026-09-27"].map((d) => [d, new Map([[ID, 1000]])]));
+    const days = { "2026-09-25": day(50, 200, 600), "2026-09-26": day(50, 200, 600), "2026-09-27": day(50, 200, 600), "2026-09-28": day(10, 20, 30) };
+    const learned = curvesFromSnapshots(days, finals, "2026-09-28");
+    expect(learned.days).toBe(3);
+    const acc = learned.accounts.get(ID)!;
+    expect(acc.slice(0, 6).reduce((a, b) => a + b, 0)).toBeCloseTo(0.05, 6);
+    expect(acc.slice(0, 12).reduce((a, b) => a + b, 0)).toBeCloseTo(0.2, 6);
+    expect(acc.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 6);
+    // Con solo 2 días no se declara curva.
+    const two = curvesFromSnapshots({ "2026-09-25": day(50, 200, 600), "2026-09-26": day(50, 200, 600) }, finals, "2026-09-28");
+    expect(two.platform).toBeNull();
+    expect(two.accounts.size).toBe(0);
+  });
+
+  it("guarda un acumulado por actualización y conserva solo los últimos días", () => {
+    let days: IntradayDays = {};
+    days = addPoint(days, "2026-09-28", { h: 9.1, spend: { a: 10 } });
+    days = addPoint(days, "2026-09-28", { h: 9.1, spend: { a: 12 } });
+    days = addPoint(days, "2026-09-28", { h: 7, spend: { a: 5 } });
+    expect(days["2026-09-28"].map((p) => p.h)).toEqual([7, 9.1]);
+    expect(days["2026-09-28"][1].spend.a).toBe(12);
+    days = addPoint(days, "2026-09-29", { h: 8, spend: { a: 1 } }, 1);
+    expect(Object.keys(days)).toEqual(["2026-09-29"]);
+  });
+
+  it("anota el acumulado de hoy a la hora de Dataslayer y reparte los días sin pestaña por hora con la curva aprendida", async () => {
+    const tabs = baseTabs();
+    tabs.Meta.push(...["2026-09-25", "2026-09-26", "2026-09-27"].map((d) => metaRow(d, "MXN - izzi 1", "WhatsApp//ABRIL 100//izzi telecom - Ventas", 1000)));
+    tabs.DataslayerQueries[3] = ["c", "Meta", "$A$1:$P$5", "2026-07-24", "2026-09-28 15:12:00", "Refreshed successfully", "facebook"];
+    const memory = new FakeMemory({ "2026-09-25": day(50, 200, 600), "2026-09-26": day(50, 200, 600), "2026-09-27": day(50, 200, 600) });
+    const reader = new MemoryReader(tabs);
+    const src = new SheetsDataSource({ mapping, spreadsheetId: `test-memory-${++seq}-aaaaaaaaaaaaaaaa`, timezone: TZ, reader, clock: () => NOW, curveMemory: memory });
+    const rows = (await src.getHourly({ dates: ["2026-09-25"], level: "campaign", platforms: ["meta"] })).filter((r) => r.platform === "meta");
+    expect(sum(rows.filter((r) => r.hour < 6).map((r) => r.metrics.spend))).toBeCloseTo(50, 3);
+    expect(sum(rows.filter((r) => r.hour < 12).map((r) => r.metrics.spend))).toBeCloseTo(200, 3);
+    expect(sum(rows.map((r) => r.metrics.spend))).toBeCloseTo(1000, 3);
+    // 15:12 en la hoja (Bogotá) = 14:12 en CDMX.
+    expect(memory.recorded).toHaveLength(1);
+    expect(memory.recorded[0].platform).toBe("meta");
+    expect(memory.recorded[0].point.h).toBeCloseTo(14.2, 2);
+    expect(memory.recorded[0].point.spend[ID]).toBeCloseTo(2472, 3);
   });
 });

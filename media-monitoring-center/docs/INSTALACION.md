@@ -119,6 +119,11 @@ Para cada plataforma (Google Ads, Meta, TikTok y Microsoft/Bing):
    diarias del plan de Dataslayer (se ve abajo en el panel, "Daily API calls"): empieza por Meta y
    agrega las demás cuando veas que hay margen.
 
+Si una plataforma no ofrece la dimensión de hora (en Dataslayer, TikTok no la tiene), no pasa
+nada: con su consulta diaria actualizándose cada 2 horas, la app anota el acumulado de cada
+actualización y en 3 días aprende su curva real (Integrations lo dice en "Curva por hora"). Spotify
+no aplica porque sus datos llegan al día siguiente.
+
 Comprobación: en la app, Integrations deja de mostrar "Curva por hora · Parcial" para esa
 plataforma. Si Dataslayer nombra la columna de hora de otra forma, Integrations mostrará "faltan
 columnas" con el nombre esperado; ese nombre se agrega en `config/sheets.mapping.json`.
