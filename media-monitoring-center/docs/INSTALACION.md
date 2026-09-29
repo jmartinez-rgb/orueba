@@ -279,20 +279,28 @@ propio acceso. Si la dejas, el equipo tendrá que escribir dos contraseñas.
    venta total (Compras Offline Web + On-Facebook Purchase); las campañas CAPI WhatsApp se evalúan con
    On-Facebook Purchase y el resto con Compras Offline Web.
 4. **Monitoreos → Configurar mensaje**: plataformas del mensaje, umbrales y revisiones de Zapier.
-5. **Usuarios → Cuentas, contraseñas y permisos**: crea la cuenta de cada persona (o usa la
+5. **Settings → Frecuencia de monitoreo**: *Cada (horas)* = 2, *Primera corrida* = 0 h, *Última
+   corrida* = 22 h. Así son **12 evaluaciones al día** (00:00, 02:00 … 22:00). El valor de fábrica
+   es de 07:00 a 23:00 (9 al día).
+6. **Usuarios → Cuentas, contraseñas y permisos**: crea la cuenta de cada persona (o usa la
    contraseña universal), elige su rol, sus permisos y si ve izzi, Sky o ambas. Las contraseñas
    se asignan ahí mismo; no hace falta tocar Netlify (ver `docs/AUTH.md`).
-6. Revisa ambos monitoreos con el botón **izzi | Sky** (cada uno tiene sus propias alertas,
+7. Revisa ambos monitoreos con el botón **izzi | Sky** (cada uno tiene sus propias alertas,
    incidentes, tickets y mensajes).
 
 ---
 
 ## Parte F. Opcional: evaluación automática y alertas por WhatsApp
 
+Las **12 evaluaciones automáticas al día con aviso por WhatsApp** necesitan n8n: es quien llama a
+la app cada 2 horas y entrega los mensajes. Sin n8n todo lo demás funciona igual.
+
 Sin n8n, la app vuelve a leer la hoja como máximo cada 5 minutos y **guarda la evaluación sola**
 (alertas e incidentes de izzi y de Sky) cuando alguien la abre y ya pasaron 2 horas desde la
 última, o en cuanto aparece un incidente crítico nuevo. **Actualizar ahora** vuelve a leer la hoja
-y guarda la evaluación de las dos marcas en ese momento. Para que evalúe sola cada 2 horas y envíe alertas por WhatsApp, configura n8n (WF07
+y guarda la evaluación de las dos marcas en ese momento.
+
+Para que evalúe sola cada 2 horas y envíe alertas por WhatsApp, configura n8n (WF07
 Monitoring Runner y WF08 WhatsApp Alert) siguiendo `docs/N8N.md` y agrega en Netlify
 `MONITORING_API_KEY`, `N8N_BASE_URL`, `N8N_ALERT_WEBHOOK`, `N8N_WEBHOOK_SECRET` y, cuando las
 plantillas estén aprobadas, `WHATSAPP_ALERTS_ENABLED=true`. La app nunca envía WhatsApp por sí misma.
