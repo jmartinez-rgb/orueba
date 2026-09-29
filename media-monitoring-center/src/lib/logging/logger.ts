@@ -4,6 +4,8 @@
  * página de Integrations (última consulta a BigQuery, última llamada a n8n, errores...).
  */
 
+import { explainGoogleError } from "@/lib/google/errors";
+
 type Level = "debug" | "info" | "warn" | "error";
 const LEVELS: Record<Level, number> = { debug: 10, info: 20, warn: 30, error: 40 };
 const SECRET_KEY = /(token|secret|password|passwd|credential|authorization|private|api[_-]?key|service[_-]?account|signature)/i;
@@ -86,5 +88,6 @@ export function friendlyError(target: IntegrationTarget, err: unknown): { messag
     whatsapp: "No pudimos enviar la notificación de WhatsApp.",
     api: "Ocurrió un error al procesar la solicitud.",
   };
-  return { message: map[target], technical: String(redact(technical)) };
+  const hint = target === "sheets" || target === "bigquery" ? explainGoogleError(technical) : null;
+  return { message: hint ? `${map[target]} ${hint}` : map[target], technical: String(redact(technical)) };
 }

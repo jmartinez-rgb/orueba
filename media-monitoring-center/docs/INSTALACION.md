@@ -203,11 +203,23 @@ Luego pega solo la URL de la hoja:
 npm run sheets:setup -- "https://docs.google.com/spreadsheets/d/1WjLM2CSsIiuNuJrGSRFe-5SMkvhI59cKp5cZpq7fxCc/edit"
 ```
 
-El comando busca la llave en Descargas, Escritorio y la carpeta actual:
+El comando busca la llave en Descargas, Escritorio y la carpeta actual y **prueba cada una contra
+Google**, de la más reciente a la más vieja:
 
-- Si hay una, la usa y lo dice ("Uso la llave encontrada: ...").
-- Si hay varias, muestra el comando exacto para cada una; copia el de la llave correcta.
+- Se salta las que ya se borraron en Google Cloud ("Esta llave ya no es válida") y usa la primera que
+  funciona. Al final te dice qué archivos viejos puedes borrar.
+- Si la llave funciona pero la hoja no está compartida, lo dice con el correo exacto a compartir.
 - Si no hay ninguna, avisa que falta el archivo JSON. Pídelo al administrador y vuelve a correrlo.
+
+Después **revisa la hoja completa** contra lo que espera la app: cada pestaña (existe, columnas,
+última fecha, si trae datos de hoy, días en las pestañas por hora) y el estado de cada consulta en
+Dataslayer. Termina con "Todo en orden" o con la lista de pendientes y qué hacer en cada uno.
+
+Para repetir solo la revisión, sin cambiar nada:
+
+```
+npm run sheets:check
+```
 
 Si la llave está en otra carpeta, indícala antes de la URL (arrastra el archivo a la Terminal
 para pegar su ruta):
@@ -220,6 +232,13 @@ El comando guarda en `.env.local`: `DATA_SOURCE=sheets`, `SHEETS_SPREADSHEET_ID`
 `GOOGLE_CLIENT_EMAIL` y `GOOGLE_PRIVATE_KEY`, y te recuerda con qué correo debe estar compartida la
 hoja. No muestra la llave en pantalla. Si ya lo habías corrido con la hoja anterior, vuelve a
 correrlo: reemplaza el ID en `.env.local`.
+
+**Después de cambiar `.env.local` reinicia la app** (Ctrl+C y `npm run dev`): mientras corre, la app
+sigue usando la configuración con la que arrancó.
+
+**Si cambias la llave** (por ejemplo, porque se compartió por error): crea la nueva en Google Cloud,
+déjala en Descargas, borra la vieja en Google Cloud y en Descargas, corre `npm run sheets:setup`,
+reinicia la app y actualiza `GOOGLE_PRIVATE_KEY` en Netlify.
 
 Si aún no agregaste las contraseñas de acceso, pega también el bloque `AUTH_*` que te pasé por
 chat al final de `.env.local` (ver `docs/AUTH.md`).
@@ -351,7 +370,9 @@ plantillas estén aprobadas, `WHATSAPP_ALERTS_ENABLED=true`. La app nunca envía
 | Qué ves | Causa probable | Qué hacer |
 |---|---|---|
 | Abajo a la izquierda dice "Datos simulados" | Falta `DATA_SOURCE=sheets`, el ID o la cuenta de servicio | Integrations → tarjeta Google Sheets dice qué falta |
-| "Google Sheets respondió 403" o "404" | La hoja no está compartida con la cuenta de servicio, o su API no está habilitada | Pídeselo al administrador (Parte B) |
+| "Invalid JWT Signature" / "La llave de la cuenta de servicio ya no es válida" | `.env.local` (o Netlify) tiene una llave que se borró en Google Cloud | Llave nueva en Descargas → `npm run sheets:setup` → reiniciar la app; en Netlify actualizar `GOOGLE_PRIVATE_KEY` |
+| "Google Sheets respondió 403" o "404" | La hoja no está compartida con la cuenta de servicio, o su API no está habilitada | `npm run sheets:check` dice cuál de las dos; pídeselo al administrador (Parte B) |
+| Cualquier duda sobre la hoja | — | `npm run sheets:check` revisa llave, permisos, pestañas, columnas, fechas y Dataslayer |
 | "No existe la pestaña …" | Se renombró una pestaña | Devuélvele el nombre o ajusta `config/sheets.mapping.json` |
 | "… faltan columnas …" | Dataslayer cambió un encabezado | Ajusta la consulta o el mapeo |
 | Todas las plataformas en "Datos atrasados" | Dataslayer no ha corrido en más de 2 h 35 min | Revisa la programación y la pestaña `DataslayerQueries` |

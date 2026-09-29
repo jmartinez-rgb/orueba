@@ -6,6 +6,8 @@ import type { EntityEvaluation } from "@/lib/monitoring/types";
 import { learnCurves, synthesizeHourly, type SheetRecord } from "@/lib/sheets/transform";
 import { emptyMetrics } from "@/lib/metrics";
 import { HOURLY_SHARE } from "@/lib/mock/curves";
+import { explainGoogleError } from "@/lib/google/errors";
+import { friendlyError } from "@/lib/logging/logger";
 import { evaluation } from "./helpers";
 
 const ctx = { settings: DEFAULT_SETTINGS, cutoffHour: 12 };
@@ -145,5 +147,21 @@ describe("curva aprendida de una semana de datos por hora", () => {
     const morning = rows.filter((r) => r.hour < 12).reduce((a, r) => a + (r.metrics.spend ?? 0), 0);
     expect(morning).toBeCloseTo(0, 6);
     expect(rows.reduce((a, r) => a + (r.metrics.spend ?? 0), 0)).toBeCloseTo(1200, 6);
+  });
+});
+
+describe("errores de Google explicados", () => {
+  it("llave borrada, hoja sin compartir, API apagada, ID equivocado y llave mal copiada", () => {
+    expect(explainGoogleError("Error: invalid_grant: Invalid JWT Signature.")).toContain("ya no es válida");
+    expect(explainGoogleError("Google Sheets respondió 403. The caller does not have permission")).toContain("no está compartida");
+    expect(explainGoogleError("403 PERMISSION_DENIED Google Sheets API has not been used in project 707 before or it is disabled")).toContain("no está habilitada");
+    expect(explainGoogleError("Google Sheets respondió 404. Requested entity was not found.")).toContain("No existe una hoja");
+    expect(explainGoogleError("error:1E08010C:DECODER routines::unsupported")).toContain("mal copiada");
+    expect(explainGoogleError("algo raro")).toBeNull();
+  });
+  it("el mensaje para el usuario incluye la causa y el arreglo", () => {
+    const f = friendlyError("sheets", new Error("invalid_grant: Invalid JWT Signature."));
+    expect(f.message).toContain("No pudimos leer la hoja de Google Sheets.");
+    expect(f.message).toContain("npm run sheets:setup");
   });
 });

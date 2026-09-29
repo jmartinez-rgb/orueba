@@ -5,6 +5,7 @@ import { recordIntegrationEvent } from "@/lib/logging/logger";
 import { badRequest, forbidden, json, readJson } from "@/lib/services/http";
 import { FixtureSheetsReader, GoogleSheetsReader } from "@/lib/sheets/reader";
 import { getAppContext } from "@/lib/services/context";
+import { explainGoogleError } from "@/lib/google/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,9 @@ export async function POST(req: Request) {
           : `Conexión correcta con "${info.title}" (${info.sheets.length} pestañas, ${Date.now() - started} ms). Zona horaria de la hoja: ${info.timeZone ?? "—"}.`,
       });
     } catch (err) {
-      return json({ ok: false, message: "No pudimos leer la hoja.", technical: err instanceof Error ? err.message : String(err) });
+      const technical = err instanceof Error ? err.message : String(err);
+      const hint = explainGoogleError(technical);
+      return json({ ok: false, message: hint ? `No pudimos leer la hoja. ${hint}` : "No pudimos leer la hoja.", technical });
     }
   }
   if (body?.target === "n8n") {

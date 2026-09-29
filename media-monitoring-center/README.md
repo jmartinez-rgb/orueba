@@ -77,7 +77,8 @@ gastar** (datos al día, gasto en cero las últimas 3 horas).
 | `npm run check` | typecheck + lint + tests |
 | `npm run auth:setup` | Genera contraseñas nuevas, sus hashes y `AUTH_SECRET` (`-- --write` los guarda en `.env.local`) |
 | `npm run auth:hash -- "contraseña"` | Hash scrypt de una contraseña elegida |
-| `npm run sheets:setup -- "URL de la hoja"` | Conecta la hoja de Dataslayer: busca la llave JSON en Descargas/Escritorio y guarda en `.env.local` el ID y la cuenta de servicio (no muestra la llave) |
+| `npm run sheets:setup -- "URL de la hoja"` | Conecta la hoja de Dataslayer: busca la llave JSON en Descargas/Escritorio, la prueba contra Google (se salta las borradas), guarda en `.env.local` el ID y la cuenta de servicio (no muestra la llave) y revisa la hoja |
+| `npm run sheets:check` | Revisa sin cambiar nada: llave, permisos, pestañas, columnas, fechas y estado de Dataslayer |
 
 ## Páginas
 
