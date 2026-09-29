@@ -6,7 +6,7 @@ Google Sheets que actualiza Dataslayer. Síguela en orden; cada parte termina co
 | Parte | Qué haces | Tiempo aprox. |
 |---|---|---|
 | A | Revisar la hoja de Dataslayer (y, recomendado, agregar las consultas por hora) | 15–30 min |
-| B | Crear la cuenta de servicio de Google para que la app pueda leer la hoja | 15 min |
+| B | Tener a la mano los accesos de Google (los entrega el administrador) | — |
 | C | Probar todo en tu computadora | 15 min |
 | D | Publicar en Netlify | 15 min |
 | E | Ajustes finales dentro de la app | 10 min |
@@ -16,7 +16,8 @@ Google Sheets que actualiza Dataslayer. Síguela en orden; cada parte termina co
 
 - Permiso de edición en la hoja **"MONITOREO"** que llena Dataslayer (ID
   `1WjLM2CSsIiuNuJrGSRFe-5SMkvhI59cKp5cZpq7fxCc`).
-- Una cuenta con acceso a **Google Cloud** (console.cloud.google.com).
+- El **archivo JSON de la cuenta de servicio** y la hoja ya compartida con ella (los entrega el
+  administrador; ver Parte B).
 - Tu Mac con Node.js (ya instalado) y el proyecto clonado en `~/orueba`.
 - Acceso al sitio en **Netlify**.
 - Las contraseñas de acceso (`jmartinez`, `operaciones` y la universal) y el bloque `AUTH_*`
@@ -144,28 +145,13 @@ se capturan dentro de la app (Parte E).
 
 ---
 
-## Parte B. Cuenta de servicio de Google
+## Parte B. Accesos de Google (los da el administrador)
 
-Es un "usuario robot" de Google con el que la app lee la hoja. Solo tendrá permiso de lector.
+Los accesos de Google los gestiona el administrador. Para instalar solo necesitas que te entregue:
 
-1. Entra a **https://console.cloud.google.com** con tu cuenta.
-2. Arriba, elige un proyecto (puede ser el de izzi o uno nuevo, por ejemplo
-   `izzi-monitoring-center`: *Seleccionar proyecto → Proyecto nuevo*).
-3. Habilita la API: menú ☰ → **APIs y servicios → Biblioteca** → busca **Google Sheets API** →
-   **Habilitar**.
-4. Crea la cuenta: **APIs y servicios → Credenciales → Crear credenciales → Cuenta de servicio**.
-   - Nombre: `monitoring-center-lector`.
-   - En "Otorgar acceso al proyecto" **no elijas ningún rol** (no los necesita) → **Listo**.
-5. Crea la llave: entra a la cuenta de servicio → pestaña **Claves** → **Agregar clave → Crear clave
-   nueva → JSON → Crear**. Se descarga un archivo `.json`.
-   - Guárdalo fuera del proyecto (por ejemplo en `Descargas`). **No lo subas a GitHub ni lo
-     compartas por chat.** Contiene la llave privada.
-   - Si Google dice que la creación de claves está bloqueada por una política de la organización,
-     pídele al administrador de Google Workspace/Cloud que la habilite para este proyecto.
-6. Comparte la hoja con la cuenta de servicio: abre el archivo JSON con TextEdit, copia el valor de
-   `client_email` (termina en `.iam.gserviceaccount.com`), abre **"MONITOREO" → Compartir** → pega el correo → rol **Lector** → desmarca **Notificar** → **Compartir**.
-
-Comprobación: en *Compartir* de la hoja aparece el correo de la cuenta de servicio como Lector.
+- El **archivo JSON de la cuenta de servicio** (guárdalo en Descargas; no lo subas a GitHub ni lo
+  compartas por chat).
+- La confirmación de que la hoja **MONITOREO** ya está compartida con esa cuenta como **Lector**.
 
 ---
 
@@ -195,7 +181,7 @@ npm install
 
 ### C3. Conecta la hoja
 
-Con el archivo JSON de la Parte B y la URL (o el ID) de la hoja "MONITOREO":
+Con el archivo JSON que te dio el administrador y el ID de la hoja "MONITOREO":
 
 ```
 npm run sheets:setup -- ~/Downloads/NOMBRE-DEL-ARCHIVO.json "1WjLM2CSsIiuNuJrGSRFe-5SMkvhI59cKp5cZpq7fxCc"
@@ -338,7 +324,7 @@ plantillas estén aprobadas, `WHATSAPP_ALERTS_ENABLED=true`. La app nunca envía
 | Qué ves | Causa probable | Qué hacer |
 |---|---|---|
 | Abajo a la izquierda dice "Datos simulados" | Falta `DATA_SOURCE=sheets`, el ID o la cuenta de servicio | Integrations → tarjeta Google Sheets dice qué falta |
-| "Google Sheets respondió 403" o "404" | La hoja no está compartida con la cuenta de servicio, o la API no está habilitada | Parte B, pasos 3 y 6 |
+| "Google Sheets respondió 403" o "404" | La hoja no está compartida con la cuenta de servicio, o su API no está habilitada | Pídeselo al administrador (Parte B) |
 | "No existe la pestaña …" | Se renombró una pestaña | Devuélvele el nombre o ajusta `config/sheets.mapping.json` |
 | "… faltan columnas …" | Dataslayer cambió un encabezado | Ajusta la consulta o el mapeo |
 | Todas las plataformas en "Datos atrasados" | Dataslayer no ha corrido en más de 2 h 35 min | Revisa la programación y la pestaña `DataslayerQueries` |
@@ -346,7 +332,6 @@ plantillas estén aprobadas, `WHATSAPP_ALERTS_ENABLED=true`. La app nunca envía
 | "Curva por hora · Parcial" | No existe la pestaña por hora de esa plataforma | Parte A4 (opcional pero recomendado) |
 | La hora de actualización está desfasada una hora | Zona horaria distinta en la hoja | Parte A5 |
 | "El acceso aún no está configurado" | Faltan las variables `AUTH_*` en Netlify | Parte D1 y D3 |
-| No puedo crear la llave de la cuenta de servicio | Política de la organización en Google Cloud | Pide al administrador de Google Workspace que la habilite |
 | El gasto de una cuenta en USD se ve muy bajo | Falta la tasa del mes (o la cuenta es de Bing/Spotify y no trae moneda) | Parte E1 |
 | Una cuenta aparece en la marca equivocada | Su nombre no dice "Sky" o dice ambas marcas | Renómbrala en la plataforma o avísalo en Bugs y sugerencias |
 | Spotify no aparece en el Overview | Llega con un día de atraso y no se vigila en vivo | Parte A2 |
@@ -355,7 +340,7 @@ plantillas estén aprobadas, `WHATSAPP_ALERTS_ENABLED=true`. La app nunca envía
 
 - [ ] La hoja "MONITOREO" tiene las 6 pestañas y `DataslayerQueries`, actualizándose cada 2 horas.
 - [ ] (Recomendado) Pestañas `Google | Hora`, `Meta | Hora`, `TikTok | Hora`, `Bing | Hora`.
-- [ ] Cuenta de servicio creada, Google Sheets API habilitada y hoja compartida como Lector.
+- [ ] Archivo JSON de la cuenta de servicio recibido y hoja compartida como Lector (administrador).
 - [ ] En local: Integrations → Probar conexión dice "Conexión correcta".
 - [ ] En Netlify: variables `DATA_SOURCE`, `SHEETS_SPREADSHEET_ID`, `GOOGLE_CLIENT_EMAIL`,
       `GOOGLE_PRIVATE_KEY`, `APP_TIMEZONE` y `AUTH_*`; deploy nuevo; `/api/health` dice `sheets`.
