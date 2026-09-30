@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { LogController, type FastifyInstance } from "fastify";
 import helmet from "@fastify/helmet";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
@@ -35,7 +35,7 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
     genReqId: genRequestId,
     // genRequestId valida el encabezado entrante (un valor arbitrario no llega a los logs).
     requestIdHeader: false,
-    requestIdLogLabel: "request_id",
+    logController: new LogController({ requestIdLogLabel: "request_id" }),
     trustProxy: config.trustProxy,
     bodyLimit: 1024 * 1024,
   }).withTypeProvider<ZodTypeProvider>();

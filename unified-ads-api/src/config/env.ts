@@ -11,7 +11,7 @@ const bool = (fallback: boolean) =>
 
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  HOST: z.string().min(1).default("0.0.0.0"),
+  HOST: z.string().min(1).default("127.0.0.1"),
   PORT: z.coerce.number().int().min(1).max(65535).default(8080),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   /** Llaves internas separadas por coma: en texto (mín. 24 caracteres) o "sha256:<hex>". */
