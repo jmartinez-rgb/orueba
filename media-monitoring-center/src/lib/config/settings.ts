@@ -82,6 +82,10 @@ export const settingsSchema = z.object({
     stoppedSpendDrop: z.number().min(0.5).max(1),
     /** Días completos seguidos con el mismo cambio de gasto para tomarlo como un nuevo nivel (cambio sostenido). */
     sustainedDays: z.number().int().min(2).max(7),
+    /** Parte del gasto esperado de una cuenta o plataforma que, detenida de golpe, se reporta como apagado masivo (crítico). */
+    massStopShare: z.number().min(0.5).max(1).default(0.9),
+    /** Peso mínimo en el gasto esperado de su plataforma para que una campaña tenga alerta propia (el resto se ve dentro de su cuenta). */
+    campaignMinShare: z.number().min(0).max(0.5).default(0.05),
     /** Métricas que llegan con retraso por plataforma (conversiones offline): en el día no se evalúan. */
     laggingMetrics: z.partialRecord(platformEnum, z.array(metricId)),
   }),
@@ -193,6 +197,8 @@ export const DEFAULT_SETTINGS: MonitoringSettings = {
     platformIncidentMinShare: 0.4,
     stoppedSpendDrop: 0.9,
     sustainedDays: 3,
+    massStopShare: 0.9,
+    campaignMinShare: 0.05,
     laggingMetrics: {},
   },
   alerts: {

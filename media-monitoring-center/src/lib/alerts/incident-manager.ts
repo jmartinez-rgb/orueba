@@ -79,6 +79,8 @@ function alertFromAnomaly(a: Anomaly, id: string, at: string): Alert {
     groupedUnder: a.groupedUnder,
     cutoffHour: a.cutoffHour,
     expectedSpendShare: a.expectedSpendShare,
+    breakdown: a.breakdown ?? null,
+    explained: a.explained ?? null,
   };
 }
 
@@ -100,6 +102,8 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
   const ctx: MessageContext = { timezone: run.timezone, cutoffHour: run.cutoffHour, now, brand: opts.brand };
   const prefix = opts.brand?.idPrefix ?? "";
   const anomalies = new Map(run.anomalies.map((a) => [a.fingerprint, a]));
+  // Anomalías silenciadas por un cambio autorizado: su alerta e incidente se cierran con esa explicación.
+  const authorized = new Map((run.silenced ?? []).map((x) => [x.anomaly.fingerprint, `Cerrado: cambio autorizado por ${x.by} ("${x.reason}").`]));
   const active = state.alerts.filter((a) => a.resolvedAt === null);
   const activeByFp = new Map(active.map((a) => [a.fingerprint, a]));
 
@@ -132,6 +136,8 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
     alert.groupedUnder = a.groupedUnder;
     alert.cutoffHour = a.cutoffHour;
     alert.expectedSpendShare = a.expectedSpendShare;
+    alert.breakdown = a.breakdown ?? null;
+    alert.explained = a.explained ?? null;
   }
 
   // 2) Nuevas alertas.
@@ -197,13 +203,14 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
       inc.lastUpdateAt = now;
       inc.status = "RESOLVED";
       const falsePositive = live?.status === "FALSE_POSITIVE";
-      const shouldNotify = !falsePositive && settings.alerts.notifyRecovery && inc.notification.count > 0;
+      const authorizedMsg = authorized.get(inc.fingerprint);
+      const shouldNotify = !falsePositive && !authorizedMsg && settings.alerts.notifyRecovery && inc.notification.count > 0;
       const notified = shouldNotify ? notify(inc, "RECOVERED", inc.maxSeverity) : false;
       pushEvent(inc, {
-        kind: "RECOVERED",
+        kind: authorizedMsg ? "STATUS" : "RECOVERED",
         severity: "NORMAL",
         deviation: null,
-        message: falsePositive ? "Cerrado como falso positivo." : "Regresó a parámetros normales.",
+        message: falsePositive ? "Cerrado como falso positivo." : (authorizedMsg ?? "Regresó a parámetros normales."),
         notified,
       });
       continue;
@@ -276,7 +283,10 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
   // 4) Promover alertas a incidentes.
   for (const alert of state.alerts) {
     if (alert.resolvedAt !== null || alert.incidentId || alert.groupedUnder || alert.status === "FALSE_POSITIVE") continue;
-    const promote = atLeast(alert.severity, settings.alerts.incidentMinSeverity) || alert.consecutiveRuns >= settings.alerts.persistRunsForIncident;
+    // Persistir en Atención abre incidente solo para cuentas o plataformas y si el cambio no está explicado
+    // (pausas del equipo, rotación, reasignación o un nuevo nivel sostenido).
+    const persistent = alert.consecutiveRuns >= settings.alerts.persistRunsForIncident && alert.level !== "campaign" && !alert.explained;
+    const promote = atLeast(alert.severity, settings.alerts.incidentMinSeverity) || persistent;
     if (!promote) continue;
     state.seq.incident += 1;
     const inc: Incident = {

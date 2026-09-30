@@ -3,9 +3,9 @@ import { PLATFORM_IDS } from "@/lib/types";
 import type { MonitoringSettings } from "@/lib/config/settings";
 import { METRICS } from "@/lib/metrics";
 import { PLATFORMS } from "@/lib/platforms/registry";
-import { isIntentionalStop } from "@/lib/platforms/campaign-status";
+import { spendBreakdown } from "./breakdown";
 import { hourLabel } from "@/lib/time/tz";
-import type { Anomaly, AnomalyEvidence, AnomalyFamily, AnomalyType, EntityEvaluation, MetricComparison } from "@/lib/monitoring/types";
+import type { Anomaly, AnomalyEvidence, AnomalyFamily, AnomalyType, EntityEvaluation, ExplainedBy, MetricComparison, SpendBreakdown } from "@/lib/monitoring/types";
 import { classifyDeviation, downgrade, maxSeverity, minSeverity, severityRank, upgrade } from "./severity";
 
 /**
@@ -48,8 +48,10 @@ const SPEND_DROP_TYPES: AnomalyType[] = ["DELIVERY_ISSUE", "UNDERSPEND"];
 const RESULT_DROP_TYPES: AnomalyType[] = ["PERFORMANCE_ISSUE", "COST_INCREASE"];
 /** Se juzgan con el gasto esperado a la hora de corte, que depende de la curva horaria. */
 const CURVE_TYPES: AnomalyType[] = ["DELIVERY_ISSUE", "UNDERSPEND", "OVERSPEND", "PLATFORM_INCIDENT"];
-/** Caídas de gasto de plataforma o cuenta que una pausa intencional de campañas puede explicar. */
+/** Caídas de gasto que el desglose por campaña puede explicar (pausas, rotación) o agravar (apagado masivo). */
 const STOP_EXPLAINED_TYPES: AnomalyType[] = ["DELIVERY_CRITICAL", "DELIVERY_ISSUE", "UNDERSPEND"];
+/** Cambios de gasto de una cuenta que pueden ser presupuesto movido a otra cuenta de la misma plataforma. */
+const REALLOCATION_TYPES: AnomalyType[] = ["DELIVERY_ISSUE", "UNDERSPEND", "OVERSPEND"];
 /** Alertas de nivel de gasto que se revisan contra un cambio sostenido de los últimos días. */
 const SUSTAINED_TYPES: AnomalyType[] = ["DELIVERY_CRITICAL", "DELIVERY_ISSUE", "UNDERSPEND", "OVERSPEND"];
 
@@ -67,8 +69,17 @@ interface Signals {
 
 const pct = (v: number | null) => (v === null ? "s/d" : `${v > 0 ? "+" : ""}${(v * 100).toFixed(1)}%`);
 
+/** Piso absoluto de gasto esperado a la hora de corte para evaluar una plataforma o cuenta (MXN). */
+const MIN_SCOPE_SPEND_FLOOR = 500;
+
 function minSpendFor(e: EntityEvaluation, s: MonitoringSettings) {
-  return e.level === "platform" ? s.volume.minPlatformSpend : s.volume.minCampaignSpend;
+  if (e.level === "campaign") return s.volume.minCampaignSpend;
+  const base = e.level === "platform" ? s.volume.minPlatformSpend : s.volume.minCampaignSpend;
+  // Plataformas y cuentas chicas (p. ej. Bing o TikTok con 5-6 mil MXN al día) también se vigilan: el
+  // mínimo es la quinta parte de su propio gasto diario típico, con un piso absoluto.
+  const expected = e.cumulative.spend?.expected ?? null;
+  const dailyTypical = expected !== null && e.dayShare !== null && e.dayShare > 0 ? expected / e.dayShare : null;
+  return dailyTypical === null ? base : Math.min(base, Math.max(MIN_SCOPE_SPEND_FLOOR, 0.2 * dailyTypical));
 }
 
 function minResultsFor(e: EntityEvaluation, s: MonitoringSettings) {
@@ -303,10 +314,13 @@ function detectPerformance(e: EntityEvaluation, ctx: AnomalyContext): Anomaly | 
 }
 
 /** Ajustes que evitan falsas alarmas: hora, variabilidad y volumen. */
+const SEVERITY_LABEL: Record<Severity, string> = { NORMAL: "Normal", ATTENTION: "Atención", ALERT: "Alerta", CRITICAL: "Crítico" };
+
 function adjust(a: Anomaly, e: EntityEvaluation, ctx: AnomalyContext): Anomaly {
   const { settings } = ctx;
   if (a.type === "DATA_ISSUE") return a;
   let s = a.severity;
+  let explained: ExplainedBy | null = null;
   const notes: string[] = [];
   const earlyShare = e.dayShare !== null && e.dayShare < settings.detection.earlyDayShare;
   if (e.cutoffHour < settings.detection.earlyHour || (earlyShare && a.type !== "DELIVERY_CRITICAL")) {
@@ -342,8 +356,17 @@ function adjust(a: Anomaly, e: EntityEvaluation, ctx: AnomalyContext): Anomaly {
     const today = 1 + d;
     const rel = lvl.ratio > 0.05 ? today / lvl.ratio - 1 : today < 0.05 ? 0 : null;
     const since = `Viene así desde hace ${lvl.days} días (gasto ${pct(lvl.ratio - 1)} vs semanas anteriores)`;
-    if (rel !== null && Math.abs(rel) < t.attention) {
+    // Hoy sigue en ese nivel (o menos extremo): no es una falla de hoy, es su nivel actual.
+    const sameOrBetter = rel !== null && (Math.abs(rel) < t.attention || (lvl.direction === "down" ? rel > 0 : rel < 0));
+    // Un cambio fuerte (la mitad o el doble) no se da por bueno solo por durar: queda en Alerta hasta que
+    // alguien lo explique en Novedades o la plataforma confirme las pausas.
+    const severe = lvl.direction === "down" ? lvl.ratio <= 0.5 : lvl.ratio >= 2;
+    if (sameOrBetter && severe) {
+      s = minSeverity(s, "ALERT");
+      notes.push(`${since} y hoy sigue en ese nivel${rel !== null && Math.abs(rel) >= t.attention ? ` (${pct(rel)} contra él)` : ""}. Es un cambio fuerte: si fue planeado, regístralo en Novedades para dejar de alertar; si no, revisar.`);
+    } else if (sameOrBetter) {
       s = minSeverity(s, "ATTENTION");
+      explained = "sustained";
       notes.push(`${since} y hoy sigue en ese nivel: parece un cambio de presupuesto o de estrategia, no una falla de hoy. Si no fue planeado, revisar.`);
     } else if (rel !== null) {
       s = minSeverity(s, maxSeverity(classifyDeviation(Math.abs(rel), t), "ATTENTION"));
@@ -363,7 +386,69 @@ function adjust(a: Anomaly, e: EntityEvaluation, ctx: AnomalyContext): Anomaly {
       notes.push(`Estado en ${where}: "${e.statusText}".`);
     }
   }
-  return { ...a, severity: s, adjustments: notes };
+  // Criterios para no llenar de alertas: tope de severidad según qué mide y a qué nivel.
+  const cap = (limit: Severity, note: string) => {
+    if (severityRank(s) <= severityRank(limit)) return;
+    s = limit;
+    notes.push(`${note} Se limita a ${SEVERITY_LABEL[limit]}.`);
+  };
+  if (a.type === "EFFICIENCY_ISSUE" || a.type === "COST_INCREASE") {
+    cap(e.level === "platform" ? "ALERT" : "ATTENTION", `${e.kpi.costLabel} es una métrica secundaria en el día (las decisiones se toman con resultados y gasto).`);
+  }
+  if (a.type === "OVERSPEND" && e.level !== "platform") {
+    cap(e.level === "account" ? "ALERT" : "ATTENTION", "Gastar más de lo usual en una cuenta o campaña suele ser una decisión de escala; el riesgo de pasarse se vigila contra presupuesto a nivel plataforma.");
+  }
+  if (e.level === "campaign") {
+    // Crítico se reserva para una cuenta o plataforma completa; una campaña con poco peso queda en Atención.
+    const material = (e.expectedSpendShare ?? 0) >= settings.detection.campaignMinShare;
+    cap(
+      material ? "ALERT" : "ATTENTION",
+      a.type === "DELIVERY_CRITICAL" ? "Una campaña sola sin gasto no es un paro de la cuenta: Crítico se reserva para una cuenta o plataforma completa." : "Una campaña sola: Crítico se reserva para una cuenta o plataforma completa.",
+    );
+  }
+  return { ...a, severity: s, adjustments: notes, explained };
+}
+
+/**
+ * Aplica el veredicto del desglose por campaña a una caída o subida de gasto de cuenta o plataforma:
+ * un apagado masivo siempre es crítico; pausas del equipo o una rotación de campañas con el resto
+ * normal quedan en Atención; si solo se explica una parte, manda lo que hace el resto.
+ */
+function applyVerdict(a: Anomaly, b: SpendBreakdown, e: EntityEvaluation, ctx: AnomalyContext) {
+  const note = (text: string) => (a.adjustments = [...a.adjustments, text]);
+  const drop = STOP_EXPLAINED_TYPES.includes(a.type) || a.type === "PLATFORM_INCIDENT";
+  // "De golpe" = ayer todavía gastaba. Si ayer ya estaba apagada, es su nivel actual.
+  const stoppedBefore = a.explained === "sustained" || (e.previousDayRatio !== null && e.previousDayRatio !== undefined && e.previousDayRatio <= 1 - ctx.settings.detection.massStopShare);
+  if (drop && b.verdict === "mass_stop" && stoppedBefore) {
+    // Ya venía apagada: no es "de golpe". Si la plataforma confirma las pausas es Atención; si no, Alerta
+    // hasta que se explique en Novedades.
+    const confirmed = b.groups.stopped.count === 0;
+    a.severity = minSeverity(a.severity, confirmed ? "ATTENTION" : "ALERT");
+    a.explained = confirmed ? "planned_stop" : null;
+    note(
+      `${b.summary} Ya estaba apagada desde antes (ayer gastó ${Math.round((e.previousDayRatio ?? 0) * 100)}% de lo normal): no es un apagado de hoy.${confirmed ? "" : " Si fue planeado, regístralo en Novedades para dejar de alertar."}`,
+    );
+  } else if (drop && b.verdict === "mass_stop") {
+    a.severity = "CRITICAL";
+    note(`${b.summary} Apagado masivo: aunque sean pausas, se reporta como crítico. Si el equipo lo autorizó, márcalo como cambio autorizado para dejar de alertar.`);
+  } else if (drop && (b.verdict === "planned_stop" || b.verdict === "rotation")) {
+    a.severity = minSeverity(a.severity, "ATTENTION");
+    a.explained = b.verdict;
+    note(`${b.summary} Se lee como un cambio del equipo: queda en Atención. Si no fue planeado, revisar.`);
+  } else if (drop && b.verdict === "partial_stop") {
+    a.severity = minSeverity(a.severity, b.stoppedShare >= 0.5 ? "ALERT" : "ATTENTION");
+    note(`${b.summary} La hoja no confirma que se hayan pausado a propósito; si fue planeado, márcalo como cambio autorizado.`);
+  } else if (drop && b.verdict === "mixed" && b.restDeviation !== null && b.groups.stopped.count === 0) {
+    // Solo se descuentan las pausas confirmadas por la plataforma: lo demás sigue siendo parte del problema.
+    a.severity = minSeverity(a.severity, maxSeverity(classifyDeviation(Math.abs(b.restDeviation), ctx.settings.thresholds), "ATTENTION"));
+    note(`${b.summary} Sin las pausadas, la severidad sale de lo que hacen las campañas activas.`);
+  } else if (drop && b.verdict === "mixed") {
+    note(b.summary);
+  } else if (a.type === "OVERSPEND" && b.verdict === "launch") {
+    a.severity = minSeverity(a.severity, "ATTENTION");
+    a.explained = "launch";
+    note(`${b.summary} Queda en Atención: revisar que esté dentro del presupuesto.`);
+  }
 }
 
 function dataIssue(e: EntityEvaluation): Anomaly {
@@ -409,38 +494,45 @@ export function detectAnomalies(evaluations: EntityEvaluation[], ctx: AnomalyCon
     }
   }
 
-  // Pausas intencionales: si la plataforma reporta campañas pausadas o terminadas (no por presupuesto,
-  // pago o rechazo), su gasto esperado no es una caída de la plataforma ni de la cuenta.
+  // ¿Qué pasó? Desglose por campaña de cada caída o subida de gasto de cuenta o plataforma.
   for (const a of out) {
-    if (a.level === "campaign" || a.metric !== "spend" || !STOP_EXPLAINED_TYPES.includes(a.type)) continue;
+    if (a.level === "campaign" || a.family !== "delivery") continue;
     const e = byKey.get(a.key);
     if (!e) continue;
-    const useRecent = a.type === "DELIVERY_CRITICAL" && e.recent?.spend !== undefined && a.expected === e.recent.spend.expected;
-    const pick = (x: EntityEvaluation) => (useRecent ? x.recent?.spend : x.cumulative.spend);
-    const stopped = evaluations.filter(
-      (c) => c.level === "campaign" && c.platform === a.platform && (a.level === "platform" || c.accountId === a.accountId) && isIntentionalStop(c) && (pick(c)?.expected ?? 0) > 0,
-    );
-    const cmp = pick(e);
-    if (!stopped.length || !cmp || cmp.expected === null || cmp.current === null) continue;
-    const stoppedExpected = stopped.reduce((acc, c) => acc + (pick(c)?.expected ?? 0), 0);
-    const stoppedCurrent = stopped.reduce((acc, c) => acc + (pick(c)?.current ?? 0), 0);
-    const restExpected = cmp.expected - stoppedExpected;
-    const restCurrent = Math.max(0, cmp.current - stoppedCurrent);
-    const who = `${stopped.length === 1 ? `la campaña ${stopped[0].campaignName ?? stopped[0].campaignId}, pausada o terminada` : `${stopped.length} campañas pausadas o terminadas`} en ${PLATFORMS[a.platform].shortName}`;
-    const money = (v: number) => `${Math.round(v).toLocaleString("es-MX")} MXN`;
-    if (restExpected <= Math.max(1, cmp.expected * 0.05)) {
+    const recent = a.type === "DELIVERY_CRITICAL" && e.recent?.spend !== undefined && a.expected === e.recent.spend.expected;
+    const b = spendBreakdown(e, evaluations, ctx.settings, recent ? "recent" : "day");
+    if (!b) continue;
+    a.breakdown = b;
+    applyVerdict(a, b, e, ctx);
+  }
+
+  // Reasignación: una cuenta baja y otra de la misma plataforma sube el mismo día, con el total normal.
+  const t = ctx.settings.thresholds;
+  const gapOf = (e: EntityEvaluation) => (e.cumulative.spend?.current ?? 0) - (e.cumulative.spend?.expected ?? 0);
+  for (const p of PLATFORM_IDS) {
+    const pd = byKey.get(`platform:${p}`)?.cumulative.spend?.deltaVsExpected;
+    if (pd === null || pd === undefined || Math.abs(pd) >= t.attention) continue;
+    const accounts = evaluations.filter((e) => e.level === "account" && e.platform === p && (e.dataState === "OK" || e.dataState === "PARTIAL"));
+    for (const a of out) {
+      if (a.level !== "account" || a.platform !== p || !REALLOCATION_TYPES.includes(a.type)) continue;
+      // Un apagado masivo de hoy se reporta aunque el presupuesto se haya movido (se autoriza si fue planeado).
+      if (a.breakdown?.verdict === "mass_stop" && a.explained !== "sustained") continue;
+      const e = byKey.get(a.key);
+      if (!e) continue;
+      const gap = gapOf(e);
+      const others = accounts.filter((o) => o.key !== a.key && Math.sign(gapOf(o)) === -Math.sign(gap)).sort((x, y) => Math.abs(gapOf(y)) - Math.abs(gapOf(x)));
+      const offset = others.reduce((acc, o) => acc + gapOf(o), 0);
+      if (!others.length || Math.abs(offset) < 0.5 * Math.abs(gap)) continue;
+      const shown = others.slice(0, 2);
+      const names = shown.map((o) => o.accountName ?? o.accountId).join(" y ");
+      const verb = gap < 0 ? (shown.length > 1 ? "subieron" : "subió") : shown.length > 1 ? "bajaron" : "bajó";
       a.severity = minSeverity(a.severity, "ATTENTION");
-      a.adjustments = [...a.adjustments, `La caída se explica por ${who} (se esperaban ${money(stoppedExpected)} de ahí). Confirmar que la pausa fue planeada.`];
-      continue;
+      a.explained = "reallocation";
+      a.adjustments = [
+        ...a.adjustments,
+        `Reasignación entre cuentas: ${names} ${verb} ${Math.round(Math.abs(offset)).toLocaleString("es-MX")} MXN el mismo día y el total de ${PLATFORMS[p].shortName} va ${pct(pd)}: el presupuesto se movió, no se perdió. Queda en Atención.`,
+      ];
     }
-    const rel = restCurrent / restExpected - 1;
-    const sev = rel >= 0 ? "ATTENTION" : maxSeverity(classifyDeviation(Math.abs(rel), ctx.settings.thresholds), "ATTENTION");
-    if (severityRank(sev) >= severityRank(a.severity)) {
-      a.adjustments = [...a.adjustments, `Incluye ${who} (${money(stoppedExpected)} del esperado); sin ellas el gasto va ${pct(rel)}.`];
-      continue;
-    }
-    a.severity = sev;
-    a.adjustments = [...a.adjustments, `Parte de la caída es por ${who} (${money(stoppedExpected)} del esperado). Sin ellas, el gasto va ${pct(rel)} vs lo esperado: severidad ajustada.`];
   }
 
   // CASO 5: varias campañas de una plataforma caen al mismo tiempo → incidente de plataforma.
@@ -482,18 +574,25 @@ export function detectAnomalies(evaluations: EntityEvaluation[], ctx: AnomalyCon
   for (const a of out) {
     const e = byKey.get(a.key);
     if (!e?.curveEstimated || !CURVE_TYPES.includes(a.type) || a.current === 0) continue;
-    const capped = maxSeverity(minSeverity(downgrade(a.severity), "ALERT"), "ATTENTION");
+    // Un apagado masivo no depende de la curva: casi todo el gasto esperado está detenido.
+    if (a.breakdown?.verdict === "mass_stop" && a.severity === "CRITICAL") continue;
+    // Una desviación grande (más que el umbral crítico) no la explica un error de curva: queda en Alerta.
+    const big = a.deviation !== null && Math.abs(a.deviation) >= ctx.settings.thresholds.critical;
+    const capped = big ? minSeverity(a.severity, "ALERT") : maxSeverity(minSeverity(downgrade(a.severity), "ALERT"), "ATTENTION");
     if (capped === a.severity) continue;
     a.severity = capped;
     a.adjustments = [
       ...a.adjustments,
-      "La hoja solo trae el acumulado del día: el esperado a esta hora sale de una curva típica, no de datos por hora. Severidad reducida un nivel hasta tener la consulta por hora de Dataslayer.",
+      big
+        ? "La hoja solo trae el acumulado del día: el esperado a esta hora sale de una curva típica. Por eso llega como máximo a Alerta (la desviación es demasiado grande para ser un error de curva)."
+        : "La hoja solo trae el acumulado del día: el esperado a esta hora sale de una curva típica, no de datos por hora. Severidad reducida un nivel hasta tener la consulta por hora de Dataslayer.",
     ];
   }
 
   // Anti-spam jerárquico: una anomalía hija con el mismo tipo que su padre se agrupa bajo él.
   const compatible = (child: Anomaly, parent: Anomaly) => {
-    if (SPEND_DROP_TYPES.includes(child.type)) return [...SPEND_DROP_TYPES, "PLATFORM_INCIDENT"].includes(parent.type);
+    // Una campaña sin gasto o cayendo se agrupa bajo la caída de su cuenta o plataforma (una sola alerta con el desglose).
+    if (STOP_EXPLAINED_TYPES.includes(child.type)) return [...STOP_EXPLAINED_TYPES, "PLATFORM_INCIDENT"].includes(parent.type);
     if (RESULT_DROP_TYPES.includes(child.type)) return RESULT_DROP_TYPES.includes(parent.type);
     return child.type === parent.type;
   };
@@ -511,7 +610,23 @@ export function detectAnomalies(evaluations: EntityEvaluation[], ctx: AnomalyCon
     }
   }
 
-  return out.sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
+  // Las campañas de un cambio explicado en su cuenta o plataforma no pesan más que él.
+  const byFingerprint = new Map(out.map((a) => [a.fingerprint, a]));
+  for (const a of out) {
+    const parent = a.groupedUnder ? byFingerprint.get(a.groupedUnder) : undefined;
+    if (!parent?.explained || severityRank(a.severity) <= severityRank(parent.severity)) continue;
+    a.severity = parent.severity;
+    a.explained = parent.explained;
+    a.adjustments = [...a.adjustments, "Es parte del cambio explicado en su cuenta o plataforma."];
+  }
+
+  // Materialidad: una campaña tiene alerta propia solo si es Alerta o más y pesa lo suficiente en su
+  // plataforma. Las demás se ven dentro de la alerta de su cuenta (desglose) y en Campañas.
+  const { campaignMinShare } = ctx.settings.detection;
+  const kept = out.filter(
+    (a) => a.level !== "campaign" || a.groupedUnder !== null || a.type === "DATA_ISSUE" || (severityRank(a.severity) >= severityRank("ALERT") && (a.expectedSpendShare ?? 0) >= campaignMinShare),
+  );
+  return kept.sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
 }
 
 /**

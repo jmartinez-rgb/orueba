@@ -40,6 +40,7 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
             timezone={snap.meta.timezone}
             asOf={snap.meta.asOf}
             canWrite={snap.meta.permissions.includes("incidents:write")}
+            canNovedad={snap.meta.permissions.includes("novedades:write")}
             initialId={id ?? null}
             attention={snap.settings.thresholds.attention}
           />

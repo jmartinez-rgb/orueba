@@ -128,7 +128,7 @@ export default async function LivePage() {
           </div>
         </CardHeader>
         <CardContent>
-          <AlertsTable rows={alertRows(snap)} timezone={tz} canWrite={meta.permissions.includes("alerts:write")} compact attention={attention} />
+          <AlertsTable rows={alertRows(snap)} timezone={tz} canWrite={meta.permissions.includes("alerts:write")} canNovedad={meta.permissions.includes("novedades:write")} compact attention={attention} />
         </CardContent>
       </Card>
 

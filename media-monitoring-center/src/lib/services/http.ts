@@ -18,6 +18,10 @@ export function badRequest(message: string) {
   return json({ ok: false, message }, 400);
 }
 
+export function notFound(message = "No se encontró.") {
+  return json({ ok: false, message }, 404);
+}
+
 /** Error amigable para el usuario; el detalle técnico solo va al log (y a admins si se pide). */
 export function serverError(target: IntegrationTarget, err: unknown, route: string) {
   const f = friendlyError(target, err);

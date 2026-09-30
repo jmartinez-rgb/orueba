@@ -37,3 +37,18 @@ export function sustainedLevel(params: {
   }
   return direction ? { ratio: actual / reference, days, direction } : null;
 }
+
+/**
+ * Gasto de ayer frente a su referencia (mismo día de semanas anteriores). Distingue un apagado
+ * de hoy ("de golpe": ayer gastaba) de uno que ya venía de antes.
+ */
+export function previousDayRatio(params: { date: string; weeks: number; baseline: "mean" | "median"; minSamples: number; valueOn: (date: string) => number | null }): number | null {
+  const { date, weeks, baseline, minSamples, valueOn } = params;
+  const d = addDays(date, -1);
+  const a = valueOn(d);
+  const refs = sameWeekdayDates(d, weeks)
+    .map(valueOn)
+    .filter((v): v is number => v !== null);
+  const b = refs.length >= minSamples ? (baseline === "median" ? median(refs) : mean(refs)) : null;
+  return a === null || b === null || b <= 0 ? null : a / b;
+}

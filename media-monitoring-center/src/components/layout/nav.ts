@@ -3,6 +3,7 @@ import {
   BellRing,
   BookOpenText,
   Bug,
+  CalendarClock,
   GitCompareArrows,
   Gauge,
   History,
@@ -27,7 +28,7 @@ export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  badge?: "alerts" | "incidents" | "tickets" | "feedback";
+  badge?: "alerts" | "incidents" | "tickets" | "feedback" | "novedades";
   /** Permiso necesario (con una lista basta tener cualquiera). */
   permission?: Permission | Permission[];
 }
@@ -54,6 +55,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/alerts", label: "Alerts", icon: BellRing, badge: "alerts" },
       { href: "/incidents", label: "Incidents", icon: Siren, badge: "incidents" },
       { href: "/tickets", label: "Tickets", icon: Ticket, badge: "tickets" },
+      { href: "/novedades", label: "Novedades", icon: CalendarClock, badge: "novedades" },
     ],
   },
   {

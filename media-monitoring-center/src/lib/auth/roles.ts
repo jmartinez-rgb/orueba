@@ -17,6 +17,8 @@ export type Permission =
   | "users:view"
   | "tickets:write"
   | "tickets:manage"
+  | "novedades:write"
+  | "kickoff:write"
   | "reports:write"
   | "feedback:manage"
   | "users:manage";
@@ -31,6 +33,8 @@ export const PERMISSIONS: Permission[] = [
   "users:view",
   "tickets:write",
   "tickets:manage",
+  "novedades:write",
+  "kickoff:write",
   "reports:write",
   "feedback:manage",
   "users:manage",
@@ -47,6 +51,8 @@ export const PERMISSION_LABEL: Record<Permission, { title: string; detail: strin
   "users:view": { title: "Bitácora de accesos", detail: "Ver quién entra, cuándo y qué hace." },
   "tickets:write": { title: "Levantar tickets", detail: "Crear tickets y acusar alertas críticas." },
   "tickets:manage": { title: "Gestionar tickets", detail: "Cambiar estado, responsable y número de caso." },
+  "novedades:write": { title: "Novedades", detail: "Registrar ajustes aprobados (presupuesto, pausas, activaciones) que el monitoreo toma en cuenta." },
+  "kickoff:write": { title: "Arranque de mes", detail: "Capturar los presupuestos del mes y declarar qué está activo y qué está pendiente por iniciar." },
   "reports:write": { title: "Mensaje de monitoreo", detail: "Generar y guardar el mensaje de Monitoreos." },
   "feedback:manage": { title: "Bandeja de bugs y sugerencias", detail: "Ver todos los envíos, cambiar su estado y responder." },
   "users:manage": { title: "Usuarios y contraseñas", detail: "Crear cuentas, asignar contraseñas, roles, permisos y marcas." },
@@ -56,7 +62,7 @@ const MATRIX: Record<Role, Permission[]> = {
   admin: PERMISSIONS,
   // Todo menos la bandeja de bugs y sugerencias y la gestión de usuarios (solo del administrador).
   coadmin: PERMISSIONS.filter((p) => p !== "feedback:manage" && p !== "users:manage"),
-  manager: ["alerts:write", "incidents:write", "monitoring:trigger", "technical:view", "tickets:write", "tickets:manage", "reports:write"],
+  manager: ["alerts:write", "incidents:write", "monitoring:trigger", "technical:view", "tickets:write", "tickets:manage", "novedades:write", "reports:write"],
   // Consulta: puede acusar alertas críticas, levantar tickets y generar el mensaje de monitoreo.
   viewer: ["tickets:write", "reports:write"],
 };

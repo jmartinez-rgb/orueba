@@ -29,7 +29,10 @@ export type AuditType =
   | "USER_UPDATED"
   | "USER_DELETED"
   | "PASSWORD_CHANGED"
-  | "UNIVERSAL_UPDATED";
+  | "UNIVERSAL_UPDATED"
+  | "NOVEDAD_CREATED"
+  | "NOVEDAD_UPDATED"
+  | "KICKOFF_CONFIRMED";
 
 export const AUDIT_LABEL: Record<AuditType, string> = {
   LOGIN_OK: "Inicio de sesión",
@@ -52,6 +55,9 @@ export const AUDIT_LABEL: Record<AuditType, string> = {
   USER_DELETED: "Cuenta eliminada",
   PASSWORD_CHANGED: "Contraseña cambiada",
   UNIVERSAL_UPDATED: "Contraseña universal modificada",
+  NOVEDAD_CREATED: "Novedad registrada",
+  NOVEDAD_UPDATED: "Novedad actualizada",
+  KICKOFF_CONFIRMED: "Arranque de mes confirmado",
 };
 
 export type AuditUserKind = "named" | "universal" | "open" | "header" | "anon";

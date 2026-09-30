@@ -22,6 +22,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { DeltaText, PlatformMark, SeverityBadge } from "./status";
 import { StateMessage } from "./states";
+import { NovedadForm } from "@/components/novedades/novedad-form";
+import { novedadPrefillFromAlert, SpendBreakdownView } from "@/components/novedades/spend-breakdown";
+import type { ExplainedBy } from "@/lib/monitoring/types";
+
+/** Por qué una alerta se considera un cambio esperado (no abre incidente por persistir). */
+export const EXPLAINED_LABEL: Record<ExplainedBy, string> = {
+  planned_stop: "Pausas confirmadas en la plataforma",
+  rotation: "Rotación de campañas",
+  reallocation: "Presupuesto movido entre cuentas",
+  sustained: "Nuevo nivel de gasto (varios días)",
+  launch: "Campañas nuevas",
+};
+
+export function ExplainedChip({ by, className }: { by: ExplainedBy; className?: string }) {
+  return (
+    <span className={cn("inline-flex items-center rounded-full bg-foreground/[0.06] px-2 py-[3px] text-[11px] font-medium text-muted-foreground", className)} title={EXPLAINED_LABEL[by]}>
+      Explicada · {EXPLAINED_LABEL[by]}
+    </span>
+  );
+}
+
+function businessToday(timezone: string) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
 
 export const ALERT_STATUS_LABEL: Record<AlertStatus, string> = {
   NEW: "Nueva",
@@ -53,10 +77,13 @@ export function AlertsTable({
   attention = 0.15,
   whatsappPreview = {},
   limit,
+  canNovedad = false,
 }: {
   rows: AlertRowVM[];
   timezone: string;
   canWrite: boolean;
+  /** Puede registrar la alerta como novedad aprobada (el monitoreo deja de alertarla). */
+  canNovedad?: boolean;
   compact?: boolean;
   attention?: number;
   whatsappPreview?: Record<string, string>;
@@ -70,6 +97,7 @@ export function AlertsTable({
   const [type, setType] = useState<string>("all");
   const [showGrouped, setShowGrouped] = useState(false);
   const [selected, setSelected] = useState<AlertRowVM | null>(null);
+  const [novedadFor, setNovedadFor] = useState<AlertRowVM | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -219,10 +247,11 @@ export function AlertsTable({
                 </TableCell>
                 <TableCell className="max-w-64 text-xs" title={r.title}>
                   <span className="block truncate font-medium">{r.campaignName ?? (r.level === "account" ? `Cuenta: ${r.accountName}` : "Toda la plataforma")}</span>
-                  {!compact && (r.campaignName || r.groupedUnderId) && (
+                  {!compact && (r.campaignName || r.groupedUnderId || r.explained) && (
                     <span className="block truncate text-[10px] text-muted-foreground">
                       {r.campaignName ? r.accountName : ""}
                       {r.groupedUnderId ? `${r.campaignName ? " · " : ""}↳ agrupada en ${r.groupedUnderId}` : ""}
+                      {r.explained ? `${r.campaignName || r.groupedUnderId ? " · " : ""}Explicada: ${EXPLAINED_LABEL[r.explained].toLowerCase()}` : ""}
                     </span>
                   )}
                 </TableCell>
@@ -272,7 +301,24 @@ export function AlertsTable({
                 </SheetDescription>
               </SheetHeader>
               <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4 text-sm">
+                {selected.explained && <ExplainedChip by={selected.explained} />}
                 <p className="text-sm leading-relaxed">{selected.diagnosis}</p>
+                {selected.breakdown && (
+                  <div className="rounded-xl bg-foreground/[0.03] p-3.5">
+                    <SpendBreakdownView breakdown={selected.breakdown} />
+                  </div>
+                )}
+                {canNovedad && selected.resolvedAt === null && (
+                  <div className="flex items-center justify-between gap-3 rounded-xl bg-foreground/[0.03] px-3.5 py-3 text-xs">
+                    <div>
+                      <p className="font-semibold">¿Fue un cambio aprobado?</p>
+                      <p className="text-muted-foreground">Regístralo como novedad: queda quién lo aprobó y el monitoreo deja de alertarlo.</p>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => setNovedadFor(selected)}>
+                      Registrar novedad
+                    </Button>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
                   <Info label="Detectado" value={formatDateTimeInTz(selected.detectedAt, timezone)} />
                   <Info label="Última actualización" value={formatDateTimeInTz(selected.lastUpdateAt, timezone)} />
@@ -309,7 +355,7 @@ export function AlertsTable({
                   </div>
                 )}
                 {selected.adjustments.length > 0 && (
-                  <div className="rounded-md border bg-muted/50 p-3 text-xs">
+                  <div className="rounded-xl bg-foreground/[0.03] p-3 text-xs">
                     <p className="mb-1 font-semibold">Ajustes para evitar falsas alarmas</p>
                     <ul className="list-disc space-y-0.5 pl-4 text-muted-foreground">
                       {selected.adjustments.map((a) => (
@@ -356,13 +402,26 @@ export function AlertsTable({
           )}
         </SheetContent>
       </Sheet>
+      {novedadFor && (
+        <NovedadForm
+          open
+          onOpenChange={(o) => !o && setNovedadFor(null)}
+          today={businessToday(timezone)}
+          prefill={novedadPrefillFromAlert(novedadFor, novedadFor.incidentId)}
+          onCreated={() => {
+            setNovedadFor(null);
+            setSelected(null);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border px-2 py-1.5">
+    <div className="rounded-xl bg-foreground/[0.03] px-3 py-2">
       <p className="text-[10px] text-muted-foreground">{label}</p>
       <p className="tabular font-medium">{value}</p>
     </div>

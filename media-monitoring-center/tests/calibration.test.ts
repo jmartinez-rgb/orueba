@@ -30,7 +30,7 @@ describe("resultados que llegan con retraso (conversiones offline)", () => {
 
 describe("curva horaria estimada (la hoja solo trae el acumulado del día)", () => {
   it("las alertas que dependen del esperado a esta hora bajan un nivel", () => {
-    const base = evaluation({ spend: [50_000, 100_000], result: [250, 500] });
+    const base = evaluation({ level: "account", spend: [50_000, 100_000], result: [250, 500] });
     expect(one(base)[0].severity).toBe("CRITICAL");
     const [a] = one({ ...base, curveEstimated: true });
     expect(a.type).toBe("DELIVERY_ISSUE");
@@ -45,15 +45,18 @@ describe("curva horaria estimada (la hoja solo trae el acumulado del día)", () 
   });
 
   it("gasto en cero sigue siendo crítico aunque la curva sea estimada", () => {
-    const [a] = one({ ...evaluation({ spend: [0, 60_000], result: [0, 40] }), curveEstimated: true });
+    const [a] = one({ ...evaluation({ level: "account", spend: [0, 60_000], result: [0, 40] }), curveEstimated: true });
     expect(a.type).toBe("DELIVERY_CRITICAL");
     expect(a.severity).toBe("CRITICAL");
   });
 
   it("costo por resultado: la severidad sale del costo, no del gasto vs esperado", () => {
     // Gasto +60% vs esperado (depende de la curva) y costo por resultado +20% (no depende).
-    const base = evaluation({ spend: [160_000, 100_000], result: [667, 500] });
-    expect(one(base)[0].severity).toBe("CRITICAL");
+    const base = evaluation({ level: "platform", key: "platform:meta", spend: [160_000, 100_000], result: [667, 500] });
+    // El costo por resultado es secundario en el día: aun sin curva estimada, la plataforma llega máximo a Alerta.
+    const [raw] = one(base);
+    expect(raw.severity).toBe("ALERT");
+    expect(raw.adjustments.join(" ")).toContain("métrica secundaria");
     const [a] = one({ ...base, curveEstimated: true });
     expect(a.type).toBe("EFFICIENCY_ISSUE");
     expect(a.severity).toBe("ATTENTION");
@@ -64,23 +67,41 @@ describe("cambio sostenido de gasto", () => {
   const down = { ratio: 0.16, days: 3, direction: "down" as const };
 
   it("si hoy sigue en el nivel de los últimos días, baja a ATENCIÓN y lo explica", () => {
-    const [a] = one({ ...evaluation({ spend: [16_000, 100_000], result: [80, 500] }), sustained: down });
+    const moderate = { ratio: 0.7, days: 3, direction: "down" as const };
+    const [a] = one({ ...evaluation({ level: "account", spend: [70_000, 100_000], result: [350, 500] }), sustained: moderate });
     expect(a.severity).toBe("ATTENTION");
+    expect(a.explained).toBe("sustained");
     expect(a.adjustments.join(" ")).toContain("parece un cambio de presupuesto");
   });
 
+  it("un cambio fuerte sostenido (la mitad o menos) queda en ALERTA hasta que se explique en Novedades", () => {
+    const [a] = one({ ...evaluation({ level: "account", spend: [16_000, 100_000], result: [80, 500] }), sustained: down });
+    expect(a.severity).toBe("ALERT");
+    expect(a.explained ?? null).toBeNull();
+    expect(a.adjustments.join(" ")).toContain("regístralo en Novedades");
+  });
+
+  it("plataformas chicas también se evalúan (el mínimo es relativo a su propio gasto)", () => {
+    // 3 mil MXN esperados a las 17:00 (Bing o TikTok de ~6 mil al día) y gasta 900: antes quedaba "Normal".
+    const small = { ...evaluation({ level: "platform", key: "platform:microsoft", platform: "microsoft", spend: [900, 3_700] }), dayShare: 0.7 };
+    const [a] = one(small);
+    expect(["DELIVERY_ISSUE", "UNDERSPEND"]).toContain(a?.type);
+    expect(a?.severity).toBe("CRITICAL");
+  });
+
   it("si hoy cae además contra ese nivel, conserva la severidad de lo que cambió hoy", () => {
-    const [a] = one({ ...evaluation({ spend: [4_000, 100_000], result: [20, 500] }), sustained: down });
+    const [a] = one({ ...evaluation({ level: "account", spend: [4_000, 100_000], result: [20, 500] }), sustained: down });
     expect(a.severity).toBe("CRITICAL");
     expect(a.adjustments.join(" ")).toContain("-75.0% contra ese nivel");
   });
 
   it("'dejó de gastar' se mide contra el nivel nuevo", () => {
-    const base = evaluation({ spend: [16_000, 100_000], result: [80, 500], recentSpend: [800, 20_000] });
+    const base = evaluation({ level: "account", spend: [16_000, 100_000], result: [80, 500], recentSpend: [800, 20_000] });
     expect(one(base)[0].type).toBe("DELIVERY_CRITICAL");
     const out = one({ ...base, sustained: down });
     expect(out.some((a) => a.type === "DELIVERY_CRITICAL")).toBe(false);
-    expect(out[0].severity).toBe("ATTENTION");
+    // Nivel fuerte (-84%) sin explicar: Alerta, no Crítico.
+    expect(out[0].severity).toBe("ALERT");
   });
 
   it("detecta el nivel nuevo con los días completos recientes vs el mismo día de semanas anteriores", () => {

@@ -1,4 +1,5 @@
 import { logActivity } from "@/lib/services/activity";
+import { invalidate } from "@/lib/data/cache";
 import { z } from "zod";
 import { requirePermission, requireAuth } from "@/lib/auth/session";
 import { getAppContext } from "@/lib/services/context";
@@ -35,6 +36,9 @@ export async function PUT(req: Request) {
   try {
     const ctx = await getAppContext();
     await ctx.store.setBudget(parsed.data);
+    // El pacing del monitoreo usa estos presupuestos: la evaluación en vivo se recalcula.
+    invalidate("live:");
+    invalidate("brandstatus:");
     await logActivity(session, "BUDGET_REFERENCE", `${parsed.data.month} · ${parsed.data.level} ${parsed.data.campaignId ?? parsed.data.accountId ?? parsed.data.platform ?? "total"} = ${parsed.data.amount.toLocaleString("es-MX")} MXN`);
     return json({ ok: true });
   } catch (err) {

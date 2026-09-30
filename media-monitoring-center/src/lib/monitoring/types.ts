@@ -75,6 +75,8 @@ export interface EntityEvaluation extends EntityRef {
   resultLagging?: boolean;
   /** Gasto de los últimos días completos en un nivel distinto al de semanas anteriores (cambio sostenido). */
   sustained?: SustainedLevel | null;
+  /** Gasto de ayer vs su referencia (1 = normal): un apagado de hoy es "de golpe" solo si ayer gastaba. */
+  previousDayRatio?: number | null;
 }
 
 export interface SustainedLevel {
@@ -108,6 +110,45 @@ export interface AnomalyEvidence {
   deviation: number | null;
 }
 
+/** Cómo se comportó cada campaña de una cuenta o plataforma frente a su esperado. */
+export type BreakdownKind = "paused" | "stopped" | "down" | "up" | "new" | "steady";
+
+export interface BreakdownItem {
+  campaignId: string;
+  campaignName: string;
+  accountName: string | null;
+  kind: BreakdownKind;
+  current: number;
+  expected: number;
+  /** Estado tal como lo reporta la plataforma (si la hoja lo trae). */
+  statusText: string | null;
+}
+
+/**
+ * Lectura de una caída o subida de gasto: qué campañas se apagaron, cuáles bajaron o subieron
+ * y cuáles son nuevas. Responde "¿qué pasó?" y decide si la alerta es grave o esperada.
+ */
+export type BreakdownVerdict = "mass_stop" | "planned_stop" | "partial_stop" | "rotation" | "mixed" | "running_change" | "launch";
+
+export interface SpendBreakdown {
+  /** "day" = acumulado del día; "recent" = ventana desde la evaluación anterior. */
+  window: "day" | "recent";
+  campaigns: number;
+  current: number;
+  expected: number;
+  groups: Record<BreakdownKind, { count: number; current: number; expected: number }>;
+  /** Parte del gasto esperado que corresponde a campañas detenidas (pausadas o sin gasto). */
+  stoppedShare: number;
+  /** Desviación de las campañas que siguen gastando, sin contar las detenidas ni las nuevas. */
+  restDeviation: number | null;
+  verdict: BreakdownVerdict;
+  summary: string;
+  top: BreakdownItem[];
+}
+
+/** Por qué una alerta se considera esperada (no abre incidente por persistir). */
+export type ExplainedBy = "planned_stop" | "rotation" | "reallocation" | "sustained" | "launch";
+
 export interface Anomaly extends EntityRef {
   /** Huella estable: misma entidad + misma familia = misma anomalía entre corridas. */
   fingerprint: string;
@@ -129,6 +170,18 @@ export interface Anomaly extends EntityRef {
   cutoffHour: number;
   /** Si se agrupó bajo un incidente de plataforma, su huella. */
   groupedUnder: string | null;
+  /** Desglose por campaña (solo caídas o subidas de gasto de cuenta o plataforma). */
+  breakdown?: SpendBreakdown | null;
+  explained?: ExplainedBy | null;
+}
+
+/** Anomalía que no se alerta porque el equipo autorizó el cambio. */
+export interface SilencedAnomaly {
+  anomaly: Anomaly;
+  authorizationId: string;
+  by: string;
+  reason: string;
+  until: string;
 }
 
 export interface PlatformStatusInfo {
@@ -188,4 +241,6 @@ export interface MonitoringRun {
   totalCutoffHour: number;
   /** Plataformas monitoreadas, en orden (las demás tienen estado neutro y no se muestran). */
   platforms: PlatformId[];
+  /** Anomalías silenciadas por un cambio autorizado vigente. */
+  silenced?: SilencedAnomaly[];
 }

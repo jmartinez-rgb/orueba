@@ -20,7 +20,7 @@ import type { RunSummary } from "@/lib/state/store";
 import { overallConfidence, platformConfidence, summarizeExecution, type ConfidenceResult, type ExecutionSummary } from "@/lib/monitoring/confidence";
 import type { CurrencyReport } from "@/lib/data/currency";
 import { PLATFORMS } from "@/lib/platforms/registry";
-import { getAppContext, type AppContext } from "./context";
+import { getAppContext, monitoringInput, type AppContext } from "./context";
 import { SheetsDataSource } from "@/lib/sheets/sheets-source";
 import type { BrandId, BrandInfo } from "@/lib/brands";
 
@@ -130,7 +130,7 @@ async function mockReplay(ctx: AppContext, asOf: Date): Promise<{ state: AlertSt
     const runs: RunSummary[] = [];
     for (const t of times) {
       const started = Date.now();
-      const run = await runMonitoring(ctx.source, { settings: ctx.settings, asOf: t });
+      const run = await runMonitoring(ctx.source, await monitoringInput(ctx, t));
       const result = reconcile(state, run, { settings: ctx.settings, notify: true, whatsapp: env.whatsapp, brand: ctx.brandInfo });
       // En mock las notificaciones quedan como SIMULATED (lo que n8n habría enviado).
       const sentIds = new Set(result.notifications.map((n) => n.id));
@@ -279,7 +279,7 @@ export async function buildSnapshot(ctx: AppContext): Promise<Snapshot> {
   const tz = ctx.settings.timezone;
   const minuteKey = Math.floor(asOf.getTime() / 60000);
   const liveKey = `live:${ctx.mode}:${ctx.scenario?.id}:${ctx.settingsHash}:${minuteKey}`;
-  const run = await cached(liveKey, 60 * 1000, () => runMonitoring(ctx.source, { settings: ctx.settings, asOf }));
+  const run = await cached(liveKey, 60 * 1000, async () => runMonitoring(ctx.source, await monitoringInput(ctx, asOf)));
 
   let { state: base, runs: allRuns } = await baseAlertState(ctx, asOf, run.businessDate);
   // Vista previa en vivo: actualiza alertas/incidentes con la evaluación de este momento, sin notificar.

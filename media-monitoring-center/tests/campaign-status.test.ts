@@ -95,26 +95,36 @@ describe("caídas explicadas por campañas pausadas", () => {
     expect(top([platform([40_000, 100_000])])?.severity).toBe("CRITICAL");
   });
 
+  const active = (id: string, spend: [number, number]) => campaign(id, spend, { status: "ACTIVE", statusSource: "platform", statusText: "ACTIVE" });
+
   it("una pausa intencional que explica la caída la deja en atención, con la explicación", () => {
     const paused = campaign("p1", [0, 55_000], { status: "PAUSED", statusSource: "platform", statusText: "PAUSED", statusIssue: false });
-    const a = top([platform([40_000, 100_000]), paused]);
+    const a = top([platform([40_000, 100_000]), paused, active("a1", [40_000, 45_000])]);
     expect(a?.severity).toBe("ATTENTION");
-    expect(a?.adjustments.join(" ")).toContain("pausada o terminada");
+    expect(a?.explained).toBe("planned_stop");
+    expect(a?.breakdown?.verdict).toBe("planned_stop");
+    expect(a?.adjustments.join(" ")).toContain("pausada en Meta explican la caída");
   });
 
   it("si la pausa explica solo una parte, la severidad sale del resto", () => {
     const paused = campaign("p1", [0, 20_000], { status: "PAUSED", statusSource: "platform", statusText: "PAUSED", statusIssue: false });
-    // Sin la pausada: 40k vs 80k esperados = -50% → sigue crítica; con 20k más de pausa: 40k vs 60k = -33% → alerta.
-    expect(top([platform([40_000, 100_000]), paused])?.severity).toBe("CRITICAL");
+    // Las activas: 40k vs 80k esperados = -50% → sigue crítica; con 40k de pausa: 40k vs 60k = -33% → alerta.
+    expect(top([platform([40_000, 100_000]), paused, active("a1", [40_000, 80_000])])?.severity).toBe("CRITICAL");
     const bigger = campaign("p2", [0, 40_000], { status: "PAUSED", statusSource: "platform", statusText: "PAUSED", statusIssue: false });
-    expect(top([platform([40_000, 100_000]), bigger])?.severity).toBe("ALERT");
+    const a = top([platform([40_000, 100_000]), bigger, active("a1", [40_000, 60_000])]);
+    expect(a?.severity).toBe("ALERT");
+    expect(a?.breakdown?.verdict).toBe("mixed");
   });
 
   it("una pausa por presupuesto agotado o deducida por gasto no explica nada", () => {
+    // Sin confirmación de pausa planeada: apagado parcial (≥ 50% del esperado) → Alerta, nunca Atención.
     const budget = campaign("p1", [0, 55_000], { status: "PAUSED", statusSource: "platform", statusText: "BudgetPaused", statusIssue: true });
-    expect(top([platform([40_000, 100_000]), budget])?.severity).toBe("CRITICAL");
-    const inferred = campaign("p2", [0, 55_000], { status: "PAUSED", statusSource: "spend" });
-    expect(top([platform([40_000, 100_000]), inferred])?.severity).toBe("CRITICAL");
+    const a = top([platform([40_000, 100_000]), budget, active("a1", [40_000, 45_000])]);
+    expect(a?.breakdown?.verdict).toBe("partial_stop");
+    expect(a?.severity).toBe("ALERT");
+    expect(a?.explained ?? null).toBeNull();
+    const inferred = campaign("p2", [0, 55_000], { status: "ACTIVE", statusSource: "spend" });
+    expect(top([platform([40_000, 100_000]), inferred, active("a1", [40_000, 45_000])])?.severity).toBe("ALERT");
   });
 
   it("activa en la plataforma pero sin gasto desde ayer: alerta, no crítico", () => {

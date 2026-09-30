@@ -18,13 +18,15 @@ import { Sidebar, type NavCounts } from "./sidebar";
 import { Topbar } from "./topbar";
 import { AutoRefresh } from "./auto-refresh";
 import { CriticalAlertGate } from "@/components/monitoring/critical-alert-gate";
+import { MonthGate } from "@/components/novedades/month-gate";
+import { getKickoff } from "@/lib/records/novedades";
 import { DATA_MODE_LABEL } from "@/lib/platforms/registry";
 import type { DataMode } from "@/lib/types";
 
 /** Estructura común: sidebar + barra superior. Si el snapshot falla, la app sigue navegable. */
 export async function AppShell({ children, session }: { children: ReactNode; session: Session }) {
   const env = getEnv();
-  let counts: NavCounts = { alerts: 0, incidents: 0, tickets: 0, feedback: 0, alertsSeverity: "NORMAL", incidentsSeverity: "NORMAL", ticketsSeverity: "NORMAL" };
+  let counts: NavCounts = { alerts: 0, incidents: 0, tickets: 0, feedback: 0, novedades: 0, alertsSeverity: "NORMAL", incidentsSeverity: "NORMAL", ticketsSeverity: "NORMAL", novedadesSeverity: "NORMAL" };
   let overall: Severity | null = null;
   let cutoffLabel: string | null = null;
   let timezone = baseSettings().timezone;
@@ -50,14 +52,19 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
     const snap = snapResult.s;
     const activeAlerts = snap.state.alerts.filter((a) => a.resolvedAt === null && !a.groupedUnder && a.status !== "FALSE_POSITIVE");
     const openIncidents = snap.state.incidents.filter((i) => i.resolvedAt === null);
+    // Novedades: pendientes por iniciar del arranque del mes (o 1 si el arranque falta).
+    const kickoff = await getKickoff(snap.meta.brand.id, snap.run.businessDate.slice(0, 7)).catch(() => null);
+    const pendingStarts = kickoff ? kickoff.items.filter((i) => i.state === "PENDING" && !i.startedAt).length : 0;
     counts = {
       alerts: activeAlerts.length,
       incidents: openIncidents.length,
       tickets: tickets.open,
       feedback: feedbackNew,
+      novedades: kickoff ? pendingStarts : 1,
       alertsSeverity: maxSeverity(...activeAlerts.map((a) => a.severity)),
       incidentsSeverity: maxSeverity(...openIncidents.map((i) => i.severity)),
       ticketsSeverity: tickets.severity,
+      novedadesSeverity: kickoff ? "ATTENTION" : "ALERT",
     };
     overall = snap.overall;
     cutoffLabel = hourLabel(snap.meta.cutoffHour);
@@ -131,6 +138,7 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
       </div>
       <AutoRefresh />
       <CriticalAlertGate userName={session.user.name} canTicket={hasPermission(session, "tickets:write")} />
+      <MonthGate key={brand} canKickoff={hasPermission(session, "kickoff:write")} userId={session.user.id} />
     </div>
   );
 }

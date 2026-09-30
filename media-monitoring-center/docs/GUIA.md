@@ -182,6 +182,32 @@ plataforma (en Campañas se ve junto a su texto original; sin la columna dice "p
 - **Activa en la plataforma pero sin gasto desde ayer**: queda como Alerta (no Crítico), con la
   sugerencia de revisar conjuntos, anuncios, pago o aprobación.
 
+## Cuándo alerta y cuándo no
+
+Criterios para no llenar de alertas (medidos con los datos reales de septiembre: de ~27 alertas
+visibles por día a ~12, de las que ~7 piden acción; de 27 críticos en tres semanas a 1):
+
+1. **Crítico solo para una cuenta o plataforma completa.** Una campaña sola llega como máximo a
+   Alerta y solo si pesa al menos 5% del gasto esperado de su plataforma; las demás se ven dentro de
+   la alerta de su cuenta (desglose "¿Qué pasó?") y en Campañas.
+2. **Apagado masivo = Crítico**, aunque sean pausas: casi todo el gasto esperado de una cuenta o
+   plataforma se detuvo de golpe (ayer sí gastaba). Si ya venía apagada, baja a Alerta hasta que se
+   registre en Novedades.
+3. **Caída explicada por pausas** confirmadas en la plataforma o **rotación de campañas** (se apagan
+   unas y arrancan otras) con el resto normal: Atención, con el desglose.
+4. **Reasignación entre cuentas**: una cuenta baja, otra de la misma plataforma sube y el total va
+   normal: Atención.
+5. **Cambio sostenido**: si lleva 3 días en otro nivel, se mide contra ese nivel. Si el cambio es
+   fuerte (la mitad o el doble), sigue en Alerta hasta que se explique en Novedades.
+6. **Plataformas chicas también se vigilan**: el mínimo de volumen es relativo a su propio gasto
+   (antes Bing o TikTok con 5-6 mil al día nunca alertaban).
+7. **Costo por resultado es secundario** en el día: máximo Alerta en plataforma y Atención en cuenta.
+8. **Sobreinversión** de una cuenta o campaña: máximo Alerta / Atención; el riesgo de pasarse se
+   vigila contra presupuesto.
+9. **Novedades vigentes** silencian su alcance (salvo que empeore).
+10. **Incidentes**: se abren desde Alerta, o por Atención persistente solo en cuenta o plataforma y
+    cuando el cambio no está explicado.
+
 ## Clasificadores de estrategia
 
 Replican las fórmulas de la hoja: se evalúan **en orden** y gana la primera coincidencia. Igual que
@@ -244,6 +270,30 @@ contraseña*). Detalle en `docs/AUTH.md`.
 ¿Algo no funciona o se te ocurre una mejora? Menú de usuario → *Reportar bug o sugerencia* (o
 Ayuda → Bugs y sugerencias). Escribe qué pasó o la idea, la sección y el impacto. Solo el
 administrador lo recibe; tú ves el estado y su respuesta en "Mis envíos".
+
+## Novedades y arranque de mes
+
+**Novedades** es la bitácora de ajustes aprobados durante el mes: cambios de presupuesto, pausas o
+apagados, activaciones, cambios de plataforma o de estrategia. Cada novedad guarda qué se ajustó, en
+qué alcance (plataforma, cuenta o campaña), **quién lo aprobó**, **por qué medio** (WhatsApp, correo,
+llamada, reunión…) y desde cuándo aplica. Nunca se borra: se cierra.
+
+El monitoreo las toma en cuenta:
+
+- Mientras una novedad está vigente, los cambios de gasto de su alcance **no generan alertas ni
+  incidentes** (quedan en "Lo que el monitoreo está tomando en cuenta hoy").
+- Si el gasto empeora más de 10 puntos por debajo del cambio esperado, o si se apaga todo el alcance
+  sin que la novedad lo haya aprobado, **vuelve a alertar** y lo explica.
+- Un **ajuste de presupuesto** reemplaza el presupuesto del alcance para el mes y el pacing lo usa
+  desde ese día.
+- Desde cualquier alerta o incidente: **Registrar novedad** llega con el alcance y el cambio ya
+  llenos; el incidente se cierra con la explicación.
+
+**Arranque de mes** (obligatorio): el día 1 un administrador o co-administrador captura los
+presupuestos de cada plataforma y marca qué campañas están **activas**, **pendientes por iniciar**
+(con su fecha) o **no corren** este mes. Hasta que se confirme, un aviso que no se puede cerrar se lo
+pide al entrar. Lo pendiente por iniciar no se alerta como campaña sin gasto, se recuerda **una vez
+al día** y se marca solo como iniciado cuando empieza a gastar (queda como novedad).
 
 ## Tickets
 

@@ -7,7 +7,7 @@ import { dispatchNotifications } from "@/lib/alerts/dispatcher";
 import { logger } from "@/lib/logging/logger";
 import { businessDate } from "@/lib/time/tz";
 import { baseAlertState, summarizeRun } from "./snapshot";
-import { getAppContext, type AppContext } from "./context";
+import { getAppContext, monitoringInput, type AppContext } from "./context";
 import { BRAND_IDS } from "@/lib/brands";
 
 /**
@@ -28,7 +28,7 @@ export async function evaluateNow(ctx: AppContext, opts: { dryRun: boolean; trig
     invalidateMatching((k) => (k.startsWith("bq:hourly") || k.startsWith("bq:freshness") || k.startsWith("bq:quality")) && (k.endsWith(today) || k.startsWith("bq:freshness") || k.startsWith("bq:quality")));
   }
 
-  const run = await runMonitoring(ctx.source, { settings: ctx.settings, asOf });
+  const run = await runMonitoring(ctx.source, await monitoringInput(ctx, asOf));
   const mock = ctx.mode === "mock";
   // Estado previo: replay de las corridas programadas (mock) o el persistido en BigQuery (sin caché).
   const base = mock ? (await baseAlertState(ctx, asOf, run.businessDate)).state : await ctx.store.loadAlertState();

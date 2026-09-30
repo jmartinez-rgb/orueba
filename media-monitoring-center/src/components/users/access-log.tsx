@@ -31,6 +31,9 @@ const LABEL: Record<AuditType, string> = {
   USER_DELETED: "Cuenta eliminada",
   PASSWORD_CHANGED: "Contraseña cambiada",
   UNIVERSAL_UPDATED: "Contraseña universal",
+  NOVEDAD_CREATED: "Novedad",
+  NOVEDAD_UPDATED: "Novedad actualizada",
+  KICKOFF_CONFIRMED: "Arranque de mes",
 };
 
 const TONE: Partial<Record<AuditType, string>> = {

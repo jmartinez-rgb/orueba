@@ -83,7 +83,7 @@ export default async function OverviewPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            <AlertsTable rows={alerts} timezone={tz} canWrite={canWrite} compact limit={8} attention={attention} />
+            <AlertsTable rows={alerts} timezone={tz} canWrite={canWrite} canNovedad={meta.permissions.includes("novedades:write")} compact limit={8} attention={attention} />
           </CardContent>
         </Card>
         <Card className="xl:col-span-2">
@@ -97,7 +97,7 @@ export default async function OverviewPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            <IncidentsTable incidents={snap.state.incidents} alerts={snap.state.alerts.filter((a) => a.incidentId !== null)} notifications={[]} timezone={tz} asOf={meta.asOf} canWrite={canWrite} compact attention={attention} />
+            <IncidentsTable incidents={snap.state.incidents} alerts={snap.state.alerts.filter((a) => a.incidentId !== null)} notifications={[]} timezone={tz} asOf={meta.asOf} canWrite={canWrite} canNovedad={meta.permissions.includes("novedades:write")} compact attention={attention} />
           </CardContent>
         </Card>
       </div>

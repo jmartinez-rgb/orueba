@@ -25,26 +25,30 @@ describe("reglas de patrón", () => {
   });
 
   it("CASO 2: gasto normal y resultados ↓ → PERFORMANCE ISSUE (o TRACKING si el tráfico no cae y la caída es severa)", () => {
-    const [p] = one(evaluation({ spend: [100_000, 100_000], result: [400, 500], clicks: [9_000, 10_000] }));
+    const [p] = one(evaluation({ level: "account", spend: [100_000, 100_000], result: [400, 500], clicks: [9_000, 10_000] }));
     expect(p.type).toBe("PERFORMANCE_ISSUE");
-    const [t] = one(evaluation({ spend: [100_000, 100_000], result: [250, 500], clicks: [10_000, 10_000] }));
+    const [t] = one(evaluation({ level: "account", spend: [100_000, 100_000], result: [250, 500], clicks: [10_000, 10_000] }));
     expect(t.type).toBe("TRACKING_ISSUE");
   });
 
   it("CASO 3: gasto ↑ sin resultados proporcionales → EFFICIENCY ISSUE", () => {
-    const [a] = one(evaluation({ spend: [140_000, 100_000], result: [500, 500] }));
+    const [a] = one(evaluation({ level: "account", spend: [140_000, 100_000], result: [500, 500] }));
     expect(a.type).toBe("EFFICIENCY_ISSUE");
   });
 
   it("gasto ↑ con resultados que acompañan → SOBREINVERSIÓN", () => {
-    const [a] = one(evaluation({ spend: [135_000, 100_000], result: [670, 500] }));
+    const [a] = one(evaluation({ level: "account", spend: [135_000, 100_000], result: [670, 500] }));
     expect(a.type).toBe("OVERSPEND");
   });
 
-  it("CASO 4: campaña activa con gasto 0 → DELIVERY CRITICAL", () => {
-    const [a] = one(evaluation({ spend: [0, 60_000], result: [0, 40] }));
-    expect(a.type).toBe("DELIVERY_CRITICAL");
-    expect(a.severity).toBe("CRITICAL");
+  it("CASO 4: gasto 0 → DELIVERY CRITICAL: crítico en cuenta o plataforma, alerta en una campaña sola", () => {
+    const [acc] = one(evaluation({ level: "account", spend: [0, 60_000], result: [0, 40] }));
+    expect(acc.type).toBe("DELIVERY_CRITICAL");
+    expect(acc.severity).toBe("CRITICAL");
+    const [camp] = one(evaluation({ spend: [0, 60_000], result: [0, 40] }));
+    expect(camp.type).toBe("DELIVERY_CRITICAL");
+    expect(camp.severity).toBe("ALERT");
+    expect(camp.adjustments.join(" ")).toContain("Una campaña sola sin gasto");
   });
 
   it("CASO 5: varias campañas caen a la vez → PLATFORM INCIDENT y las campañas se agrupan", () => {
@@ -60,7 +64,7 @@ describe("reglas de patrón", () => {
   });
 
   it("CASO 6: gasto normal y conversiones = 0 → TRACKING ISSUE crítico", () => {
-    const [a] = one(evaluation({ spend: [98_000, 100_000], result: [0, 60] }));
+    const [a] = one(evaluation({ level: "account", spend: [98_000, 100_000], result: [0, 60] }));
     expect(a.type).toBe("TRACKING_ISSUE");
     expect(a.severity).toBe("CRITICAL");
   });
@@ -88,14 +92,20 @@ describe("no solo porcentajes", () => {
   });
 
   it("horas tempranas: la severidad baja un nivel", () => {
-    const [a] = one(evaluation({ spend: [66_000, 100_000], result: [320, 500], cutoffHour: 6 }));
+    const [a] = one(evaluation({ level: "account", spend: [66_000, 100_000], result: [320, 500], cutoffHour: 6 }));
     expect(a.severity).toBe("ATTENTION");
     expect(a.adjustments.join(" ")).toMatch(/Pocas horas/);
   });
 
   it("una campaña pequeña no pinta de rojo toda su plataforma", () => {
     const [a] = one(evaluation({ spend: [0, 60_000], result: [0, 40], share: 0.05 }));
-    expect(a.severity).toBe("CRITICAL");
+    expect(a.severity).toBe("ALERT");
     expect(platformImpactSeverity(a, DEFAULT_SETTINGS)).toBe("ATTENTION");
+  });
+
+  it("una campaña con poco peso en su plataforma no genera alerta propia", () => {
+    expect(one(evaluation({ spend: [0, 60_000], result: [0, 40], share: 0.02 }))).toHaveLength(0);
+    // Atención a nivel campaña tampoco: se ve dentro de su cuenta y en Campañas.
+    expect(one(evaluation({ spend: [80_000, 100_000], result: [400, 500], share: 0.3 }))).toHaveLength(0);
   });
 });

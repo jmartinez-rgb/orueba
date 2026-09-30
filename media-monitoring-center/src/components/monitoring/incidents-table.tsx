@@ -17,7 +17,9 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { DeltaText, PlatformMark, SeverityBadge, SEVERITY_META } from "./status";
-import { AlertStatusBadge } from "./alerts-table";
+import { AlertStatusBadge, ExplainedChip } from "./alerts-table";
+import { NovedadForm } from "@/components/novedades/novedad-form";
+import { novedadPrefillFromAlert, SpendBreakdownView } from "@/components/novedades/spend-breakdown";
 import { StateMessage } from "./states";
 
 const STATUS_LABEL: Record<Incident["status"], string> = { OPEN: "Abierto", ACKNOWLEDGED: "Reconocido", INVESTIGATING: "En revisión", RESOLVED: "Resuelto" };
@@ -130,7 +132,10 @@ export function IncidentsTable({
   compact,
   attention = 0.15,
   initialTab = "open",
+  canNovedad = false,
 }: {
+  /** Puede registrar el incidente como novedad aprobada (el monitoreo deja de alertarlo). */
+  canNovedad?: boolean;
   incidents: Incident[];
   /** Alertas ligadas a incidentes: el panel muestra las que formaron cada uno. */
   alerts?: Alert[];
@@ -167,6 +172,8 @@ export function IncidentsTable({
   const selected = incidents.find((i) => i.id === selectedId) ?? null;
   const selNotifications = selected ? notifications.filter((n) => n.incidentId === selected.id) : [];
   const selAlerts = selected ? incidentAlerts(selected, alerts) : [];
+  const mainAlert = selected ? (selAlerts.find((a) => a.id === selected.alertId) ?? null) : null;
+  const [novedadOpen, setNovedadOpen] = useState(false);
 
   async function patch(body: Record<string, unknown>) {
     if (!selected) return;
@@ -306,6 +313,12 @@ export function IncidentsTable({
                   <Info label="Notificaciones" value={String(selected.notification.count)} />
                 </div>
 
+                {mainAlert?.explained && <ExplainedChip by={mainAlert.explained} />}
+                {mainAlert?.breakdown && (
+                  <div className="rounded-xl bg-foreground/[0.03] p-3.5">
+                    <SpendBreakdownView breakdown={mainAlert.breakdown} />
+                  </div>
+                )}
                 <div>
                   <p className="mb-2 text-[13px] font-semibold text-foreground">
                     Alertas del incidente <span className="font-normal text-muted-foreground">({selAlerts.length})</span>
@@ -380,6 +393,17 @@ export function IncidentsTable({
                     </ul>
                   )}
                 </div>
+                {canNovedad && selected.resolvedAt === null && mainAlert && (
+                  <div className="flex items-center justify-between gap-3 rounded-xl bg-foreground/[0.03] px-3 py-2.5">
+                    <div className="text-xs">
+                      <p className="font-semibold">¿Fue un cambio aprobado?</p>
+                      <p className="text-muted-foreground">Regístralo como novedad: queda quién lo aprobó y por qué medio, y el incidente se cierra.</p>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => setNovedadOpen(true)}>
+                      Registrar novedad
+                    </Button>
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-3 rounded-xl bg-foreground/[0.03] px-3 py-2.5">
                   <div className="text-xs">
                     <p className="font-semibold">¿El problema es grave?</p>
@@ -420,6 +444,19 @@ export function IncidentsTable({
           )}
         </SheetContent>
       </Sheet>
+      {novedadOpen && selected && mainAlert && (
+        <NovedadForm
+          open
+          onOpenChange={setNovedadOpen}
+          today={new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())}
+          prefill={novedadPrefillFromAlert(mainAlert, selected.id)}
+          onCreated={() => {
+            setNovedadOpen(false);
+            setSelectedId(null);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -15,9 +15,12 @@ export interface NavCounts {
   tickets: number;
   /** Bugs y sugerencias nuevos (solo el administrador los ve). */
   feedback: number;
+  /** Pendientes por iniciar del arranque del mes (1 si falta el arranque). */
+  novedades: number;
   alertsSeverity: Severity;
   incidentsSeverity: Severity;
   ticketsSeverity: Severity;
+  novedadesSeverity: Severity;
 }
 
 export function BrandMark({ collapsed, brandName = "izzi" }: { collapsed?: boolean; brandName?: string }) {
@@ -59,7 +62,16 @@ export function NavList({ counts, permissions, collapsed, onNavigate }: { counts
               const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
               const Icon = item.icon;
               const count = item.badge ? counts[item.badge] : 0;
-              const sev = item.badge === "alerts" ? counts.alertsSeverity : item.badge === "tickets" ? counts.ticketsSeverity : item.badge === "feedback" ? "ATTENTION" : counts.incidentsSeverity;
+              const sev =
+                item.badge === "alerts"
+                  ? counts.alertsSeverity
+                  : item.badge === "tickets"
+                    ? counts.ticketsSeverity
+                    : item.badge === "feedback"
+                      ? "ATTENTION"
+                      : item.badge === "novedades"
+                        ? counts.novedadesSeverity
+                        : counts.incidentsSeverity;
               return (
                 <Link
                   key={item.href}

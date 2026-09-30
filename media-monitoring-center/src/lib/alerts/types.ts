@@ -1,5 +1,5 @@
 import type { EntityLevel, MetricId, PlatformId, Severity } from "@/lib/types";
-import type { AnomalyEvidence, AnomalyFamily, AnomalyType } from "@/lib/monitoring/types";
+import type { AnomalyEvidence, AnomalyFamily, AnomalyType, ExplainedBy, SpendBreakdown } from "@/lib/monitoring/types";
 
 export type AlertStatus = "NEW" | "ACKNOWLEDGED" | "INVESTIGATING" | "RESOLVED" | "FALSE_POSITIVE";
 export const ALERT_STATUSES: AlertStatus[] = ["NEW", "ACKNOWLEDGED", "INVESTIGATING", "RESOLVED", "FALSE_POSITIVE"];
@@ -43,6 +43,39 @@ export interface Alert extends EntityFields {
   cutoffHour: number;
   /** Participación en el gasto esperado de su plataforma (materialidad). */
   expectedSpendShare: number | null;
+  /** ¿Qué pasó? Desglose por campaña de una caída o subida de gasto. */
+  breakdown?: SpendBreakdown | null;
+  explained?: ExplainedBy | null;
+}
+
+/**
+ * Cambio autorizado por el equipo (p. ej. apagar campañas a propósito): mientras esté vigente,
+ * la anomalía de ese alcance no se alerta. Vuelve a alertar si empeora más allá de lo autorizado.
+ */
+export interface Authorization {
+  id: string;
+  /** Huella de la anomalía autorizada (entidad + familia). */
+  fingerprint: string;
+  level: EntityLevel;
+  platform: PlatformId;
+  accountId: string | null;
+  accountName: string | null;
+  campaignId: string | null;
+  campaignName: string | null;
+  family: AnomalyFamily;
+  title: string;
+  /** Desviación al autorizar: si empeora más de worsenDeltaPts, vuelve a alertar. */
+  deviation: number | null;
+  /** Si al autorizar ya era un apagado masivo (si no, un apagado masivo posterior vuelve a alertar). */
+  massStop: boolean;
+  reason: string;
+  authorizedBy: string;
+  createdBy: string;
+  createdAt: string;
+  until: string;
+  revokedAt: string | null;
+  revokedBy: string | null;
+  incidentId: string | null;
 }
 
 export type IncidentEventKind =

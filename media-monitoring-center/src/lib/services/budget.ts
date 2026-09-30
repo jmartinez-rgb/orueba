@@ -85,8 +85,11 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
     ctx.store.getOverrides(),
   ]);
   const budgetMap = new Map<string, BudgetRow>();
+  // Capas: hoja → arranque de mes → capturados en la app → ajustes aprobados en novedades.
   for (const b of sourceBudgets) budgetMap.set(keyOf(b), b);
+  for (const b of ctx.plan.kickoffBudgets.filter((o) => o.month === month)) budgetMap.set(keyOf(b), b);
   for (const b of overrides.budgets.filter((o) => o.month === month)) budgetMap.set(keyOf(b), b);
+  for (const b of ctx.plan.novedadBudgets.filter((o) => o.month === month)) budgetMap.set(keyOf(b), b);
 
   const catalog = snap.catalog;
   const accountName = new Map(catalog.accounts.map((a) => [a.id, a.name]));

@@ -53,7 +53,7 @@ export default async function AlertsPage() {
       </div>
       <Card>
         <CardContent className="pt-4">
-          <AlertsTable rows={rows} timezone={snap.meta.timezone} canWrite={snap.meta.permissions.includes("alerts:write")} attention={snap.settings.thresholds.attention} whatsappPreview={whatsappPreview} />
+          <AlertsTable rows={rows} timezone={snap.meta.timezone} canWrite={snap.meta.permissions.includes("alerts:write")} canNovedad={snap.meta.permissions.includes("novedades:write")} attention={snap.settings.thresholds.attention} whatsappPreview={whatsappPreview} />
         </CardContent>
       </Card>
     </div>

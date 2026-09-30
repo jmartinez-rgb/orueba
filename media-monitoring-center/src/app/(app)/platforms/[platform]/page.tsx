@@ -320,7 +320,7 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
             <CardTitle>Alerts</CardTitle>
           </CardHeader>
           <CardContent>
-            <AlertsTable rows={alertRows(snap).filter((a) => a.platform === p)} timezone={tz} canWrite={meta.permissions.includes("alerts:write")} compact attention={attention} />
+            <AlertsTable rows={alertRows(snap).filter((a) => a.platform === p)} timezone={tz} canWrite={meta.permissions.includes("alerts:write")} canNovedad={meta.permissions.includes("novedades:write")} compact attention={attention} />
           </CardContent>
         </Card>
         <Card>
@@ -328,7 +328,7 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
             <CardTitle>Incidents</CardTitle>
           </CardHeader>
           <CardContent>
-            <IncidentsTable incidents={snap.state.incidents.filter((i) => i.platform === p)} alerts={snap.state.alerts.filter((a) => a.incidentId !== null && a.platform === p)} notifications={snap.state.notifications} timezone={tz} asOf={meta.asOf} canWrite={meta.permissions.includes("incidents:write")} compact attention={attention} />
+            <IncidentsTable incidents={snap.state.incidents.filter((i) => i.platform === p)} alerts={snap.state.alerts.filter((a) => a.incidentId !== null && a.platform === p)} notifications={snap.state.notifications} timezone={tz} asOf={meta.asOf} canWrite={meta.permissions.includes("incidents:write")} canNovedad={meta.permissions.includes("novedades:write")} compact attention={attention} />
           </CardContent>
         </Card>
       </div>

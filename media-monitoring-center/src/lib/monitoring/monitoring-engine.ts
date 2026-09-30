@@ -6,9 +6,12 @@ import { addMetrics, emptyMetrics, OBJECTIVE_KPI, type Kpi } from "@/lib/metrics
 import { PLATFORMS, platformKpi } from "@/lib/platforms/registry";
 import { addDays, businessDate, daysInMonth, hourLabel, monthOf, sameWeekdayDates, zonedParts } from "@/lib/time/tz";
 import { detectAnomalies, platformImpactSeverity } from "@/lib/anomaly-engine/anomaly-engine";
+import { applyAuthorizations } from "@/lib/alerts/authorizations";
+import type { Authorization } from "@/lib/alerts/types";
+import { mergeBudgets, type DeclaredCampaign } from "@/lib/novedades/plan";
 import { maxSeverity, severityRank } from "@/lib/anomaly-engine/severity";
 import { compareWindow, cumulativeByHour, windowTotals, type HourlySeries } from "./historical-comparator";
-import { sustainedLevel } from "./sustained";
+import { previousDayRatio, sustainedLevel } from "./sustained";
 import { buildHourlyCurve, dailyPacing } from "./pacing-engine";
 import { buildPlatformDataHealth, evaluateFreshness, type FreshnessEvaluation, type PlatformDataHealth } from "./data-health";
 import type { CurvePoint, DailyPacing, EntityEvaluation, MonitoringRun, PlatformStatusInfo, ScopeCurves, SustainedLevel } from "./types";
@@ -45,6 +48,12 @@ const LEVEL_RANK = { platform: 0, account: 1, campaign: 2 } as const;
 export interface MonitoringInput {
   settings: MonitoringSettings;
   asOf: Date;
+  /** Cambios autorizados por el equipo: silencian las anomalías que cubren mientras estén vigentes. */
+  authorizations?: Authorization[];
+  /** Campañas que el equipo declaró detenidas (arranque de mes, pausas aprobadas). */
+  declaredCampaigns?: Record<string, DeclaredCampaign>;
+  /** Presupuestos del arranque de mes, capturados en la app y ajustes aprobados (en ese orden, sobre los de la fuente). */
+  extraBudgets?: BudgetRow[][];
 }
 
 export async function runMonitoring(source: MonitoringDataSource, input: MonitoringInput): Promise<MonitoringRun> {
@@ -62,7 +71,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
   const interval = settings.schedule.intervalHours;
 
   const sustainedDays = settings.detection.sustainedDays;
-  const [catalog, freshness, quality, rows, budgets, recentDaily, estimated] = await Promise.all([
+  const [sourceCatalog, freshness, quality, rows, sourceBudgets, recentDaily, estimated] = await Promise.all([
     source.getCatalog(),
     source.getFreshness(asOf),
     source.getDataQuality(date),
@@ -73,6 +82,16 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     source.estimatedHourly?.(date) ?? Promise.resolve([] as PlatformId[]),
   ]);
   const estimatedCurve = new Set<PlatformId>(estimated);
+  const budgets = mergeBudgets(sourceBudgets, ...(input.extraBudgets ?? []));
+  // Lo que el equipo declaró detenido (arranque de mes, pausas aprobadas) cuenta como pausa a propósito.
+  const declared = input.declaredCampaigns ?? {};
+  const catalog = {
+    ...sourceCatalog,
+    campaigns: sourceCatalog.campaigns.map((c) => {
+      const d = declared[c.id];
+      return d ? { ...c, status: d.status, statusText: d.text, statusSource: "platform" as const, statusIssue: false, statusSilent: false } : c;
+    }),
+  };
 
   // 1) Frescura por plataforma y por cuenta (antes de cualquier análisis de rendimiento).
   const recordFor = (p: PlatformId, accountId: string | null): FreshnessRecord | undefined =>
@@ -150,6 +169,12 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     addDaily(`account:${r.platform}:${accountId}`, r.date, spend);
     addDaily(`platform:${r.platform}`, r.date, spend);
   }
+  const yesterdayOf = (key: string, p: PlatformId): number | null => {
+    const byDate = dailySpend.get(key);
+    const known = platformDates.get(p);
+    if (!byDate || !known) return null;
+    return previousDayRatio({ date, weeks, baseline, minSamples, valueOn: (d) => (known.has(d) ? (byDate.get(d) ?? 0) : null) });
+  };
   const sustainedOf = (key: string, p: PlatformId): SustainedLevel | null => {
     const byDate = dailySpend.get(key);
     const known = platformDates.get(p);
@@ -170,6 +195,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     curveEstimated: cut < 24 && estimatedCurve.has(p),
     resultLagging: cut < 24 && laggingFor(p).includes(kpi.result),
     sustained: sustainedOf(key, p),
+    previousDayRatio: yesterdayOf(key, p),
   });
   const evaluate = (series: HourlySeries, kpi: Kpi, cut: number) => ({
     cumulative: compareWindow({ series, date, referenceDates: refDates, fromHour: 0, toHour: cut, kpi, baseline, minSamples }),
@@ -307,10 +333,11 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
   }
 
   // 4) Anomalías y estado por plataforma.
-  const anomalies = detectAnomalies(
+  const detected = detectAnomalies(
     evaluations.filter((e) => monitored.has(e.platform)),
     { settings, cutoffHour: cutoff },
   );
+  const { kept: anomalies, silenced } = applyAuthorizations(detected, input.authorizations ?? [], asOf.toISOString(), settings);
   const platformStatus = {} as Record<PlatformId, PlatformStatusInfo>;
   for (const p of PLATFORM_IDS) {
     const list = anomalies.filter((a) => a.platform === p);
@@ -440,5 +467,6 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     totalIncludes: okPlatforms,
     totalCutoffHour: totalCutoff,
     platforms: monitoredList,
+    silenced,
   };
 }

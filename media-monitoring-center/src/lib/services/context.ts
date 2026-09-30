@@ -17,8 +17,10 @@ import { parseSheetsMapping, type SheetsMapping } from "@/lib/sheets/mapping";
 import { DEFAULT_HISTORY_DAYS, SheetsDataSource } from "@/lib/sheets/sheets-source";
 import { FixtureSheetsReader, GoogleSheetsReader, type SheetsReader } from "@/lib/sheets/reader";
 import { RecordsCurveMemory } from "@/lib/sheets/curve-memory-store";
-import type { DataMode } from "@/lib/types";
-import { isValidTimeZone } from "@/lib/time/tz";
+import type { BudgetRow, DataMode } from "@/lib/types";
+import { listNovedades, getKickoff, type MonthKickoff } from "@/lib/records/novedades";
+import { planFor, type MonitoringPlan } from "@/lib/novedades/plan";
+import { businessDate, isValidTimeZone } from "@/lib/time/tz";
 import { getSession, type Session } from "@/lib/auth/session";
 import { cached, invalidate } from "@/lib/data/cache";
 import { getRecordStore } from "@/lib/records/store";
@@ -53,6 +55,24 @@ export interface AppContext {
   brandPlatforms: PlatformId[];
   /** Fuente completa, sin filtro de marca ni conversión de moneda (resúmenes técnicos). */
   raw: MonitoringDataSource;
+  /** Mes de negocio en curso (YYYY-MM) y su arranque (null si nadie lo ha confirmado). */
+  month: string;
+  kickoff: MonthKickoff | null;
+  /** Lo que el monitoreo toma en cuenta de las novedades y del arranque de mes. */
+  plan: MonitoringPlan;
+}
+
+/** Entrada del motor con lo que el equipo aprobó (novedades, arranque de mes y presupuestos capturados en la app). */
+export async function monitoringInput(ctx: AppContext, asOf: Date) {
+  const overrides = await ctx.store.getOverrides().catch(() => ({ budgets: [] as BudgetRow[] }));
+  const month = businessDate(asOf, ctx.settings.timezone).slice(0, 7);
+  return {
+    settings: ctx.settings,
+    asOf,
+    authorizations: ctx.plan.authorizations,
+    declaredCampaigns: ctx.plan.declaredCampaigns,
+    extraBudgets: [ctx.plan.kickoffBudgets, overrides.budgets.filter((b) => b.month === month), ctx.plan.novedadBudgets],
+  };
 }
 
 const memoryStores: Record<BrandId, MemoryStateStore> = { izzi: new MemoryStateStore("izzi"), sky: new MemoryStateStore("sky") };
@@ -218,11 +238,22 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
   const forBrand = settings.monitoredPlatforms.filter((p) => brandPlatforms.includes(p));
   if (forBrand.length) settings = { ...settings, monitoredPlatforms: forBrand };
   const source = new CurrencyConvertedSource(scoped, { rates: settings.currency.rates, accountCurrency: settings.currency.accountCurrency });
+  const today = businessDate(source.now(), settings.timezone);
+  const month = today.slice(0, 7);
+  const [novedades, kickoff] = await Promise.all([
+    listNovedades(brand).catch((err) => {
+      logger.warn("novedades.load_failed", { error: err });
+      return [];
+    }),
+    getKickoff(brand, month).catch(() => null),
+  ]);
+  const plan = planFor(novedades, kickoff, today, settings.timezone);
 
   return {
     mode,
     settings,
-    settingsHash: hash({ brand, settings }),
+    // Incluye lo aprobado en novedades y el arranque: si cambia, la evaluación en vivo se recalcula.
+    settingsHash: hash({ brand, settings, plan }),
     source,
     store,
     scenario,
@@ -236,5 +267,8 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
     brands,
     brandPlatforms,
     raw: inner,
+    month,
+    kickoff,
+    plan,
   };
 }
