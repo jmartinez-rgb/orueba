@@ -1,0 +1,17 @@
+node_modules
+dist
+coverage
+tests
+docs
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.log
+Dockerfile
+.dockerignore
+.prettierrc.json
+.prettierignore
+eslint.config.js
+vitest.config.ts

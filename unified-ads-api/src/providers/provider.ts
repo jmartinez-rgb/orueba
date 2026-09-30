@@ -1,0 +1,31 @@
+import type { Provider, ProviderSlug } from "../types/providers.js";
+import type {
+  AccountQuery,
+  CampaignQuery,
+  NormalizedAccount,
+  NormalizedCampaign,
+  NormalizedConversion,
+  NormalizedPerformance,
+  PerformanceQuery,
+  ProviderStatus,
+} from "../types/normalized.js";
+
+/**
+ * Contrato común de cada plataforma. Cada integración traduce su API a este modelo; el resto de la
+ * API (rutas, monitoreo, BigQuery, n8n) nunca conoce los detalles de cada plataforma.
+ */
+export interface AdsProvider {
+  readonly id: Provider;
+  readonly slug: ProviderSlug;
+  readonly name: string;
+  /** Variables de configuración que la integración necesita (nombres, sin valores). */
+  readonly requiredConfig: readonly string[];
+  /** La integración ya está programada. */
+  readonly implemented: boolean;
+  isConfigured(): boolean;
+  status(): Promise<ProviderStatus>;
+  listAccounts(query: AccountQuery): Promise<NormalizedAccount[]>;
+  listCampaigns(query: CampaignQuery): Promise<NormalizedCampaign[]>;
+  getPerformance(query: PerformanceQuery): Promise<NormalizedPerformance[]>;
+  getConversions(query: PerformanceQuery): Promise<NormalizedConversion[]>;
+}
