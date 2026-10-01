@@ -94,6 +94,47 @@ export interface NormalizedBudget {
   raw_metrics: Record<string, unknown>;
 }
 
+/**
+ * Señal de salud de entrega leída de la plataforma: cuenta con problemas, campaña o conjunto que no
+ * entrega bien, limitado por presupuesto, puja o políticas, o en aprendizaje. Es el estado que la
+ * plataforma reporta hoy; no se infiere nada del gasto.
+ */
+export type DeliveryKind =
+  | "account_status"
+  | "spend_cap"
+  | "delivery_issue"
+  | "policy"
+  | "budget_limited"
+  | "bidding_limited"
+  | "paused_by_budget"
+  | "learning"
+  | "learning_limited"
+  | "pending";
+
+export interface NormalizedDeliverySignal {
+  platform: ProviderSlug;
+  client_id: string | null;
+  account_id: string;
+  account_name: string;
+  entity_level: "account" | "campaign" | "ad_set";
+  campaign_id: string | null;
+  campaign_name: string | null;
+  entity_id: string;
+  entity_name: string;
+  kind: DeliveryKind;
+  /** critical: no entrega o está por dejar de entregar; warning: entrega limitada; info: contexto. */
+  severity: "critical" | "warning" | "info";
+  /** Código tal como lo reporta la plataforma (p. ej. WITH_ISSUES, BUDGET_CONSTRAINED, BudgetPaused). */
+  code: string | null;
+  /** Resumen de la plataforma, si lo da (Meta issues_info.error_summary). */
+  detail: string | null;
+  currency: string | null;
+  /** Tope de gasto de la cuenta y lo ya gastado contra él, en la moneda de la cuenta (Meta). */
+  spend_cap: number | null;
+  amount_spent: number | null;
+  extracted_at: string;
+}
+
 export interface NormalizedPerformance {
   platform: ProviderSlug;
   client_id: string | null;

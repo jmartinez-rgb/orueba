@@ -30,6 +30,12 @@ la campaña o en el conjunto, presupuestos compartidos (con su ID, para contarlo
 reporta la campaña limitada por presupuesto y su recomendación. Los totales llevan un diario estimado
 con su método en `raw_metrics.estimate_method`. Spotify y X aún no la ofrecen.
 
+`/api/v1/delivery-health` devuelve señales que la plataforma reporta hoy, con severidad `critical`,
+`warning` o `info`: estado y tope de gasto de la cuenta (Meta), campañas o conjuntos con problemas de
+entrega o de políticas, limitadas por presupuesto o puja, en aprendizaje o con aprendizaje limitado
+(Meta y Google), y campañas pausadas por presupuesto o suspendidas (Microsoft). TikTok queda fuera
+porque su SDK oficial no publica los valores de estado.
+
 ## Endpoints
 
 | Método | Ruta                                  | Llave | Descripción                                                                            |
@@ -42,6 +48,7 @@ con su método en `raw_metrics.estimate_method`. Spotify y X aún no la ofrecen.
 | GET    | `/api/v1/performance`                 | Sí    | Rendimiento; `date_from`, `date_to`, `granularity` (`daily` o `hourly`), `campaign_id` |
 | GET    | `/api/v1/conversions`                 | Sí    | Conversiones por acción con los mismos filtros de rendimiento                          |
 | GET    | `/api/v1/budgets`                     | Sí    | Presupuestos vigentes de campañas activas (Meta, Google, TikTok y Microsoft)           |
+| GET    | `/api/v1/delivery-health`             | Sí    | Salud de entrega que reporta la plataforma (Meta, Google y Microsoft)                  |
 | GET    | `/docs`                               | No    | Documentación Swagger (OpenAPI 3); `/docs/json` es la especificación                   |
 
 Estados de un proveedor: `connected`, `degraded`, `not_configured`, `not_implemented`,

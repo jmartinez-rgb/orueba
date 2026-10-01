@@ -10,12 +10,14 @@ import type {
   PerformanceQuery,
   NormalizedAccount,
   NormalizedBudget,
+  NormalizedDeliverySignal,
 } from "../../types/normalized.js";
 import { MICROSOFT_REQUIRED, microsoftId, readMicrosoftConfig } from "./config.js";
 import { MicrosoftClient, type MicrosoftFetch } from "./client.js";
 import { discoverMicrosoftAccounts, readMicrosoftAccount, readMicrosoftUser, rows } from "./accounts.js";
 import { microsoftAccountWarning } from "./errors.js";
 import { normalizeMicrosoftBudgets } from "./budgets.js";
+import { normalizeMicrosoftHealth } from "./health.js";
 import { microsoftReport, reportRequest, type ReportRow, type MicrosoftResolver } from "./reports.js";
 import { normalizeCampaign, normalizeConversion, normalizePerformance, reportBucket } from "./normalize.js";
 
@@ -197,6 +199,25 @@ export class MicrosoftProvider extends BaseProvider {
             account,
           );
           return normalizeMicrosoftBudgets(account, rows(data.Campaigns), new Date().toISOString());
+        }),
+      options,
+    );
+  }
+  /** Salud de entrega: campañas pausadas por presupuesto o suspendidas. */
+  listDeliverySignals(query: CampaignQuery, options?: ProviderRequestOptions): Promise<NormalizedDeliverySignal[]> {
+    return this.run(
+      (client, signal) =>
+        this.eachAccount(client, signal, query, options, async (account) => {
+          const data = await client.call(
+            "campaigns",
+            {
+              AccountId: account.account_id,
+              CampaignType: "Search, Shopping, Audience, PerformanceMax, Hotel, App, ObjectiveBased",
+            },
+            signal,
+            account,
+          );
+          return normalizeMicrosoftHealth(account, rows(data.Campaigns), new Date().toISOString());
         }),
       options,
     );

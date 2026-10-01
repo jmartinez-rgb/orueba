@@ -16,6 +16,7 @@ export interface GoogleRow {
     status?: string;
     advertisingChannelType?: string;
     servingStatus?: string;
+    primaryStatus?: string;
     primaryStatusReasons?: string[];
     startDateTime?: string;
     endDateTime?: string;

@@ -10,6 +10,7 @@ import type {
   PerformanceQuery,
   NormalizedAccount,
   NormalizedBudget,
+  NormalizedDeliverySignal,
   NormalizedCampaign,
 } from "../../types/normalized.js";
 import { readMetaConfig, metaAccountId } from "./config.js";
@@ -23,6 +24,13 @@ import {
   needsAdSets,
   normalizeBudgets,
 } from "./budgets.js";
+import {
+  HEALTH_ACCOUNT_FIELDS,
+  HEALTH_ADSET_FIELDS,
+  HEALTH_CAMPAIGN_FIELDS,
+  HEALTH_STATUS_FILTER,
+  normalizeMetaHealth,
+} from "./health.js";
 import { normalizeCampaign, normalizePerformance, normalizeConversions } from "./normalize.js";
 import { metaAccountWarning } from "./errors.js";
 import { metaObject, type MetaFetch, type MetaCampaign, type MetaInsight } from "./types.js";
@@ -218,6 +226,31 @@ export class MetaProvider extends BaseProvider {
               ),
             );
           return normalizeBudgets(account, campaigns, adSets, at);
+        }),
+      options,
+    );
+  }
+  /** Salud de entrega: estado y tope de gasto de la cuenta, problemas de campañas y conjuntos, aprendizaje. */
+  listDeliverySignals(query: CampaignQuery, options?: ProviderRequestOptions): Promise<NormalizedDeliverySignal[]> {
+    return this.run(
+      (client, signal) =>
+        this.eachAccount(client, signal, query, options, async (account) => {
+          const at = new Date().toISOString();
+          const params = { effective_status: HEALTH_STATUS_FILTER };
+          const [info, campaigns, adSets] = await Promise.all([
+            client.get<Record<string, unknown>>(`act_${account.account_id}`, { fields: HEALTH_ACCOUNT_FIELDS }, signal),
+            client.list<Record<string, unknown>>(
+              `act_${account.account_id}/campaigns`,
+              { ...params, fields: HEALTH_CAMPAIGN_FIELDS },
+              signal,
+            ),
+            client.list<Record<string, unknown>>(
+              `act_${account.account_id}/adsets`,
+              { ...params, fields: HEALTH_ADSET_FIELDS },
+              signal,
+            ),
+          ]);
+          return normalizeMetaHealth(account, info, campaigns, adSets, at);
         }),
       options,
     );

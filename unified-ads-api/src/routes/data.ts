@@ -80,6 +80,36 @@ const budget = z.object({
   extracted_at: z.string(),
   raw_metrics: raw,
 });
+const deliverySignal = z.object({
+  platform: providerSlugSchema,
+  client_id: text,
+  account_id: z.string(),
+  account_name: z.string(),
+  entity_level: z.enum(["account", "campaign", "ad_set"]),
+  campaign_id: text,
+  campaign_name: text,
+  entity_id: z.string(),
+  entity_name: z.string(),
+  kind: z.enum([
+    "account_status",
+    "spend_cap",
+    "delivery_issue",
+    "policy",
+    "budget_limited",
+    "bidding_limited",
+    "paused_by_budget",
+    "learning",
+    "learning_limited",
+    "pending",
+  ]),
+  severity: z.enum(["critical", "warning", "info"]),
+  code: text,
+  detail: text,
+  currency: text,
+  spend_cap: number,
+  amount_spent: number,
+  extracted_at: z.string(),
+});
 const performance = z.object({
   platform: providerSlugSchema,
   client_id: text,
@@ -234,6 +264,24 @@ export const dataRoutes = (deps: { registry: ProviderRegistry; timeoutMs: number
           req.id,
           (p, signal, onWarning) => p.listBudgets!(req.query, { signal, onWarning }),
           (p) => typeof p.listBudgets === "function",
+        ),
+    );
+    app.get(
+      "/delivery-health",
+      {
+        schema: {
+          ...common,
+          summary: "Salud de entrega reportada por la plataforma (hoy: Meta, Google y Microsoft)",
+          querystring: campaignQuery,
+          response: response(deliverySignal),
+        },
+      },
+      async (req) =>
+        collect(
+          req.query.provider,
+          req.id,
+          (p, signal, onWarning) => p.listDeliverySignals!(req.query, { signal, onWarning }),
+          (p) => typeof p.listDeliverySignals === "function",
         ),
     );
     app.get(

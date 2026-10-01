@@ -7,6 +7,7 @@ import type {
   PerformanceQuery,
   NormalizedAccount,
   NormalizedBudget,
+  NormalizedDeliverySignal,
 } from "../../types/normalized.js";
 import { ApiError, isApiError } from "../../utils/errors.js";
 import { readGoogleConfig, customerId } from "./config.js";
@@ -17,6 +18,7 @@ import { normalizeCampaign, normalizePerformance, normalizeConversion } from "./
 import type { GoogleFetch, GoogleRow } from "./types.js";
 import { accountWarning } from "./errors.js";
 import { budgetsQuery, normalizeGoogleBudget } from "./budgets.js";
+import { healthQuery, normalizeGoogleHealth } from "./health.js";
 import type { RetryOptions } from "../../utils/retry.js";
 import type { ProviderRequestOptions } from "../provider.js";
 
@@ -209,6 +211,19 @@ export class GoogleProvider extends BaseProvider {
         const at = new Date().toISOString();
         const rows = await this.rows(client, signal, query, budgetsQuery(), options);
         return rows.flatMap(({ row, account }) => normalizeGoogleBudget(row, account, at) ?? []);
+      },
+      true,
+      options?.signal,
+    );
+  }
+
+  /** Salud de entrega: estado principal y motivos de las campañas habilitadas. */
+  listDeliverySignals(query: CampaignQuery, options?: ProviderRequestOptions): Promise<NormalizedDeliverySignal[]> {
+    return this.run(
+      async (client, signal) => {
+        const at = new Date().toISOString();
+        const rows = await this.rows(client, signal, query, healthQuery(), options);
+        return rows.flatMap(({ row, account }) => normalizeGoogleHealth(row, account, at));
       },
       true,
       options?.signal,
