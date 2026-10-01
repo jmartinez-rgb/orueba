@@ -101,49 +101,62 @@ describe("exclusiones de clientes activos en Meta", () => {
     expect(isCapiWhatsApp("MXN | Mensajes WhatsApp | Hogar")).toBe(false);
   });
 
-  it("clasifica grupos, campañas, cuentas y audiencias", () => {
+  it("solo considera grupos activos en campañas activas y descarta los vencidos por fecha", () => {
+    const now = Date.parse("2026-10-01T18:00:00Z");
     const rows = [
       adSet("1", "Venta CAPI WhatsApp", "ACTIVE", ["Clientes activos", "Empleados"]),
       adSet("2", "Venta CAPI WhatsApp", "ACTIVE", []),
-      adSet("3", "Mensajes Hogar", "ACTIVE", ["Clientes Activos"]),
-      adSet("4", "Mensajes Hogar", "PAUSED", []),
+      adSet("3", "Mensajes Hogar", "ACTIVE", ["Clientes Activos"], { start_time: "2026-10-05T00:00:00-0600" }),
+      adSet("4", "Mensajes Hogar", "PAUSED", ["Clientes Activos"]),
       adSet("5", "Alcance", "CAMPAIGN_PAUSED", ["Empleados"]),
+      adSet("6", "Septiembre", "ACTIVE", ["Clientes activos"], { end_time: "2026-09-30T23:59:00-0600" }),
+      adSet("7", "Vencida", "ACTIVE", [], {
+        campaign: { id: "c-v", name: "Vencida", effective_status: "ACTIVE", stop_time: "2026-09-15T00:00:00-0600" },
+      }),
+      adSet("8", "Pausada", "ACTIVE", [], { campaign: { id: "c-p", name: "Pausada", effective_status: "PAUSED" } }),
     ];
-    const audit = auditExclusions(rows, [
-      { accountId: "111", accountName: "MXN - izzi 1", error: null },
-      { accountId: "222", accountName: "222", error: "Meta requiere permiso ads_read." },
-    ]);
+    const audit = auditExclusions(
+      rows,
+      [
+        { accountId: "111", accountName: "MXN - izzi 1", accountStatus: 1, error: null },
+        { accountId: "222", accountName: "222", accountStatus: null, error: "Meta requiere permiso ads_read." },
+      ],
+      audiencePattern(),
+      now,
+    );
+    expect(audit.adSets.map((s) => s.adSetId).sort()).toEqual(["1", "2", "3"]);
     const byId = Object.fromEntries(audit.adSets.map((s) => [s.adSetId, s]));
     expect(byId["1"]).toMatchObject({
       universe: "CAPI WhatsApp",
       excludesActiveCustomers: true,
       activeCustomerAudiences: [{ name: "Clientes activos" }],
       otherExcluded: [{ name: "Empleados" }],
+      scheduled: false,
     });
     expect(byId["2"]!.excludesActiveCustomers).toBe(false);
-    expect(byId["5"]!.excludesActiveCustomers).toBe(false);
+    expect(byId["3"]!.scheduled).toBe(true);
 
     const camp = Object.fromEntries(audit.campaigns.map((c) => [c.campaignName, c]));
-    expect(camp["Venta CAPI WhatsApp"]).toMatchObject({
-      activeAdSets: 2,
-      activeWithExclusion: 1,
-      universe: "CAPI WhatsApp",
-    });
-    expect(camp["Mensajes Hogar"]).toMatchObject({
-      activeAdSets: 1,
-      activeWithExclusion: 1,
-      adSets: 2,
-      adSetsWithExclusion: 1,
-    });
-    expect(camp["Alcance"]).toMatchObject({ activeAdSets: 0, adSets: 1, adSetsWithExclusion: 0 });
+    expect(Object.keys(camp).sort()).toEqual(["Mensajes Hogar", "Venta CAPI WhatsApp"]);
+    expect(camp["Venta CAPI WhatsApp"]).toMatchObject({ adSets: 2, adSetsWithExclusion: 1, universe: "CAPI WhatsApp" });
+    expect(camp["Mensajes Hogar"]).toMatchObject({ adSets: 1, adSetsWithExclusion: 1 });
 
     expect(audit.accounts).toEqual([
-      expect.objectContaining({ accountId: "111", activeAdSets: 3, activeWithExclusion: 2, adSets: 5, campaigns: 3 }),
+      expect.objectContaining({
+        accountId: "111",
+        campaigns: 2,
+        campaignsFull: 1,
+        campaignsPartial: 1,
+        campaignsNone: 0,
+        adSets: 3,
+        adSetsWithExclusion: 2,
+        endedSkipped: 3,
+      }),
       expect.objectContaining({ accountId: "222", error: "Meta requiere permiso ads_read.", adSets: 0 }),
     ]);
-    // Las audiencias de clientes activos van primero; cada ID se cuenta una vez por grupo.
-    expect(audit.audiences[0]!.activeCustomers).toBe(true);
-    expect(audit.audiences.filter((a) => a.name === "Empleados").reduce((n, a) => n + a.adSets, 0)).toBe(2);
+    // Solo cuentan audiencias de grupos activos; las de clientes activos van primero.
+    expect(audit.audiences[0]!).toMatchObject({ activeCustomers: true });
+    expect(audit.audiences.find((a) => a.name === "Empleados")!.adSets).toBe(1);
   });
 
   it("la cobertura por campaña distingue todos, algunos, ninguno y sin grupos", () => {
@@ -155,31 +168,35 @@ describe("exclusiones de clientes activos en Meta", () => {
     ]);
   });
 
-  it("el libro trae resumen, campañas, grupos, audiencias y criterios con filas completas", () => {
+  it("el libro trae resumen, campañas activas, grupos activos, audiencias y criterios", () => {
     const audit = auditExclusions(
       [adSet("1", "Venta CAPI WhatsApp", "ACTIVE", ["Clientes activos"]), adSet("2", "Mensajes", "ACTIVE", [])],
       [
-        { accountId: "111", accountName: "MXN - izzi 1", error: null },
+        { accountId: "111", accountName: "MXN - izzi 1", accountStatus: 1, error: null },
         { accountId: "222", accountName: "222", error: "Sin permiso" },
+        { accountId: "333", accountName: "MXN - Sky 3", accountStatus: 2, error: null },
       ],
     );
     const sheets = exclusionWorkbook(audit, {
       generatedAt: "1/10/2026",
       pattern: "client.*activ",
-      statuses: ["ACTIVE"],
       apiVersion: "v26.0",
     });
     expect(sheets.map((s) => s.name)).toEqual([
       "Resumen por cuenta",
-      "Campañas",
-      "Grupos de anuncios",
+      "Campañas activas",
+      "Grupos activos",
       "Audiencias excluidas",
       "Criterios",
     ]);
-    for (const s of sheets) for (const row of s.rows) expect(row.length).toBeLessThanOrEqual(s.columns.length);
-    expect(sheets[0]!.rows[0]![6]).toBe(0.5);
-    expect(sheets[0]!.rows[1]![9]).toMatchObject({ value: "Sin lectura: Sin permiso", tone: "bad" });
+    for (const s of sheets) for (const row of s.rows) expect(row.length).toBe(s.columns.length);
+    const [ok, failed, empty] = sheets[0]!.rows;
+    expect(ok!.slice(2, 11)).toEqual(["Activa", 2, 1, 0, 1, 2, 1, 1, 0.5]);
+    expect(failed![11]).toMatchObject({ value: "Sin lectura: Sin permiso", tone: "bad" });
+    expect(empty!.slice(2, 4)).toEqual(["Deshabilitada", 0]);
+    expect(empty![11]).toMatchObject({ value: "Sin campañas activas", tone: "warn" });
     expect(sheets[4]!.rows.some((r) => r[0] === "Cuenta sin lectura 222")).toBe(true);
+    expect(sheets[4]!.rows.find((r) => r[0] === "Alcance")![1]).toContain("Solo campañas activas");
   });
 });
 

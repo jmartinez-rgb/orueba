@@ -4,9 +4,9 @@ import { prepareEnv } from "../src/config/load-env.js";
 import { MetaClient } from "../src/providers/meta/client.js";
 import { metaAccountId, readMetaConfig } from "../src/providers/meta/config.js";
 import {
+  ACTIVE_ADSET_FILTER,
   ADSET_FIELDS,
   ADSET_FIELDS_FULL_TARGETING,
-  ADSET_STATUSES,
   DEFAULT_ACTIVE_CUSTOMER_PATTERN,
   audiencePattern,
   auditExclusions,
@@ -20,28 +20,29 @@ import { ApiError } from "../src/utils/errors.js";
 
 /**
  * Genera un Excel con las cuentas, campañas y grupos de anuncios de Meta que excluyen la audiencia
- * de clientes activos y los que no. Solo lectura: no cambia nada en Meta. Usa META_ACCESS_TOKEN
+ * de clientes activos y los que no, considerando solo campañas activas. Solo lectura: no cambia
+ * nada en Meta. Usa META_ACCESS_TOKEN
  * del .env local (o lo pide en la terminal sin mostrarlo ni guardarlo) y nunca lo muestra. Uso:
  *   npm run meta:exclusiones -- 902854812517704 801573051220234
- *   npm run meta:exclusiones -- --solo-activos --patron "clientes activos|base activa" <IDs>
+ *   npm run meta:exclusiones -- --patron "clientes activos|base activa" <IDs>
  * Sin IDs usa META_AD_ACCOUNT_IDS. El archivo queda en reportes/ (fuera de git).
  */
 
 function args(argv: string[]) {
   const ids: string[] = [];
   let pattern = DEFAULT_ACTIVE_CUSTOMER_PATTERN;
-  let onlyActive = false;
   let output: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     if (arg === "--patron") pattern = argv[++i] ?? "";
-    else if (arg === "--solo-activos") onlyActive = true;
+    // Compatibilidad: el reporte ya considera solo campañas activas.
+    else if (arg === "--solo-activos") continue;
     else if (arg === "--salida") output = argv[++i];
     else if (arg.startsWith("--")) throw new Error(`Opción desconocida: ${arg}`);
     else ids.push(...arg.split(/[\s,]+/).filter(Boolean));
   }
   if (!pattern.trim()) throw new Error("--patron necesita un texto.");
-  return { ids, pattern, onlyActive, output };
+  return { ids, pattern, output };
 }
 
 /** Pide un valor en la terminal sin mostrarlo (modo crudo). Sin terminal interactiva devuelve "". */
@@ -106,17 +107,22 @@ async function main() {
   if (!ids.length) throw new Error("Indica los IDs de cuenta o configura META_AD_ACCOUNT_IDS.");
 
   const client = new MetaClient(config);
-  const statuses = options.onlyActive ? ["ACTIVE"] : ADSET_STATUSES;
   const rows: MetaAdSetTargeting[] = [];
   const accounts: MetaAccountRead[] = [];
   for (const id of ids) {
     // Tiempo amplio por cuenta: una cuenta grande puede tener muchas páginas de grupos.
     const signal = AbortSignal.timeout(Math.max(config.timeoutMs * 20, 300000));
     let name = id;
+    let accountStatus: number | null = null;
     try {
-      const info = await client.get<{ name?: unknown }>(`act_${id}`, { fields: "name" }, signal);
+      const info = await client.get<{ name?: unknown; account_status?: unknown }>(
+        `act_${id}`,
+        { fields: "name,account_status" },
+        signal,
+      );
       if (typeof info.name === "string" && info.name.trim()) name = info.name.trim();
-      const params = { effective_status: JSON.stringify(statuses) };
+      accountStatus = typeof info.account_status === "number" ? info.account_status : null;
+      const params = { effective_status: ACTIVE_ADSET_FILTER };
       let raw: Record<string, unknown>[];
       try {
         raw = await client.list<Record<string, unknown>>(
@@ -135,10 +141,10 @@ async function main() {
       }
       const parsed = raw.map((r) => parseAdSet(r, { id, name }));
       rows.push(...parsed);
-      accounts.push({ accountId: id, accountName: name, error: null });
-      process.stdout.write(`  ${id} ${name}: ${parsed.length} grupos de anuncios\n`);
+      accounts.push({ accountId: id, accountName: name, accountStatus, error: null });
+      process.stdout.write(`  ${id} ${name}: ${parsed.length} grupos con estado Activo\n`);
     } catch (e) {
-      accounts.push({ accountId: id, accountName: name, error: safeMessage(e) });
+      accounts.push({ accountId: id, accountName: name, accountStatus, error: safeMessage(e) });
       process.stdout.write(`  ${id}: sin lectura (${safeMessage(e)})\n`);
     }
   }
@@ -151,7 +157,6 @@ async function main() {
     exclusionWorkbook(audit, {
       generatedAt: now.toLocaleString("es-MX", { timeZone: "America/Mexico_City" }),
       pattern: options.pattern,
-      statuses,
       apiVersion: config.version,
     }),
   );
@@ -159,10 +164,12 @@ async function main() {
   await writeFile(file, book, { mode: 0o600 });
   await chmod(file, 0o600);
 
-  const active = audit.adSets.filter((s) => s.adSetStatus === "ACTIVE");
+  const active = audit.adSets;
   const matched = audit.audiences.filter((a) => a.activeCustomers);
+  const skipped = audit.accounts.reduce((n, a) => n + a.endedSkipped, 0);
   process.stdout.write(
-    `\nGrupos activos: ${active.length}. Con exclusión de clientes activos: ${active.filter((s) => s.excludesActiveCustomers).length}. Sin ella: ${active.filter((s) => !s.excludesActiveCustomers).length}.\n` +
+    `\nCampañas activas: ${audit.campaigns.length}. Grupos activos: ${active.length}. Con exclusión de clientes activos: ${active.filter((s) => s.excludesActiveCustomers).length}. Sin ella: ${active.filter((s) => !s.excludesActiveCustomers).length}.\n` +
+      (skipped ? `Descartados por fecha de fin vencida: ${skipped}.\n` : "") +
       `Audiencias reconocidas como clientes activos: ${matched.length ? matched.map((a) => a.name).join(" | ") : "ninguna"}.\n`,
   );
   if (!matched.length && audit.audiences.length)

@@ -153,13 +153,13 @@ conversiones, valor y CPA en `null`.
 ## Revisión de públicos excluidos (clientes activos)
 
 `npm run meta:exclusiones` genera un Excel con las cuentas, campañas y grupos de anuncios que excluyen la
-audiencia de clientes activos y los que no. Es solo lectura: no cambia nada en Meta. Usa
+audiencia de clientes activos y los que no, considerando **solo campañas activas**. Es solo lectura: no
+cambia nada en Meta. Usa
 `META_ACCESS_TOKEN` del `.env` local (requiere `ads_read`); si no existe, lo pide en la terminal sin mostrarlo
 y solo lo usa en esa ejecución, sin guardarlo.
 
 ```bash
 npm run meta:exclusiones -- 902854812517704 801573051220234 1002273077117011
-npm run meta:exclusiones -- --solo-activos <IDs>
 npm run meta:exclusiones -- --patron "clientes activos|base activa" <IDs>
 ```
 
@@ -169,11 +169,13 @@ npm run meta:exclusiones -- --patron "clientes activos|base activa" <IDs>
   `targeting.excluded_custom_audiences` tiene un nombre que coincide con el patrón (por omisión
   `client.*activ|activ.*client`, sin acentos ni mayúsculas). La hoja _Audiencias excluidas_ lista todas
   las audiencias excluidas para confirmar el criterio.
-- Hojas: _Resumen por cuenta_, _Campañas_ (cobertura Sí / Parcial / No), _Grupos de anuncios_,
+- Hojas: _Resumen por cuenta_, _Campañas activas_ (cobertura Sí / Parcial / No), _Grupos activos_,
   _Audiencias excluidas_ y _Criterios_. Las campañas con "CAPI WhatsApp" en el nombre se marcan en su
   propio universo.
-- Por omisión revisa grupos activos, pausados, de campaña pausada, en proceso y con problemas; no
-  incluye archivados ni eliminados. Una cuenta sin permiso queda registrada y no detiene a las demás.
+- Alcance: grupos con `effective_status` Activo (Meta marca `CAMPAIGN_PAUSED` cuando la campaña está
+  pausada). También descarta los que siguen como Activo pero ya pasaron su `end_time` o el `stop_time`
+  de su campaña; el resumen dice cuántos. Los que aún no inician se marcan como _Programado_. Una cuenta
+  sin permiso queda registrada y no detiene a las demás.
 - Si Meta rechaza los subcampos de `targeting`, repite la lectura con la segmentación completa en páginas
   de 25. No cubre exclusiones a nivel cuenta ni listas de clientes existentes de campañas Advantage+ de
   ventas.

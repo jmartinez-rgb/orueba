@@ -3,8 +3,9 @@ import { metaObject } from "./types.js";
 
 /**
  * Revisión de públicos excluidos en grupos de anuncios de Meta: qué cuentas, campañas y grupos
- * excluyen la audiencia de clientes activos y cuáles no. Solo usa el ID y el nombre de cada
- * audiencia tal como aparecen en la segmentación; nunca consulta datos de personas.
+ * excluyen la audiencia de clientes activos y cuáles no. Solo considera campañas activas: grupos
+ * con estado efectivo Activo cuya fecha de fin (propia o de la campaña) no ha pasado. Usa el ID y
+ * el nombre de cada audiencia tal como aparecen en la segmentación; nunca consulta datos de personas.
  */
 
 export interface MetaAudienceRef {
@@ -18,9 +19,12 @@ export interface MetaAdSetTargeting {
   campaignId: string;
   campaignName: string;
   campaignStatus: string;
+  campaignStopTime: string;
   adSetId: string;
   adSetName: string;
   adSetStatus: string;
+  startTime: string;
+  endTime: string;
   optimizationGoal: string;
   destinationType: string;
   excluded: MetaAudienceRef[];
@@ -32,6 +36,8 @@ export interface MetaAdSetTargeting {
 export interface MetaAccountRead {
   accountId: string;
   accountName: string;
+  /** account_status numérico de Meta (1 = activa); null si no se pudo leer. */
+  accountStatus?: number | null;
   error: string | null;
 }
 
@@ -42,15 +48,18 @@ export const ADSET_FIELDS = [
   "id",
   "name",
   "effective_status",
+  "start_time",
+  "end_time",
   "optimization_goal",
   "destination_type",
-  "campaign{id,name,effective_status}",
+  "campaign{id,name,effective_status,stop_time}",
   "targeting{custom_audiences,excluded_custom_audiences,targeting_automation}",
 ].join(",");
 /** Respaldo si Meta no acepta subcampos de targeting: pide la segmentación completa en páginas chicas. */
 export const ADSET_FIELDS_FULL_TARGETING = ADSET_FIELDS.replace(/targeting\{[^}]*\}/, "targeting");
 
-export const ADSET_STATUSES = ["ACTIVE", "PAUSED", "CAMPAIGN_PAUSED", "IN_PROCESS", "WITH_ISSUES"];
+/** Solo grupos encendidos: con la campaña pausada Meta los reporta como CAMPAIGN_PAUSED. */
+export const ACTIVE_ADSET_FILTER = JSON.stringify(["ACTIVE"]);
 
 export function normalizeName(value: string): string {
   return value
@@ -80,6 +89,36 @@ const STATUS: Record<string, string> = {
 };
 export const statusLabel = (status: string) => STATUS[status] ?? status;
 
+const ACCOUNT_STATUS: Record<number, string> = {
+  1: "Activa",
+  2: "Deshabilitada",
+  3: "Con saldo pendiente",
+  7: "En revisión de riesgo",
+  8: "Liquidación pendiente",
+  9: "En periodo de gracia",
+  100: "Cierre pendiente",
+  101: "Cerrada",
+  201: "Activa",
+  202: "Cerrada",
+};
+export const accountStatusLabel = (status: number | null | undefined) =>
+  status === null || status === undefined ? "" : (ACCOUNT_STATUS[status] ?? String(status));
+
+const ended = (time: string, now: number) => {
+  const at = time ? Date.parse(time) : Number.NaN;
+  return Number.isFinite(at) && at <= now;
+};
+
+/** Activo de verdad: estado Activo, campaña activa y sin fecha de fin vencida en el grupo ni en la campaña. */
+export function isRunning(row: MetaAdSetTargeting, now = Date.now()): boolean {
+  return (
+    row.adSetStatus === "ACTIVE" &&
+    (row.campaignStatus === "" || row.campaignStatus === "ACTIVE") &&
+    !ended(row.endTime, now) &&
+    !ended(row.campaignStopTime, now)
+  );
+}
+
 function text(value: unknown): string {
   return typeof value === "string" ? value : typeof value === "number" ? String(value) : "";
 }
@@ -99,9 +138,12 @@ export function parseAdSet(raw: Record<string, unknown>, account: { id: string; 
     campaignId: text(campaign.id) || text(raw.campaign_id),
     campaignName: text(campaign.name),
     campaignStatus: text(campaign.effective_status),
+    campaignStopTime: text(campaign.stop_time),
     adSetId: text(raw.id),
     adSetName: text(raw.name),
     adSetStatus: text(raw.effective_status),
+    startTime: text(raw.start_time),
+    endTime: text(raw.end_time),
     optimizationGoal: text(raw.optimization_goal),
     destinationType: text(raw.destination_type),
     excluded: audiences(targeting.excluded_custom_audiences),
@@ -121,6 +163,8 @@ export interface AuditedAdSet extends MetaAdSetTargeting {
   excludesActiveCustomers: boolean;
   activeCustomerAudiences: MetaAudienceRef[];
   otherExcluded: MetaAudienceRef[];
+  /** Activo pero con inicio programado a futuro. */
+  scheduled: boolean;
 }
 
 export interface CampaignExclusion {
@@ -128,20 +172,20 @@ export interface CampaignExclusion {
   accountName: string;
   campaignId: string;
   campaignName: string;
-  campaignStatus: string;
   universe: AuditedAdSet["universe"];
   adSets: number;
   adSetsWithExclusion: number;
-  activeAdSets: number;
-  activeWithExclusion: number;
 }
 
 export interface AccountExclusion extends MetaAccountRead {
+  campaigns: number;
+  campaignsFull: number;
+  campaignsPartial: number;
+  campaignsNone: number;
   adSets: number;
   adSetsWithExclusion: number;
-  activeAdSets: number;
-  activeWithExclusion: number;
-  campaigns: number;
+  /** Grupos con estado Activo descartados porque su fecha de fin (o la de su campaña) ya pasó. */
+  endedSkipped: number;
 }
 
 export interface AudienceUse {
@@ -150,7 +194,6 @@ export interface AudienceUse {
   activeCustomers: boolean;
   accounts: string[];
   adSets: number;
-  activeAdSets: number;
 }
 
 export interface ExclusionAudit {
@@ -164,16 +207,20 @@ export function auditExclusions(
   rows: MetaAdSetTargeting[],
   accounts: MetaAccountRead[],
   pattern: RegExp = audiencePattern(),
+  now = Date.now(),
 ): ExclusionAudit {
   const matches = (a: MetaAudienceRef) => pattern.test(normalizeName(a.name));
-  const adSets: AuditedAdSet[] = rows.map((row) => {
+  const running = rows.filter((r) => isRunning(r, now));
+  const adSets: AuditedAdSet[] = running.map((row) => {
     const activeCustomerAudiences = row.excluded.filter(matches);
+    const start = row.startTime ? Date.parse(row.startTime) : Number.NaN;
     return {
       ...row,
       universe: isCapiWhatsApp(row.campaignName) ? "CAPI WhatsApp" : "Compras Offline Web",
       excludesActiveCustomers: activeCustomerAudiences.length > 0,
       activeCustomerAudiences,
       otherExcluded: row.excluded.filter((a) => !matches(a)),
+      scheduled: Number.isFinite(start) && start > now,
     };
   });
   adSets.sort(
@@ -186,24 +233,18 @@ export function auditExclusions(
   const campaigns = new Map<string, CampaignExclusion>();
   const audienceUse = new Map<string, AudienceUse>();
   for (const s of adSets) {
-    const active = s.adSetStatus === "ACTIVE";
     const key = `${s.accountId}:${s.campaignId}`;
     const c = campaigns.get(key) ?? {
       accountId: s.accountId,
       accountName: s.accountName,
       campaignId: s.campaignId,
       campaignName: s.campaignName,
-      campaignStatus: s.campaignStatus,
       universe: s.universe,
       adSets: 0,
       adSetsWithExclusion: 0,
-      activeAdSets: 0,
-      activeWithExclusion: 0,
     };
     c.adSets++;
     if (s.excludesActiveCustomers) c.adSetsWithExclusion++;
-    if (active) c.activeAdSets++;
-    if (active && s.excludesActiveCustomers) c.activeWithExclusion++;
     campaigns.set(key, c);
     for (const a of s.excluded) {
       const u = audienceUse.get(a.id) ?? {
@@ -212,11 +253,9 @@ export function auditExclusions(
         activeCustomers: matches(a),
         accounts: [],
         adSets: 0,
-        activeAdSets: 0,
       };
       if (!u.accounts.includes(s.accountId)) u.accounts.push(s.accountId);
       u.adSets++;
-      if (active) u.activeAdSets++;
       audienceUse.set(a.id, u);
     }
   }
@@ -224,13 +263,18 @@ export function auditExclusions(
   const campaignList = [...campaigns.values()];
   const accountList: AccountExclusion[] = accounts.map((a) => {
     const own = adSets.filter((s) => s.accountId === a.accountId);
+    const ownCampaigns = campaignList.filter((c) => c.accountId === a.accountId);
+    const cov = ownCampaigns.map((c) => coverage(c.adSets, c.adSetsWithExclusion));
     return {
       ...a,
+      campaigns: ownCampaigns.length,
+      campaignsFull: cov.filter((c) => c === "Sí").length,
+      campaignsPartial: cov.filter((c) => c === "Parcial").length,
+      campaignsNone: cov.filter((c) => c === "No").length,
       adSets: own.length,
       adSetsWithExclusion: own.filter((s) => s.excludesActiveCustomers).length,
-      activeAdSets: own.filter((s) => s.adSetStatus === "ACTIVE").length,
-      activeWithExclusion: own.filter((s) => s.adSetStatus === "ACTIVE" && s.excludesActiveCustomers).length,
-      campaigns: campaignList.filter((c) => c.accountId === a.accountId).length,
+      endedSkipped: rows.filter((r) => r.accountId === a.accountId && r.adSetStatus === "ACTIVE" && !isRunning(r, now))
+        .length,
     };
   });
   return {
@@ -250,59 +294,65 @@ const coverageCell = (value: Coverage): Cell => ({
 });
 const names = (list: MetaAudienceRef[]) => list.map((a) => a.name).join(" | ");
 const share = (part: number, total: number) => (total ? part / total : null);
+const day = (time: string) => (/^\d{4}-\d{2}-\d{2}/.test(time) ? time.slice(0, 10) : "");
 
 export interface WorkbookMeta {
   generatedAt: string;
   pattern: string;
-  statuses: string[];
   apiVersion: string;
 }
 
 export function exclusionWorkbook(audit: ExclusionAudit, meta: WorkbookMeta): XlsxSheet[] {
   const failed = audit.accounts.filter((a) => a.error);
+  const skipped = audit.accounts.reduce((n, a) => n + a.endedSkipped, 0);
   return [
     {
       name: "Resumen por cuenta",
       columns: [
         { header: "Cuenta ID", width: 20 },
         { header: "Cuenta", width: 34 },
-        { header: "Campañas", width: 11 },
-        { header: "Grupos activos", width: 15 },
-        { header: "Activos que excluyen clientes activos", width: 22 },
-        { header: "Activos sin la exclusión", width: 16 },
-        { header: "% activos con exclusión", width: 16, pct: true },
-        { header: "Grupos revisados (todos los estados)", width: 20 },
-        { header: "Revisados con exclusión", width: 16 },
+        { header: "Estado de cuenta", width: 16 },
+        { header: "Campañas activas", width: 12 },
+        { header: "Campañas con exclusión en todos sus grupos", width: 20 },
+        { header: "Campañas con exclusión parcial", width: 16 },
+        { header: "Campañas sin exclusión", width: 14 },
+        { header: "Grupos activos", width: 12 },
+        { header: "Grupos que excluyen clientes activos", width: 18 },
+        { header: "Grupos sin la exclusión", width: 14 },
+        { header: "% grupos con exclusión", width: 14, pct: true },
         { header: "Lectura", width: 40 },
       ],
       rows: audit.accounts.map((a) => [
         a.accountId,
         a.accountName,
+        accountStatusLabel(a.accountStatus),
         a.error ? null : a.campaigns,
-        a.error ? null : a.activeAdSets,
-        a.error ? null : a.activeWithExclusion,
-        a.error ? null : a.activeAdSets - a.activeWithExclusion,
-        a.error ? null : share(a.activeWithExclusion, a.activeAdSets),
+        a.error ? null : a.campaignsFull,
+        a.error ? null : a.campaignsPartial,
+        a.error ? null : a.campaignsNone,
         a.error ? null : a.adSets,
         a.error ? null : a.adSetsWithExclusion,
-        a.error ? { value: `Sin lectura: ${a.error}`, tone: "bad" } : "Correcta",
+        a.error ? null : a.adSets - a.adSetsWithExclusion,
+        a.error ? null : share(a.adSetsWithExclusion, a.adSets),
+        a.error
+          ? { value: `Sin lectura: ${a.error}`, tone: "bad" }
+          : a.campaigns === 0
+            ? { value: "Sin campañas activas", tone: "warn" }
+            : "Correcta",
       ]),
     },
     {
-      name: "Campañas",
+      name: "Campañas activas",
       columns: [
         { header: "Cuenta ID", width: 20 },
         { header: "Cuenta", width: 30 },
         { header: "Campaña ID", width: 22 },
         { header: "Campaña", width: 50 },
         { header: "Universo", width: 20 },
-        { header: "Estado campaña", width: 16 },
-        { header: "Excluye clientes activos (grupos activos)", width: 22 },
+        { header: "Excluye clientes activos", width: 16 },
         { header: "Grupos activos", width: 12 },
-        { header: "Activos con exclusión", width: 14 },
-        { header: "Excluye clientes activos (todos los grupos)", width: 22 },
-        { header: "Grupos revisados", width: 12 },
-        { header: "Revisados con exclusión", width: 14 },
+        { header: "Con exclusión", width: 12 },
+        { header: "Sin exclusión", width: 12 },
       ],
       rows: audit.campaigns.map((c) => [
         c.accountId,
@@ -310,27 +360,22 @@ export function exclusionWorkbook(audit: ExclusionAudit, meta: WorkbookMeta): Xl
         c.campaignId,
         c.campaignName,
         c.universe,
-        statusLabel(c.campaignStatus),
-        coverageCell(coverage(c.activeAdSets, c.activeWithExclusion)),
-        c.activeAdSets,
-        c.activeWithExclusion,
         coverageCell(coverage(c.adSets, c.adSetsWithExclusion)),
         c.adSets,
         c.adSetsWithExclusion,
+        c.adSets - c.adSetsWithExclusion,
       ]),
     },
     {
-      name: "Grupos de anuncios",
+      name: "Grupos activos",
       columns: [
         { header: "Cuenta ID", width: 20 },
         { header: "Cuenta", width: 30 },
         { header: "Campaña ID", width: 22 },
         { header: "Campaña", width: 46 },
         { header: "Universo", width: 20 },
-        { header: "Estado campaña", width: 16 },
         { header: "Grupo ID", width: 22 },
         { header: "Grupo de anuncios", width: 46 },
-        { header: "Estado grupo", width: 16 },
         { header: "Excluye clientes activos", width: 14 },
         { header: "Audiencia de clientes activos excluida", width: 40 },
         { header: "Otras audiencias excluidas", width: 40 },
@@ -338,6 +383,9 @@ export function exclusionWorkbook(audit: ExclusionAudit, meta: WorkbookMeta): Xl
         { header: "Audiencia Advantage+", width: 14 },
         { header: "Objetivo de optimización", width: 22 },
         { header: "Destino", width: 18 },
+        { header: "Entrega", width: 12 },
+        { header: "Inicio", width: 12 },
+        { header: "Fin", width: 12 },
       ],
       rows: audit.adSets.map((s) => [
         s.accountId,
@@ -345,10 +393,8 @@ export function exclusionWorkbook(audit: ExclusionAudit, meta: WorkbookMeta): Xl
         s.campaignId,
         s.campaignName,
         s.universe,
-        statusLabel(s.campaignStatus),
         s.adSetId,
         s.adSetName,
-        statusLabel(s.adSetStatus),
         yesNo(s.excludesActiveCustomers),
         names(s.activeCustomerAudiences),
         names(s.otherExcluded),
@@ -356,6 +402,9 @@ export function exclusionWorkbook(audit: ExclusionAudit, meta: WorkbookMeta): Xl
         s.advantageAudience === null ? null : s.advantageAudience ? "Sí" : "No",
         s.optimizationGoal,
         s.destinationType,
+        s.scheduled ? { value: "Programado", tone: "warn" } : "En curso",
+        day(s.startTime),
+        day(s.endTime) || day(s.campaignStopTime),
       ]),
     },
     {
@@ -364,18 +413,10 @@ export function exclusionWorkbook(audit: ExclusionAudit, meta: WorkbookMeta): Xl
         { header: "Audiencia ID", width: 22 },
         { header: "Audiencia", width: 50 },
         { header: "Se cuenta como clientes activos", width: 18 },
-        { header: "Grupos que la excluyen", width: 14 },
         { header: "Grupos activos que la excluyen", width: 16 },
         { header: "Cuentas", width: 40 },
       ],
-      rows: audit.audiences.map((a) => [
-        a.id,
-        a.name,
-        yesNo(a.activeCustomers),
-        a.adSets,
-        a.activeAdSets,
-        a.accounts.join(", "),
-      ]),
+      rows: audit.audiences.map((a) => [a.id, a.name, yesNo(a.activeCustomers), a.adSets, a.accounts.join(", ")]),
     },
     {
       name: "Criterios",
@@ -387,19 +428,23 @@ export function exclusionWorkbook(audit: ExclusionAudit, meta: WorkbookMeta): Xl
         ["Generado", meta.generatedAt],
         ["Fuente", `Meta Marketing API ${meta.apiVersion}, segmentación de cada grupo de anuncios (solo lectura).`],
         [
+          "Alcance",
+          "Solo campañas activas: grupos de anuncios con estado efectivo Activo dentro de campañas activas. No se consideran campañas ni grupos pausados, archivados o eliminados, ni los que siguen marcados como activos pero ya pasaron su fecha de fin.",
+        ],
+        ["Activos descartados por fecha de fin", skipped],
+        [
           "Clientes activos",
           `Un grupo excluye clientes activos si alguna de sus audiencias excluidas tiene un nombre que coincide con el patrón "${meta.pattern}" (sin acentos ni mayúsculas). Revisa la hoja Audiencias excluidas: si falta o sobra alguna, vuelve a generar con --patron.`,
         ],
-        ["Estados revisados", meta.statuses.map(statusLabel).join(", ")],
-        ["Grupos activos", "Estado efectivo Activo: el grupo y su campaña están encendidos."],
         [
           "Universo",
           'Campañas con "CAPI WhatsApp" en el nombre se miden con On-Facebook Purchase; las demás con Compras Offline Web (Inbound). No se mezclan en el análisis.',
         ],
         [
           "Cobertura por campaña",
-          "Sí: todos sus grupos excluyen clientes activos. Parcial: solo algunos. No: ninguno. Sin grupos: no tiene grupos en ese estado.",
+          "Sí: todos sus grupos activos excluyen clientes activos. Parcial: solo algunos. No: ninguno.",
         ],
+        ["Entrega", "Programado: el grupo está activo pero su fecha de inicio todavía no llega."],
         [
           "Audiencia Advantage+",
           "Con audiencia Advantage+ las audiencias incluidas son sugerencias, pero las exclusiones siguen aplicando.",
