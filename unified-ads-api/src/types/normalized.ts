@@ -54,6 +54,37 @@ export interface NormalizedCampaign {
   objective: string | null;
 }
 
+/**
+ * Presupuesto vigente de una campaña o de un conjunto de anuncios activo, en la moneda de la cuenta.
+ * Es configuración actual de la plataforma (no gasto): sirve para comparar el gasto del día contra
+ * lo que la plataforma tiene autorizado gastar.
+ */
+export interface NormalizedBudget {
+  platform: ProviderSlug;
+  client_id: string | null;
+  account_id: string;
+  account_name: string;
+  currency: string | null;
+  campaign_id: string;
+  campaign_name: string;
+  /** Objetivo de la campaña tal como lo reporta la plataforma (Meta: OUTCOME_LEADS…). */
+  objective: string | null;
+  /** Dónde vive el presupuesto: en la campaña (Advantage+/CBO) o en cada conjunto (ABO). */
+  budget_level: "campaign" | "ad_set";
+  ad_set_id: string | null;
+  ad_set_name: string | null;
+  budget_type: "daily" | "lifetime";
+  daily_budget: number | null;
+  lifetime_budget: number | null;
+  budget_remaining: number | null;
+  /** Solo presupuestos totales: restante ÷ días que faltan (incluido hoy). Es una estimación. */
+  daily_estimate: number | null;
+  start_time: string | null;
+  end_time: string | null;
+  extracted_at: string;
+  raw_metrics: Record<string, unknown>;
+}
+
 export interface NormalizedPerformance {
   platform: ProviderSlug;
   client_id: string | null;

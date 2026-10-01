@@ -4,6 +4,7 @@ import type {
   AccountQuery,
   CampaignQuery,
   NormalizedAccount,
+  NormalizedBudget,
   NormalizedCampaign,
   NormalizedConversion,
   NormalizedPerformance,
@@ -34,6 +35,8 @@ export interface AdsProvider {
   listCampaigns(query: CampaignQuery, options?: ProviderRequestOptions): Promise<NormalizedCampaign[]>;
   getPerformance(query: PerformanceQuery, options?: ProviderRequestOptions): Promise<NormalizedPerformance[]>;
   getConversions(query: PerformanceQuery, options?: ProviderRequestOptions): Promise<NormalizedConversion[]>;
+  /** Presupuestos vigentes de campañas y conjuntos activos. Solo las plataformas que lo exponen. */
+  listBudgets?(query: CampaignQuery, options?: ProviderRequestOptions): Promise<NormalizedBudget[]>;
 }
 
 export interface ProviderRequestOptions {

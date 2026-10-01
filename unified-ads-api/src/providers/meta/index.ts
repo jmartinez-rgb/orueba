@@ -9,12 +9,20 @@ import type {
   CampaignQuery,
   PerformanceQuery,
   NormalizedAccount,
+  NormalizedBudget,
   NormalizedCampaign,
 } from "../../types/normalized.js";
 import { readMetaConfig, metaAccountId } from "./config.js";
 import { MetaClient } from "./client.js";
 import { readMetaAccount, discoverMetaAccounts } from "./accounts.js";
 import { CAMPAIGN_FIELDS, HOUR_FIELD, insightsParams, insightsWindows } from "./queries.js";
+import {
+  ACTIVE_FILTER,
+  BUDGET_ADSET_FIELDS,
+  BUDGET_CAMPAIGN_FIELDS,
+  needsAdSets,
+  normalizeBudgets,
+} from "./budgets.js";
 import { normalizeCampaign, normalizePerformance, normalizeConversions } from "./normalize.js";
 import { metaAccountWarning } from "./errors.js";
 import { metaObject, type MetaFetch, type MetaCampaign, type MetaInsight } from "./types.js";
@@ -177,6 +185,40 @@ export class MetaProvider extends BaseProvider {
     return this.run(
       (client, signal) =>
         this.eachAccount(client, signal, query, options, (account) => this.campaigns(client, account, signal)),
+      options,
+    );
+  }
+  /** Presupuestos vigentes de campañas activas (CBO) y de conjuntos activos cuando la campaña no tiene (ABO). */
+  listBudgets(query: CampaignQuery, options?: ProviderRequestOptions): Promise<NormalizedBudget[]> {
+    return this.run(
+      (client, signal) =>
+        this.eachAccount(client, signal, query, options, async (account) => {
+          const at = new Date().toISOString();
+          const params = { effective_status: ACTIVE_FILTER };
+          const campaigns = await client.list<Record<string, unknown>>(
+            `act_${account.account_id}/campaigns`,
+            { ...params, fields: BUDGET_CAMPAIGN_FIELDS },
+            signal,
+          );
+          const adSets = needsAdSets(campaigns)
+            ? await client.list<Record<string, unknown>>(
+                `act_${account.account_id}/adsets`,
+                { ...params, fields: BUDGET_ADSET_FIELDS },
+                signal,
+              )
+            : [];
+          if (!account.currency && campaigns.length)
+            options?.onWarning?.(
+              new ApiError(
+                "PROVIDER_ERROR",
+                "Meta no devolvió la moneda de la cuenta; sus presupuestos quedan nulos.",
+                {
+                  details: { provider: "meta", account_id: account.account_id, limitation: "missing_currency" },
+                },
+              ),
+            );
+          return normalizeBudgets(account, campaigns, adSets, at);
+        }),
       options,
     );
   }

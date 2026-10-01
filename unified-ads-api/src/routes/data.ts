@@ -55,6 +55,28 @@ const campaign = z.object({
   objective: text,
 });
 const raw = z.record(z.string(), z.unknown());
+const budget = z.object({
+  platform: providerSlugSchema,
+  client_id: text,
+  account_id: z.string(),
+  account_name: z.string(),
+  currency: text,
+  campaign_id: z.string(),
+  campaign_name: z.string(),
+  objective: text,
+  budget_level: z.enum(["campaign", "ad_set"]),
+  ad_set_id: text,
+  ad_set_name: text,
+  budget_type: z.enum(["daily", "lifetime"]),
+  daily_budget: number,
+  lifetime_budget: number,
+  budget_remaining: number,
+  daily_estimate: number,
+  start_time: text,
+  end_time: text,
+  extracted_at: z.string(),
+  raw_metrics: raw,
+});
 const performance = z.object({
   platform: providerSlugSchema,
   client_id: text,
@@ -109,6 +131,7 @@ export const dataRoutes = (deps: { registry: ProviderRegistry; timeoutMs: number
       provider: string | undefined,
       requestId: string,
       work: (p: AdsProvider, signal: AbortSignal, onWarning: (error: ApiError) => void) => Promise<T[]>,
+      supports: (p: AdsProvider) => boolean = () => true,
     ) {
       const invoke = async (p: AdsProvider) => {
         const errors: Array<{ provider: string; error: ReturnType<typeof errorBody>["error"] }> = [];
@@ -126,6 +149,7 @@ export const dataRoutes = (deps: { registry: ProviderRegistry; timeoutMs: number
       if (provider) {
         const p = deps.registry.bySlug(provider);
         if (!p) throw new ApiError("INVALID_REQUEST", "Proveedor desconocido.");
+        if (!supports(p)) throw new ApiError("INVALID_REQUEST", `${p.name} no ofrece esta consulta todavía.`);
         return {
           ...(await invoke(p)),
           request_id: requestId,
@@ -133,7 +157,7 @@ export const dataRoutes = (deps: { registry: ProviderRegistry; timeoutMs: number
       }
       // Sin proveedor explícito solo se consultan las integraciones listas y configuradas; su estado
       // completo (incluidas las pendientes) está en /providers. Así `errors` no se llena de avisos fijos.
-      const providers = deps.registry.list().filter((p) => p.implemented && p.isConfigured());
+      const providers = deps.registry.list().filter((p) => p.implemented && p.isConfigured() && supports(p));
       const results = await Promise.allSettled(providers.map(invoke));
       const data: T[] = [];
       const errors: Array<{ provider: string; error: ReturnType<typeof errorBody>["error"] }> = [];
@@ -189,6 +213,24 @@ export const dataRoutes = (deps: { registry: ProviderRegistry; timeoutMs: number
       async (req) =>
         collect(req.query.provider, req.id, (p, signal, onWarning) =>
           p.listCampaigns(req.query, { signal, onWarning }),
+        ),
+    );
+    app.get(
+      "/budgets",
+      {
+        schema: {
+          ...common,
+          summary: "Presupuestos vigentes de campañas y conjuntos activos (hoy: Meta)",
+          querystring: campaignQuery,
+          response: response(budget),
+        },
+      },
+      async (req) =>
+        collect(
+          req.query.provider,
+          req.id,
+          (p, signal, onWarning) => p.listBudgets!(req.query, { signal, onWarning }),
+          (p) => typeof p.listBudgets === "function",
         ),
     );
     app.get(
