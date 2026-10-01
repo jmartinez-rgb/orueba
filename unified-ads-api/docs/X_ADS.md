@@ -182,7 +182,13 @@ de escritura publicitaria ni trabajos de informes.
 - El diagnóstico adicional solo recogió el HTTP y un código de una lista permitida; no registró
   cabeceras, mensajes originales, cuerpos OAuth ni valores de credenciales.
 
-Solicitar Standard Access para la app `33489379`. Tras la aprobación, la guía oficial pide renovar
+El usuario envió la solicitud de acceso el **1 de octubre de 2026**. La captura del formulario
+oficial muestra **«Success! Someone from the X Developer Platform will reach out shortly.»**
+Esto confirma la recepción de la solicitud, no la aprobación de Ads API. No se muestra un número
+de caso ni un plazo de resolución; queda pendiente la respuesta de X al contacto indicado.
+No se repite la petición bloqueada ni se renuevan tokens mientras no haya aprobación.
+
+La integración requiere Standard Access para la app `33489379`. Tras la aprobación, la guía oficial pide renovar
 los tokens de usuario previos; actualizar únicamente `X_ADS_ACCESS_TOKEN` y
 `X_ADS_ACCESS_TOKEN_SECRET` con ese nuevo par, manteniendo las claves de la misma app. Después
 reintentar cuentas y una lectura diaria acotada de las cuentas elegidas por el usuario.
@@ -196,7 +202,7 @@ offset/DST y las tres ubicaciones. No se declara esta fase lista para producció
   de este proveedor prevalece la referencia de versiones actual que especifica `/12`.
 - [Formulario de acceso](https://docs.x.com/forms/ads-api-access) y su
   [versión Markdown](https://docs.x.com/forms/ads-api-access.md), que identifica el formulario
-  integrado de help.x.com. Fuentes públicas comprobadas; no se envió ninguna solicitud desde esta sesión.
+  integrado de help.x.com. Fuentes públicas comprobadas; el usuario envió la solicitud desde su navegador.
 - [Versiones](https://docs.x.com/x-ads-api/fundamentals/versioning).
 - [OAuth y solicitudes autenticadas](https://docs.x.com/x-ads-api/fundamentals/making-authenticated-requests).
 - [Cuentas, campañas e instrumentos](https://docs.x.com/x-ads-api/campaign-management/reference).

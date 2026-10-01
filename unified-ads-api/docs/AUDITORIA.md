@@ -85,7 +85,9 @@ reportes asíncronos y fixtures; contrato y límites en [X_ADS.md](X_ADS.md).
 - No se saltaron, desactivaron ni pusieron en cuarentena pruebas. Las pruebas de API bloquean red global.
 - TikTok completó OAuth y lecturas reales; la conciliación sigue pendiente. X tiene cuatro
   variables privadas aplicadas; `GET /12/accounts` devuelve HTTP 403
-  `UNAUTHORIZED_CLIENT_APPLICATION` y estado `access_required`. No se leyeron datos de X.
+  `UNAUTHORIZED_CLIENT_APPLICATION` y estado `access_required`. El usuario envió la solicitud
+  de acceso el 1 de octubre de 2026; el formulario confirmó recepción con «Success!».
+  La aprobación y la lectura real siguen pendientes. No se leyeron datos de X.
   Los bloqueos restantes están separados abajo.
 
 ## Cómo se auditó
@@ -228,14 +230,14 @@ Google, Meta, Microsoft y Spotify conservan la evidencia histórica de Codex; la
 Claude no tuvo credenciales para repetirla. TikTok sí se verificó en esta continuación, el
 1 de octubre de 2026; detalles y totales en [TIKTOK_PRIMERA_LECTURA.md](TIKTOK_PRIMERA_LECTURA.md).
 
-| Plataforma | Simulador            | OAuth y credenciales reales                                    | Cuentas reales                     | Campañas reales     | Informes y métricas reales                               | Conciliación con la interfaz |
-| ---------- | -------------------- | -------------------------------------------------------------- | ---------------------------------- | ------------------- | -------------------------------------------------------- | ---------------------------- |
-| Google Ads | Sí                   | Sí                                                             | Sí (33 raíces, 2274 en jerarquías) | Sí (muestra de 150) | Muestras diarias, horarias y de conversiones             | Pendiente                    |
-| Meta       | Sí                   | Sí (token)                                                     | Sí (17 activas)                    | Sí (muestra)        | Muestras diarias, horarias y de conversiones             | Pendiente                    |
-| TikTok     | Sí                   | Sí, OAuth y token real                                         | Sí (4, monedas y zonas leídas)     | Sí (178)            | Sí: 76 filas diarias y 608 de conversiones; US sin filas | Pendiente                    |
-| Microsoft  | Sí                   | Sí                                                             | Sí (4)                             | Sí (43)             | No: el proxy bloquea la descarga del ZIP                 | No                           |
-| Spotify    | Sí                   | Sí (refresh token)                                             | No (403 `ACCESS_REQUIRED`)         | No                  | No                                                       | No                           |
-| X Ads      | Sí, fixtures sin red | Variables aplicadas; Ads API responde 403 de app no habilitada | No                                 | No                  | No                                                       | Pendiente                    |
+| Plataforma | Simulador            | OAuth y credenciales reales                                            | Cuentas reales                     | Campañas reales     | Informes y métricas reales                               | Conciliación con la interfaz |
+| ---------- | -------------------- | ---------------------------------------------------------------------- | ---------------------------------- | ------------------- | -------------------------------------------------------- | ---------------------------- |
+| Google Ads | Sí                   | Sí                                                                     | Sí (33 raíces, 2274 en jerarquías) | Sí (muestra de 150) | Muestras diarias, horarias y de conversiones             | Pendiente                    |
+| Meta       | Sí                   | Sí (token)                                                             | Sí (17 activas)                    | Sí (muestra)        | Muestras diarias, horarias y de conversiones             | Pendiente                    |
+| TikTok     | Sí                   | Sí, OAuth y token real                                                 | Sí (4, monedas y zonas leídas)     | Sí (178)            | Sí: 76 filas diarias y 608 de conversiones; US sin filas | Pendiente                    |
+| Microsoft  | Sí                   | Sí                                                                     | Sí (4)                             | Sí (43)             | No: el proxy bloquea la descarga del ZIP                 | No                           |
+| Spotify    | Sí                   | Sí (refresh token)                                                     | No (403 `ACCESS_REQUIRED`)         | No                  | No                                                       | No                           |
+| X Ads      | Sí, fixtures sin red | Variables aplicadas; HTTP 403; solicitud enviada, aprobación pendiente | No                                 | No                  | No                                                       | Pendiente                    |
 
 ## Pendientes y orden recomendado
 
@@ -254,8 +256,9 @@ Claude no tuvo credenciales para repetirla. TikTok sí se verificó en esta cont
   en la muestra; otros productos o ámbitos de reporting no se dan por validados.
 - X: la app existe (ID mostrado en la consola: `33489379`) y la configuración está aplicada.
   Primera consulta real `GET /12/accounts`: HTTP 403 `UNAUTHORIZED_CLIENT_APPLICATION`;
-  `stateFromError` produce `access_required`. Solicitar aprobación de Ads API con Standard Access
-  (Analytics y Campaign Management); tras la aprobación, renovar el par de tokens del usuario
+  `stateFromError` produce `access_required`. El usuario envió la solicitud de acceso
+  el 1 de octubre de 2026 y aportó la confirmación «Success!» del formulario oficial.
+  Falta la aprobación de Standard Access (Analytics y Campaign Management); tras ella, renovar el par de tokens del usuario
   según la guía oficial. [Formulario de Ads API](https://docs.x.com/forms/ads-api-access) y
   evidencia detallada en [X_ADS.md](X_ADS.md). No se confunde una app activa para X API con
   aprobación de Ads API ni se afirma validación de cuentas o de Analytics.

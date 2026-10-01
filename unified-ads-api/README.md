@@ -273,7 +273,8 @@ Configura los cuatro valores privados `X_ADS_CONSUMER_KEY`, `X_ADS_CONSUMER_SECR
 Consulta [docs/X_ADS.md](docs/X_ADS.md) para versión, fuentes, permisos y límites comprobados.
 Las pruebas no salen a red. La app ya existe y sus cuatro variables privadas llegaron al proceso;
 la primera petición real devuelve HTTP 403 `UNAUTHORIZED_CLIENT_APPLICATION`, normalizado como
-`ACCESS_REQUIRED`. Falta la aprobación/permisos de Ads API, seguida de lectura y conciliación real.
+`ACCESS_REQUIRED`. El usuario envió la solicitud de acceso el 1 de octubre de 2026 y el formulario
+confirmó recepción. Falta la aprobación/permisos de Ads API, seguida de lectura y conciliación real.
 La guía incluye el formulario oficial y la renovación del par de tokens de usuario tras la aprobación.
 
 ## Continuación para auditoría de Claude
