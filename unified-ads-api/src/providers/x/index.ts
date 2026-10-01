@@ -1,6 +1,7 @@
 import { Provider } from "../../types/providers.js";
 import { BaseProvider } from "../base-provider.js";
 import { stateFromError } from "../status.js";
+import { incrementalCampaignIds } from "./activity.js";
 import type { ProviderRequestOptions } from "../provider.js";
 import type {
   AccountQuery,
@@ -236,7 +237,14 @@ export class XProvider extends BaseProvider {
               },
             ),
           );
-        const ids = selected.map((row) => xId(row.id)),
+        const ids = await incrementalCampaignIds(
+            client,
+            source,
+            selected.map((row) => xId(row.id)),
+            query,
+            signal,
+            options?.onWarning,
+          ),
           at = new Date().toISOString();
         const buckets = await xReport(client, source, ids, query, conversions, signal, this.opts.wait);
         if (conversions)

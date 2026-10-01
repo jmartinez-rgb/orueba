@@ -1,5 +1,11 @@
 # Traspaso a Claude: continuación de TikTok y X Ads
 
+**Documento histórico de la entrega `b4226e9`.** La continuación actual está en
+`codex/finalizacion-verificador-meta-x`, desde la auditoría `c79b17f` de Claude.
+Lee primero [VERIFICACION.md](VERIFICACION.md) y la sección más reciente de
+[AUDITORIA.md](AUDITORIA.md); las instrucciones y pendientes siguientes corresponden a la
+entrega anterior y no deben usarse para volver a una base antigua.
+
 Actualizado el **1 de octubre de 2026**. Repositorio: `jmartinez-rgb/orueba`.
 Rama entregada: **`codex/continuacion-tiktok-x`**, subida a GitHub.
 Este documento describe la continuación posterior a la primera auditoría de Claude.

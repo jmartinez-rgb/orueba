@@ -3,6 +3,75 @@
 Fecha: 1 de octubre de 2026. Rama: `codex/entrega-auditoria-claude`. Estado recibido: commit
 `39a65be` (idéntico al ZIP `unified-ads-api-para-auditoria.zip`, comprobado archivo por archivo).
 
+## Finalización del verificador, acciones de Meta y selección incremental de X
+
+Fecha: **1 de octubre de 2026**. Base publicada de Claude: `claude/auditoria-tiktok-x`,
+commit **`c79b17f`**. Rama propia: **`codex/finalizacion-verificador-meta-x`**. Conserva esa
+auditoría y sus mejoras de presupuestos, entrega y monitoreo. Los comandos y reglas que Claude
+estaba desarrollando no estaban publicados en esa base; esta continuación los implementa.
+
+- `npm run verificar`: primera lectura acotada de las plataformas configuradas, cuentas, campañas,
+  presupuestos y salud disponibles, y rendimiento diario según la zona de cada cuenta. Excel con
+  cobertura, vacíos distintos de cero y campos seleccionados; IDs como texto, archivo exclusivo
+  0600 en `reportes/`, sin secretos ni cuerpos originales de error.
+- `npm run meta:acciones`: inventario diario y totales por cuenta, moneda, grupo CAPI WhatsApp/resto
+  y acción exacta. Resuelve nombres de conversiones personalizadas cuando el permiso lo permite.
+  No mezcla alias, elige eventos principales ni cambia el mapeo comercial.
+- `META_PRIMARY_CONVERSION_RULES`: selección literal por nombre o ID de campaña. Cuentas con
+  reglas sin coincidencia mantienen conversiones y CPA desconocidos; conflictos se informan.
+  No se activaron reglas privadas ni se eligieron IDs de negocio.
+- Tokens rotados de Microsoft/Spotify: los comandos esperan escritura atómica en `.env` y en el
+  almacén configurado, conservando las otras variables. La entrada oculta se comparte con
+  `meta:exclusiones`, con limpieza de terminal y sin eco de credenciales.
+- X Ads 12: `active_entities` opcional para sincronización incremental. Su ventana de cambios
+  se distingue del periodo del reporte. Se valida el contrato y se advierte cobertura parcial;
+  respuestas no utilizables conservan todas las campañas, mientras autenticación, cuota y
+  cancelación se propagan. Primera lectura e históricos conservan el comportamiento completo por
+  defecto. No se activó la ventana ni se repitió la consulta de la app pendiente de aprobación.
+
+Fuentes: [Analytics oficial de X Ads 12](https://docs.x.com/x-ads-api/analytics) y
+[SDK oficial de Meta 26.0.2, CustomConversion](https://github.com/facebook/facebook-python-business-sdk/blob/26.0.2/facebook_business/adobjects/customconversion.py).
+Guía y contratos: [VERIFICACION.md](VERIFICACION.md). Las siguientes secciones conservan la
+evidencia histórica y la autoría de las auditorías anteriores.
+
+### Lectura real del nuevo comando
+
+Se ejecutó `verificar` **solo para las cuatro cuentas autorizadas de TikTok**, con fecha explícita
+**2026-09-29**. Salida 0, conexión comprobada, 178 campañas, 26 filas de presupuestos actuales,
+25 filas de rendimiento y ninguna advertencia/error en las secciones implementadas. Salud de
+entrega se registra `not_supported`, sin simular una comprobación. Archivo privado generado y
+comprobado como 0600; no se incorpora a Git.
+
+| Cuenta             | Filas diarias | Gasto 2026-09-29 (MXN) | Filas de presupuestos actuales |
+| ------------------ | ------------: | ---------------------: | -----------------------------: |
+| Sky México         |            12 |                3417.24 |                              7 |
+| Sky Sports MXN     |             3 |                 437.22 |                              4 |
+| izzi - ABCW        |            10 |                1576.14 |                             15 |
+| izzi ABCW US (USD) |     Sin filas |              No aplica |                      Sin filas |
+
+Los costos y cantidades de filas coinciden con el CSV agregado anterior para el día solicitado.
+Las cuatro cuentas mantienen `Etc/GMT+6`; el verificador no sustituye esa zona por la de
+visualización. Los presupuestos son **vigentes al extraer**, no los del 29 de septiembre.
+Esto prueba el comando contra la API real, **no** la conciliación con Ads Manager ni las unidades
+de `total_complete_payment_rate`. El Excel marca ese valor de compras como unidades no confirmadas.
+No se realizaron nuevas consultas reales de Google, Meta, Microsoft, Spotify o X en esta continuación.
+
+### Validación de la finalización
+
+- Node **24.19.0**: `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm test` y
+  `npm run build`; **600 pruebas, 32 archivos**. La suite bloquea red mediante el stub global
+  existente; no se omitieron ni desactivaron pruebas. Node 22 conserva la validación de Claude
+  sobre la base y la configuración de CI; no se afirma una ejecución nueva local en Node 22.
+- Monitoreo conservado: `npm run check`, **215 pruebas, 23 archivos**. No se modificó el centro
+  ni su registro de seis plataformas; no se afirma una nueva revisión visual o despliegue.
+- Ayuda de ambos comandos ejecutada sin acceso a plataformas; lectura real de TikTok separada
+  de las pruebas de fixtures. Escenarios nuevos: reglas ambiguas/sin coincidencia, acciones
+  separadas y cantidades desconocidas, zonas/fechas/límites, Excel privado y rotaciones,
+  filtros incrementales de X/respaldo y entrada oculta con restauración de terminal.
+
+Pendientes externos y de negocio permanecen en la sección de pendientes, separados de estas
+mejoras verificadas con código. No se declara el proyecto terminado ni listo para producción.
+
 ## Auditoría de Claude sobre la continuación de Codex
 
 Fecha: 1 de octubre de 2026. Estado recibido: `codex/continuacion-tiktok-x`, commit `b4226e9`.
@@ -333,8 +402,9 @@ Las líneas se refieren al código recibido (`39a65be`).
 ## Matriz de validación por plataforma
 
 Google, Meta, Microsoft y Spotify conservan la evidencia histórica de Codex; la auditoría de
-Claude no tuvo credenciales para repetirla. TikTok sí se verificó en esta continuación, el
-1 de octubre de 2026; detalles y totales en [TIKTOK_PRIMERA_LECTURA.md](TIKTOK_PRIMERA_LECTURA.md).
+Claude no tuvo credenciales para repetirla. TikTok sí se verificó el 1 de octubre de 2026;
+detalles y totales en [TIKTOK_PRIMERA_LECTURA.md](TIKTOK_PRIMERA_LECTURA.md). La finalización del
+verificador añadió una lectura de un día y 26 presupuestos actuales, descrita arriba.
 
 | Plataforma | Simulador            | OAuth y credenciales reales                                            | Cuentas reales                     | Campañas reales     | Informes y métricas reales                               | Conciliación con la interfaz |
 | ---------- | -------------------- | ---------------------------------------------------------------------- | ---------------------------------- | ------------------- | -------------------------------------------------------- | ---------------------------- |
@@ -347,10 +417,10 @@ Claude no tuvo credenciales para repetirla. TikTok sí se verificó en esta cont
 
 ## Pendientes y orden recomendado
 
-El [traspaso actualizado a Claude](TRASPASO_CLAUDE.md) incluye el punto de partida, archivos a
-auditar y tareas posibles sin permisos nuevos. La siguiente revisión debe comprobar también la
-persistencia atómica del asistente Google y el tratamiento de fallos de lectura del almacén de
-tokens; se señalan como puntos de revisión, sin afirmar un incidente real.
+La guía actual es [VERIFICACION.md](VERIFICACION.md); [TRASPASO_CLAUDE.md](TRASPASO_CLAUDE.md)
+conserva la entrega histórica. La persistencia atómica del asistente Google y el tratamiento de
+fallos de lectura del almacén de tokens ya fueron corregidos y probados por Claude (C2 y C3),
+y esta rama conserva esas correcciones.
 
 **Decisiones de negocio**
 
@@ -389,8 +459,10 @@ tokens; se señalan como puntos de revisión, sin afirmar un incidente real.
 
 **Código**
 
-- X (auditoría de Claude): confirmar `PUBLISHER_NETWORK` en v12 (se activa con `X_ADS_PLACEMENTS`) y
-  filtrar campañas con `active_entities` para cuidar el límite de tasa.
+- X (auditoría de Claude): confirmar `PUBLISHER_NETWORK` en v12 (se activa con `X_ADS_PLACEMENTS`).
+  `active_entities` ya está implementado y probado con fixtures como selección incremental
+  opcional, sin confundir la ventana de cambios con el periodo del reporte; falta comprobarlo
+  con la app aprobada. El polling espaciado de Claude se conserva.
 - Salud de entrega de TikTok cuando haya un vocabulario oficial de `secondary_status` verificable.
 - Primera lectura real de `/budgets` y `/delivery-health` en Meta, Google y Microsoft para confirmar
   campos y seleccionabilidad (los contratos están confirmados con fuentes oficiales, no con datos reales).

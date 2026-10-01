@@ -1,4 +1,5 @@
 import { ApiError } from "../../utils/errors.js";
+import { parsePrimaryRules, type MetaPrimaryRule } from "./primary-action.js";
 
 export const META_GRAPH_URL = "https://graph.facebook.com";
 export interface MetaConfig {
@@ -12,6 +13,7 @@ export interface MetaConfig {
   conversionMapping: Record<string, string>;
   primaryAction?: string;
   primaryActions: Record<string, string>;
+  primaryRules: MetaPrimaryRule[];
   timeoutMs: number;
   retries: number;
 }
@@ -58,6 +60,7 @@ export function readMetaConfig(
     clientMapping: {} as Record<string, string>,
     conversionMapping: {} as Record<string, string>,
     primaryActions: {} as Record<string, string>,
+    primaryRules: [] as MetaPrimaryRule[],
   };
   const parse = (name: string, fn: (value: string) => void) => {
     const value = get(name);
@@ -83,6 +86,9 @@ export function readMetaConfig(
   });
   parse("META_PRIMARY_CONVERSION_MAPPING", (v) => {
     values.primaryActions = stringMap(v, true);
+  });
+  parse("META_PRIMARY_CONVERSION_RULES", (v) => {
+    values.primaryRules = parsePrimaryRules(v);
   });
   const primaryAction = get("META_PRIMARY_CONVERSION_ACTION");
   if (primaryAction && !/^[\w.:-]{1,200}$/.test(primaryAction)) missing.push("META_PRIMARY_CONVERSION_ACTION");

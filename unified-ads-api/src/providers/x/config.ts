@@ -53,6 +53,7 @@ export interface XConfig {
   reportMode: "auto" | "sync" | "async";
   timeoutMs: number;
   retries: number;
+  activityWindow: { start: string; end: string } | null;
 }
 export function readXConfig(env: Readonly<Record<string, string | undefined>>, fallbackTimeout = 15000) {
   const get = (k: string) => env[k]?.trim();
@@ -63,6 +64,24 @@ export function readXConfig(env: Readonly<Record<string, string | undefined>>, f
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 300000) missing.push("X_ADS_TIMEOUT_MS");
   if (!Number.isInteger(retries) || retries < 0 || retries > 5) missing.push("X_ADS_RETRIES");
   if (get("X_ADS_API_VERSION") && get("X_ADS_API_VERSION") !== "12") missing.push("X_ADS_API_VERSION");
+  const start = get("X_ADS_ACTIVITY_START_TIME"),
+    end = get("X_ADS_ACTIVITY_END_TIME");
+  let activityWindow: XConfig["activityWindow"] = null;
+  if (start || end) {
+    const valid = (v: string | undefined) =>
+      !!v &&
+      /^\d{4}-\d\d-\d\dT\d\d:00:00Z$/.test(v) &&
+      Number.isFinite(Date.parse(v)) &&
+      new Date(v).toISOString().replace(".000Z", "Z") === v;
+    if (
+      !valid(start) ||
+      !valid(end) ||
+      Date.parse(end!) - Date.parse(start!) <= 0 ||
+      Date.parse(end!) - Date.parse(start!) > 90 * 86400000
+    )
+      missing.push("X_ADS_ACTIVITY_START_TIME", "X_ADS_ACTIVITY_END_TIME");
+    else activityWindow = { start: start!, end: end! };
+  }
   let accountIds: string[] = [];
   try {
     accountIds = [
@@ -136,6 +155,7 @@ export function readXConfig(env: Readonly<Record<string, string | undefined>>, f
         reportMode: reportMode as XConfig["reportMode"],
         timeoutMs,
         retries,
+        activityWindow,
       };
   return { config, missing: [...new Set(missing)] };
 }

@@ -102,6 +102,15 @@ sin un cambio de permisos o de configuración que justifique el intento.
 
 ## Informes y semántica
 
+La selección por `active_entities` es opcional, con `X_ADS_ACTIVITY_START_TIME` y
+`X_ADS_ACTIVITY_END_TIME`. Sus horas UTC delimitan cambios registrados, no el periodo del reporte.
+Por defecto se conserva la lectura completa. Se validan entidades, fechas y ubicaciones; una
+respuesta no utilizable conserva todas las campañas con aviso y una selección válida se marca
+incremental/parcial. Autenticación, límites y cancelación se propagan. La primera lectura de
+`npm run verificar` mantiene todas las campañas. Contrato: Ads API 12,
+[Analytics oficial](https://docs.x.com/x-ads-api/analytics), consultado el 1 de octubre de 2026.
+Consulta [VERIFICACION.md](VERIFICACION.md) antes de activar la ventana.
+
 Se reporta a nivel **CAMPAIGN**, sin segmentaciones demográficas, en grupos separados:
 `ENGAGEMENT,BILLING,VIDEO` y `WEB_CONVERSION`. Se agrupa por día u hora. La versión inicial cubre
 eventos web; los eventos móviles, MACT y lifetime value quedan fuera del contrato implementado.

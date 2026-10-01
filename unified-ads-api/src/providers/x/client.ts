@@ -53,12 +53,12 @@ export class XClient {
     method: "GET" | "POST" = "GET",
   ): Promise<Record<string, unknown>> {
     if (
-      !/^\/(?:accounts(?:\/[A-Za-z0-9]{1,80}(?:\/(?:campaigns|funding_instruments))?)?|stats\/(?:jobs\/)?accounts\/[A-Za-z0-9]{1,80})$/.test(
+      !/^\/(?:accounts(?:\/[A-Za-z0-9]{1,80}(?:\/(?:campaigns|funding_instruments))?)?|stats\/(?:jobs\/accounts\/[A-Za-z0-9]{1,80}|accounts\/[A-Za-z0-9]{1,80}(?:\/active_entities)?))$/.test(
         path,
       )
     )
       throw new ApiError("INVALID_REQUEST", "Ruta de X Ads inválida.");
-    if (method === "POST" && !path.startsWith("/stats/jobs/accounts/"))
+    if (method === "POST" && !/^\/stats\/jobs\/accounts\/[A-Za-z0-9]{1,80}$/.test(path))
       throw new ApiError("INVALID_REQUEST", "Operación de X Ads inválida.");
     if (Object.keys(params).some((k) => k.startsWith("oauth_")))
       throw new ApiError("INVALID_REQUEST", "Parámetro OAuth reservado.");

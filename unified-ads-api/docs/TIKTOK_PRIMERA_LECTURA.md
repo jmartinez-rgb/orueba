@@ -79,6 +79,11 @@ ni se eligieron eventos de negocio a partir de ceros.
 
 ## Pendientes
 
+La continuación `codex/finalizacion-verificador-meta-x` ejecutó el nuevo `npm run verificar`
+para el 29 de septiembre: las mismas 178 campañas, 25 filas diarias y costos coincidentes con
+el CSV de ese día. También leyó 26 filas de presupuestos actuales. No reemplaza la muestra de
+tres días ni cierra la conciliación o las unidades de compra. Véase [AUDITORIA.md](AUDITORIA.md).
+
 - Conciliar los 12 periodos contra TikTok Ads Manager, incluida la ausencia de filas de izzi ABCW US.
 - Confirmar el significado y las unidades de `total_complete_payment_rate` con evidencia no nula.
 - Decidir la acción principal de TikTok por cuenta y el mapeo cuenta → cliente; actualmente los

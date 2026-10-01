@@ -7,6 +7,12 @@ cada API: n8n solo pregunta a esta API.
 
 ## Estado
 
+La continuación `codex/finalizacion-verificador-meta-x` parte de la auditoría de Claude
+`c79b17f`. Añade `npm run verificar` (Excel de lectura real), `npm run meta:acciones`
+(inventario separado por CAPI WhatsApp y resto), reglas de Meta por campaña y selección
+incremental opcional de X con respaldo. Consulta [la guía de verificación](docs/VERIFICACION.md).
+La conciliación y los permisos externos siguen pendientes; no se declara listo para producción.
+
 | Fase | Contenido                                | Estado                                                                                                |
 | ---- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | 1    | Infraestructura base (sin integraciones) | **Lista**                                                                                             |
@@ -153,7 +159,8 @@ el campo `business` requiere `business_management`; la consulta básica funciona
 
 Configura `META_ACCESS_TOKEN` en las variables privadas del entorno; para usuarios del sistema puedes
 fijar `META_AD_ACCOUNT_IDS`. Para conversiones y CPA en rendimiento elige una acción exacta mediante
-`META_PRIMARY_CONVERSION_ACTION` o el mapeo por cuenta. No se suman alias que pueden duplicar eventos.
+`META_PRIMARY_CONVERSION_ACTION`, el mapeo por cuenta o `META_PRIMARY_CONVERSION_RULES` por campaña.
+`npm run meta:acciones` identifica las acciones observadas sin elegirlas. No se suman alias que pueden duplicar eventos.
 Si la acción principal no aparece en un día, ese día tuvo 0 (Meta solo lista acciones ocurridas) y
 `raw_metrics.primary_action_present=false` ayuda a detectar una acción mal elegida.
 

@@ -33,6 +33,12 @@ Configurar un token no demuestra que esas aprobaciones ya existan.
 
 ## Variables
 
+También se admite `META_PRIMARY_CONVERSION_RULES`: reglas por cuenta y nombre/ID de campaña,
+con prioridad sobre el mapeo por cuenta. Sin coincidencia no se elige una acción de respaldo;
+reglas contradictorias producen `NOT_CONFIGURED`. `npm run meta:acciones` exporta las acciones
+reales por CAPI WhatsApp y resto sin decidir su uso. Consulta
+[VERIFICACION.md](VERIFICACION.md) para el contrato, ejemplos ficticios y los criterios de conciliación.
+
 | Variable                          | Uso                                                                                                                                                                                                   |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `META_ACCESS_TOKEN`               | Obligatoria. Token de usuario o usuario del sistema con `ads_read`.                                                                                                                                   |

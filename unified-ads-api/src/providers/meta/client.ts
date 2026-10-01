@@ -26,7 +26,7 @@ export class MetaClient {
 
   async get<T>(path: string, params: Record<string, string>, signal: AbortSignal): Promise<T> {
     if (
-      !/^(?:me|act_\d+|\d+)(?:\/(?:adaccounts|owned_ad_accounts|client_ad_accounts|campaigns|adsets|insights))?$/.test(
+      !/^(?:me|act_\d+|\d+)(?:\/(?:adaccounts|owned_ad_accounts|client_ad_accounts|campaigns|adsets|insights|customconversions))?$/.test(
         path,
       )
     )

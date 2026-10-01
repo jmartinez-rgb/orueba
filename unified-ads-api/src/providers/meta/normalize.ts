@@ -17,6 +17,7 @@ import {
   type MetaCampaign,
   type MetaInsight,
 } from "./types.js";
+import { primaryForCampaign } from "./primary-action.js";
 
 export function normalizeAccount(row: MetaAccount, config: MetaConfig): NormalizedAccount {
   const id = metaAccountId(row.account_id ?? row.id ?? "");
@@ -156,7 +157,13 @@ export function normalizePerformance(
   campaign?: NormalizedCampaign,
 ): NormalizedPerformance {
   const { date, hour, campaignId } = bucket(row, account, query);
-  const primary = config.primaryActions[account.account_id] ?? config.primaryAction;
+  const selection = primaryForCampaign(
+    config,
+    account.account_id,
+    campaignId,
+    row.campaign_name ?? campaign?.campaign_name,
+  );
+  const primary = selection.action;
   // Las conversiones externas no están soportadas con el breakdown horario.
   const supported = primary && (hour === null || isHourlyActionSupported(primary));
   // Meta solo lista las acciones que ocurrieron: si se pidió y no aparece, ese día fueron 0.
@@ -197,6 +204,7 @@ export function normalizePerformance(
     raw_metrics: {
       ...row,
       primary_conversion_action: primary ?? null,
+      primary_conversion_scope: selection.scope,
       // false con una acción principal configurada: 0 real del día o una acción mal elegida para la cuenta.
       ...(supported ? { primary_action_present: present } : {}),
       action_report_time: "impression",
@@ -216,7 +224,8 @@ export function normalizeConversions(
   const counts = actions(row.actions),
     values = actions(row.action_values);
   const all = new Map([...counts, ...values].map((a) => [a.action_type!, a]));
-  const primary = config.primaryActions[account.account_id] ?? config.primaryAction;
+  const selection = primaryForCampaign(config, account.account_id, campaignId, row.campaign_name);
+  const primary = selection.action;
   return [...all.keys()]
     .filter((type) => isConversionAction(type, config, primary) && (hour === null || isHourlyActionSupported(type)))
     .map((type) => ({
@@ -227,7 +236,7 @@ export function normalizeConversions(
       date,
       hour,
       source_conversion: type,
-      normalized_conversion: defaultCategory(type, config, primary),
+      normalized_conversion: selection.scope === "unmatched_rule" ? null : defaultCategory(type, config, primary),
       conversions: metaNumber(counts.find((a) => a.action_type === type)?.value),
       conversion_value: metaNumber(values.find((a) => a.action_type === type)?.value),
       extracted_at: at,
@@ -239,6 +248,8 @@ export function normalizeConversions(
         action_report_time: "impression",
         use_unified_attribution_setting: true,
         is_primary: type === primary,
+        primary_conversion_action: primary ?? null,
+        primary_conversion_scope: selection.scope,
         overlapping_action_types: true,
         // Categoría de referencia aunque no se asigne para no duplicar la suma por categoría.
         category_hint: Object.hasOwn(DEFAULT_CONVERSIONS, type) ? DEFAULT_CONVERSIONS[type] : null,
