@@ -1,11 +1,11 @@
 import "dotenv/config";
-import { readFile, writeFile, chmod, unlink, rename, lstat } from "node:fs/promises";
+import { updateEnvFile } from "../src/config/env-file.js";
+import { readFile, writeFile, unlink, lstat } from "node:fs/promises";
 import {
   createSpotifyOAuthRequest,
   exchangeSpotifyCode,
   type SpotifyOAuthSession,
 } from "../src/providers/spotify/oauth.js";
-import { updateEnvVariable } from "../src/providers/google/oauth.js";
 import { object } from "../src/providers/spotify/config.js";
 
 /** Browser-only OAuth: read private inputs, print only a public authorization URL. */
@@ -52,25 +52,7 @@ async function main() {
   if (process.env.SPOTIFY_ADS_CLIENT_ID?.trim() && process.env.SPOTIFY_ADS_CLIENT_ID.trim() !== session.clientId)
     throw new Error("El Client ID de Spotify cambió desde el inicio de OAuth.");
   const token = await exchangeSpotifyCode(session, secret, callback);
-  let content = "";
-  try {
-    const envInfo = await lstat(".env");
-    if (!envInfo.isFile()) throw new Error(".env debe ser un archivo normal.");
-    content = await readFile(".env", "utf8");
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
-  }
-  const temporary = `.env.spotify-${process.pid}`;
-  try {
-    await writeFile(temporary, updateEnvVariable(content, "SPOTIFY_ADS_REFRESH_TOKEN", token), {
-      mode: 0o600,
-      flag: "wx",
-    });
-    await chmod(temporary, 0o600);
-    await rename(temporary, ".env");
-  } finally {
-    await unlink(temporary).catch(() => undefined);
-  }
+  await updateEnvFile(".env", { SPOTIFY_ADS_REFRESH_TOKEN: token });
   await unlink(path);
   process.stdout.write(
     "SPOTIFY_ADS_REFRESH_TOKEN guardado en .env privado (0600). Reinicia solo el servicio para cargarlo.\n",

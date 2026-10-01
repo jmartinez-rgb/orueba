@@ -1,8 +1,7 @@
 import "dotenv/config";
-import { chmod, lstat, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { updateEnvFile } from "../src/config/env-file.js";
 import { createInterface } from "node:readline/promises";
 import { exchangeTikTokCode, tiktokAuthCode } from "../src/providers/tiktok/oauth.js";
-import { updateEnvVariable } from "../src/providers/google/oauth.js";
 
 /**
  * Canjea la autorización de TikTok por TIKTOK_ACCESS_TOKEN y lo guarda en .env (0600) sin
@@ -21,26 +20,11 @@ async function main() {
     rl.close();
   }
   const auth = await exchangeTikTokCode({ appId, secret, authCode: tiktokAuthCode(callback) });
-  let content = "";
-  try {
-    const info = await lstat(".env");
-    if (!info.isFile()) throw new Error(".env debe ser un archivo normal.");
-    content = await readFile(".env", "utf8");
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
-  }
-  let next = updateEnvVariable(content, "TIKTOK_ACCESS_TOKEN", auth.accessToken);
+  const updates: Record<string, string> = { TIKTOK_ACCESS_TOKEN: auth.accessToken };
   // Las cuentas autorizadas se guardan solo si aún no hay una lista elegida.
   if (auth.advertiserIds.length && !process.env.TIKTOK_ADVERTISER_IDS?.trim())
-    next = updateEnvVariable(next, "TIKTOK_ADVERTISER_IDS", auth.advertiserIds.join(","));
-  const temporary = `.env.tiktok-${process.pid}`;
-  try {
-    await writeFile(temporary, next, { mode: 0o600, flag: "wx" });
-    await chmod(temporary, 0o600);
-    await rename(temporary, ".env");
-  } finally {
-    await unlink(temporary).catch(() => undefined);
-  }
+    updates.TIKTOK_ADVERTISER_IDS = auth.advertiserIds.join(",");
+  await updateEnvFile(".env", updates);
   process.stdout.write(
     `TIKTOK_ACCESS_TOKEN guardado en .env privado (0600); no se mostró. Cuentas autorizadas (${auth.advertiserIds.length}): ${auth.advertiserIds.join(", ") || "ninguna"}.\n`,
   );

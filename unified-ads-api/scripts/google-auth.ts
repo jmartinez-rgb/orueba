@@ -1,12 +1,7 @@
 import "dotenv/config";
+import { updateEnvFile } from "../src/config/env-file.js";
 import { createServer } from "node:http";
-import { readFile, writeFile, chmod } from "node:fs/promises";
-import {
-  createOAuthRequest,
-  validOAuthState,
-  exchangeAuthorizationCode,
-  updateEnvVariable,
-} from "../src/providers/google/oauth.js";
+import { createOAuthRequest, validOAuthState, exchangeAuthorizationCode } from "../src/providers/google/oauth.js";
 
 /** Asistente local: el navegador autoriza; los tokens solo se guardan en .env (0600). */
 async function main() {
@@ -72,14 +67,7 @@ async function main() {
               redirectUri,
               verifier: auth.verifier,
             });
-            let content = "";
-            try {
-              content = await readFile(".env", "utf8");
-            } catch (err) {
-              if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-            }
-            await writeFile(".env", updateEnvVariable(content, "GOOGLE_ADS_REFRESH_TOKEN", token), { mode: 0o600 });
-            await chmod(".env", 0o600);
+            await updateEnvFile(".env", { GOOGLE_ADS_REFRESH_TOKEN: token });
             res.end("Autorización completada. El refresh token quedó guardado localmente. Puedes cerrar esta pestaña.");
             resolve();
           } catch (err) {

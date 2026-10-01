@@ -1,11 +1,11 @@
 import "dotenv/config";
-import { readFile, writeFile, chmod, unlink, rename, lstat } from "node:fs/promises";
+import { updateEnvFile } from "../src/config/env-file.js";
+import { readFile, writeFile, unlink, lstat } from "node:fs/promises";
 import {
   createMicrosoftOAuthRequest,
   exchangeMicrosoftCode,
   type MicrosoftOAuthSession,
 } from "../src/providers/microsoft/oauth.js";
-import { updateEnvVariable } from "../src/providers/google/oauth.js";
 import { object } from "../src/providers/microsoft/config.js";
 
 /** Browser-only onboarding: never print secrets, tokens, authorization codes, or callback URLs. */
@@ -59,25 +59,7 @@ async function main() {
     throw new Error("El Client ID cambió desde el inicio de OAuth. Inicia una nueva sesión.");
   createMicrosoftOAuthRequest(session.clientId, session.redirectUri, session.tenant); // Revalidate fixed token host and callback.
   const refresh = await exchangeMicrosoftCode(session, secret, callback);
-  let content = "";
-  try {
-    const envInfo = await lstat(".env");
-    if (!envInfo.isFile()) throw new Error(".env debe ser un archivo normal.");
-    content = await readFile(".env", "utf8");
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-  }
-  const temporary = `.env.microsoft-${process.pid}`;
-  try {
-    await writeFile(temporary, updateEnvVariable(content, "MICROSOFT_ADS_REFRESH_TOKEN", refresh), {
-      mode: 0o600,
-      flag: "wx",
-    });
-    await chmod(temporary, 0o600);
-    await rename(temporary, ".env");
-  } finally {
-    await unlink(temporary).catch(() => undefined);
-  }
+  await updateEnvFile(".env", { MICROSOFT_ADS_REFRESH_TOKEN: refresh });
   await unlink(path);
   process.stdout.write(
     "MICROSOFT_ADS_REFRESH_TOKEN guardado en .env privado (0600). No se imprimieron tokens. Reinicia solo el servicio para cargarlo.\n",

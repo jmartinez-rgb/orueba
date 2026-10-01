@@ -1,8 +1,7 @@
-import { randomBytes } from "node:crypto";
-import { chmod, readFile, rename, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { parse } from "dotenv";
-import { updateEnvVariable } from "../providers/google/oauth.js";
+import { ConfigError } from "./env.js";
+import { updateEnvFile } from "./env-file.js";
 
 /**
  * Refresh tokens que las plataformas rotan en cada renovación (Microsoft siempre; Spotify a veces).
@@ -14,13 +13,19 @@ import { updateEnvVariable } from "../providers/google/oauth.js";
 export const ROTATING_TOKENS = ["MICROSOFT_ADS_REFRESH_TOKEN", "SPOTIFY_ADS_REFRESH_TOKEN"] as const;
 export type RotatingToken = (typeof ROTATING_TOKENS)[number];
 
-/** Valores guardados (solo los tokens rotativos admitidos); vacío si el archivo no existe. */
+/**
+ * Valores guardados (solo los tokens rotativos admitidos); vacío si el archivo aún no existe.
+ * Si existe pero no se puede leer, se detiene: seguir con el token de .env usaría uno ya rotado y,
+ * en la siguiente rotación, el archivo se reescribiría sin los demás tokens.
+ */
 export function readTokenStore(path: string): Partial<Record<RotatingToken, string>> {
   let content: string;
   try {
     content = readFileSync(path, "utf8");
-  } catch {
-    return {};
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") return {};
+    throw new ConfigError([`No se pudo leer TOKEN_STORE_FILE (${code ?? "error de lectura"}).`]);
   }
   const values = parse(content);
   const out: Partial<Record<RotatingToken, string>> = {};
@@ -44,13 +49,8 @@ let queue: Promise<void> = Promise.resolve();
 /** Guarda un token rotado sin tocar las demás líneas del archivo. Las escrituras se serializan. */
 export function saveRotatedToken(path: string, name: RotatingToken, value: string): Promise<void> {
   if (!value || /[\r\n]/.test(value)) return Promise.reject(new Error("Token inválido."));
-  const write = async () => {
-    const content = await readFile(path, "utf8").catch(() => "");
-    const temporary = `${path}.${randomBytes(6).toString("hex")}.tmp`;
-    await writeFile(temporary, updateEnvVariable(content, name, value), { mode: 0o600, flag: "wx" });
-    await chmod(temporary, 0o600);
-    await rename(temporary, path);
-  };
+  // Un fallo de lectura distinto de "no existe" rechaza la escritura en vez de borrar los demás tokens.
+  const write = () => updateEnvFile(path, { [name]: value });
   const next = queue.then(write, write);
   queue = next.catch(() => undefined);
   return next;
