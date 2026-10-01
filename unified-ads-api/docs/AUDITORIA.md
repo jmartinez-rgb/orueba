@@ -14,7 +14,7 @@ La documentación oficial de X y Spotify pudo consultarse en esta sesión. Las e
 reales de Google, Meta, Microsoft y Spotify se conservan y **no se presentan como revalidadas**.
 No se ejecutaron escrituras publicitarias, despliegues ni lecturas de `Ventas Detalle`.
 
-### TikTok: primer intento condicionado, bloqueado
+### TikTok: primera lectura real completada
 
 El usuario confirmó app aprobada y proporcionó cuatro cuentas:
 
@@ -25,17 +25,24 @@ El usuario confirmó app aprobada y proporcionó cuatro cuentas:
 | izzi - ABCW    | `7361545670072909840` |
 | izzi ABCW US   | `7688066712031182866` |
 
-En la comprobación de esta sesión no estaban inyectados `TIKTOK_ACCESS_TOKEN` ni
-`TIKTOK_ADVERTISER_IDS`; tampoco App ID/Secret. El usuario indicó que los introdujo en el panel,
-pero eso aún no demuestra inyección en el proceso. Los requisitos están declarados en el borrador.
-Se omitieron lecturas reales conforme a la condición solicitada y se continuó con X.
-La salida al host de reporting **no se da por validada** sin esas condiciones.
+El primer intento se omitió por variables ausentes y se continuó con X. Tras aplicar la
+configuración y reiniciar, App ID, Secret, lista y callback privado llegaron al proceso. OAuth
+funcionó y el token quedó en `.env` privado 0600; no se registraron valores ni respuestas OAuth.
+La lectura real del **27 al 29 de septiembre de 2026** devolvió cuatro cuentas, **178 campañas,
+76 filas diarias y 608 filas de conversiones**, sin errores ni avisos. izzi ABCW US no devolvió
+filas para ese periodo; no se sustituyen por ceros.
 
-Al recibir token y lista privada, extraer cuentas, campañas y métricas diarias del **27 al 29 de
-septiembre de 2026** (tres días cerrados), verificando permisos, moneda y zona de cada cuenta.
-Preparar por cuenta y fecha sumas de costo y conteos, CPA = costo total / conversiones totales,
-y los valores originales de compra para conciliar. `total_complete_payment_rate` y la zona horaria
-siguen sin comprobación real. No elegir un evento principal ni sumar tipos superpuestos.
+Las cuatro cuentas reportan `Etc/GMT+6` (UTC−06:00). Tres usan MXN; izzi ABCW US usa USD.
+Sky Sports devuelve `America/Chicago` como `display_timezone`, distinta de la zona base del
+reporte en esas fechas. Se conservó `timezone`; su correspondencia con Ads Manager sigue pendiente.
+El estado real de TikTok es `connected`; cuentas y rendimiento de izzi pasaron por las rutas
+autenticadas con HTTP 200 mediante `app.inject`.
+
+Se prepararon [12 totales cuenta/día y la evidencia](TIKTOK_PRIMERA_LECTURA.md), con costo,
+conteos por evento y CPA de optimización calculado desde las sumas, sin promediar CPAs ni mezclar
+acciones. izzi devuelve 29 `conversion` y 30 `onsite_form`; no se suman ni se decide la acción
+principal de negocio. `total_complete_payment_rate` y `complete_payment` llegaron en cero: la
+semántica monetaria **sigue inconclusa**; el CSV conserva muestras, sin presentarlas como ingresos.
 
 ### Riesgos resueltos con contrato o código
 
@@ -76,7 +83,8 @@ reportes asíncronos y fixtures; contrato y límites en [X_ADS.md](X_ADS.md).
 - `media-monitoring-center`: **202 pruebas en 20 archivos**; `npm run check` pasa (tipos, lint y pruebas).
   Se añadieron cinco comprobaciones de estados de X en el mismo esquema del panel.
 - No se saltaron, desactivaron ni pusieron en cuarentena pruebas. Las pruebas de API bloquean red global.
-- La conexión real de TikTok y X no está validada; los bloqueos están separados abajo.
+- TikTok completó OAuth y lecturas reales; la conciliación sigue pendiente. X todavía no tiene
+  credenciales reales. Los bloqueos restantes están separados abajo.
 
 ## Cómo se auditó
 
@@ -208,23 +216,24 @@ Las líneas se refieren al código recibido (`39a65be`).
 | Alta     | `microsoft/reports.ts:140`, `normalize.ts:106`      | Se asume que las filas del CSV vienen en **UTC**. Si vinieran en la zona de la cuenta, los días y las horas estarían desplazados. Los WSDL no lo especifican y la documentación no fue accesible. | Conciliar un día por hora contra la interfaz de Microsoft con una cuenta cuya zona no sea UTC.  |
 | Media    | `google/queries.ts:45`                              | Las conversiones por hora combinan `segments.hour` con `segments.conversion_action`; la compatibilidad no está confirmada.                                                                        | Ejecutar una consulta horaria real de conversiones.                                             |
 | Media    | `meta/queries.ts` (`action_report_time=impression`) | Puede diferir del criterio configurado en Ads Manager.                                                                                                                                            | Conciliar el mismo día y la misma cuenta con el mismo criterio de atribución.                   |
-| Baja     | `tiktok/config.ts:8`                                | `total_complete_payment_rate` se usa como valor de `complete_payment`; el nombre sugiere una tasa.                                                                                                | Revisar un reporte real cuando haya credenciales.                                               |
+| Baja     | `tiktok/config.ts:8`                                | `total_complete_payment_rate` se usa como valor de `complete_payment`; la primera muestra real tiene ambos campos en cero y no confirma unidades.                                                 | Contrastar definición oficial, muestra no nula y columna equivalente de Ads Manager.            |
 | Baja     | `microsoft/reports.ts`                              | Mitigación por host Microsoft fijo y DNS público; no hay IP fijada al transporte del proxy.                                                                                                       | Revisar un transporte que respete el proxy y fije la resolución; no desactivar TLS ni eludirlo. |
 | Decisión | API                                                 | Las llaves internas ven a todos los clientes; `client_id` filtra, pero no aísla.                                                                                                                  | Definir un modelo de acceso por cliente antes de un uso multicliente.                           |
 
 ## Matriz de validación por plataforma
 
-"Real" proviene de los registros de Codex del 30 de septiembre y del 1 de octubre; la auditoría no
-tuvo credenciales para repetirlo.
+Google, Meta, Microsoft y Spotify conservan la evidencia histórica de Codex; la auditoría de
+Claude no tuvo credenciales para repetirla. TikTok sí se verificó en esta continuación, el
+1 de octubre de 2026; detalles y totales en [TIKTOK_PRIMERA_LECTURA.md](TIKTOK_PRIMERA_LECTURA.md).
 
-| Plataforma | Simulador            | OAuth y credenciales reales                        | Cuentas reales                     | Campañas reales     | Informes y métricas reales                   | Conciliación con la interfaz |
-| ---------- | -------------------- | -------------------------------------------------- | ---------------------------------- | ------------------- | -------------------------------------------- | ---------------------------- |
-| Google Ads | Sí                   | Sí                                                 | Sí (33 raíces, 2274 en jerarquías) | Sí (muestra de 150) | Muestras diarias, horarias y de conversiones | Pendiente                    |
-| Meta       | Sí                   | Sí (token)                                         | Sí (17 activas)                    | Sí (muestra)        | Muestras diarias, horarias y de conversiones | Pendiente                    |
-| TikTok     | Sí                   | No: app aprobada según usuario, token no inyectado | No                                 | No                  | No                                           | Pendiente                    |
-| Microsoft  | Sí                   | Sí                                                 | Sí (4)                             | Sí (43)             | No: el proxy bloquea la descarga del ZIP     | No                           |
-| Spotify    | Sí                   | Sí (refresh token)                                 | No (403 `ACCESS_REQUIRED`)         | No                  | No                                           | No                           |
-| X Ads      | Sí, fixtures sin red | No: faltan cuatro credenciales                     | No                                 | No                  | No                                           | Pendiente                    |
+| Plataforma | Simulador            | OAuth y credenciales reales    | Cuentas reales                     | Campañas reales     | Informes y métricas reales                               | Conciliación con la interfaz |
+| ---------- | -------------------- | ------------------------------ | ---------------------------------- | ------------------- | -------------------------------------------------------- | ---------------------------- |
+| Google Ads | Sí                   | Sí                             | Sí (33 raíces, 2274 en jerarquías) | Sí (muestra de 150) | Muestras diarias, horarias y de conversiones             | Pendiente                    |
+| Meta       | Sí                   | Sí (token)                     | Sí (17 activas)                    | Sí (muestra)        | Muestras diarias, horarias y de conversiones             | Pendiente                    |
+| TikTok     | Sí                   | Sí, OAuth y token real         | Sí (4, monedas y zonas leídas)     | Sí (178)            | Sí: 76 filas diarias y 608 de conversiones; US sin filas | Pendiente                    |
+| Microsoft  | Sí                   | Sí                             | Sí (4)                             | Sí (43)             | No: el proxy bloquea la descarga del ZIP                 | No                           |
+| Spotify    | Sí                   | Sí (refresh token)             | No (403 `ACCESS_REQUIRED`)         | No                  | No                                                       | No                           |
+| X Ads      | Sí, fixtures sin red | No: faltan cuatro credenciales | No                                 | No                  | No                                                       | Pendiente                    |
 
 ## Pendientes y orden recomendado
 
@@ -239,14 +248,16 @@ tuvo credenciales para repetirlo.
 **Permisos**
 
 - Habilitación de Spotify Ads API (403).
-- TikTok: autorización de las cuatro cuentas y permisos de lectura/reporting; app aprobada según usuario.
+- TikTok: lectura de las cuatro cuentas autorizada y verificada. No queda un bloqueo de permisos
+  en la muestra; otros productos o ámbitos de reporting no se dan por validados.
 - X: app aprobada para Ads API y usuario con acceso a Analytics y lectura de cuentas/campañas.
 
 **Configuración y entorno**
 
 - `TOKEN_STORE_FILE` o un gestor de secretos en el despliegue.
 - Acciones principales y mapeos.
-- TikTok: aplicar App ID/Secret guardados en el panel, completar OAuth y cargar token más lista de cuatro IDs.
+- TikTok: conservar token y lista de cuatro IDs en la configuración privada del entorno destino.
+  El token actual está en `.env` privado 0600; el código de retorno ya fue consumido.
 - X: cuatro credenciales OAuth 1.0a; timeout propio apropiado para backfills.
 - Un entorno con salida a `*.blob.core.windows.net` para las descargas de Microsoft.
 - Despliegue (Cloud Run) con sus secretos.
@@ -269,7 +280,8 @@ tuvo credenciales para repetirlo.
 3. Microsoft desde un entorno con salida al almacenamiento de informes; conciliar un día por hora
    (cierra el riesgo de UTC).
 4. Spotify cuando se habilite: cuentas, campañas y un informe de dos días (confirma también la conciliación del final inclusivo documentado).
-5. TikTok con la app aprobada: inyección de variables, OAuth, lectura de las cuatro cuentas y revisión de valores/zonas.
+5. TikTok: conciliar los 12 totales cuenta/día, comprobar la ausencia de filas de izzi ABCW US y
+   la zona de visualización de Sky Sports; verificar unidades de compra con una muestra no nula.
 6. Despliegue con secretos y `TOKEN_STORE_FILE`; después n8n, BigQuery y alertas.
 7. Modelo de acceso multicliente.
 8. X Ads: conexión real y conciliación de cuentas/campañas/reportes; código ya implementado.

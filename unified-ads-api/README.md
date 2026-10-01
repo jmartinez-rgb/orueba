@@ -12,7 +12,7 @@ cada API: n8n solo pregunta a esta API.
 | 1    | Infraestructura base (sin integraciones) | **Lista**                                                                                   |
 | 2    | Google Ads                               | **Implementada y verificada con Google real y simulador**                                   |
 | 3    | Meta Marketing API                       | **Implementada y verificada con Meta real y simulador**                                     |
-| 4    | TikTok Ads                               | **App aprobada; OAuth y lectura real pendientes de variables privadas**                     |
+| 4    | TikTok Ads                               | **OAuth y lectura real de cuatro cuentas verificados; conciliación pendiente**              |
 | 5    | Microsoft Advertising                    | **Autorización y campañas reales verificadas; descarga de informes bloqueada por el proxy** |
 | 6    | Spotify Ads                              | **OAuth real validado; Ads API aún responde 403 (`ACCESS_REQUIRED`) tras aceptar términos** |
 | 7    | X Ads                                    | **Implementada en API 12; validada con fixtures; falta conexión real**                      |
@@ -162,9 +162,12 @@ entorno. Con cuentas explícitas en `TIKTOK_ADVERTISER_IDS`, basta el token para
 El CPA usa una sola métrica: por defecto `conversion`, el evento de optimización elegido en TikTok.
 Puedes cambiarla globalmente o por cuenta; no se suman métricas de conversiones superpuestas.
 
-La fase está comprobada con un simulador local. **La conexión real aún no se ha validado** porque
-faltan las credenciales. El estado permanecerá en `not_configured` hasta configurarlas; una app
-con credenciales necesita autorización de las cuentas y permisos de lectura/reporting.
+La fase está comprobada con un simulador local y con una lectura real del 27 al 29 de septiembre
+de 2026: **cuatro cuentas, 178 campañas, 76 filas diarias y 608 filas de conversiones**.
+izzi ABCW US no devolvió filas para ese periodo; no se fabrican ceros. Todas las cuentas reportan
+`Etc/GMT+6` (UTC−06:00); Sky Sports tiene `America/Chicago` como zona de visualización.
+Los [totales diarios y sus límites](docs/TIKTOK_PRIMERA_LECTURA.md) están listos para conciliar,
+pero la comparación con Ads Manager y el significado de `total_complete_payment_rate` siguen pendientes.
 Consulta [docs/TIKTOK_ADS.md](docs/TIKTOK_ADS.md) para el flujo desde el navegador, fuentes oficiales,
 semántica de métricas y límites. El contrato v2.0 y los reportes asíncronos quedan fuera de esta fase.
 

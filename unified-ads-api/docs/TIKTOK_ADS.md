@@ -173,8 +173,10 @@ transporte que puedan incluir esa URL.
 Se añadieron 70 pruebas aisladas con un simulador local: IDs largos, cuentas, permisos parciales,
 campañas, reportes diarios/horarios, medianoche, bloques de fechas, compras/leads, CPA, alias,
 paginación, cancelación, circuito, reintentos y rutas autenticadas. No salen a internet.
-La app ya está aprobada; la conexión real queda pendiente de obtener el token con
-`npm run tiktok:auth`, configurar las variables privadas y hacer la primera lectura acotada.
+La app aprobada completó OAuth con `npm run tiktok:auth` el 1 de octubre de 2026. Se leyeron
+cuatro cuentas, 178 campañas, 76 filas diarias y 608 filas de conversiones del 27 al 29 de septiembre.
+Los [totales diarios](TIKTOK_PRIMERA_LECTURA.md) están listos para conciliar; izzi ABCW US no
+devolvió filas. La semántica del valor de compra web sigue abierta: la muestra solo contiene ceros.
 
 Rutas para comprobar con `X-API-Key` después de configurar el entorno:
 
@@ -205,9 +207,10 @@ GET /api/v1/conversions?provider=tiktok&account_id=<ID>&date_from=2026-09-29&dat
 
 ## Continuación: cuatro cuentas y variables privadas
 
-App aprobada según el usuario; primera lectura real todavía bloqueada en esta sesión porque
-no están inyectados token y lista. Los valores que el usuario agregó al panel deben guardarse con
-Done/Publicar y aplicarse al entorno; declarar un requisito no equivale a recibir la credencial.
+App aprobada y primera lectura real completada. App ID, Secret y lista llegaron al proceso tras
+guardar y reiniciar el entorno; el código de retorno privado se canjeó una sola vez y el token
+quedó en `.env` privado 0600, ignorado por Git. Declarar un requisito no equivale a recibir la
+credencial; para una máquina nueva verificar presencia y acceso antes de consultar.
 
 `TIKTOK_ADVERTISER_IDS` debe contener, como texto separado por comas:
 
@@ -221,4 +224,6 @@ App ID va solo en `TIKTOK_APP_ID`; Secret solo en `TIKTOK_APP_SECRET`; ninguno s
 Si un campo de token vacío bloquea Done, retirarlo temporalmente; no rellenarlo con el Secret.
 Después de autorizar en el portal, guardar la URL de retorno con código únicamente en
 `TIKTOK_AUTH_CALLBACK_URL` privado y ejecutar `npm run tiktok:auth` con el proxy soportado.
-No compartir esa URL por chat. El asistente guarda el token en `.env` privado 0600.
+No compartir esa URL por chat. El asistente guarda el token en `.env` privado 0600. Si ya existe
+un token válido, no ejecutar de nuevo el intercambio de un código consumido. La lista explícita
+mantiene las lecturas limitadas a las cuatro cuentas aunque la autorización cubra otras.

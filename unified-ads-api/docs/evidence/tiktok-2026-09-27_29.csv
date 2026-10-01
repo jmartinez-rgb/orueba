@@ -1,0 +1,13 @@
+account_id,account_name,currency,report_timezone,display_timezone,date,campaign_day_rows,data_status,spend,impressions,clicks,conversion,complete_payment,form,onsite_form,total_purchase,total_registration,on_web_order,onsite_shopping,cpa_optimization_conversion,onsite_shopping_unavailable_rows,raw_total_complete_payment_rate_samples
+7338571937913978882,Sky México,MXN,Etc/GMT+6,America/Mexico_City,2026-09-27,11,rows_returned,3252.89,177397,23655,0,0,0,0,0,0,0,,,11,"[""0.00""]"
+7338571937913978882,Sky México,MXN,Etc/GMT+6,America/Mexico_City,2026-09-28,6,rows_returned,3394.31,177012,20589,0,0,0,0,0,0,0,,,6,"[""0.00""]"
+7338571937913978882,Sky México,MXN,Etc/GMT+6,America/Mexico_City,2026-09-29,12,rows_returned,3417.24,169963,19392,0,0,0,0,0,0,0,,,12,"[""0.00""]"
+7545502925565771792,Sky Sports MXN,MXN,Etc/GMT+6,America/Chicago,2026-09-27,3,rows_returned,479.74,125217,10,0,0,0,0,0,0,0,,,3,"[""0.00""]"
+7545502925565771792,Sky Sports MXN,MXN,Etc/GMT+6,America/Chicago,2026-09-28,4,rows_returned,511.67,118009,2,0,0,0,0,0,0,0,,,4,"[""0.00""]"
+7545502925565771792,Sky Sports MXN,MXN,Etc/GMT+6,America/Chicago,2026-09-29,3,rows_returned,437.22,76099,1,0,0,0,0,0,0,0,,,3,"[""0.00""]"
+7361545670072909840,izzi - ABCW,MXN,Etc/GMT+6,America/Mexico_City,2026-09-27,15,rows_returned,1287.19,18839,3301,9,0,0,10,0,0,0,,143.021111,5,"[""0.00""]"
+7361545670072909840,izzi - ABCW,MXN,Etc/GMT+6,America/Mexico_City,2026-09-28,12,rows_returned,1530.58,77834,3386,11,0,0,11,0,0,0,,139.143636,5,"[""0.00""]"
+7361545670072909840,izzi - ABCW,MXN,Etc/GMT+6,America/Mexico_City,2026-09-29,10,rows_returned,1576.14,113518,3074,9,0,0,9,0,0,0,,175.126667,6,"[""0.00""]"
+7688066712031182866,izzi ABCW  US,USD,Etc/GMT+6,America/Mexico_City,2026-09-27,0,no_rows_returned,,,,,,,,,,,,,,
+7688066712031182866,izzi ABCW  US,USD,Etc/GMT+6,America/Mexico_City,2026-09-28,0,no_rows_returned,,,,,,,,,,,,,,
+7688066712031182866,izzi ABCW  US,USD,Etc/GMT+6,America/Mexico_City,2026-09-29,0,no_rows_returned,,,,,,,,,,,,,,
