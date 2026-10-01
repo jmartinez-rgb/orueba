@@ -1,0 +1,39 @@
+name: unified-ads-api
+
+on:
+  push:
+    paths:
+      - "unified-ads-api/**"
+      - ".github/workflows/unified-ads-api.yml"
+  pull_request:
+    paths:
+      - "unified-ads-api/**"
+      - ".github/workflows/unified-ads-api.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: unified-ads-api
+    strategy:
+      matrix:
+        # 22 es la versión mínima declarada en package.json; 24 es la usada en desarrollo.
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: unified-ads-api/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      # Las pruebas bloquean la red: nunca llaman a las plataformas reales ni necesitan credenciales.
+      - run: npm test
+      - run: npm run build
