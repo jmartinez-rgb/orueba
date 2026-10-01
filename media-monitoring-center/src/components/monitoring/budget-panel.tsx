@@ -1,5 +1,7 @@
 "use client";
-import { CircleAlert, CircleCheck, Info, Wallet } from "lucide-react";
+import Link from "next/link";
+import { ArrowDownRight, ArrowUpRight, CircleAlert, CircleCheck, CircleMinus, CirclePlus, Info, Wallet } from "lucide-react";
+import type { BudgetChange, BudgetChanges } from "@/lib/services/budget-changes";
 import type { BudgetGroup, BudgetOverview, Insight, Pace, PlatformBudgetView, Projection } from "@/lib/services/platform-budgets";
 import { fmtCurrency, fmtPercent } from "@/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +22,9 @@ const INSIGHT: Record<Insight["tone"], { Icon: typeof Info; tone: string }> = {
   info: { Icon: Info, tone: "text-muted-foreground" },
 };
 
-export type BudgetPanelState = { kind: "ready"; overview: BudgetOverview; demo: boolean } | { kind: "unavailable"; reason: string; configured: boolean };
+export type BudgetPanelState =
+  | { kind: "ready"; overview: BudgetOverview; demo: boolean; changes: BudgetChanges | null; canNovedad: boolean }
+  | { kind: "unavailable"; reason: string; configured: boolean };
 
 /**
  * Presupuesto diario vigente por plataforma y por estrategia, contra el gasto de hoy y lo esperado a
@@ -42,7 +46,9 @@ export function BudgetPanel({ state }: { state: BudgetPanelState }) {
           </CardDescription>
         </div>
       </CardHeader>
-      <CardContent>{state.kind === "unavailable" ? <Unavailable reason={state.reason} configured={state.configured} /> : <Ready overview={state.overview} />}</CardContent>
+      <CardContent>
+        {state.kind === "unavailable" ? <Unavailable reason={state.reason} configured={state.configured} /> : <Ready overview={state.overview} changes={state.changes} canNovedad={state.canNovedad} />}
+      </CardContent>
     </Card>
   );
 }
@@ -59,7 +65,7 @@ function Unavailable({ reason, configured }: { reason: string; configured: boole
   );
 }
 
-function Ready({ overview }: { overview: BudgetOverview }) {
+function Ready({ overview, changes, canNovedad }: { overview: BudgetOverview; changes: BudgetChanges | null; canNovedad: boolean }) {
   if (!overview.total.campaigns) return <p className="text-[13px] text-muted-foreground">No hay campañas activas con presupuesto para esta marca.</p>;
   return (
     <Tabs defaultValue="all">
@@ -77,10 +83,12 @@ function Ready({ overview }: { overview: BudgetOverview }) {
         <ProjectionStrip projection={overview.projection} daily={overview.total.total} />
         <Bars title="Por plataforma" groups={overview.platforms.map((p) => ({ ...p.total, label: p.name }))} marks={overview.platforms.map((p) => p.platform)} />
         <Insights items={overview.insights} />
+        <Changes changes={changes} canNovedad={canNovedad} />
       </TabsContent>
       {overview.platforms.map((p) => (
         <TabsContent key={p.platform} value={p.platform} className="flex flex-col gap-5">
           <PlatformDetail view={p} />
+          <Changes changes={changes} canNovedad={canNovedad} platform={p.platform} />
         </TabsContent>
       ))}
     </Tabs>
@@ -138,6 +146,70 @@ function PlatformDetail({ view }: { view: PlatformBudgetView }) {
         </div>
       </section>
     </>
+  );
+}
+
+const CHANGE: Record<BudgetChange["kind"], { Icon: typeof Info; tone: string; label: string; short: string }> = {
+  up: { Icon: ArrowUpRight, tone: "text-status-alert-text", label: "Subió", short: "Subió" },
+  down: { Icon: ArrowDownRight, tone: "text-status-attention-text", label: "Bajó", short: "Bajó" },
+  new: { Icon: CirclePlus, tone: "text-primary", label: "Nueva", short: "Nueva" },
+  gone: { Icon: CircleMinus, tone: "text-muted-foreground", label: "Sin presupuesto activo", short: "Retirada" },
+};
+
+const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const shortDate = (iso: string) => {
+  const [, m, d] = iso.split("-").map(Number);
+  return m && d ? `${d} ${MONTHS[m - 1]}` : iso;
+};
+
+/** Cambios de presupuesto diario contra el último día guardado. */
+function Changes({ changes, canNovedad, platform }: { changes: BudgetChanges | null; canNovedad: boolean; platform?: BudgetChange["platform"] }) {
+  if (!changes) return null;
+  const list = platform ? changes.changes.filter((c) => c.platform === platform) : changes.changes;
+  const net = list.reduce((s, c) => s + c.delta, 0);
+  const n = (kind: BudgetChange["kind"]) => list.filter((c) => c.kind === kind).length;
+  const count = (v: number, one: string, many: string) => `${v} ${v === 1 ? one : many}`;
+  return (
+    <section aria-label="Cambios de presupuesto" className="rounded-xl border border-(--hairline) px-4 py-3">
+      <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
+        <h4 className="text-[13px] font-semibold">Cambios de presupuesto desde el {shortDate(changes.since)}</h4>
+        {canNovedad && list.length > 0 && (
+          <Link href="/novedades" className="text-[12px] font-medium text-primary hover:underline">
+            Registrar en Novedades
+          </Link>
+        )}
+      </div>
+      {list.length === 0 ? (
+        <p className="text-[13px] text-muted-foreground">Sin cambios relevantes (umbral de atención de Settings).</p>
+      ) : (
+        <>
+          <p className="tabular mb-2 text-[12px] text-muted-foreground">
+            Neto {net >= 0 ? "+" : "−"}
+            {fmtCurrency(Math.abs(net))} diarios · {count(n("up"), "subió", "subieron")} · {count(n("down"), "bajó", "bajaron")} · {count(n("new"), "nueva", "nuevas")} ·{" "}
+            {count(n("gone"), "retirada", "retiradas")}
+          </p>
+          <ul className="flex flex-col divide-y divide-(--hairline)">
+            {list.slice(0, 8).map((c) => {
+              const m = CHANGE[c.kind];
+              return (
+                <li key={c.key} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 py-1.5 text-[12.5px]">
+                  <m.Icon className={cn("size-4 shrink-0", m.tone)} aria-label={m.label} />
+                  {/* En móvil el nombre ocupa su renglón y los montos bajan al siguiente. */}
+                  <span className="min-w-0 flex-1 basis-[calc(100%-2rem)] truncate sm:basis-0" title={c.name}>
+                    {c.name}
+                    <span className="text-muted-foreground"> · {c.strategy}</span>
+                  </span>
+                  <span className="tabular ml-7 shrink-0 text-muted-foreground sm:ml-0 sm:text-right">
+                    {c.before === null ? "—" : fmtCurrency(c.before)} → {c.after === null ? "—" : fmtCurrency(c.after)}
+                  </span>
+                  <span className={cn("tabular ml-auto w-16 shrink-0 text-right font-semibold", m.tone)}>{c.pct === null ? m.short : `${c.pct > 0 ? "+" : "−"}${fmtPercent(Math.abs(c.pct), 0)}`}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+    </section>
   );
 }
 

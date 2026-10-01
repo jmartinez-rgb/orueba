@@ -349,7 +349,9 @@ function paceInsights(groups: BudgetGroup[], t: BudgetInput["thresholds"]): Insi
     const list = rest.filter((g) => g.paceLabel === side);
     if (!list.length) continue;
     const range = list.map((g) => g.pace!);
-    const span = list.length === 1 ? pct(range[0]!) : `entre ${pct(Math.min(...range))} y ${pct(Math.max(...range))}`;
+    const lo = pct(Math.min(...range)),
+      hi = pct(Math.max(...range));
+    const span = lo === hi ? `al ${lo}` : `entre ${lo} y ${hi}`;
     out.push({
       tone: "warn",
       text: `${out.length ? "Además, " : ""}${list.length === 1 ? `${list[0]!.label} va` : `${list.length} grupos van`} ${side === "below" ? "por debajo" : "por encima"} de lo esperado a esta hora (${span})${list.length > 1 ? `: ${list.slice(0, 4).map((g) => g.label).join(", ")}${list.length > 4 ? "…" : ""}` : ""}.`,

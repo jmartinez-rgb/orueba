@@ -16,6 +16,9 @@ import { demoBudgets } from "@/lib/mock/platform-budgets";
 import { buildBudgetOverview } from "@/lib/services/platform-budgets";
 import { DEFAULT_CLASSIFIERS } from "@/lib/classifiers/defaults";
 import type { Snapshot } from "@/lib/services/snapshot";
+import { demoPreviousSnapshot, detectBudgetChanges, snapshotFrom, type BudgetChanges } from "@/lib/services/budget-changes";
+import { latestSnapshotBefore, saveBudgetSnapshot } from "@/lib/records/budget-snapshots";
+import { addDays } from "@/lib/time/tz";
 
 export const metadata: Metadata = { title: "Budget Control" };
 export const dynamic = "force-dynamic";
@@ -120,7 +123,18 @@ async function budgetState(snap: Snapshot, bc: Awaited<ReturnType<typeof getBudg
   });
   if (source.warnings.length)
     overview.insights.push({ tone: "warn", text: `${source.warnings.length === 1 ? "Una lectura de presupuestos falló" : `${source.warnings.length} lecturas de presupuestos fallaron`}: ${source.warnings[0]}` });
-  return { kind: "ready", overview, demo };
+  // Cambios contra el último día guardado. En modo demo, una foto "de ayer" de ejemplo y sin escribir.
+  let changes: BudgetChanges | null = null;
+  const today = snap.meta.businessDate;
+  const current = snapshotFrom(overview, today, snap.meta.generatedAt);
+  try {
+    const prev = demo ? demoPreviousSnapshot(current, addDays(today, -1)) : await latestSnapshotBefore(snap.meta.brand.id, today);
+    if (!demo && Object.keys(current.units).length) await saveBudgetSnapshot(snap.meta.brand.id, current);
+    if (prev) changes = detectBudgetChanges(prev, current, snap.settings.thresholds.attention);
+  } catch {
+    // Sin almacén disponible el panel sigue sin la comparación.
+  }
+  return { kind: "ready", overview, demo, changes, canNovedad: snap.meta.permissions.includes("novedades:write") };
 }
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
