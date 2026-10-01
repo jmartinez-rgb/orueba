@@ -1,6 +1,6 @@
 "use client";
 import { CircleAlert, CircleCheck, Info, Wallet } from "lucide-react";
-import type { BudgetGroup, BudgetOverview, Insight, Pace, PlatformBudgetView } from "@/lib/services/platform-budgets";
+import type { BudgetGroup, BudgetOverview, Insight, Pace, PlatformBudgetView, Projection } from "@/lib/services/platform-budgets";
 import { fmtCurrency, fmtPercent } from "@/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -74,6 +74,7 @@ function Ready({ overview }: { overview: BudgetOverview }) {
       </TabsList>
       <TabsContent value="all" className="flex flex-col gap-5">
         <Stats group={overview.total} />
+        <ProjectionStrip projection={overview.projection} daily={overview.total.total} />
         <Bars title="Por plataforma" groups={overview.platforms.map((p) => ({ ...p.total, label: p.name }))} marks={overview.platforms.map((p) => p.platform)} />
         <Insights items={overview.insights} />
       </TabsContent>
@@ -97,6 +98,7 @@ function PlatformDetail({ view }: { view: PlatformBudgetView }) {
   return (
     <>
       <Stats group={view.total} structure={parts.join(" · ")} />
+      <ProjectionStrip projection={view.projection} daily={view.total.total} />
       <Bars title="Por estrategia" groups={view.strategies} />
       <Insights items={view.insights} />
       <section aria-label="Presupuestos más altos">
@@ -147,6 +149,37 @@ function Stats({ group: g, structure }: { group: BudgetGroup; structure?: string
       <Stat label="Esperado a esta hora" value={g.expectedNow === null ? "—" : fmtCurrency(g.expectedNow)} sub={g.pace === null ? "Sin curva histórica" : <PaceChip pace={g.paceLabel} value={g.pace} />} />
       <Stat label="Sin gasto hoy" value={`${g.idle}`} sub={g.idle ? `${fmtCurrency(g.idleBudget)} de presupuesto sin entregar` : "Todas las campañas ya gastan"} />
     </div>
+  );
+}
+
+/** Cierre de mes si se entrega el diario configurado, contra el presupuesto mensual de Budget Control. */
+function ProjectionStrip({ projection: p, daily }: { projection: Projection | null; daily: number }) {
+  if (!p) return null;
+  const ratio = p.monthBudget ? p.projected / p.monthBudget : null;
+  const tone = p.status === "over" ? "text-status-alert-text" : p.status === "under" ? "text-status-attention-text" : p.status === "on" ? "text-status-normal-text" : "text-foreground";
+  return (
+    <section aria-label="Cierre de mes" className="flex flex-col gap-2 rounded-xl border border-(--hairline) px-4 py-3 sm:flex-row sm:items-center sm:gap-6">
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] text-muted-foreground">Cierre de mes si se entrega el diario configurado</p>
+        <p className="tabular text-lg leading-tight font-semibold">
+          {fmtCurrency(p.projected)}
+          {ratio !== null && <span className={cn("ml-2 text-[13px] font-semibold", tone)}>{fmtPercent(ratio, 0)} del presupuesto mensual</span>}
+        </p>
+        <p className="text-[11px] text-muted-foreground">
+          Gastado en el mes {fmtCurrency(p.monthSpend)} · {p.daysLeft} {p.daysLeft === 1 ? "día restante" : "días restantes"}
+          {p.monthBudget !== null && ` · presupuesto ${fmtCurrency(p.monthBudget)}`}
+        </p>
+      </div>
+      {p.neededDaily !== null && (
+        <div className="shrink-0 sm:text-right">
+          <p className="text-[11px] text-muted-foreground">Diario para cerrar en presupuesto</p>
+          <p className="tabular text-[15px] font-semibold">{fmtCurrency(p.neededDaily)}</p>
+          <p className="tabular text-[11px] text-muted-foreground">
+            hoy {fmtCurrency(daily)} ({daily > 0 ? `${p.neededDaily >= daily ? "+" : "−"}${fmtPercent(Math.abs(p.neededDaily / daily - 1), 0)}` : "—"})
+          </p>
+        </div>
+      )}
+    </section>
   );
 }
 

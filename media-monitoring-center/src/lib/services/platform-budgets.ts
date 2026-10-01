@@ -31,6 +31,35 @@ export interface BudgetInput {
   fxRate: number | null;
   /** Umbrales de desviación del equipo (Configuración). */
   thresholds: { attention: number; alert: number };
+  /** Mes en curso de Budget Control (gasto del mes con hoy y presupuesto mensual por plataforma). */
+  month?: MonthContext;
+  /** Umbrales de sobre y subejercicio mensual del equipo (Configuración → presupuesto). */
+  budgetThresholds?: { overspendAttention: number; underspendAttention: number };
+}
+
+export interface MonthContext {
+  daysInMonth: number;
+  /** Días completos ya transcurridos antes de hoy. */
+  elapsedDays: number;
+  lines: Partial<Record<PlatformId | "total", { budget: number | null; spend: number }>>;
+}
+
+/**
+ * Cierre de mes si se entrega el presupuesto diario configurado: gasto del mes (con lo de hoy) + lo
+ * que falta de hoy + el diario por los días restantes. Es un escenario, no un pronóstico: la
+ * plataforma puede entregar menos del diario.
+ */
+export interface Projection {
+  monthBudget: number | null;
+  monthSpend: number;
+  projected: number;
+  /** projected ÷ presupuesto mensual − 1. */
+  vsBudget: number | null;
+  daysLeft: number;
+  /** Diario que cerraría el mes justo en el presupuesto mensual. */
+  neededDaily: number | null;
+  /** Lectura con los umbrales mensuales del equipo; null sin presupuesto o sin umbrales. */
+  status: "over" | "under" | "on" | null;
 }
 
 export type Pace = "below" | "on" | "above" | "unknown";
@@ -82,10 +111,12 @@ export interface PlatformBudgetView {
   structure: { campaignLevel: number; adSetLevel: number; shared: number; lifetime: number; lifetimeWithoutEstimate: number };
   insights: Insight[];
   curveShare: number | null;
+  projection: Projection | null;
 }
 
 export interface BudgetOverview {
   total: BudgetGroup;
+  projection: Projection | null;
   platforms: PlatformBudgetView[];
   insights: Insight[];
   excluded: { rows: number; currencies: string[] };
@@ -114,6 +145,39 @@ function finish(g: BudgetGroup, grand: number, share: number | null, t: BudgetIn
   g.pace = g.expectedNow && g.expectedNow > 0 ? g.spend / g.expectedNow : null;
   g.paceLabel = g.pace === null ? "unknown" : g.pace < 1 - t.attention ? "below" : g.pace > 1 + t.attention ? "above" : "on";
   return g;
+}
+
+export function projectMonth(daily: number, spendToday: number, month: MonthContext, line: { budget: number | null; spend: number } | undefined): Projection | null {
+  if (!line) return null;
+  const daysLeft = Math.max(0, month.daysInMonth - month.elapsedDays - 1);
+  const restOfToday = Math.max(0, daily - spendToday);
+  const projected = line.spend + restOfToday + daily * daysLeft;
+  const budget = line.budget !== null && line.budget > 0 ? line.budget : null;
+  return {
+    monthBudget: budget,
+    monthSpend: line.spend,
+    projected,
+    vsBudget: budget === null ? null : projected / budget - 1,
+    daysLeft,
+    neededDaily: budget === null || daysLeft === 0 ? null : Math.max(0, (budget - line.spend - restOfToday) / daysLeft),
+    status: null,
+  };
+}
+
+function withStatus(p: Projection | null, t: BudgetInput["budgetThresholds"]): Projection | null {
+  if (!p) return null;
+  p.status = p.vsBudget === null || !t ? null : p.vsBudget >= t.overspendAttention ? "over" : p.vsBudget <= -t.underspendAttention ? "under" : "on";
+  return p;
+}
+
+function projectionInsight(name: string, p: Projection | null, daily: number): Insight | null {
+  if (!p || p.vsBudget === null || p.monthBudget === null || p.status === null) return null;
+  const needed = p.neededDaily !== null ? ` Para cerrar en ${money(p.monthBudget)}, el diario debería ser ${money(p.neededDaily)} (hoy ${money(daily)}).` : "";
+  if (p.status === "over")
+    return { tone: "warn", text: `Con los diarios actuales, ${name} cerraría el mes en ${money(p.projected)}, ${pct(p.vsBudget)} sobre su presupuesto mensual.${needed}` };
+  if (p.status === "under")
+    return { tone: "warn", text: `Con los diarios actuales, ${name} cerraría el mes en ${money(p.projected)}, ${pct(-p.vsBudget)} debajo de su presupuesto mensual.${needed}` };
+  return { tone: "good", text: `Con los diarios actuales, ${name} cerraría el mes en ${money(p.projected)}, en línea con su presupuesto mensual (${money(p.monthBudget)}).` };
 }
 
 interface Unit {
@@ -260,7 +324,10 @@ function platformView(platform: PlatformId, rows: UnifiedBudget[], input: Budget
       });
     }
   }
-  return { platform, name, total, strategies, units: out, structure, insights, curveShare: share };
+  const projection = withStatus(input.month ? projectMonth(total.total, total.spend, input.month, input.month.lines[platform]) : null, input.budgetThresholds);
+  const closing = projectionInsight(name, projection, total.total);
+  if (closing) insights.unshift(closing);
+  return { platform, name, total, strategies, units: out, structure, insights, curveShare: share, projection };
 }
 
 /**
@@ -332,6 +399,29 @@ export function buildBudgetOverview(input: BudgetInput): BudgetOverview {
     insights.push(...paceInsights(platforms.map((p) => ({ ...p.total, label: p.name })), input.thresholds));
   }
   if (excluded.rows) insights.push({ tone: "warn", text: `${plural(excluded.rows, "presupuesto", "presupuestos")} en ${[...excluded.currencies].join(", ")} quedaron fuera por falta de tasa de cambio.` });
+  // Cierre combinado de las plataformas con presupuesto leído (las demás no entran en el escenario).
+  const projections = platforms.map((p) => p.projection).filter((p): p is Projection => p !== null);
+  let projection: Projection | null = null;
+  if (projections.length) {
+    const budgets = projections.map((p) => p.monthBudget);
+    const monthBudget = budgets.every((b) => b !== null) ? budgets.reduce<number>((s, b) => s + b!, 0) : null;
+    const projected = projections.reduce((s, p) => s + p.projected, 0);
+    const daysLeft = projections[0]!.daysLeft;
+    const monthSpend = projections.reduce((s, p) => s + p.monthSpend, 0);
+    const restOfToday = projected - monthSpend - total.total * daysLeft;
+    projection = {
+      monthBudget,
+      monthSpend,
+      projected,
+      vsBudget: monthBudget ? projected / monthBudget - 1 : null,
+      daysLeft,
+      neededDaily: monthBudget && daysLeft ? Math.max(0, (monthBudget - monthSpend - restOfToday) / daysLeft) : null,
+      status: null,
+    };
+    withStatus(projection, input.budgetThresholds);
+    const closing = projectionInsight("el total", projection, total.total);
+    if (closing) insights.splice(Math.min(1, insights.length), 0, closing);
+  }
   const extractedAt = input.budgets.reduce<string | null>((max, b) => (max === null || b.extracted_at > max ? b.extracted_at : max), null);
-  return { total, platforms, insights, excluded: { rows: excluded.rows, currencies: [...excluded.currencies] }, extractedAt };
+  return { total, projection, platforms, insights, excluded: { rows: excluded.rows, currencies: [...excluded.currencies] }, extractedAt };
 }

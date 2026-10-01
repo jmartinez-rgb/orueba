@@ -173,3 +173,33 @@ describe("lectura de presupuestos desde la API unificada", () => {
     expect(request).not.toHaveBeenCalled();
   });
 });
+
+describe("cierre de mes con los diarios actuales", () => {
+  const month = { daysInMonth: 31, elapsedDays: 10, lines: { meta: { budget: 100000, spend: 40000 }, google: { budget: 50000, spend: 20000 } } };
+  it("proyecta gasto del mes + resto de hoy + diario por los días que faltan y calcula el diario necesario", () => {
+    const view = buildBudgetOverview(
+      input([budget({ platform: "meta", campaign_id: "1", campaign_name: "Venta", daily_budget: 4000 })], {
+        spendToday: new Map([["meta:1", 1000]]),
+        month,
+        budgetThresholds: { overspendAttention: 0.05, underspendAttention: 0.1 },
+      }),
+    );
+    // 40,000 + (4,000 − 1,000) + 4,000 × 20 días = 123,000 → 23 % sobre 100,000.
+    expect(view.platforms[0]!.projection).toMatchObject({ projected: 123000, daysLeft: 20, monthBudget: 100000, status: "over" });
+    expect(view.platforms[0]!.projection!.neededDaily).toBeCloseTo((100000 - 40000 - 3000) / 20);
+    expect(view.platforms[0]!.insights[0]!.text).toMatch(/cerraría el mes en \$123,000, 23% sobre.*el diario debería ser \$2,850 \(hoy \$4,000\)/);
+  });
+  it("el total suma solo plataformas con presupuesto leído; sin presupuesto mensual no hay lectura", () => {
+    const view = buildBudgetOverview(
+      input(
+        [budget({ platform: "meta", campaign_id: "1", campaign_name: "Venta", daily_budget: 3000 }), budget({ platform: "google", campaign_id: "g", campaign_name: "Search", daily_budget: 1500 })],
+        { month, budgetThresholds: { overspendAttention: 0.05, underspendAttention: 0.1 } },
+      ),
+    );
+    expect(view.projection).toMatchObject({ monthBudget: 150000, projected: 60000 + 4500 + 4500 * 20, status: "on" });
+    const noBudget = buildBudgetOverview(
+      input([budget({ platform: "meta", campaign_id: "1", campaign_name: "Venta" })], { month: { ...month, lines: { meta: { budget: null, spend: 5 } } } }),
+    );
+    expect(noBudget.platforms[0]!.projection).toMatchObject({ monthBudget: null, vsBudget: null, neededDaily: null, status: null });
+  });
+});

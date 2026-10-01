@@ -29,7 +29,7 @@ export default async function BudgetPage() {
   const total = bc.lines.find((l) => l.level === "total");
   const [y, m] = bc.month.split("-").map(Number);
   const b = snap.settings.budget;
-  const budgets = await budgetState(snap, bc.fxRate);
+  const budgets = await budgetState(snap, bc);
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -91,7 +91,8 @@ export default async function BudgetPage() {
 }
 
 /** Presupuestos vigentes: API unificada con datos reales; derivados del catálogo en modo demo. */
-async function budgetState(snap: Snapshot, fxRate: number | null): Promise<BudgetPanelState> {
+async function budgetState(snap: Snapshot, bc: Awaited<ReturnType<typeof getBudgetControl>>): Promise<BudgetPanelState> {
+  const fxRate = bc.fxRate;
   const demo = snap.meta.mode === "mock";
   const source = demo ? { ok: true as const, budgets: demoBudgets(snap, fxRate), warnings: [] as string[] } : await unifiedBudgets();
   if (!source.ok) return { kind: "unavailable", reason: source.reason, configured: source.configured };
@@ -108,6 +109,14 @@ async function budgetState(snap: Snapshot, fxRate: number | null): Promise<Budge
     curveShare: Object.fromEntries(snap.run.platforms.map((p) => [p, snap.run.pacing[p]?.curveShare ?? null])),
     fxRate,
     thresholds: snap.settings.thresholds,
+    budgetThresholds: snap.settings.budget,
+    month: {
+      daysInMonth: bc.daysInMonth,
+      elapsedDays: bc.elapsedDays,
+      lines: Object.fromEntries(
+        bc.lines.filter((l) => l.level === "total" || l.level === "platform").map((l) => [l.level === "total" ? "total" : l.platform!, { budget: l.budget, spend: l.spend }]),
+      ),
+    },
   });
   if (source.warnings.length)
     overview.insights.push({ tone: "warn", text: `${source.warnings.length === 1 ? "Una lectura de presupuestos falló" : `${source.warnings.length} lecturas de presupuestos fallaron`}: ${source.warnings[0]}` });
