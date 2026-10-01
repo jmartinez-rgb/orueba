@@ -7,3 +7,5 @@ coverage
 *.log
 .microsoft-oauth-session
 .spotify-oauth-session
+# Reportes generados con datos de cuentas reales
+reportes/

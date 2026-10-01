@@ -25,7 +25,11 @@ export class MetaClient {
   }
 
   async get<T>(path: string, params: Record<string, string>, signal: AbortSignal): Promise<T> {
-    if (!/^(?:me|act_\d+|\d+)(?:\/(?:adaccounts|owned_ad_accounts|client_ad_accounts|campaigns|insights))?$/.test(path))
+    if (
+      !/^(?:me|act_\d+|\d+)(?:\/(?:adaccounts|owned_ad_accounts|client_ad_accounts|campaigns|adsets|insights))?$/.test(
+        path,
+      )
+    )
       throw new ApiError("INVALID_REQUEST", "Ruta de Meta inválida.");
     const url = new URL(`${META_GRAPH_URL}/${this.config.version}/${path}`);
     for (const [key, value] of Object.entries(params)) {
@@ -84,14 +88,14 @@ export class MetaClient {
     }
   }
 
-  async list<T>(path: string, params: Record<string, string>, signal: AbortSignal): Promise<T[]> {
+  async list<T>(path: string, params: Record<string, string>, signal: AbortSignal, pageSize = 100): Promise<T[]> {
     const output: T[] = [];
     const seen = new Set<string>();
     let after: string | undefined;
     for (let page = 0; page < 1000; page++) {
       const result = await this.get<Record<string, unknown>>(
         path,
-        { ...params, limit: "100", ...(after ? { after } : {}) },
+        { ...params, limit: String(pageSize), ...(after ? { after } : {}) },
         signal,
       );
       if (!Array.isArray(result.data) || !result.data.every(metaObject))

@@ -150,6 +150,33 @@ Las pruebas con simulador no reemplazan la verificación de permisos y datos de 
 principal aún debe configurarse según la medición del cliente; sin ella rendimiento mantiene
 conversiones, valor y CPA en `null`.
 
+## Revisión de públicos excluidos (clientes activos)
+
+`npm run meta:exclusiones` genera un Excel con las cuentas, campañas y grupos de anuncios que excluyen la
+audiencia de clientes activos y los que no. Es solo lectura: no cambia nada en Meta. Usa
+`META_ACCESS_TOKEN` del `.env` local (requiere `ads_read`) y nunca lo muestra.
+
+```bash
+npm run meta:exclusiones -- 902854812517704 801573051220234 1002273077117011
+npm run meta:exclusiones -- --solo-activos <IDs>
+npm run meta:exclusiones -- --patron "clientes activos|base activa" <IDs>
+```
+
+- Sin IDs usa `META_AD_ACCOUNT_IDS`. El archivo queda en `reportes/` (ignorado por git, permisos 0600);
+  `--salida <ruta>` lo cambia.
+- Un grupo cuenta como "excluye clientes activos" si alguna audiencia en
+  `targeting.excluded_custom_audiences` tiene un nombre que coincide con el patrón (por omisión
+  `client.*activ|activ.*client`, sin acentos ni mayúsculas). La hoja _Audiencias excluidas_ lista todas
+  las audiencias excluidas para confirmar el criterio.
+- Hojas: _Resumen por cuenta_, _Campañas_ (cobertura Sí / Parcial / No), _Grupos de anuncios_,
+  _Audiencias excluidas_ y _Criterios_. Las campañas con "CAPI WhatsApp" en el nombre se marcan en su
+  propio universo.
+- Por omisión revisa grupos activos, pausados, de campaña pausada, en proceso y con problemas; no
+  incluye archivados ni eliminados. Una cuenta sin permiso queda registrada y no detiene a las demás.
+- Si Meta rechaza los subcampos de `targeting`, repite la lectura con la segmentación completa en páginas
+  de 25. No cubre exclusiones a nivel cuenta ni listas de clientes existentes de campañas Advantage+ de
+  ventas.
+
 ## Fuentes oficiales consultadas
 
 - [Changelog Graph y Marketing API](https://developers.facebook.com/docs/graph-api/changelog/) — v26.0, publicada el 29 de julio de 2026.
