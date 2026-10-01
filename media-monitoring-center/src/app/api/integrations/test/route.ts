@@ -6,6 +6,7 @@ import { badRequest, forbidden, json, readJson } from "@/lib/services/http";
 import { FixtureSheetsReader, GoogleSheetsReader } from "@/lib/sheets/reader";
 import { getAppContext } from "@/lib/services/context";
 import { explainGoogleError } from "@/lib/google/errors";
+import { fetchUnifiedStatus } from "@/lib/integrations/unified-api";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,13 @@ export async function POST(req: Request) {
       recordIntegrationEvent({ target: "n8n", action: "healthz", ok: false, durationMs: Date.now() - started, detail: err instanceof Error ? err.message : String(err) });
       return json({ ok: false, message: "No pudimos comunicarnos con n8n.", technical: err instanceof Error ? err.message : String(err) });
     }
+  }
+  if (body?.target === "unified") {
+    // Sin caché: la prueba consulta en el momento el estado de las plataformas en la API unificada.
+    const r = await fetchUnifiedStatus();
+    if (!r.ok) return json({ ok: false, message: r.reason });
+    const connected = r.providers.filter((p) => p.status.state === "connected").length;
+    return json({ ok: true, message: `La API unificada responde: ${connected} de ${r.providers.length} plataformas conectadas.` });
   }
   return badRequest("Destino de prueba inválido.");
 }

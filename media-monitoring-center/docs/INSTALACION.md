@@ -347,6 +347,14 @@ Monitoring Runner y WF08 WhatsApp Alert) siguiendo `docs/N8N.md` y agrega en Net
 `MONITORING_API_KEY`, `N8N_BASE_URL`, `N8N_ALERT_WEBHOOK`, `N8N_WEBHOOK_SECRET` y, cuando las
 plantillas estén aprobadas, `WHATSAPP_ALERTS_ENABLED=true`. La app nunca envía WhatsApp por sí misma.
 
+### Opcional: API unificada de plataformas
+
+Si ya tienes desplegada la API unificada (carpeta `unified-ads-api`), agrega en Netlify
+`UNIFIED_ADS_API_URL` (su dirección HTTPS) y `UNIFIED_ADS_API_KEY` (una de sus llaves internas
+`API_KEYS`). En **Integrations → API unificada de plataformas** verás el estado de cada conexión
+directa (conectada, requiere aprobación, sin permiso, sin credenciales o pendiente de integrar) y el
+botón **Probar conexión**. Es solo lectura y la llave nunca llega al navegador.
+
 ---
 
 ## Cómo lee la app la hoja (para entender lo que ves)

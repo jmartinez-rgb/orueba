@@ -80,6 +80,13 @@ export interface ServerEnv {
     templateLanguage: string;
   };
   monitoringApiKey: string | undefined;
+  /** API unificada de plataformas (unified-ads-api): estado de conexión de cada plataforma. */
+  unifiedApi: {
+    url: string | undefined;
+    apiKey: string | undefined;
+    timeoutMs: number;
+    configured: boolean;
+  };
   logLevel: "debug" | "info" | "warn" | "error";
 }
 
@@ -158,6 +165,12 @@ export function getEnv(): ServerEnv {
       templateLanguage: str("WHATSAPP_TEMPLATE_LANGUAGE") ?? "es_MX",
     },
     monitoringApiKey: str("MONITORING_API_KEY"),
+    unifiedApi: {
+      url: str("UNIFIED_ADS_API_URL")?.replace(/\/+$/, ""),
+      apiKey: str("UNIFIED_ADS_API_KEY"),
+      timeoutMs: int("UNIFIED_ADS_API_TIMEOUT_MS", 8000),
+      configured: Boolean(str("UNIFIED_ADS_API_URL") && str("UNIFIED_ADS_API_KEY")),
+    },
     logLevel: level === "debug" || level === "warn" || level === "error" ? level : "info",
   };
   return cached;

@@ -16,6 +16,9 @@ import { ExecutionChip } from "@/components/monitoring/execution-chip";
 import { PLATFORMS } from "@/lib/platforms/registry";
 import { MONTHS_ES } from "@/lib/time/tz";
 
+import { UnifiedApiPanel } from "@/components/monitoring/unified-api-panel";
+import { unifiedStatus } from "@/lib/integrations/unified-api";
+
 export const metadata: Metadata = { title: "Integrations" };
 export const dynamic = "force-dynamic";
 
@@ -33,7 +36,7 @@ export default async function IntegrationsPage() {
   const res = await safeSnapshot();
   if (!res.ok) return <ErrorPanel message={res.message} technical={res.technical} />;
   const snap = res.snap;
-  const items = getIntegrations(snap);
+  const [items, unified] = [getIntegrations(snap), await unifiedStatus()];
   const canTest = snap.meta.permissions.includes("technical:view");
   const render = (group: "core" | "platform") => (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -85,6 +88,10 @@ export default async function IntegrationsPage() {
             : "Conexión directa con cada plataforma (n8n) o, si no es posible, Google Sheets actualizado por Dataslayer y cargado por Apps Script a BigQuery (fuente única de verdad). Alertas: motor → n8n → WhatsApp. Ningún secreto llega al navegador."
         }
       />
+      <section id="api-unificada" className="scroll-mt-20">
+        <SectionTitle>API unificada de plataformas</SectionTitle>
+        <UnifiedApiPanel status={unified} timezone={snap.meta.timezone} canTest={canTest} />
+      </section>
       <section id="flujo" className="scroll-mt-20">
         <SectionTitle aside={<ExecutionChip execution={snap.execution} timezone={snap.meta.timezone} />}>Flujo de datos y control de ejecución</SectionTitle>
         <Card>

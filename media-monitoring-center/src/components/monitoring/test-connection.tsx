@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function TestConnectionButton({ target, enabled }: { target: "bigquery" | "sheets" | "n8n"; enabled: boolean }) {
+export function TestConnectionButton({ target, enabled }: { target: "bigquery" | "sheets" | "n8n" | "unified"; enabled: boolean }) {
   const [state, setState] = useState<{ ok: boolean; message: string; technical?: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
