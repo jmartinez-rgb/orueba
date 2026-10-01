@@ -249,6 +249,18 @@ npm run test
 npm run build
 ```
 
+Primera lectura real (con las credenciales de tu `.env`, solo lectura):
+
+```bash
+npm run verificar                                   # ayer, todas las plataformas configuradas
+npm run verificar -- --fecha 2026-09-30 --plataformas meta,google
+```
+
+Recorre estado, cuentas, campañas, presupuestos, salud de entrega y rendimiento de un día, y deja en
+`reportes/` (fuera de git) un Excel con conteos, códigos de error y totales por cuenta y moneda para
+conciliar contra cada interfaz. No guarda tokens, cabeceras ni respuestas crudas. Si una plataforma
+rota su refresh token durante la lectura, el nuevo se guarda en `.env` (0600).
+
 ## Docker
 
 ```bash
