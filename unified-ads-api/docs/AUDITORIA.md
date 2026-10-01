@@ -88,11 +88,22 @@ citado por Codex. Las regresiones de Google (paralelismo, ceros protobuf), Meta 
   los umbrales del equipo, campañas sin gasto, limitadas por presupuesto).
 - **Reporte de exclusiones de Meta** (`npm run meta:exclusiones`) integrado desde
   `claude/blissful-goodall-vh8k7n` mediante merge, sin reescribir historial.
+- **Salud de entrega** (`GET /api/v1/delivery-health`): Meta (estado y tope de gasto de la cuenta,
+  campañas y conjuntos con problemas o `issues_info`, aprendizaje), Google (estado principal y motivos:
+  limitada por presupuesto, puja o políticas, aprendizaje) y Microsoft (pausadas por presupuesto,
+  suspendidas). Contratos: SDK de Meta 26.0.2, descubrimiento de Google v25 y WSDL de Microsoft v13.
+  TikTok queda fuera porque su SDK no publica los valores de estado.
+- **X:** `X_ADS_PLACEMENTS` permite sumar `PUBLISHER_NETWORK` si se confirma en v12, y la consulta del
+  estado de trabajos asíncronos espera 1, 2, 4, 8 y luego 10 s.
+- **Monitoreo:** panel de salud en Overview (los topes de Meta se cruzan con el diario vigente de la
+  cuenta para saber cuántos días alcanzan), proyección de cierre de mes con los diarios actuales contra
+  el presupuesto mensual, y cambios de presupuesto contra el último día guardado (foto diaria por marca
+  en el almacén de registros).
 
 ### Validación de esta rama
 
-- `unified-ads-api`: **532 pruebas en 27 archivos** en Node 22.22.2; tipos, lint, formato y build en verde.
-- `media-monitoring-center`: **209 pruebas en 21 archivos**; `npm run check` y `next build` en verde.
+- `unified-ads-api`: **542 pruebas en 28 archivos** en Node 22.22.2; tipos, lint, formato y build en verde.
+- `media-monitoring-center`: **215 pruebas en 23 archivos**; `npm run check` y `next build` en verde.
   El panel se revisó en escritorio y móvil (sin desbordes ni errores de consola) con una cuenta de
   prueba temporal solo en memoria.
 - Ninguna lectura real nueva: este entorno no tiene credenciales de plataformas y su red bloquea sus
@@ -378,8 +389,11 @@ tokens; se señalan como puntos de revisión, sin afirmar un incidente real.
 
 **Código**
 
-- X (auditoría de Claude): confirmar `PUBLISHER_NETWORK` en v12, filtrar campañas con `active_entities`
-  y espaciar el polling de trabajos según el límite real.
+- X (auditoría de Claude): confirmar `PUBLISHER_NETWORK` en v12 (se activa con `X_ADS_PLACEMENTS`) y
+  filtrar campañas con `active_entities` para cuidar el límite de tasa.
+- Salud de entrega de TikTok cuando haya un vocabulario oficial de `secondary_status` verificable.
+- Primera lectura real de `/budgets` y `/delivery-health` en Meta, Google y Microsoft para confirmar
+  campos y seleccionabilidad (los contratos están confirmados con fuentes oficiales, no con datos reales).
 - Presupuestos de Spotify y X cuando haya acceso (sus APIs los exponen en ad sets y line items).
 - X: OAuth multiusuario y conversiones móviles, si se requieren; primera lectura real y conciliación pendientes.
 - TikTok v2.0, si se decide migrar; el intercambio OAuth v1.3 ya existe.

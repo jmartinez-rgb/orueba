@@ -274,7 +274,26 @@ gasto ni presupuesto mensual: es lo que cada plataforma tiene autorizado gastar 
 - Las cuentas en USD se convierten con la tasa del mes. Un presupuesto compartido se cuenta una vez.
   Un presupuesto total cuenta con un diario estimado; si la plataforma no informa cómo estimarlo, se
   avisa y no suma.
+- **Cierre de mes:** si cada plataforma entrega su diario configurado, en cuánto cerraría el mes contra
+  el presupuesto mensual, y qué diario cerraría justo en presupuesto. Es un escenario, no un pronóstico:
+  las plataformas pueden entregar menos del diario.
+- **Cambios de presupuesto:** cada día se guarda una foto de los presupuestos por marca. El panel
+  compara hoy contra el último día guardado y lista lo que subió o bajó más que el umbral de atención
+  de Settings, lo nuevo y lo que dejó de estar activo, con un acceso para registrarlo en Novedades.
 - En modo demo el panel muestra datos de ejemplo rotulados como *Datos de demostración*.
+
+## Salud de entrega
+
+En **Overview**, el panel *Salud de entrega en las plataformas* muestra lo que Meta, Google y Microsoft
+reportan hoy, ordenado por gravedad:
+
+- **Críticas:** cuenta con problema de pago, revisión o cierre; campaña o conjunto que no entrega
+  (`WITH_ISSUES`, no elegible, suspendida); anuncios rechazados; tope de gasto de Meta que no alcanza ni
+  un día al diario actual.
+- **Advertencias:** limitadas por presupuesto o puja, anuncios limitados o en revisión, pausadas por
+  presupuesto (Microsoft), aprendizaje limitado y topes de gasto que se acaban antes de fin de mes.
+- **Contexto** (plegado): elementos en aprendizaje (sus variaciones son esperadas) y campañas
+  pendientes de iniciar.
 
 ## Usuarios y contraseñas
 
