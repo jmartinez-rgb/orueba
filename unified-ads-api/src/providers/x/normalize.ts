@@ -7,7 +7,7 @@ import type {
 import { derivedMetrics, microsToCurrency } from "../../normalization/metrics.js";
 import type { ConversionCategory } from "../../normalization/conversions.js";
 import { ApiError } from "../../utils/errors.js";
-import { xId, X_CONVERSIONS, X_PLACEMENTS, type XConfig } from "./config.js";
+import { xId, X_CONVERSIONS, type XConfig } from "./config.js";
 import type { XBucket } from "./reports.js";
 export function normalizeCampaign(row: Record<string, unknown>, account: NormalizedAccount): NormalizedCampaign {
   const status = row.deleted === true ? "DELETED" : row.entity_status;
@@ -29,7 +29,7 @@ function raw(row: XBucket, config: XConfig, timezone: string | null) {
     attribution: config.attribution,
     source_timezone: timezone,
     report_utc_offset_minutes: row.offset,
-    requested_placements: [...X_PLACEMENTS],
+    requested_placements: [...config.placements],
     spend_provisional_days: 3,
   };
 }

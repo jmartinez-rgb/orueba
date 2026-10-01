@@ -4,7 +4,7 @@ import { XClient } from "../src/providers/x/client.js";
 import { oauthHeader } from "../src/providers/x/auth.js";
 import { readXConfig, X_PLACEMENTS } from "../src/providers/x/config.js";
 import { xError } from "../src/providers/x/errors.js";
-import { reportWindows, timezoneOffset } from "../src/providers/x/reports.js";
+import { pollDelay, reportWindows, timezoneOffset } from "../src/providers/x/reports.js";
 import { ProviderRegistry } from "../src/providers/registry.js";
 import type { ApiError } from "../src/utils/errors.js";
 import { makeApp, KEY } from "./helpers.js";
@@ -396,5 +396,29 @@ describe("X reporting contract", () => {
     } finally {
       await app.close();
     }
+  });
+});
+
+describe("X: ubicaciones configurables y espera de trabajos (auditoría de Claude)", () => {
+  it("acepta PUBLISHER_NETWORK u otras ubicaciones admitidas y rechaza valores desconocidos", () => {
+    const sim = new Sim();
+    expect(readXConfig(sim.env).config?.placements).toEqual([...X_PLACEMENTS]);
+    expect(
+      readXConfig({ ...sim.env, X_ADS_PLACEMENTS: "all_on_twitter, PUBLISHER_NETWORK" }).config?.placements,
+    ).toEqual(["ALL_ON_TWITTER", "PUBLISHER_NETWORK"]);
+    expect(readXConfig({ ...sim.env, X_ADS_PLACEMENTS: "ALL_ON_TWITTER,SEARCH" }).missing).toContain(
+      "X_ADS_PLACEMENTS",
+    );
+  });
+
+  it("solo pide las ubicaciones configuradas", async () => {
+    const { sim, provider } = setup({ X_ADS_PLACEMENTS: "ALL_ON_TWITTER" });
+    await provider.getPerformance(query);
+    const calls = sim.calls.filter((c) => c.url.pathname.includes("/stats/accounts/"));
+    expect(calls.map((c) => c.url.searchParams.get("placement"))).toEqual(["ALL_ON_TWITTER"]);
+  });
+
+  it("espacia las consultas de estado: 1, 2, 4, 8 y después 10 segundos", () => {
+    expect([0, 1, 2, 3, 4, 5, 30].map(pollDelay)).toEqual([1000, 2000, 4000, 8000, 10000, 10000, 10000]);
   });
 });

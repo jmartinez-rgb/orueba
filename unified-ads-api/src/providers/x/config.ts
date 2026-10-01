@@ -23,7 +23,14 @@ export const X_CONVERSIONS = [
   "conversion_landing_page_views",
   "conversion_subscriptions",
 ] as const;
+/** Ubicaciones que se suman por omisión (contrato API 12 citado en docs/X_ADS.md). */
 export const X_PLACEMENTS = ["ALL_ON_TWITTER", "SPOTLIGHT", "TREND"] as const;
+/**
+ * Ubicaciones admitidas en X_ADS_PLACEMENTS. PUBLISHER_NETWORK (X Audience Platform) aparece en el
+ * SDK oficial 11.0.0; se puede activar cuando se confirme en v12 sin cambiar código.
+ */
+export const X_ALLOWED_PLACEMENTS = ["ALL_ON_TWITTER", "PUBLISHER_NETWORK", "SPOTLIGHT", "TREND"] as const;
+export type XPlacement = (typeof X_ALLOWED_PLACEMENTS)[number];
 export const object = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 export function xId(v: unknown): string {
@@ -42,6 +49,7 @@ export interface XConfig {
   primaryMapping: Record<string, string>;
   conversionMapping: Record<string, string>;
   attribution: "post_engagement" | "post_view";
+  placements: XPlacement[];
   reportMode: "auto" | "sync" | "async";
   timeoutMs: number;
   retries: number;
@@ -92,6 +100,21 @@ export function readXConfig(env: Readonly<Record<string, string | undefined>>, f
       missing.push(key);
     }
   }
+  let placements: XPlacement[] = [...X_PLACEMENTS];
+  const rawPlacements = get("X_ADS_PLACEMENTS");
+  if (rawPlacements) {
+    const list = [
+      ...new Set(
+        rawPlacements
+          .split(",")
+          .map((v) => v.trim().toUpperCase())
+          .filter(Boolean),
+      ),
+    ];
+    if (!list.length || list.some((v) => !(X_ALLOWED_PLACEMENTS as readonly string[]).includes(v)))
+      missing.push("X_ADS_PLACEMENTS");
+    else placements = list as XPlacement[];
+  }
   const attribution = get("X_ADS_CONVERSION_ATTRIBUTION") || "post_engagement",
     reportMode = get("X_ADS_REPORT_MODE") || "auto";
   if (!["post_engagement", "post_view"].includes(attribution)) missing.push("X_ADS_CONVERSION_ATTRIBUTION");
@@ -109,6 +132,7 @@ export function readXConfig(env: Readonly<Record<string, string | undefined>>, f
         primaryMapping: maps.X_ADS_PRIMARY_CONVERSION_MAPPING!,
         conversionMapping: maps.X_ADS_CONVERSION_MAPPING!,
         attribution: attribution as XConfig["attribution"],
+        placements,
         reportMode: reportMode as XConfig["reportMode"],
         timeoutMs,
         retries,

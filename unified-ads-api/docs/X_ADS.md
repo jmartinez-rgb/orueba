@@ -34,22 +34,23 @@ y caracteres escapados.
 
 Guarda los cuatro valores en las **variables privadas del entorno**, nunca en el chat o Git:
 
-| Variable                           | Uso                                                                                  |
-| ---------------------------------- | ------------------------------------------------------------------------------------ |
-| `X_ADS_CONSUMER_KEY`               | API key de la aplicación aprobada para Ads API                                       |
-| `X_ADS_CONSUMER_SECRET`            | Secret de esa aplicación                                                             |
-| `X_ADS_ACCESS_TOKEN`               | Access token OAuth 1.0a del usuario con acceso publicitario                          |
-| `X_ADS_ACCESS_TOKEN_SECRET`        | Secret asociado a ese mismo access token                                             |
-| `X_ADS_API_VERSION`                | `12`, única versión admitida                                                         |
-| `X_ADS_ACCOUNT_IDS`                | Opcional, IDs separados por comas; omite discovery global                            |
-| `X_ADS_CLIENT_MAPPING`             | JSON cuenta → cliente interno                                                        |
-| `X_ADS_PRIMARY_CONVERSION_METRIC`  | Opcional, evento web principal; sin él conversiones y CPA quedan `null`              |
-| `X_ADS_PRIMARY_CONVERSION_MAPPING` | JSON cuenta → evento web principal                                                   |
-| `X_ADS_CONVERSION_MAPPING`         | JSON evento web → categoría del vocabulario compartido, en mayúsculas                |
-| `X_ADS_CONVERSION_ATTRIBUTION`     | `post_engagement` por omisión, o `post_view`; se mantienen separados                 |
-| `X_ADS_REPORT_MODE`                | `auto`, `sync` o `async`                                                             |
-| `X_ADS_TIMEOUT_MS`                 | 1.000–300.000 ms; hereda el límite común; para informes largos se recomienda 120.000 |
-| `X_ADS_RETRIES`                    | 0–5, predeterminado 2                                                                |
+| Variable                           | Uso                                                                                           |
+| ---------------------------------- | --------------------------------------------------------------------------------------------- |
+| `X_ADS_CONSUMER_KEY`               | API key de la aplicación aprobada para Ads API                                                |
+| `X_ADS_CONSUMER_SECRET`            | Secret de esa aplicación                                                                      |
+| `X_ADS_ACCESS_TOKEN`               | Access token OAuth 1.0a del usuario con acceso publicitario                                   |
+| `X_ADS_ACCESS_TOKEN_SECRET`        | Secret asociado a ese mismo access token                                                      |
+| `X_ADS_API_VERSION`                | `12`, única versión admitida                                                                  |
+| `X_ADS_ACCOUNT_IDS`                | Opcional, IDs separados por comas; omite discovery global                                     |
+| `X_ADS_CLIENT_MAPPING`             | JSON cuenta → cliente interno                                                                 |
+| `X_ADS_PRIMARY_CONVERSION_METRIC`  | Opcional, evento web principal; sin él conversiones y CPA quedan `null`                       |
+| `X_ADS_PRIMARY_CONVERSION_MAPPING` | JSON cuenta → evento web principal                                                            |
+| `X_ADS_CONVERSION_MAPPING`         | JSON evento web → categoría del vocabulario compartido, en mayúsculas                         |
+| `X_ADS_CONVERSION_ATTRIBUTION`     | `post_engagement` por omisión, o `post_view`; se mantienen separados                          |
+| `X_ADS_REPORT_MODE`                | `auto`, `sync` o `async`                                                                      |
+| `X_ADS_PLACEMENTS`                 | Ubicaciones a sumar; por omisión `ALL_ON_TWITTER,SPOTLIGHT,TREND`; admite `PUBLISHER_NETWORK` |
+| `X_ADS_TIMEOUT_MS`                 | 1.000–300.000 ms; hereda el límite común; para informes largos se recomienda 120.000          |
+| `X_ADS_RETRIES`                    | 0–5, predeterminado 2                                                                         |
 
 Para una conexión administrada por el propietario, el portal de desarrolladores proporciona
 el par de tokens de usuario. No hace falta un intercambio de refresh token ni un asistente
@@ -114,11 +115,13 @@ para evitar unir horas históricas con zonas distintas sin conciliación especí
 
 `auto` usa consultas síncronas hasta siete días y trabajos asíncronos para rangos mayores.
 La extracción divide rangos en bloques de hasta 30 días y lotes de hasta 20 campañas.
-Los trabajos se ejecutan y descargan secuencialmente, con polling acotado y un único límite
+Los trabajos se ejecutan y descargan secuencialmente, con polling acotado (esperas de 1, 2, 4, 8 y luego
+10 s para cuidar el límite de consultas de estado) y un único límite
 temporal para toda la consulta. Un trabajo fallido, pendiente al vencer el plazo, una descarga
 inválida o entidades omitidas **no se convierten en cero actividad**.
 
-Se solicitan las tres ubicaciones oficiales: `ALL_ON_TWITTER`, `SPOTLIGHT` y `TREND`.
+Por omisión se solicitan `ALL_ON_TWITTER`, `SPOTLIGHT` y `TREND`. El SDK oficial 11.0.0 también define
+`PUBLISHER_NETWORK` (X Audience Platform); si se confirma en v12, se agrega con `X_ADS_PLACEMENTS` sin cambiar código.
 Se suman sus conteos e importes y después se calcula CPA como costo / conversiones seleccionadas.
 Nunca se promedian los CPA de ubicaciones, campañas o días. Alcance y frecuencia permanecen `null`.
 

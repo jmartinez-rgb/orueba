@@ -1,7 +1,7 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { ApiError } from "../../utils/errors.js";
 import type { PerformanceQuery } from "../../types/normalized.js";
-import { object, X_PLACEMENTS, xId } from "./config.js";
+import { object, xId } from "./config.js";
 import type { XClient } from "./client.js";
 const DAY = 86400000;
 export function reportWindows(query: PerformanceQuery) {
@@ -39,6 +39,9 @@ export function timezoneOffset(timezone: unknown, now = new Date()): number {
     throw new ApiError("PROVIDER_ERROR", "X Ads devolvió una zona horaria inválida.");
   }
 }
+/** Espera antes de la consulta de estado número `poll` (desde 0) de un trabajo asíncrono. */
+export const pollDelay = (poll: number) => Math.min(10_000, 1000 * 2 ** Math.min(poll, 4));
+
 export interface XBucket {
   campaignId: string;
   date: string;
@@ -175,7 +178,7 @@ export async function xReport(
     for (let pos = 0; pos < ids.length; pos += 20) {
       const batch = ids.slice(pos, pos + 20),
         merged = new Map<string, XBucket>();
-      for (const placement of X_PLACEMENTS) {
+      for (const placement of client.config.placements) {
         const params = {
           entity: "CAMPAIGN",
           entity_ids: batch.join(","),
@@ -203,7 +206,8 @@ export async function xReport(
               throw new ApiError("PROVIDER_ERROR", "X Ads no pudo generar el informe asíncrono.");
             if (poll >= 120)
               throw new ApiError("PROVIDER_TIMEOUT", "X Ads no completó el informe asíncrono dentro del límite.");
-            await wait(1000, signal);
+            // Espera creciente (1, 2, 4, 8 y luego 10 s) para no gastar el límite de consultas de estado.
+            await wait(pollDelay(poll), signal);
             signal.throwIfAborted();
             const pending = await client.call(path, { job_ids: jobId }, signal);
             if (
