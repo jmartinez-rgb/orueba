@@ -28,13 +28,21 @@ export class MicrosoftProvider extends BaseProvider {
       timeoutMs?: number;
       retry?: Partial<RetryOptions>;
       resolve?: MicrosoftResolver;
+      onRefreshTokenRotated?: (token: string) => void;
     } = {},
   ) {
     super(Provider.MICROSOFT, MICROSOFT_REQUIRED, env);
     this.setup = readMicrosoftConfig(env, opts.timeoutMs);
-    this.client = this.setup.config ? new MicrosoftClient(this.setup.config, opts.fetch, opts.retry) : null;
+    this.client = this.setup.config
+      ? new MicrosoftClient(this.setup.config, opts.fetch, opts.retry, opts.onRefreshTokenRotated)
+      : null;
     this.resolve = opts.resolve;
   }
+  /** Tiempo máximo propio de la integración; la ruta de datos lo respeta. */
+  get timeoutMs(): number | undefined {
+    return this.setup.config?.timeoutMs;
+  }
+
   override missingConfig() {
     return [...this.setup.missing];
   }

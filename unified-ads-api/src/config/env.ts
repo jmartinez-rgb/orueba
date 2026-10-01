@@ -23,6 +23,8 @@ const schema = z.object({
   TRUST_PROXY: bool(false),
   DOCS_ENABLED: bool(true),
   PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).default(15000),
+  /** Archivo privado (0600) donde se conservan los refresh tokens que las plataformas rotan. */
+  TOKEN_STORE_FILE: z.string().optional(),
 });
 
 export type Env = z.infer<typeof schema>;
@@ -39,6 +41,8 @@ export interface AppConfig {
   trustProxy: boolean;
   docsEnabled: boolean;
   providerTimeoutMs: number;
+  /** Ruta del almacén de refresh tokens rotados, o null si no se conservan. */
+  tokenStoreFile: string | null;
   /** Variables de proveedores (solo para saber si están configurados; se leen al integrar cada uno). */
   providerEnv: Readonly<Record<string, string | undefined>>;
   version: string;
@@ -79,6 +83,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, version = "0
     trustProxy: e.TRUST_PROXY,
     docsEnabled: e.DOCS_ENABLED,
     providerTimeoutMs: e.PROVIDER_TIMEOUT_MS,
+    tokenStoreFile: e.TOKEN_STORE_FILE?.trim() || null,
     providerEnv,
     version,
   };
@@ -97,6 +102,7 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     trustProxy: false,
     docsEnabled: true,
     providerTimeoutMs: 2000,
+    tokenStoreFile: null,
     providerEnv: {},
     version: "0.0.0-test",
     ...overrides,

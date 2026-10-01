@@ -23,6 +23,11 @@ export interface AdsProvider {
   readonly requiredConfig: readonly string[];
   /** La integración ya está programada. */
   readonly implemented: boolean;
+  /**
+   * Tiempo máximo propio de la integración (ms, variable <PROVEEDOR>_TIMEOUT_MS). La ruta de datos
+   * lo respeta aunque sea mayor que PROVIDER_TIMEOUT_MS: Microsoft genera informes asíncronos.
+   */
+  readonly timeoutMs?: number;
   isConfigured(): boolean;
   status(): Promise<ProviderStatus>;
   listAccounts(query: AccountQuery, options?: ProviderRequestOptions): Promise<NormalizedAccount[]>;

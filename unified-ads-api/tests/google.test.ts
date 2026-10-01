@@ -585,8 +585,9 @@ describe("Google API routes and OpenAPI", () => {
           }),
         });
         expect(response.body).not.toContain("test-client-secret");
+        // Meta sin credenciales no se consulta en el agregado: su estado está en /providers.
         if (!suffix)
-          expect(response.json().errors.some((item: { provider: string }) => item.provider === "meta")).toBe(true);
+          expect(response.json().errors.some((item: { provider: string }) => item.provider === "meta")).toBe(false);
       }
     } finally {
       await app.close();
@@ -608,7 +609,8 @@ describe("Google API routes and OpenAPI", () => {
     withApp(async (app) => {
       const res = await app.inject({ url: "/api/v1/accounts", headers });
       expect(res.json().data).toHaveLength(3);
-      expect(res.json().errors).toMatchObject([{ provider: "meta", error: { code: "NOT_CONFIGURED" } }]);
+      // Proveedores sin configurar no aparecen como error en el agregado.
+      expect(res.json().errors).toEqual([]);
     }));
   it("protege las rutas y valida parámetros antes de consultar", () =>
     withApp(async (app) => {
@@ -635,7 +637,7 @@ describe("Google API routes and OpenAPI", () => {
       await app.close();
     }
   });
-  it("el timeout de la API cancela la petición de Google incluso si su timeout es mayor", async () => {
+  it("al vencer el límite de Google la API cancela la petición en curso", async () => {
     const simulator = new GoogleSimulator();
     let aborted = false;
     simulator.intercept = (call) =>
@@ -651,7 +653,11 @@ describe("Google API routes and OpenAPI", () => {
             );
           })
         : undefined;
-    const provider = new GoogleProvider(GOOGLE_ENV, { fetch: simulator.fetch, retry: { retries: 0 } });
+    // El límite propio del proveedor manda; sin GOOGLE_ADS_TIMEOUT_MS hereda PROVIDER_TIMEOUT_MS.
+    const provider = new GoogleProvider(
+      { ...GOOGLE_ENV, GOOGLE_ADS_TIMEOUT_MS: "1000" },
+      { fetch: simulator.fetch, retry: { retries: 0 } },
+    );
     const app = await makeApp({ providerTimeoutMs: 30 }, { registry: new ProviderRegistry([provider]) });
     try {
       const res = await app.inject({ url: "/api/v1/accounts?provider=google", headers });

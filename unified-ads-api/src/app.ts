@@ -17,6 +17,7 @@ import { genRequestId } from "./middleware/request-id.js";
 import { apiKeyGuard } from "./middleware/api-key.js";
 import { registerErrorHandling } from "./middleware/error-handler.js";
 import { ProviderRegistry } from "./providers/registry.js";
+import { saveRotatedToken } from "./config/token-store.js";
 import { ProviderStatusService } from "./services/provider-status.service.js";
 import { healthRoutes } from "./routes/health.js";
 import { providerRoutes } from "./routes/providers.js";
@@ -100,7 +101,22 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
     });
   }
 
-  const registry = deps.registry ?? ProviderRegistry.fromEnv(config.providerEnv, config.providerTimeoutMs);
+  const registry =
+    deps.registry ??
+    ProviderRegistry.fromEnv(config.providerEnv, config.providerTimeoutMs, (variable, token) => {
+      // Nunca se registra el valor; solo qué variable cambió.
+      if (!config.tokenStoreFile) {
+        app.log.warn(
+          { variable },
+          "La plataforma rotó el refresh token y no se conservará al reiniciar: configura TOKEN_STORE_FILE o vuelve a autorizar antes de que venza.",
+        );
+        return;
+      }
+      saveRotatedToken(config.tokenStoreFile, variable, token).then(
+        () => app.log.info({ variable }, "refresh token rotado guardado en TOKEN_STORE_FILE"),
+        () => app.log.error({ variable }, "no se pudo guardar el refresh token rotado en TOKEN_STORE_FILE"),
+      );
+    });
   const statuses = new ProviderStatusService(registry, config.providerTimeoutMs);
   await app.register(healthRoutes({ version: config.version, environment: config.env }), { prefix: "/api/v1" });
   await app.register(providerRoutes({ registry, statuses }), { prefix: "/api/v1" });

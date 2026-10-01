@@ -31,6 +31,11 @@ export class GoogleProvider extends BaseProvider {
     this.client = this.setup.config ? new GoogleAdsClient(this.setup.config, opts.fetch, opts.retry) : null;
   }
 
+  /** Tiempo máximo propio de la integración; la ruta de datos lo respeta. */
+  get timeoutMs(): number | undefined {
+    return this.setup.config?.timeoutMs;
+  }
+
   override missingConfig(): string[] {
     return [...this.setup.missing];
   }

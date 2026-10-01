@@ -63,6 +63,8 @@ export class MicrosoftClient {
     readonly config: MicrosoftConfig,
     readonly request: MicrosoftFetch = fetch,
     private readonly retry: Partial<RetryOptions> = {},
+    /** Microsoft rota el refresh token en cada renovación: quien lo reciba debe conservarlo. */
+    private readonly onRefreshTokenRotated?: (token: string) => void,
   ) {
     this.refreshToken = config.refreshToken;
   }
@@ -143,7 +145,15 @@ export class MicrosoftClient {
         (data.token_type !== undefined && String(data.token_type).toLowerCase() !== "bearer")
       )
         throw new ApiError("PROVIDER_ERROR", "Microsoft no devolvió un token OAuth válido.");
-      if (typeof data.refresh_token === "string" && data.refresh_token) this.refreshToken = data.refresh_token;
+      if (
+        typeof data.refresh_token === "string" &&
+        data.refresh_token &&
+        !/[\r\n]/.test(data.refresh_token) &&
+        data.refresh_token !== this.refreshToken
+      ) {
+        this.refreshToken = data.refresh_token;
+        this.onRefreshTokenRotated?.(data.refresh_token);
+      }
       this.access = {
         token: data.access_token,
         until: Date.now() + data.expires_in * 1000 - Math.min(60000, data.expires_in * 100),

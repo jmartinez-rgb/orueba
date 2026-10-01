@@ -28,12 +28,24 @@ export class SpotifyProvider extends BaseProvider {
   private cache: { accounts: NormalizedAccount[]; warnings: ApiError[]; until: number } | null = null;
   constructor(
     env: Readonly<Record<string, string | undefined>>,
-    opts: { fetch?: SpotifyFetch; timeoutMs?: number; retry?: Partial<RetryOptions> } = {},
+    opts: {
+      fetch?: SpotifyFetch;
+      timeoutMs?: number;
+      retry?: Partial<RetryOptions>;
+      onRefreshTokenRotated?: (token: string) => void;
+    } = {},
   ) {
     super(Provider.SPOTIFY, SPOTIFY_REQUIRED, env);
     this.setup = readSpotifyConfig(env, opts.timeoutMs);
-    this.client = this.setup.config ? new SpotifyClient(this.setup.config, opts.fetch, opts.retry) : null;
+    this.client = this.setup.config
+      ? new SpotifyClient(this.setup.config, opts.fetch, opts.retry, opts.onRefreshTokenRotated)
+      : null;
   }
+  /** Tiempo máximo propio de la integración; la ruta de datos lo respeta. */
+  get timeoutMs(): number | undefined {
+    return this.setup.config?.timeoutMs;
+  }
+
   override missingConfig() {
     return [...this.setup.missing];
   }

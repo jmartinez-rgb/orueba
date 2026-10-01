@@ -61,6 +61,8 @@ export class SpotifyClient {
     readonly config: SpotifyConfig,
     readonly request: SpotifyFetch = fetch,
     private readonly retry: Partial<RetryOptions> = {},
+    /** Spotify puede rotar el refresh token al renovar: quien lo reciba debe conservarlo. */
+    private readonly onRefreshTokenRotated?: (token: string) => void,
   ) {
     this.refreshToken = config.refreshToken;
   }
@@ -134,8 +136,15 @@ export class SpotifyClient {
         String(data.token_type).toLowerCase() !== "bearer"
       )
         throw new ApiError("PROVIDER_ERROR", "Spotify no devolvió un token OAuth válido.");
-      if (typeof data.refresh_token === "string" && data.refresh_token && !/[\r\n]/.test(data.refresh_token))
+      if (
+        typeof data.refresh_token === "string" &&
+        data.refresh_token &&
+        !/[\r\n]/.test(data.refresh_token) &&
+        data.refresh_token !== this.refreshToken
+      ) {
         this.refreshToken = data.refresh_token;
+        this.onRefreshTokenRotated?.(data.refresh_token);
+      }
       this.access = {
         token: data.access_token,
         until: Date.now() + data.expires_in * 1000 - Math.min(60000, data.expires_in * 100),

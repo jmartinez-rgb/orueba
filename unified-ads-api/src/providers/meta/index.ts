@@ -35,6 +35,11 @@ export class MetaProvider extends BaseProvider {
     this.setup = readMetaConfig(env, opts.timeoutMs);
     this.client = this.setup.config ? new MetaClient(this.setup.config, opts.fetch, opts.retry) : null;
   }
+  /** Tiempo máximo propio de la integración; la ruta de datos lo respeta. */
+  get timeoutMs(): number | undefined {
+    return this.setup.config?.timeoutMs;
+  }
+
   override missingConfig() {
     return [...this.setup.missing];
   }

@@ -1,7 +1,9 @@
-import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { buildApp } from "./app.js";
 import { ConfigError, loadConfig } from "./config/env.js";
+import { prepareEnv } from "./config/load-env.js";
+
+prepareEnv();
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
 

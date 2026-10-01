@@ -488,7 +488,8 @@ describe("Meta API HTTP existente", () => {
       const aggregate = await app.inject({ url: "/api/v1/accounts", headers: auth });
       expect(aggregate.statusCode).toBe(200);
       expect(aggregate.json().data[0].platform).toBe("meta");
-      expect(aggregate.json().errors[0]).toMatchObject({ provider: "google", error: { code: "NOT_CONFIGURED" } });
+      // Las integraciones sin configurar ya no se reportan como error en el agregado (están en /providers).
+      expect(aggregate.json().errors.some((e: { provider: string }) => e.provider === "google")).toBe(false);
       const conversions = await app.inject({
         url: `/api/v1/conversions?provider=meta&account_id=111&date_from=${query.date_from}&date_to=${query.date_to}`,
         headers: auth,

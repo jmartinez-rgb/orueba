@@ -29,6 +29,11 @@ export class TikTokProvider extends BaseProvider {
     this.setup = readTikTokConfig(env, opts.timeoutMs);
     this.client = this.setup.config ? new TikTokClient(this.setup.config, opts.fetch, opts.retry) : null;
   }
+  /** Tiempo máximo propio de la integración; la ruta de datos lo respeta. */
+  get timeoutMs(): number | undefined {
+    return this.setup.config?.timeoutMs;
+  }
+
   override missingConfig() {
     return [...this.setup.missing];
   }

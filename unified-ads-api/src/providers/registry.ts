@@ -1,5 +1,6 @@
 import { PROVIDERS, providerFromSlug, type Provider } from "../types/providers.js";
 import type { AdsProvider } from "./provider.js";
+import type { RotatingToken } from "../config/token-store.js";
 import { GoogleProvider } from "./google/index.js";
 import { MetaProvider } from "./meta/index.js";
 import { TikTokProvider } from "./tiktok/index.js";
@@ -15,13 +16,23 @@ export class ProviderRegistry {
     this.byId = new Map(providers.map((p) => [p.id, p]));
   }
 
-  static fromEnv(env: Readonly<Record<string, string | undefined>>, timeoutMs?: number): ProviderRegistry {
+  static fromEnv(
+    env: Readonly<Record<string, string | undefined>>,
+    timeoutMs?: number,
+    onRefreshTokenRotated?: (name: RotatingToken, token: string) => void,
+  ): ProviderRegistry {
     return new ProviderRegistry([
       new GoogleProvider(env, { timeoutMs }),
       new MetaProvider(env, { timeoutMs }),
       new TikTokProvider(env, { timeoutMs }),
-      new MicrosoftProvider(env, { timeoutMs }),
-      new SpotifyProvider(env, { timeoutMs }),
+      new MicrosoftProvider(env, {
+        timeoutMs,
+        onRefreshTokenRotated: (token) => onRefreshTokenRotated?.("MICROSOFT_ADS_REFRESH_TOKEN", token),
+      }),
+      new SpotifyProvider(env, {
+        timeoutMs,
+        onRefreshTokenRotated: (token) => onRefreshTokenRotated?.("SPOTIFY_ADS_REFRESH_TOKEN", token),
+      }),
       new XProvider(env),
     ]);
   }

@@ -499,7 +499,8 @@ describe("TikTok rutas de la API", () => {
       expect(performance.json().data[0]).toMatchObject({ platform: "tiktok", conversions: 5, cpa: 20.1 });
       const aggregate = await app.inject({ url: "/api/v1/accounts", headers: auth });
       expect(aggregate.json().data).toHaveLength(1);
-      expect(aggregate.json().errors[0]).toMatchObject({ provider: "google", error: { code: "NOT_CONFIGURED" } });
+      // Las integraciones sin configurar ya no se reportan como error en el agregado (están en /providers).
+      expect(aggregate.json().errors.some((e: { provider: string }) => e.provider === "google")).toBe(false);
       const conversions = await app.inject({ url: url.replace("performance", "conversions"), headers: auth });
       expect(conversions.statusCode).toBe(200);
       expect(conversions.json().data.length).toBeGreaterThan(1);

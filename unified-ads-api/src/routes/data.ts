@@ -112,11 +112,13 @@ export const dataRoutes = (deps: { registry: ProviderRegistry; timeoutMs: number
     ) {
       const invoke = async (p: AdsProvider) => {
         const errors: Array<{ provider: string; error: ReturnType<typeof errorBody>["error"] }> = [];
+        // El proveedor corta primero con su propio límite; la ruta deja un margen para recibir su error.
+        const limit = Math.max(deps.timeoutMs, p.timeoutMs ?? 0) + 1000;
         const data = await withTimeout(
-          work(p, AbortSignal.timeout(deps.timeoutMs), (warning) => {
+          work(p, AbortSignal.timeout(limit), (warning) => {
             errors.push({ provider: p.slug, error: errorBody(warning, requestId).error });
           }),
-          deps.timeoutMs,
+          limit,
           p.name,
         );
         return { data, errors };
@@ -129,7 +131,9 @@ export const dataRoutes = (deps: { registry: ProviderRegistry; timeoutMs: number
           request_id: requestId,
         };
       }
-      const providers = deps.registry.list();
+      // Sin proveedor explícito solo se consultan las integraciones listas y configuradas; su estado
+      // completo (incluidas las pendientes) está en /providers. Así `errors` no se llena de avisos fijos.
+      const providers = deps.registry.list().filter((p) => p.implemented && p.isConfigured());
       const results = await Promise.allSettled(providers.map(invoke));
       const data: T[] = [];
       const errors: Array<{ provider: string; error: ReturnType<typeof errorBody>["error"] }> = [];

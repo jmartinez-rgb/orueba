@@ -45,7 +45,8 @@ export function readMicrosoftConfig(env: Readonly<Record<string, string | undefi
   const tenant = get("MICROSOFT_ADS_TENANT") ?? "common";
   if (!/^(?:common|organizations|consumers|[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})$/i.test(tenant))
     missing.push("MICROSOFT_ADS_TENANT");
-  const timeout = Number(get("MICROSOFT_ADS_TIMEOUT_MS") ?? timeoutMs);
+  // Un informe se solicita, se espera y se descarga: 15 s casi nunca alcanzan. Mínimo 120 s por omisión.
+  const timeout = Number(get("MICROSOFT_ADS_TIMEOUT_MS") ?? Math.max(timeoutMs, 120000));
   const retries = Number(get("MICROSOFT_ADS_RETRIES") ?? 2);
   const pollMs = Number(get("MICROSOFT_ADS_POLL_INTERVAL_MS") ?? 5000);
   if (!Number.isInteger(timeout) || timeout < 1000 || timeout > 300000) missing.push("MICROSOFT_ADS_TIMEOUT_MS");
