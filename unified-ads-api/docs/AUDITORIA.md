@@ -3,6 +3,101 @@
 Fecha: 1 de octubre de 2026. Rama: `codex/entrega-auditoria-claude`. Estado recibido: commit
 `39a65be` (idéntico al ZIP `unified-ads-api-para-auditoria.zip`, comprobado archivo por archivo).
 
+## Auditoría de Claude sobre la continuación de Codex
+
+Fecha: 1 de octubre de 2026. Estado recibido: `codex/continuacion-tiktok-x`, commit `b4226e9`.
+Rama de trabajo: `claude/auditoria-tiktok-x`, creada desde esa entrega. Las líneas citadas son las
+del commit recibido. No se publicó ni desplegó nada, no se pidieron secretos y no se leyó
+`Ventas Detalle`.
+
+### Línea base
+
+`npm ci` con el lockfile y, en **Node 22.22.2** (versión mínima declarada; la entrega solo afirmaba
+Node 24): tipos, lint, formato y build en verde, **501 pruebas en 22 archivos**. Es la primera
+ejecución local en Node 22 de esta entrega.
+
+### Contratos contrastados
+
+La documentación web de X, Google, TikTok y Microsoft está bloqueada desde este entorno; se usaron
+fuentes oficiales legibles por máquina:
+
+| Fuente                                             | Qué se confirmó                                                                                                                                                                                                    |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Ejemplo oficial de firma OAuth 1.0a de X           | `oauthHeader` reproduce exactamente la firma publicada (`hCtSmYh+iHYCEqBWrE7C7hYmtUk=`).                                                                                                                           |
+| SDK oficial `twitter-ads` 11.0.0 (PyPI)            | Rutas `stats/accounts`, `stats/jobs/accounts`, `active_entities`; trabajos con `id`/`id_str`, `status`, `url`; horas completas. Su enum de ubicaciones incluye `PUBLISHER_NETWORK` (ver riesgos).                  |
+| Documento de descubrimiento de Google Ads v25      | `CampaignBudget` (`amount_micros`, `total_amount_micros`, `period`, `explicitly_shared`, recomendación) y `Campaign` (`serving_status`, `primary_status_reasons` con `BUDGET_CONSTRAINED`, `start/end_date_time`). |
+| SDK oficial `tiktok-business-api-sdk` 1.0.1        | `campaign/get` y `adgroup/get`: `budget`, `budget_mode` (DAY, TOTAL, INFINITE, DYNAMIC_DAILY_BUDGET), `operation_status`, `schedule_start/end_time`. No define `total_complete_payment_rate`.                      |
+| WSDL v13 de CampaignManagement (`bingads` 13.0.30) | `Campaign.DailyBudget`, `BudgetType` (incluye `LifetimeBudgetStandard`), `BudgetId`, `Status`, `EndDate`.                                                                                                          |
+
+### Defectos demostrados y corregidos
+
+**C1 (Media). Cancelaciones propias contadas como caídas del proveedor.**
+
+- Ubicación: `src/utils/circuit-breaker.ts:53`, con `src/providers/google/index.ts:172` y `src/utils/retry.ts:48`.
+- Impacto: con las consultas paralelas de Google, un error de consulta en una cuenta cancela las demás;
+  esas cancelaciones salían como `PROVIDER_TIMEOUT` y el circuito las contaba como fallas. Tras dos
+  episodios, Google sano respondía «falla de forma repetida» durante 30 s, incluido `/providers`.
+  Lo mismo pasaba en los seis proveedores cuando el cliente HTTP se desconectaba.
+- Evidencia: `tests/audit-cancellation.test.ts` falla con el código recibido con ese mensaje.
+- Corrección: el circuito recibe la señal de la consulta; una cancelación cuyo motivo no es
+  `TimeoutError` no cuenta. Un plazo vencido sí cuenta. Los seis clientes pasan su señal.
+
+**C2 (Media). Almacén de tokens rotados: un fallo de lectura borraba los demás tokens.**
+
+- Ubicación: `src/config/token-store.ts:48` (`readFile(...).catch(() => "")`), `:52` y `:22`.
+- Impacto: con `TOKEN_STORE_FILE`, un EIO/EACCES al leer hacía que la siguiente rotación reescribiera
+  el archivo solo con el token rotado: se perdía el del otro proveedor. Si el reemplazo fallaba, el
+  temporal con el token quedaba en disco. Al arrancar, un almacén existente pero ilegible se ignoraba
+  y se usaba el token de `.env`, ya rotado.
+- Evidencia: `tests/audit-token-files.test.ts`: tres pruebas fallan con el código recibido.
+- Corrección: `src/config/env-file.ts` (`updateEnvFile`): solo archivo normal, únicamente ENOENT se
+  trata como vacío, temporal exclusivo 0600, `rename` atómico y limpieza del temporal. Un almacén
+  ilegible detiene el arranque con `ConfigError` que solo nombra el código de error.
+
+**C3 (Baja). El asistente de Google escribía `.env` en sitio.**
+
+- Ubicación: `scripts/google-auth.ts:81`.
+- Impacto: escritura no atómica (un corte deja `.env` truncado) y que sigue enlaces simbólicos, a
+  diferencia de los asistentes de Microsoft, Spotify y TikTok.
+- Corrección: los cuatro asistentes usan `updateEnvFile`; pruebas de conservación de líneas, 0600,
+  enlaces rechazados y valores con saltos de línea.
+
+Sin defecto demostrado en X: firma, codificación, paginación, trabajos de 64 bits, descarga fija,
+nulos frente a ausentes y redacción de errores se revisaron y coinciden con el SDK y el contrato
+citado por Codex. Las regresiones de Google (paralelismo, ceros protobuf), Meta (bloques), Microsoft
+(host fijo) y Spotify (final inclusivo) se revisaron sin hallazgos adicionales.
+
+### Riesgos nuevos por verificar (no demostrados)
+
+| Sev.  | Ubicación                      | Riesgo                                                                                                                                                                       | Cómo cerrarlo                                                                                                 |
+| ----- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Media | `x/config.ts` (`X_PLACEMENTS`) | Se suman `ALL_ON_TWITTER`, `SPOTLIGHT` y `TREND`; el SDK oficial también define `PUBLISHER_NETWORK`. Una campaña en X Audience Platform quedaría subcontada.                 | Confirmar en la referencia v12 si `PUBLISHER_NETWORK` sigue vigente y revisar `placements` de los line items. |
+| Media | `x/reports.ts`                 | Se piden métricas de todas las campañas (incluidas eliminadas) por lote, ubicación y bloque; con muchas campañas puede agotar el límite de tasa. El polling es cada segundo. | Filtrar con `stats/accounts/:id/active_entities` (en el SDK) y espaciar el polling según el límite real.      |
+| Baja  | `x/client.ts` (descarga)       | El patrón `stats_job_<ID>.json.gz` en `ton.twimg.com` no se ha visto en una respuesta real. Si difiere, la descarga falla cerrada.                                           | Primera lectura asíncrona real tras la aprobación.                                                            |
+| Baja  | `google/budgets.ts`            | La consulta de presupuestos usa campos confirmados en v25, pero no se ejecutó contra Google real (seleccionabilidad conjunta).                                               | Una consulta real acotada a una cuenta.                                                                       |
+| Baja  | `microsoft/budgets.ts`         | Con `LifetimeBudgetStandard` se asume que `DailyBudget` lleva el monto total; no suma al diario, solo se informa.                                                            | Comparar una campaña con presupuesto total contra la interfaz.                                                |
+
+### Mejoras añadidas en esta rama
+
+- **Presupuestos vigentes** (`GET /api/v1/budgets`): Meta (campañas CBO y conjuntos ABO activos),
+  Google (presupuesto diario o del periodo, compartidos, limitadas por presupuesto y recomendación),
+  TikTok (campaña o grupos encendidos y vigentes) y Microsoft (diario, total y compartidos). Solo
+  lectura; montos en la moneda de la cuenta; totales con diario estimado y método explícito.
+- **Monitoreo, Budget Control:** panel de presupuesto diario por plataforma y estrategia contra el
+  gasto de hoy y lo esperado a esta hora, con lectura automática (concentración, desviaciones según
+  los umbrales del equipo, campañas sin gasto, limitadas por presupuesto).
+- **Reporte de exclusiones de Meta** (`npm run meta:exclusiones`) integrado desde
+  `claude/blissful-goodall-vh8k7n` mediante merge, sin reescribir historial.
+
+### Validación de esta rama
+
+- `unified-ads-api`: **532 pruebas en 27 archivos** en Node 22.22.2; tipos, lint, formato y build en verde.
+- `media-monitoring-center`: **209 pruebas en 21 archivos**; `npm run check` y `next build` en verde.
+  El panel se revisó en escritorio y móvil (sin desbordes ni errores de consola) con una cuenta de
+  prueba temporal solo en memoria.
+- Ninguna lectura real nueva: este entorno no tiene credenciales de plataformas y su red bloquea sus
+  APIs. Las cifras reales de la matriz siguen siendo las registradas por Codex.
+
 ## Continuación desde la auditoría de Claude
 
 Rama de trabajo: `codex/continuacion-tiktok-x`, basada en `claude/blissful-goodall-vh8k7n`
@@ -270,6 +365,8 @@ tokens; se señalan como puntos de revisión, sin afirmar un incidente real.
 
 **Configuración y entorno**
 
+- Monitoreo: `UNIFIED_ADS_API_URL` y `UNIFIED_ADS_API_KEY` en el despliegue para el panel de presupuestos
+  diarios (sin ellas muestra cómo conectarlo; en modo demo usa datos de ejemplo rotulados).
 - `TOKEN_STORE_FILE` o un gestor de secretos en el despliegue.
 - Acciones principales y mapeos.
 - TikTok: conservar token y lista de cuatro IDs en la configuración privada del entorno destino.
@@ -281,6 +378,9 @@ tokens; se señalan como puntos de revisión, sin afirmar un incidente real.
 
 **Código**
 
+- X (auditoría de Claude): confirmar `PUBLISHER_NETWORK` en v12, filtrar campañas con `active_entities`
+  y espaciar el polling de trabajos según el límite real.
+- Presupuestos de Spotify y X cuando haya acceso (sus APIs los exponen en ad sets y line items).
 - X: OAuth multiusuario y conversiones móviles, si se requieren; primera lectura real y conciliación pendientes.
 - TikTok v2.0, si se decide migrar; el intercambio OAuth v1.3 ya existe.
 - Microsoft: transporte con resolución fijada compatible con el proxy, o revisión explícita del riesgo residual del host confiado.

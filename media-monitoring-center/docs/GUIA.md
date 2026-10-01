@@ -97,7 +97,7 @@ Tres reglas más, pensadas para los datos reales de la hoja:
 | Alertas | Alerts | Una alerta por anomalía; las de la misma causa se agrupan | Cambiar estado o marcar falsos positivos |
 | Alertas | Incidents | Anomalías persistentes o graves con línea de tiempo, notas y notificaciones | Seguimiento y documentación |
 | Alertas | Tickets | Reportes de problemas graves: a quién, canal, número de caso y evolución | Problemas que hay que reportar |
-| Análisis | Budget Control | Presupuesto vs gasto, pacing y forecast; nivel de presupuesto por cuenta | Anticipar sobre o subejercicio |
+| Análisis | Budget Control | Presupuesto diario configurado en cada plataforma por estrategia contra el gasto de hoy; presupuesto mensual vs gasto, pacing y forecast; nivel de presupuesto por cuenta | Anticipar sobre o subejercicio y ver dónde está el dinero hoy |
 | Análisis | Compare | Cualquier fecha vs semanas anteriores por plataforma, cuenta, estrategia, objetivo o campaña, con gráfica y tabla | Explicar una variación con datos |
 | Análisis | Historical | Tendencia diaria, perfil por día de la semana y mapa de calor por hora | Entender patrones normales |
 | Análisis | Métricas | Métrica monitoreada y métricas fijas por plataforma, objetivos fijos y definiciones | Decidir qué se vigila |
@@ -257,6 +257,24 @@ Puntos a cuidar:
 - La regla 3 asigna "DEMAND GEN" (con espacio) y el respaldo usa el tipo "DEMAND_GEN": aparecen
   como dos estrategias distintas en Compare. Conviene unificar el texto de la regla.
 - TikTok, Microsoft, Spotify y X usan el objetivo reportado por la plataforma.
+
+## Presupuesto diario por plataforma
+
+En **Budget Control**, el panel *Presupuesto diario por plataforma* lee cada 5 minutos, desde la API
+unificada, lo que Meta, Google, TikTok y Microsoft tienen configurado hoy en campañas activas. No es
+gasto ni presupuesto mensual: es lo que cada plataforma tiene autorizado gastar en el día.
+
+- **Todas:** presupuesto diario total, gastado hoy, esperado a esta hora (curva histórica de cada
+  plataforma) y una barra por plataforma. La raya vertical marca lo esperado a esta hora; el color de
+  la barra indica el ritmo con los umbrales de Settings.
+- **Una pestaña por plataforma:** el mismo desglose por estrategia (con el clasificador de Settings),
+  los presupuestos más altos y la lectura: dónde se concentra el dinero, qué estrategias van fuera de
+  ritmo, campañas con presupuesto que no han gastado hoy y, en Google, campañas limitadas por
+  presupuesto con la recomendación de la plataforma.
+- Las cuentas en USD se convierten con la tasa del mes. Un presupuesto compartido se cuenta una vez.
+  Un presupuesto total cuenta con un diario estimado; si la plataforma no informa cómo estimarlo, se
+  avisa y no suma.
+- En modo demo el panel muestra datos de ejemplo rotulados como *Datos de demostración*.
 
 ## Usuarios y contraseñas
 

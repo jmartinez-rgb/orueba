@@ -25,6 +25,11 @@ proveedor que falla no tumba la respuesta.
 La auditoría del 1 de octubre de 2026 (hallazgos, correcciones, matriz de validación y pendientes) está
 en [docs/AUDITORIA.md](docs/AUDITORIA.md).
 
+`/api/v1/budgets` devuelve la configuración actual (no gasto): presupuesto diario o total, si vive en
+la campaña o en el conjunto, presupuestos compartidos (con su ID, para contarlos una vez), si Google
+reporta la campaña limitada por presupuesto y su recomendación. Los totales llevan un diario estimado
+con su método en `raw_metrics.estimate_method`. Spotify y X aún no la ofrecen.
+
 ## Endpoints
 
 | Método | Ruta                                  | Llave | Descripción                                                                            |
@@ -36,6 +41,7 @@ en [docs/AUDITORIA.md](docs/AUDITORIA.md).
 | GET    | `/api/v1/campaigns`                   | Sí    | Campañas; agrega filtro `account_id`                                                   |
 | GET    | `/api/v1/performance`                 | Sí    | Rendimiento; `date_from`, `date_to`, `granularity` (`daily` o `hourly`), `campaign_id` |
 | GET    | `/api/v1/conversions`                 | Sí    | Conversiones por acción con los mismos filtros de rendimiento                          |
+| GET    | `/api/v1/budgets`                     | Sí    | Presupuestos vigentes de campañas activas (Meta, Google, TikTok y Microsoft)           |
 | GET    | `/docs`                               | No    | Documentación Swagger (OpenAPI 3); `/docs/json` es la especificación                   |
 
 Estados de un proveedor: `connected`, `degraded`, `not_configured`, `not_implemented`,
