@@ -4,9 +4,18 @@
 
 Integración REST **de solo lectura**: estado de conexión, cuentas y jerarquías MCC, campañas,
 rendimiento diario y horario, conversiones por acción, errores estándar, paginación, OAuth,
-reintentos transitorios, cancelación y circuit breaker. Las demás plataformas siguen como
-pendientes de integrar. La conexión con Google se verificó desde Codex con cuentas reales;
-el servicio público sigue pendiente de despliegue.
+reintentos transitorios, cancelación y circuit breaker. La conexión con Google se verificó desde
+Codex con cuentas reales; el servicio público sigue pendiente de despliegue.
+
+Ajustes de la auditoría (1 de octubre de 2026):
+
+- Sin `GOOGLE_ADS_LOGIN_CUSTOMER_ID`, una cuenta cliente se consulta con la MCC accesible que la
+  contiene (se toma de la jerarquía en caché), como exige Google para operar cuentas cliente.
+- En consultas de varias cuentas no se piden métricas a cuentas canceladas, suspendidas o cerradas, y
+  una cuenta sin permiso queda como advertencia en `errors` sin tumbar a las demás. Si se pide esa
+  cuenta en específico, o ninguna responde, el error se devuelve.
+- En errores de cuota se respeta `QuotaErrorDetails.retryDelay` cuando no llega `Retry-After`.
+- La categoría `SIGNUP` se normaliza como `REGISTRATION` (vocabulario común), ya no como `LEAD`.
 
 Las pruebas usan un simulador estricto de Google: ninguna requiere credenciales ni sale a Internet.
 La aceptación real de las consultas GAQL se comprobó con una muestra de una cuenta activa.

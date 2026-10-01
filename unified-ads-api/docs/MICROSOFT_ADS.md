@@ -63,23 +63,24 @@ Guardar el borrador del entorno no aplica sus variables ni reinicia el proceso.
 
 ## Variables
 
-| Variable                                  | Uso                                                                           |
-| ----------------------------------------- | ----------------------------------------------------------------------------- |
-| `MICROSOFT_ADS_DEVELOPER_TOKEN`           | Obligatoria, producción.                                                      |
-| `MICROSOFT_ADS_CLIENT_ID`                 | Obligatoria, UUID de aplicación.                                              |
-| `MICROSOFT_ADS_CLIENT_SECRET`             | Obligatoria, valor del secreto Web.                                           |
-| `MICROSOFT_ADS_REFRESH_TOKEN`             | Obligatoria para el proveedor; el asistente la puede generar.                 |
-| `MICROSOFT_ADS_TENANT`                    | `common` por defecto; también `organizations`, `consumers` o UUID de tenant.  |
-| `MICROSOFT_ADS_ACCOUNT_IDS`               | Lista opcional de IDs Int64 como texto, separados por coma.                   |
-| `MICROSOFT_ADS_CLIENT_MAPPING`            | JSON de AccountId a client_id interno.                                        |
-| `MICROSOFT_ADS_CONVERSION_MAPPING`        | JSON de GoalId o nombre exacto a categoría interna; GoalId tiene prioridad.   |
-| `MICROSOFT_ADS_RETRIES`                   | 2 por defecto, de 0 a 5. Solo fallos transitorios.                            |
-| `MICROSOFT_ADS_POLL_INTERVAL_MS`          | 5000 por defecto, de 1000 a 30000.                                            |
-| `MICROSOFT_ADS_TIMEOUT_MS`                | Límite del proveedor; hereda `PROVIDER_TIMEOUT_MS`.                           |
-| `PROVIDER_TIMEOUT_MS`                     | Límite externo de la API. Para informes, se recomienda 120000; máximo 300000. |
-| `MICROSOFT_ADS_RETURN_ONLY_COMPLETE_DATA` | `false` por defecto; `true` exige datos completos.                            |
-| `MICROSOFT_ADS_REDIRECT_URI`              | Opcional, solo asistente; la URI de localhost indicada arriba por defecto.    |
-| `MICROSOFT_ADS_AUTH_CALLBACK_URL`         | Opcional y temporal, retorno completo del asistente manual.                   |
+| Variable                                  | Uso                                                                          |
+| ----------------------------------------- | ---------------------------------------------------------------------------- |
+| `MICROSOFT_ADS_DEVELOPER_TOKEN`           | Obligatoria, producción.                                                     |
+| `MICROSOFT_ADS_CLIENT_ID`                 | Obligatoria, UUID de aplicación.                                             |
+| `MICROSOFT_ADS_CLIENT_SECRET`             | Obligatoria, valor del secreto Web.                                          |
+| `MICROSOFT_ADS_REFRESH_TOKEN`             | Obligatoria para el proveedor; el asistente la puede generar.                |
+| `MICROSOFT_ADS_TENANT`                    | `common` por defecto; también `organizations`, `consumers` o UUID de tenant. |
+| `MICROSOFT_ADS_ACCOUNT_IDS`               | Lista opcional de IDs Int64 como texto, separados por coma.                  |
+| `MICROSOFT_ADS_CLIENT_MAPPING`            | JSON de AccountId a client_id interno.                                       |
+| `MICROSOFT_ADS_CONVERSION_MAPPING`        | JSON de GoalId o nombre exacto a categoría interna; GoalId tiene prioridad.  |
+| `MICROSOFT_ADS_RETRIES`                   | 2 por defecto, de 0 a 5. Solo fallos transitorios.                           |
+| `MICROSOFT_ADS_POLL_INTERVAL_MS`          | 5000 por defecto, de 1000 a 30000.                                           |
+| `MICROSOFT_ADS_TIMEOUT_MS`                | Límite propio; 120000 por omisión, máximo 300000. La ruta lo respeta.        |
+| `PROVIDER_TIMEOUT_MS`                     | Límite general de los demás proveedores; ya no hace falta elevarlo.          |
+| `TOKEN_STORE_FILE`                        | Archivo privado 0600 donde se conserva el refresh token rotado.              |
+| `MICROSOFT_ADS_RETURN_ONLY_COMPLETE_DATA` | `false` por defecto; `true` exige datos completos.                           |
+| `MICROSOFT_ADS_REDIRECT_URI`              | Opcional, solo asistente; la URI de localhost indicada arriba por defecto.   |
+| `MICROSOFT_ADS_AUTH_CALLBACK_URL`         | Opcional y temporal, retorno completo del asistente manual.                  |
 
 Ejemplos de mapeos, sin credenciales:
 
@@ -110,6 +111,9 @@ es distinta del Developer Token y del token OAuth de Microsoft.
   `ReportTimeZone` solo cambia la interpretación de periodos relativos como «Yesterday». La
   integración usa fechas explícitas UTC y conserva `source_timezone="UTC"`; no transforma días
   diarios ya agregados a otra zona horaria. Las conversiones conservan UTC en `raw_metrics`.
+  **Por verificar con datos reales:** la auditoría no pudo consultar la documentación oficial desde
+  su entorno. Antes de usar estos totales, concilia un día con la interfaz de Microsoft Advertising:
+  si las filas vinieran en la zona de la cuenta (`TimeZone`), habría que etiquetarlas así.
 - **Dinero:** gasto y revenue se conservan en la moneda original de la cuenta, sin micros ni
   conversión monetaria. CTR se deriva en porcentaje; CPC, CPM y CPA usan gasto/clics, impresiones y
   conversiones respectivamente. Denominadores cero y métricas ausentes producen `null`.
@@ -128,7 +132,9 @@ es distinta del Developer Token y del token OAuth de Microsoft.
 ## Resiliencia y límites
 
 OAuth renueva el acceso antes de vencer, comparte una renovación entre consultas concurrentes y
-conserva el refresh token rotado durante la vida del proceso. Ante el código oficial 109 renueva una
+conserva el refresh token rotado; con `TOKEN_STORE_FILE` también lo guarda para el siguiente arranque
+(sin él, al reiniciar se vuelve al token original, que vence 90 días después de emitido). Ante el
+código oficial 109 renueva una
 vez; credenciales inválidas y permisos denegados no generan renovaciones indefinidas. Los códigos
 117 y `ConcurrentRequestOverLimit` admiten reintentos; el 207 de dirección inválida no se confunde
 con el límite de informes. Se respetan `Retry-After`, circuit breaker y cancelación global.

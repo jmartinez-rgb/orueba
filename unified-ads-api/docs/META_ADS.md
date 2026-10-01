@@ -87,10 +87,14 @@ Las cuentas descubiertas se cachean cinco minutos; el chequeo de estado siempre 
   zona, nivel, ventanas de atribución y momento de reporte. La atribución puede actualizar cifras anteriores.
 - `purchase`, `omni_purchase` y `offsite_conversion.fb_pixel_purchase` pueden describir eventos que
   se solapan. El endpoint de conversiones conserva una fila por acción, con el original y la marca
-  `overlapping_action_types=true`; **no sumes todas las filas para calcular un total**. Selecciona la
-  acción principal o las fuentes independientes que correspondan a tu medición.
-- El rendimiento usa una única acción principal configurada. Si no se configuró o Meta no la devuelve,
-  conversiones, valor y CPA quedan en `null`; no se inventan ceros ni se suman todos los eventos.
+  `overlapping_action_types=true`. Por omisión **solo una acción por categoría lleva categoría**: la
+  acción principal de la cuenta o, si no coincide, el total agregado (`omni_purchase` para compras,
+  `lead` para leads). Las demás conservan `normalized_conversion=null` y `raw_metrics.category_hint`,
+  así que sumar por categoría ya no duplica la misma compra. No sumes todas las filas sin filtrar.
+- El rendimiento usa una única acción principal configurada. Sin acción principal, conversiones,
+  valor y CPA quedan en `null`. Con acción principal, si Meta no la lista ese día, el día tuvo 0
+  (Meta solo devuelve las acciones ocurridas); `raw_metrics.primary_action_present=false` lo marca
+  para detectar una acción mal elegida. Por hora, las acciones externas siguen en `null`.
 - Compras y leads conocidos tienen categorías básicas; acciones desconocidas conservan categoría
   `null` hasta configurar el mapeo. Mensajería no se clasifica automáticamente como WhatsApp:
   `onsite_conversion.messaging_conversation_started_7d` puede representar otros destinos.

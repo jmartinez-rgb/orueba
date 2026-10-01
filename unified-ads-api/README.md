@@ -14,13 +14,16 @@ cada API: n8n solo pregunta a esta API.
 | 3    | Meta Marketing API                       | **Implementada y verificada con Meta real y simulador**                                     |
 | 4    | TikTok Ads                               | **Implementada y verificada con simulador; faltan credenciales reales**                     |
 | 5    | Microsoft Advertising                    | **Autorización y campañas reales verificadas; descarga de informes bloqueada por el proxy** |
-| 6    | Spotify Ads                              | **OAuth real validado; lectura bloqueada hasta aceptar términos de Ads API**                |
+| 6    | Spotify Ads                              | **OAuth real validado; Ads API aún responde 403 (`ACCESS_REQUIRED`) tras aceptar términos** |
 | 7    | X Ads                                    | Pendiente (puede requerir aprobación de acceso)                                             |
 
 La Fase 1 ya incluye piezas que las integraciones van a usar: fórmulas normalizadas (CTR, CPC, CPM,
 CPA sin NaN ni Infinity), reintentos con espera exponencial y variación (respetan `Retry-After`),
 circuit breaker (CLOSED / OPEN / HALF_OPEN), timeouts por proveedor y consulta en paralelo donde un
 proveedor que falla no tumba la respuesta.
+
+La auditoría del 1 de octubre de 2026 (hallazgos, correcciones, matriz de validación y pendientes) está
+en [docs/AUDITORIA.md](docs/AUDITORIA.md).
 
 ## Endpoints
 
@@ -36,7 +39,30 @@ proveedor que falla no tumba la respuesta.
 | GET    | `/docs`                               | No    | Documentación Swagger (OpenAPI 3); `/docs/json` es la especificación                   |
 
 Estados de un proveedor: `connected`, `degraded`, `not_configured`, `not_implemented`,
-`access_required`, `permission_denied`, `error`.
+`access_required`, `permission_denied`, `error`. Credenciales vencidas o revocadas quedan en `error`
+con `last_error.code = AUTH_ERROR` (hay que reautorizar); `permission_denied` es solo un acceso negado.
+
+Sin `provider`, las rutas de datos consultan únicamente las integraciones listas y configuradas; las
+pendientes no aparecen como error en cada respuesta (su estado está en `/api/v1/providers`). Cada
+proveedor tiene su propio límite de tiempo (`<PROVEEDOR>_TIMEOUT_MS`, por omisión
+`PROVIDER_TIMEOUT_MS`), que la ruta respeta; Microsoft usa 120 s por omisión.
+
+### Conversiones: vocabulario común y solapamientos
+
+`normalized_conversion` usa el mismo vocabulario en mayúsculas en todas las plataformas: `PURCHASE`,
+`LEAD`, `CALL`, `CONTACT`, `REGISTRATION`, `ORDER`, `ADD_TO_CART`, `BEGIN_CHECKOUT`, `VIEW_CONTENT`,
+`PAGE_VIEW` (más las etiquetas que definas en los mapeos). Cuando una plataforma reporta el mismo evento
+bajo varios tipos que se solapan (Meta: `omni_purchase`, `purchase`, pixel…), solo uno lleva la
+categoría por omisión, así que sumar por categoría no duplica. Qué evento cuenta como venta para cada
+cliente es una decisión de negocio que se fija con los mapeos y la acción principal de cada proveedor.
+
+### Refresh tokens rotativos
+
+Microsoft rota el refresh token en cada renovación (Spotify a veces). Configura `TOKEN_STORE_FILE`
+(por ejemplo `.env.tokens`, ignorado por Git) para conservar el nuevo en un archivo privado 0600; al
+arrancar, ese valor gana sobre `.env` y el panel. Sin él, el servicio avisa en el log (sin el valor) y,
+tras reiniciar, vuelve al token original, que Microsoft invalida 90 días después de emitirlo. En un
+contenedor sin disco persistente monta un volumen o usa el gestor de secretos de la nube.
 
 ### Autenticación
 
@@ -115,6 +141,8 @@ el campo `business` requiere `business_management`; la consulta básica funciona
 Configura `META_ACCESS_TOKEN` en las variables privadas del entorno; para usuarios del sistema puedes
 fijar `META_AD_ACCOUNT_IDS`. Para conversiones y CPA en rendimiento elige una acción exacta mediante
 `META_PRIMARY_CONVERSION_ACTION` o el mapeo por cuenta. No se suman alias que pueden duplicar eventos.
+Si la acción principal no aparece en un día, ese día tuvo 0 (Meta solo lista acciones ocurridas) y
+`raw_metrics.primary_action_present=false` ayuda a detectar una acción mal elegida.
 
 Meta limita las conversiones externas por hora y no ofrece alcance/frecuencia con ese desglose.
 Se conservan métricas `null` y avisos en `errors`; usa datos diarios para comparar esas cifras.
@@ -145,7 +173,9 @@ semántica de métricas y límites. El contrato v2.0 y los reportes asíncronos 
 Lee cuentas, campañas de todos los tipos actuales e informes diarios/horarios de rendimiento y
 conversiones con **REST v13**. Incluye OAuth con renovación del token, paginación, reintentos,
 cancelación y generación/polling/descarga de informes ZIP/CSV. Microsoft entrega los informes en
-**UTC**; cada fila lo identifica en `source_timezone` y conserva la moneda original.
+**UTC** según la documentación consultada por Codex; cada fila lo identifica en `source_timezone` y
+conserva la moneda original. Pendiente de conciliar contra la interfaz de Microsoft con datos reales
+(ver docs/AUDITORIA.md): si las filas vinieran en la zona de la cuenta, los días se desplazarían.
 
 El CPA usa `ConversionsQualified`, que incluye los objetivos habilitados para puja. Las conversiones
 totales y secundarias se conservan por objetivo en `raw_metrics`. Un informe aún pendiente no se
@@ -155,8 +185,9 @@ pendiente; puedes exigir datos completos con `MICROSOFT_ADS_RETURN_ONLY_COMPLETE
 La conexión real requiere las cuatro variables privadas `MICROSOFT_ADS_*` indicadas en
 [docs/MICROSOFT_ADS.md](docs/MICROSOFT_ADS.md). El asistente `npm run microsoft:auth -- --start` permite
 autorizar desde el navegador, usando PKCE y un callback manual; el token se guarda en `.env` privado.
-Los informes pueden tardar minutos: configura `PROVIDER_TIMEOUT_MS=120000` o hasta `300000` cuando sea
-necesario. La autorización real, cuatro cuentas y 43 campañas se verificaron. El proxy del entorno
+Los informes pueden tardar minutos: Microsoft usa 120 s por omisión y `MICROSOFT_ADS_TIMEOUT_MS`
+(hasta `300000`) ajusta solo a este proveedor. Configura `TOKEN_STORE_FILE` para conservar el refresh
+token que Microsoft rota en cada renovación. La autorización real, cuatro cuentas y 43 campañas se verificaron. El proxy del entorno
 rechaza con HTTP 403 la descarga desde `bingadsappsstorageprod.blob.core.windows.net`, aunque la
 API sí genera el informe. Los datos de los ZIP/CSV reales siguen sin validarse; el simulador cubre
 su lectura y normalización.
@@ -174,8 +205,9 @@ explícitamente un evento principal. Los cuartiles incluyen audio y video, y los
 compras y leads: se conservan en `raw_metrics` sin atribuirlos a métricas incompatibles.
 
 Las pruebas usan un simulador que nunca llama a Spotify. OAuth real ya se completó y su refresh
-token está guardado de forma privada. Ads API respondió HTTP 403 por términos pendientes; la lectura
-de cuentas, campañas e informes sigue sin validarse. Acepta los términos con el Client ID de la app.
+token está guardado de forma privada. El usuario confirmó haber aceptado los términos, pero la última
+consulta seguía devolviendo HTTP 403 (`ACCESS_REQUIRED`); la habilitación puede tardar. La lectura
+de cuentas, campañas e informes sigue sin validarse con datos reales.
 La fase incluye lecturas;
 los cambios de campañas y los informes asíncronos CSV quedan fuera de su alcance.
 

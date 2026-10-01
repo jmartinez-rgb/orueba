@@ -3,8 +3,11 @@
 Integración de lectura con **Ads API v3**, verificada contra su contrato oficial el 1 de octubre
 de 2026. Usa `https://api-partner.spotify.com/ads/v3`, independiente de la API de música de Spotify.
 La autorización OAuth real se completó y su refresh token está guardado de forma privada.
-Ads API respondió HTTP 403 por términos pendientes; aún no se verificaron lecturas reales de
-cuentas, campañas ni informes. Las pruebas locales usan respuestas simuladas y nunca hacen
+El usuario confirmó haber aceptado los términos de Ads API, pero la última consulta seguía
+respondiendo HTTP 403 (`ACCESS_REQUIRED`); aún no se verificaron lecturas reales de cuentas,
+campañas ni informes. `normalized_conversion` usa el vocabulario común en mayúsculas (`LEAD`,
+`PURCHASE`, `REGISTRATION`, `PAGE_VIEW`, `ADD_TO_CART`, `BEGIN_CHECKOUT`, `VIEW_CONTENT`). Spotify
+puede rotar el refresh token: configura `TOKEN_STORE_FILE` para conservarlo. Las pruebas locales usan respuestas simuladas y nunca hacen
 peticiones a Spotify.
 
 ## Crear la aplicación y habilitar acceso
