@@ -58,6 +58,41 @@ pasos y persistir sus pares de tokens queda fuera de esta integración de creden
 La app debe tener acceso a Campaign Management para listar cuentas y campañas, además de Analytics;
 una autorización limitada a Analytics puede no permitir esas lecturas. El código no modifica anuncios.
 
+### Crear la app desde el navegador
+
+Estado comunicado por el usuario el 1 de octubre de 2026: tiene cuenta publicitaria, pero todavía
+no tiene la app de desarrolladores. La configuración y el proceso no contienen credenciales de X;
+no se ha intentado una lectura autenticada ni se ha supuesto que la app esté aprobada.
+
+1. Abre la [Developer Console](https://developer.x.com/en/portal/petition/essential/basic-info)
+   enlazada por la documentación oficial. Usa el usuario con acceso a las cuentas publicitarias
+   que quieres conectar; completa el registro de desarrollador si el portal lo requiere.
+2. Crea una app llamada **Unified Ads Monitoring**. Puedes describir el uso así:
+
+   > We use the X Ads API to retrieve authorized advertising accounts, campaign information,
+   > and daily performance metrics for our agency clients. Data will be used in an internal
+   > dashboard to monitor spend, impressions, clicks, and conversions by account and date.
+   > Access is limited to advertisers who authorize our agency. We preserve each account's
+   > currency and reporting timezone when preparing performance reports.
+
+3. Solicita acceso a **Ads API para esa app** mediante el Ads API Access Form indicado en la
+   [guía oficial](https://docs.x.com/x-ads-api/getting-started/step-by-step-guide).
+   Para las operaciones de este proveedor corresponde **Standard Access**, que incluye Analytics
+   y Campaign Management. El nivel Conversion Only cubre envío de conversiones y no habilita
+   nuestro contrato de cuentas/campañas/reportes. La aprobación de Ads API es adicional al registro
+   de desarrollador y a la creación de la app; no se presume aprobada por disponer de API keys.
+4. Tras la aprobación, la guía exige **regenerar los tokens de usuario emitidos antes de aprobarse
+   Ads API**. En una app nueva destinada a este proyecto, genera ese par después de la aprobación;
+   no regeneres credenciales de una app compartida con otras integraciones sin coordinarlo.
+5. Guarda API Key, API Key Secret, Access Token y Access Token Secret en las cuatro variables
+   privadas de la tabla anterior. El portal advierte que se muestran una sola vez. El par de
+   access tokens debe pertenecer al usuario autorizado en la cuenta publicitaria.
+
+Una vez guardadas y aplicadas las variables, verificar primero `GET /api/v1/providers/x/status`
+y `GET /api/v1/accounts?provider=x`; después campañas y un rango diario de tres días por cuenta.
+La primera lectura permanece bloqueada por **app ausente / aprobación y credenciales pendientes**.
+No se agregan campos privados vacíos al panel mientras se completa ese prerrequisito.
+
 ## Informes y semántica
 
 Se reporta a nivel **CAMPAIGN**, sin segmentaciones demográficas, en grupos separados:
@@ -125,12 +160,16 @@ Incluyen RFC OAuth, estados compartidos, moneda, fechas no UTC, medianoche, ubic
 trabajos de 64 bits, gzip, polling, límites de tasa, permisos parciales y rutas autenticadas.
 El panel del monitoreo consume X mediante el mismo esquema y estados de los otros proveedores.
 
-**No se realizó una conexión real de X:** faltan sus cuatro credenciales en esta sesión.
+**No se realizó una conexión real de X:** el usuario todavía no tiene la app; faltan aprobación
+de Ads API y sus cuatro credenciales en esta sesión.
 Quedan por validar aprobación/permisos de la app, forma real de conversiones, conciliación con
 Ads Manager, offset/DST y las tres ubicaciones. No se declara esta fase lista para producción.
 
 ## Fuentes oficiales
 
+- [Registro, creación de app, solicitud de Ads API y tokens posteriores a aprobación](https://docs.x.com/x-ads-api/getting-started/step-by-step-guide),
+  revisado el 1 de octubre de 2026. El ejemplo de esa página todavía usa `/11`; para llamadas
+  de este proveedor prevalece la referencia de versiones actual que especifica `/12`.
 - [Versiones](https://docs.x.com/x-ads-api/fundamentals/versioning).
 - [OAuth y solicitudes autenticadas](https://docs.x.com/x-ads-api/fundamentals/making-authenticated-requests).
 - [Cuentas, campañas e instrumentos](https://docs.x.com/x-ads-api/campaign-management/reference).

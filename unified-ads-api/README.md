@@ -271,7 +271,8 @@ estados y vocabulario de conversiones. El panel de monitoreo lo muestra como el 
 Configura los cuatro valores privados `X_ADS_CONSUMER_KEY`, `X_ADS_CONSUMER_SECRET`,
 `X_ADS_ACCESS_TOKEN`, `X_ADS_ACCESS_TOKEN_SECRET`. No se elige un evento principal automáticamente.
 Consulta [docs/X_ADS.md](docs/X_ADS.md) para versión, fuentes, permisos y límites comprobados.
-Las pruebas no salen a red; faltan credenciales y conciliación real.
+Las pruebas no salen a red; faltan la app y su aprobación para Ads API, credenciales y conciliación
+real. La guía incluye el registro desde el navegador y la generación de tokens tras la aprobación.
 
 ## Continuación para auditoría de Claude
 

@@ -250,7 +250,9 @@ Claude no tuvo credenciales para repetirla. TikTok sí se verificó en esta cont
 - Habilitación de Spotify Ads API (403).
 - TikTok: lectura de las cuatro cuentas autorizada y verificada. No queda un bloqueo de permisos
   en la muestra; otros productos o ámbitos de reporting no se dan por validados.
-- X: app aprobada para Ads API y usuario con acceso a Analytics y lectura de cuentas/campañas.
+- X: el usuario tiene cuenta publicitaria pero todavía no tiene la app. Crear app y solicitar
+  aprobación de Ads API con Standard Access (Analytics y Campaign Management); después generar
+  tokens del usuario autorizado. Flujo y fuente oficial en [X_ADS.md](X_ADS.md).
 
 **Configuración y entorno**
 
