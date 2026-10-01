@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { ProviderRegistry } from "../src/providers/registry.js";
 import { BaseProvider } from "../src/providers/base-provider.js";
 import { GoogleProvider } from "../src/providers/google/index.js";
+import { XProvider } from "../src/providers/x/index.js";
 import { Provider, PROVIDER_SLUGS } from "../src/types/providers.js";
 import { ApiError } from "../src/utils/errors.js";
 import { KEY, makeApp } from "./helpers.js";
@@ -38,16 +39,16 @@ describe("GET /api/v1/providers", () => {
 
   it("con credenciales pero sin integración programada: not_implemented (nunca expone valores)", async () => {
     const env = {
-      GOOGLE_ADS_DEVELOPER_TOKEN: "dev-token-secreto",
-      GOOGLE_ADS_CLIENT_ID: "id",
-      GOOGLE_ADS_CLIENT_SECRET: "secreto",
-      GOOGLE_ADS_REFRESH_TOKEN: "refresh-secreto",
+      X_ADS_CONSUMER_KEY: "id-secreto",
+      X_ADS_CONSUMER_SECRET: "app-secreto",
+      X_ADS_ACCESS_TOKEN: "token-secreto",
+      X_ADS_ACCESS_TOKEN_SECRET: "token-secreto",
     };
     const configured = await makeApp({ providerEnv: env });
-    const res = await configured.inject({ method: "GET", url: "/api/v1/providers/google/status", headers: auth });
+    const res = await configured.inject({ method: "GET", url: "/api/v1/providers/x/status", headers: auth });
     expect(res.statusCode).toBe(200);
     expect(res.json().data).toMatchObject({
-      provider: "google",
+      provider: "x",
       state: "not_implemented",
       configured: true,
       implemented: false,
@@ -99,11 +100,11 @@ describe("proveedores sin integración", () => {
       code: "NOT_CONFIGURED",
       details: { provider: "google" },
     });
-    const configured = new GoogleProvider({
-      GOOGLE_ADS_DEVELOPER_TOKEN: "a",
-      GOOGLE_ADS_CLIENT_ID: "b",
-      GOOGLE_ADS_CLIENT_SECRET: "c",
-      GOOGLE_ADS_REFRESH_TOKEN: "d",
+    const configured = new XProvider({
+      X_ADS_CONSUMER_KEY: "test-id",
+      X_ADS_CONSUMER_SECRET: "test-secret",
+      X_ADS_ACCESS_TOKEN: "test-token",
+      X_ADS_ACCESS_TOKEN_SECRET: "test-token-secret",
     });
     await expect(
       configured.getPerformance({ date_from: "2026-09-01", date_to: "2026-09-02", granularity: "daily" }),

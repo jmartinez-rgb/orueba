@@ -1,0 +1,446 @@
+{
+  "repository": "jmartinez-rgb/orueba",
+  "component": "unified-ads-api",
+  "local_branch": "codex/google-ads-phase-2",
+  "base_head": "37209600b548d06966d532d410a6b13fce37f295",
+  "changes_committed": false,
+  "changes_pushed": false,
+  "files": [
+    {
+      "path": "unified-ads-api/.dockerignore",
+      "sha256": "c72bb30089f558e76fd896a427b8eef686ad82a934502799a3685907f4bda5ea"
+    },
+    {
+      "path": "unified-ads-api/.env.example",
+      "sha256": "d002c8e6c30d6cabed08487ae55812f91d9572d50636d16c4d89e7e455602551"
+    },
+    {
+      "path": "unified-ads-api/.gitignore",
+      "sha256": "f17691282dfc88b386370fc1fd06caa4cc9b3f899649a476bdaba0c360d28c6e"
+    },
+    {
+      "path": "unified-ads-api/.prettierignore",
+      "sha256": "5f8fec68cb107874c559bd5de575aa9bbc78f8a9c9f02496217ad62fdcf0296a"
+    },
+    {
+      "path": "unified-ads-api/.prettierrc.json",
+      "sha256": "78e8d5ee8826d3e2657325cbe0117e89fe96a068f50edcd5e42290ebfc9e94cd"
+    },
+    {
+      "path": "unified-ads-api/Dockerfile",
+      "sha256": "00f064e1639b44a9e31e0d3ed1f62ce1a32165d288f922fa9fb24a84d940250a"
+    },
+    {
+      "path": "unified-ads-api/README.md",
+      "sha256": "2bf412731b305faec9b70c6d7d59293c1d8397ed5747bd1ddbfeea88255d02ed"
+    },
+    {
+      "path": "unified-ads-api/docs/ARCHITECTURE.md",
+      "sha256": "31a13880e4740dc0f18da724b5257faa5d91f1ccd41f2aae2addcce8315f711d"
+    },
+    {
+      "path": "unified-ads-api/docs/GOOGLE_ADS.md",
+      "sha256": "9567ec272f8a958fc93c09a8925054d5d0b1df491f6bf4176417071656270d30"
+    },
+    {
+      "path": "unified-ads-api/docs/META_ADS.md",
+      "sha256": "482c88e57d89f8fb75861663ace13feb19342fa4fb5f6378fab2ee62aa01d18b"
+    },
+    {
+      "path": "unified-ads-api/docs/MICROSOFT_ADS.md",
+      "sha256": "8006eaf3844248c88597805874c6072ee4837f899b2107c0d5cefa86c72bcd8e"
+    },
+    {
+      "path": "unified-ads-api/docs/SPOTIFY_ADS.md",
+      "sha256": "018f62903d6f0bcdbbab806fb01c67818c50cc15f288122a11a6188436cd64bf"
+    },
+    {
+      "path": "unified-ads-api/docs/TIKTOK_ADS.md",
+      "sha256": "7d5d1ed57713133837bff35e48614e115802a79ab9a7b1a4c9d3ae659c730a52"
+    },
+    {
+      "path": "unified-ads-api/eslint.config.js",
+      "sha256": "aa00b2acf6fe9829ab8b73f8513a82f18897c3f737810de1db08835c642d4434"
+    },
+    {
+      "path": "unified-ads-api/package-lock.json",
+      "sha256": "82f3e02f172b6dabfc3d218c12e621fe93b05e5549811f0c93e3af7151ab6bd0"
+    },
+    {
+      "path": "unified-ads-api/package.json",
+      "sha256": "3f2a9eb5387fd336e897082a2f753d91fe1965cdfa8c80c0a4a3dce14bad3fba"
+    },
+    {
+      "path": "unified-ads-api/scripts/google-auth.ts",
+      "sha256": "7a0e1e1a0d55135cf9b86cfae081db2b579c7793bf3f5271534fa038870119fa"
+    },
+    {
+      "path": "unified-ads-api/scripts/microsoft-auth.ts",
+      "sha256": "246e2faeb3cd565e4b85e0af36aae32cce5b1ebb25ef0fad81a07fd49514e62a"
+    },
+    {
+      "path": "unified-ads-api/scripts/spotify-auth.ts",
+      "sha256": "7d6fd0248999a772c97d07a8a456454f37ae5917639e4b52a28ed094205d7494"
+    },
+    {
+      "path": "unified-ads-api/src/app.ts",
+      "sha256": "c003700caf93b7f341306def8be0505ba49c1a05c136995d7a6422873c8dfacc"
+    },
+    {
+      "path": "unified-ads-api/src/config/env.ts",
+      "sha256": "169ad25c64b7953c48190f9383485f243deda60da4946382b32465b84c306b2d"
+    },
+    {
+      "path": "unified-ads-api/src/index.ts",
+      "sha256": "b78e4da223e6bc5cd95e74d6951951a3e9c1bcea5ef547eaa3ad8bd113ea2e69"
+    },
+    {
+      "path": "unified-ads-api/src/middleware/api-key.ts",
+      "sha256": "fba2514add2f279367fee4b6ffe9ffc96f24ac006e742b7281b88eb26c343385"
+    },
+    {
+      "path": "unified-ads-api/src/middleware/error-handler.ts",
+      "sha256": "0ba05e9a896d5d99c62a035019c90bf47d05bf272106dabb9fc29710afcfa6c2"
+    },
+    {
+      "path": "unified-ads-api/src/middleware/request-id.ts",
+      "sha256": "8a026a254a96438b7318dcf083a301bddff096c5c635fb18df01a1c9725ed9c9"
+    },
+    {
+      "path": "unified-ads-api/src/normalization/metrics.ts",
+      "sha256": "bbd59fc292148792983ac4f9c92a16c4b324494eb8f900421e1bbe5fb1304724"
+    },
+    {
+      "path": "unified-ads-api/src/providers/base-provider.ts",
+      "sha256": "1780644993c49d7dbc0a71cacf8c2ba6e07f1e42e199b896bacd3e190e1a301e"
+    },
+    {
+      "path": "unified-ads-api/src/providers/google/accounts.ts",
+      "sha256": "d384ff7fb4ff9e8c8c916fb03dbf1a95f9f96a33e91213543a1cc9d820ffe99b"
+    },
+    {
+      "path": "unified-ads-api/src/providers/google/auth.ts",
+      "sha256": "58fb15ffeb4addabf64e7a42202dba0852684aa87970c02d39591b095acf8c56"
+    },
+    {
+      "path": "unified-ads-api/src/providers/google/client.ts",
+      "sha256": "a42dc9bdd87d7c4c0ed110e137e74f3dac5be68607768f0eb59d93ced9b30686"
+    },
+    {
+      "path": "unified-ads-api/src/providers/google/config.ts",
+      "sha256": "2b019ab355d46e48fc8cc495d881bba351d923f379b38465647205be4b8f3542"
+    },
+    {
+      "path": "unified-ads-api/src/providers/google/errors.ts",
+      "sha256": "ade2a40002dee600d3edccb79166b17e4c81d18bd0baa04c233cc2799d816110"
+    },
+    {
+      "path": "unified-ads-api/src/providers/google/index.ts",
+      "sha256": "f4ce2f871dcb10ed3bd1fb1e2f837f21bdb2444fb5580f92e53e082331a60f24"
+    },
+    {
+      "path": "unified-ads-api/src/providers/google/normalize.ts",
+      "sha256": "f0a6c431ef73f3c3d904b96711bcd64e3bbcc57ccc984848d8df8167c3ef16a9"
+    },
+    {
+      "path": "unified-ads-api/src/providers/google/oauth.ts",
+      "sha256": "c8dcf94e6004827d0a2d9d6c7e7d98c43b5d1393835a7b4a185d53eda5f6c47c"
+    },
+    {
+      "path": "unified-ads-api/src/providers/google/queries.ts",
+      "sha256": "6036bce551d07dd83d880dd234bc05d3375878d683f9ccace3c10b4635c2cd19"
+    },
+    {
+      "path": "unified-ads-api/src/providers/google/types.ts",
+      "sha256": "23f790c1b8c8eea11aab36990355cea2707716210f03e6c5a1bd850490df7a85"
+    },
+    {
+      "path": "unified-ads-api/src/providers/meta/accounts.ts",
+      "sha256": "6aacd3b174023d89847ed5f5a14161b03fa66668be3f2f665b0c53ab29bcf066"
+    },
+    {
+      "path": "unified-ads-api/src/providers/meta/client.ts",
+      "sha256": "525cd050e013b09a26a0d03323417ddbc9687fe8e22dc127d292a7193150d09e"
+    },
+    {
+      "path": "unified-ads-api/src/providers/meta/config.ts",
+      "sha256": "dbe4c0bf9fa566fa2b1d76478bca33c44399bdf96bfb1de3570f0b47d78dcb4d"
+    },
+    {
+      "path": "unified-ads-api/src/providers/meta/errors.ts",
+      "sha256": "c65e847c238006cfdd04fa45a37c20acf18ade4aca45f880946362c1a9e6be4e"
+    },
+    {
+      "path": "unified-ads-api/src/providers/meta/index.ts",
+      "sha256": "c55b383f8ceb252445f8e44669450c221945f392f5dadcfc49e96204f2ad3a48"
+    },
+    {
+      "path": "unified-ads-api/src/providers/meta/normalize.ts",
+      "sha256": "597d22d1828f1c2cce46a8875e95805f226a6e5ac62e4959b76152561c5cf9f7"
+    },
+    {
+      "path": "unified-ads-api/src/providers/meta/queries.ts",
+      "sha256": "e08571256f024c1a092525252e63260b0e75b2896186c49f1d07c552f9df764c"
+    },
+    {
+      "path": "unified-ads-api/src/providers/meta/types.ts",
+      "sha256": "fbb844570e0f7f3456e6c2810f7e252c5b07b2d89139d8c5b464193e3529908c"
+    },
+    {
+      "path": "unified-ads-api/src/providers/microsoft/accounts.ts",
+      "sha256": "6d376be68531ca99e9ac936e5546fe54e86e063a0f7ad8d9c7f1e60d9142c1b8"
+    },
+    {
+      "path": "unified-ads-api/src/providers/microsoft/client.ts",
+      "sha256": "0356946cbaadbbb6563ea32e57144e491623321cebb894fe04cdc2935b2b242e"
+    },
+    {
+      "path": "unified-ads-api/src/providers/microsoft/config.ts",
+      "sha256": "52d54323905382e10fc275ec9321b41f53b16e0bfbd0f4a173b0e1aa24a8fcc4"
+    },
+    {
+      "path": "unified-ads-api/src/providers/microsoft/errors.ts",
+      "sha256": "6d698bf1db0e2a6534a354440f616febbb1593fc49f47ad70afab863453b5831"
+    },
+    {
+      "path": "unified-ads-api/src/providers/microsoft/index.ts",
+      "sha256": "370fa5498caafd1c3f3c3fc8b1a90e2ff83bda3e4a42400f3c40c38c3ee141ae"
+    },
+    {
+      "path": "unified-ads-api/src/providers/microsoft/normalize.ts",
+      "sha256": "3fd23e176a24967ccb77f15f09168ece9fedaef740e5a6ca84cba1dd7b34979e"
+    },
+    {
+      "path": "unified-ads-api/src/providers/microsoft/oauth.ts",
+      "sha256": "3e28829cf7f8971cdfb0c963e1d406a99164cde5c0227a3eb8a4a61afbccddc6"
+    },
+    {
+      "path": "unified-ads-api/src/providers/microsoft/reports.ts",
+      "sha256": "96f69f8b7e71b9221a5f8155a63ed09a0b48127eabdaac67d896d1a4e7873212"
+    },
+    {
+      "path": "unified-ads-api/src/providers/provider.ts",
+      "sha256": "0c260cf2507fd25cf7e8028f33f9bfbd2104e7a82016cd39ec76ca311645a21b"
+    },
+    {
+      "path": "unified-ads-api/src/providers/registry.ts",
+      "sha256": "4d629cdc551c803e44d4b6dbabfa7a36f1754478ab6bfb1076814cb054d6f23b"
+    },
+    {
+      "path": "unified-ads-api/src/providers/spotify/accounts.ts",
+      "sha256": "1b679e64ec87c9ed1a15c007e99dcdbf51587a23c848c38389959ae9233bdc6f"
+    },
+    {
+      "path": "unified-ads-api/src/providers/spotify/client.ts",
+      "sha256": "5bd2822ab6237203c696787c32e27e8f536df5552d9b635f2b592bd9111c4b91"
+    },
+    {
+      "path": "unified-ads-api/src/providers/spotify/config.ts",
+      "sha256": "721238fe5ee99c94c71c9d5dfb427b0c684fd113e5552d220345b79fad59e0c9"
+    },
+    {
+      "path": "unified-ads-api/src/providers/spotify/errors.ts",
+      "sha256": "588c8cd84e3dc2fc784d091366a4a4d0f35ff5925a690f04a07aa15aa4feeede"
+    },
+    {
+      "path": "unified-ads-api/src/providers/spotify/index.ts",
+      "sha256": "0a546ff88b0ad2207d77bcca38a882ff82c75b366dcba323b11c9b9f833cb454"
+    },
+    {
+      "path": "unified-ads-api/src/providers/spotify/normalize.ts",
+      "sha256": "1ff57657e1ec899c9b87629e2527375b421f9db1caafa1f29c3b710e6a939bed"
+    },
+    {
+      "path": "unified-ads-api/src/providers/spotify/oauth.ts",
+      "sha256": "7ec6f1d49e3a470cc8c062fc0ed399a69dcae0c1403b248427f6d9b47a9b5bb5"
+    },
+    {
+      "path": "unified-ads-api/src/providers/spotify/queries.ts",
+      "sha256": "5082f85f904ff3cef402fca3cdaf15d821f459c19848ddbf2f9b3f443e6d7f88"
+    },
+    {
+      "path": "unified-ads-api/src/providers/tiktok/accounts.ts",
+      "sha256": "4314474cfd9d46d66054a1af8427d0f340e8ac9a39535fec48972cb972d19795"
+    },
+    {
+      "path": "unified-ads-api/src/providers/tiktok/client.ts",
+      "sha256": "37c9825137a8d69afe0af43ac346e92e828e8c2b725169cb8d91ae20cda89866"
+    },
+    {
+      "path": "unified-ads-api/src/providers/tiktok/config.ts",
+      "sha256": "408392ed3201d4c6cb6a99fceec0751493454e2f2dc6e5717694db723f9731db"
+    },
+    {
+      "path": "unified-ads-api/src/providers/tiktok/errors.ts",
+      "sha256": "3acf24fb023e20c8b3e9cf3daaf7681bb5a3cdc8881aa90a6ce542279f9cb2bf"
+    },
+    {
+      "path": "unified-ads-api/src/providers/tiktok/index.ts",
+      "sha256": "d949de202a42148719134a505730ab3bbcfc7193d0f089684a2b4597d88cc33f"
+    },
+    {
+      "path": "unified-ads-api/src/providers/tiktok/normalize.ts",
+      "sha256": "37c9692b8b9d067a45c7112a76c7b5b30f1e2f6c3cf93c69efe1d9ee664f7795"
+    },
+    {
+      "path": "unified-ads-api/src/providers/tiktok/queries.ts",
+      "sha256": "a61333578f76da8470012c4396e1ac8feac4ee97c4d20f9c2dcc45f1204736fd"
+    },
+    {
+      "path": "unified-ads-api/src/providers/tiktok/types.ts",
+      "sha256": "c78a365863220b4ee1892dacaa7f1d4b311a2233c2359b2b794a053f3f4a3acd"
+    },
+    {
+      "path": "unified-ads-api/src/providers/x/index.ts",
+      "sha256": "5e212165a38cff5297f9d95f70326ede8bfd8e75d61b0efbd933a858d889e7f4"
+    },
+    {
+      "path": "unified-ads-api/src/repositories/performance.repository.ts",
+      "sha256": "c381a681069bfd2e0abcd7df8054fc1745c2d2aba7dbb6c9616f7b2b3a92e0a7"
+    },
+    {
+      "path": "unified-ads-api/src/routes/data.ts",
+      "sha256": "69eaea3991d2d476c7ebdff08f0fcbd8ad7c5036e81de2e88998235cb5e2f81c"
+    },
+    {
+      "path": "unified-ads-api/src/routes/health.ts",
+      "sha256": "20a42f087bd746dd478bed82984b94c624fcdecc30a46abe4f4f9be80deae5b5"
+    },
+    {
+      "path": "unified-ads-api/src/routes/providers.ts",
+      "sha256": "7f291f17f83c82c662d93f52eb265c851b89f9087e041457932b03526b7e3da0"
+    },
+    {
+      "path": "unified-ads-api/src/routes/schemas.ts",
+      "sha256": "ce262ac27c8db473be274b358d073cf15c57c71305d03935241bd9c22d3cfabc"
+    },
+    {
+      "path": "unified-ads-api/src/services/provider-status.service.ts",
+      "sha256": "b5cafb9183d22cf17f6b3e513e4ff432e5de6552ea2983049827057617bfc326"
+    },
+    {
+      "path": "unified-ads-api/src/types/normalized.ts",
+      "sha256": "9a755762b69cd70b7a99e790f703d191edea908e04a602615ce39ba85a203033"
+    },
+    {
+      "path": "unified-ads-api/src/types/providers.ts",
+      "sha256": "e358c27785a14420890ed2770620cb13d7edd2dca04e59bbeb95e128dbb37fc5"
+    },
+    {
+      "path": "unified-ads-api/src/utils/api-keys.ts",
+      "sha256": "2eecc6db36241935dc33b51d567cc8e6a01bb0e33f6aa06194709cbd4e85f307"
+    },
+    {
+      "path": "unified-ads-api/src/utils/circuit-breaker.ts",
+      "sha256": "32d2315c09ff8f20f1ec394583766422a2edc3b8d556cf74474be66824957b7d"
+    },
+    {
+      "path": "unified-ads-api/src/utils/errors.ts",
+      "sha256": "8406fba80bd68a2e6bb2a93c8cf4ad6aa37393c2e16c156d0b3f6182065b1f59"
+    },
+    {
+      "path": "unified-ads-api/src/utils/logger.ts",
+      "sha256": "5f61b51733ffb8cc3d3fa5bb8dbc3e745a6e8271552e167c0df4305318a5459f"
+    },
+    {
+      "path": "unified-ads-api/src/utils/retry.ts",
+      "sha256": "2740a5f9bf060ddc70ec240371f018dcebce38fa5f0387faa077d5a3f1e9246e"
+    },
+    {
+      "path": "unified-ads-api/src/utils/timeout.ts",
+      "sha256": "45c1947d74768fc71cae287ef9b5404b3da2edb9ebb8733bcf098f6ee27933c9"
+    },
+    {
+      "path": "unified-ads-api/tests/auth.test.ts",
+      "sha256": "1b3c77c79916a99b6935fbfaa9c1b60cb73cdd84833b2b1e427cee9cbe068312"
+    },
+    {
+      "path": "unified-ads-api/tests/config.test.ts",
+      "sha256": "21059d7752cfa70679c93fdce55cf41b400292396b7e06c6e390a8a1254acf97"
+    },
+    {
+      "path": "unified-ads-api/tests/errors.test.ts",
+      "sha256": "1ef41d06060c3a14b7a8ff37c82e0febdc53205f6f0aea6625f26f657f37a773"
+    },
+    {
+      "path": "unified-ads-api/tests/google-simulator.ts",
+      "sha256": "b17c5969e654b4494613a0e1f46f4c9b7aac1ef4e860b17caec548c550769c26"
+    },
+    {
+      "path": "unified-ads-api/tests/google.test.ts",
+      "sha256": "60fcf0048a4fdd29896695e47180cb65ea2be32ce84d0d8d013ece1f8fb4cf92"
+    },
+    {
+      "path": "unified-ads-api/tests/health.test.ts",
+      "sha256": "a7cc1ab392ce1cc1ff4670e799f216336ea89bd46ec4c6bd5e2d4fdd88cb4951"
+    },
+    {
+      "path": "unified-ads-api/tests/helpers.ts",
+      "sha256": "47a5547a1b16843988e0c79e11637c1d57e9b2eb176c42d6be8fd4bf663480b3"
+    },
+    {
+      "path": "unified-ads-api/tests/meta-simulator.ts",
+      "sha256": "8a07bce331f9b07bd4f5acbc8b28ee56d55105540a257b34f17d7f670fd00db7"
+    },
+    {
+      "path": "unified-ads-api/tests/meta.test.ts",
+      "sha256": "9bfa83ec14f69081e46e268ec527f757fe36181856aba151d2d4d2c653f22313"
+    },
+    {
+      "path": "unified-ads-api/tests/metrics.test.ts",
+      "sha256": "ef7a2c74499bb5f080216c9c5a346f5e1caf6b2a365ab882c6faacfc65752412"
+    },
+    {
+      "path": "unified-ads-api/tests/microsoft-oauth.test.ts",
+      "sha256": "2f32366654bf0d54299a8065a9538773f9dce5ce43e8b8ea6c60545775b76fa4"
+    },
+    {
+      "path": "unified-ads-api/tests/microsoft-simulator.ts",
+      "sha256": "1a7c14c88c636df1c28eed63a2df9c66fa7c8b69fb06375b8924fc833288c582"
+    },
+    {
+      "path": "unified-ads-api/tests/microsoft.test.ts",
+      "sha256": "6dacc9850e1e132be2380f42d56c5927bf1e5c1dcad7e23be347fabbe8a5623f"
+    },
+    {
+      "path": "unified-ads-api/tests/providers.test.ts",
+      "sha256": "58e3a3485d8ebea5f1f91d3575f3452b5680bb9de3577ba2a86712c43c1a43f9"
+    },
+    {
+      "path": "unified-ads-api/tests/resilience.test.ts",
+      "sha256": "fe0ae1f09f6ad4b91fc35cab6e40188583f5396d8befaaa78ec30df7a7d09dd1"
+    },
+    {
+      "path": "unified-ads-api/tests/spotify-oauth.test.ts",
+      "sha256": "925e10c6dc86868cd690df4bf6892abc4f93c29e4056b38b79fc92bb4244a0b2"
+    },
+    {
+      "path": "unified-ads-api/tests/spotify-simulator.ts",
+      "sha256": "8b09eac84660c0a5f176221b12eb92b1f70d334a1c974a466a34e47b73858ff6"
+    },
+    {
+      "path": "unified-ads-api/tests/spotify.test.ts",
+      "sha256": "e95be59318df4e60bcad81790b4e03857c713409656ba770f922b63dbad86711"
+    },
+    {
+      "path": "unified-ads-api/tests/tiktok-simulator.ts",
+      "sha256": "a168007fc9c365c8bc5d656217934eb9409acf3203f2c39ed3cd641667a31d1b"
+    },
+    {
+      "path": "unified-ads-api/tests/tiktok.test.ts",
+      "sha256": "f09a4fe75d584c49efc8c43c5a0612dc39992356e55211b5cff4aaceb498baa3"
+    },
+    {
+      "path": "unified-ads-api/tsconfig.build.json",
+      "sha256": "519094271476fea8b600db4a473b836b1078f110d6f422c9c1ebf1b3944e0400"
+    },
+    {
+      "path": "unified-ads-api/tsconfig.json",
+      "sha256": "52aeccd76a9014c184358fb57c023cf79cc56ccfdf7bd65eb5975663e75fe6f7"
+    },
+    {
+      "path": "unified-ads-api/vitest.config.ts",
+      "sha256": "105cf70e44a15454aac8ad80415df2ac34419432f202e69945a1ec14eda077b3"
+    }
+  ]
+}

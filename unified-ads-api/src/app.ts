@@ -20,6 +20,7 @@ import { ProviderRegistry } from "./providers/registry.js";
 import { ProviderStatusService } from "./services/provider-status.service.js";
 import { healthRoutes } from "./routes/health.js";
 import { providerRoutes } from "./routes/providers.js";
+import { dataRoutes } from "./routes/data.js";
 
 export interface AppDeps {
   registry?: ProviderRegistry;
@@ -99,10 +100,11 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
     });
   }
 
-  const registry = deps.registry ?? ProviderRegistry.fromEnv(config.providerEnv);
+  const registry = deps.registry ?? ProviderRegistry.fromEnv(config.providerEnv, config.providerTimeoutMs);
   const statuses = new ProviderStatusService(registry, config.providerTimeoutMs);
   await app.register(healthRoutes({ version: config.version, environment: config.env }), { prefix: "/api/v1" });
   await app.register(providerRoutes({ registry, statuses }), { prefix: "/api/v1" });
+  await app.register(dataRoutes({ registry, timeoutMs: config.providerTimeoutMs }), { prefix: "/api/v1" });
 
   return app;
 }

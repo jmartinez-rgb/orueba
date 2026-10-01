@@ -12,6 +12,8 @@ export interface RetryOptions {
   sleep?: (ms: number) => Promise<void>;
   random?: () => number;
   onRetry?: (info: { attempt: number; delayMs: number; error: unknown }) => void;
+  /** Clasificación específica del proveedor; por omisión se usa isRetryable. */
+  shouldRetry?: (error: unknown) => boolean;
 }
 
 export const DEFAULT_RETRY: RetryOptions = { retries: 4, baseMs: 1000, maxMs: 16000 };
@@ -84,7 +86,7 @@ export async function withRetry<T>(
     try {
       return await fn(attempt);
     } catch (err) {
-      if (attempt >= opts.retries || !isRetryable(err)) throw err;
+      if (attempt >= opts.retries || !(opts.shouldRetry ?? isRetryable)(err)) throw err;
       const hinted = retryAfterMs(err);
       const delayMs = hinted !== null ? Math.min(hinted, opts.maxMs * 4) : backoffDelay(attempt, opts, opts.random);
       opts.onRetry?.({ attempt: attempt + 1, delayMs, error: err });

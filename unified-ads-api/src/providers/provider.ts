@@ -1,4 +1,5 @@
 import type { Provider, ProviderSlug } from "../types/providers.js";
+import type { ApiError } from "../utils/errors.js";
 import type {
   AccountQuery,
   CampaignQuery,
@@ -24,8 +25,15 @@ export interface AdsProvider {
   readonly implemented: boolean;
   isConfigured(): boolean;
   status(): Promise<ProviderStatus>;
-  listAccounts(query: AccountQuery): Promise<NormalizedAccount[]>;
-  listCampaigns(query: CampaignQuery): Promise<NormalizedCampaign[]>;
-  getPerformance(query: PerformanceQuery): Promise<NormalizedPerformance[]>;
-  getConversions(query: PerformanceQuery): Promise<NormalizedConversion[]>;
+  listAccounts(query: AccountQuery, options?: ProviderRequestOptions): Promise<NormalizedAccount[]>;
+  listCampaigns(query: CampaignQuery, options?: ProviderRequestOptions): Promise<NormalizedCampaign[]>;
+  getPerformance(query: PerformanceQuery, options?: ProviderRequestOptions): Promise<NormalizedPerformance[]>;
+  getConversions(query: PerformanceQuery, options?: ProviderRequestOptions): Promise<NormalizedConversion[]>;
+}
+
+export interface ProviderRequestOptions {
+  /** Cancelación del caller: evita continuar consultas después del límite de la API. */
+  signal?: AbortSignal;
+  /** Fallos de cuentas individuales cuando el proveedor conserva los demás datos. */
+  onWarning?: (error: ApiError) => void;
 }

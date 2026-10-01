@@ -5,3 +5,5 @@ coverage
 .env.*
 !.env.example
 *.log
+.microsoft-oauth-session
+.spotify-oauth-session

@@ -15,13 +15,13 @@ export class ProviderRegistry {
     this.byId = new Map(providers.map((p) => [p.id, p]));
   }
 
-  static fromEnv(env: Readonly<Record<string, string | undefined>>): ProviderRegistry {
+  static fromEnv(env: Readonly<Record<string, string | undefined>>, timeoutMs?: number): ProviderRegistry {
     return new ProviderRegistry([
-      new GoogleProvider(env),
-      new MetaProvider(env),
-      new TikTokProvider(env),
-      new MicrosoftProvider(env),
-      new SpotifyProvider(env),
+      new GoogleProvider(env, { timeoutMs }),
+      new MetaProvider(env, { timeoutMs }),
+      new TikTokProvider(env, { timeoutMs }),
+      new MicrosoftProvider(env, { timeoutMs }),
+      new SpotifyProvider(env, { timeoutMs }),
       new XProvider(env),
     ]);
   }

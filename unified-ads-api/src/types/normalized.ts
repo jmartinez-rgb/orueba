@@ -38,6 +38,8 @@ export interface NormalizedAccount {
   timezone: string | null;
   status: string | null;
   manager_account_id: string | null;
+  /** Google distingue cuentas MCC de cuentas publicitarias. */
+  is_manager?: boolean;
 }
 
 export interface NormalizedCampaign {
@@ -61,7 +63,7 @@ export interface NormalizedPerformance {
   campaign_name: string | null;
   campaign_status: CampaignStatus | null;
   objective: string | null;
-  /** Fecha en la zona horaria de la cuenta (YYYY-MM-DD). */
+  /** Fecha (YYYY-MM-DD) en source_timezone: zona de cuenta o UTC según el contrato del proveedor. */
   date: string;
   /** 0-23 en granularidad por hora; null en diaria. */
   hour: number | null;
@@ -104,6 +106,8 @@ export interface NormalizedConversion {
   conversions: number | null;
   conversion_value: number | null;
   extracted_at: string;
+  /** Incluye métricas de acciones secundarias cuando la plataforma las reporta. */
+  raw_metrics?: Record<string, unknown>;
 }
 
 export interface DateRange {
