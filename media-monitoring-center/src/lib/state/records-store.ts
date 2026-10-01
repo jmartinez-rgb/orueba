@@ -3,7 +3,7 @@ import type { BudgetRow } from "@/lib/types";
 import type { AlertState, AlertStatus, IncidentStatus, NotificationRecord } from "@/lib/alerts/types";
 import { emptyAlertState } from "@/lib/alerts/types";
 import { getRecordStore } from "@/lib/records/store";
-import type { RunSummary, StateStore, UserOverrides } from "./store";
+import { incidentActions, type RunSummary, type StateStore, type UserOverrides } from "./store";
 
 /**
  * Estado operativo (alertas, incidentes, notificaciones, corridas y cambios de usuarios) en el
@@ -91,9 +91,11 @@ export class RecordsStateStore implements StateStore {
   async updateIncident(id: string, patch: { owner?: string | null; status?: IncidentStatus; note?: string }, by: string): Promise<void> {
     await this.updateOverrides((o) => {
       const cur = o.incidents[id] ?? {};
+      const at = new Date().toISOString();
       if (patch.owner !== undefined) cur.owner = patch.owner;
       if (patch.status) cur.status = patch.status;
-      if (patch.note) cur.notes = [...(cur.notes ?? []), { at: new Date().toISOString(), author: by, text: patch.note }];
+      if (patch.note) cur.notes = [...(cur.notes ?? []), { at, author: by, text: patch.note }];
+      cur.actions = [...(cur.actions ?? []), ...incidentActions(patch, by, at)];
       o.incidents[id] = cur;
     });
   }

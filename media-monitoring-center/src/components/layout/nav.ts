@@ -4,6 +4,7 @@ import {
   BookOpenText,
   Bug,
   CalendarClock,
+  Eye,
   GitCompareArrows,
   Gauge,
   History,
@@ -15,6 +16,7 @@ import {
   Plug,
   RadioTower,
   Settings,
+  ShieldCheck,
   Siren,
   Ticket,
   UsersRound,
@@ -56,6 +58,13 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/incidents", label: "Incidents", icon: Siren, badge: "incidents" },
       { href: "/tickets", label: "Tickets", icon: Ticket, badge: "tickets" },
       { href: "/novedades", label: "Novedades", icon: CalendarClock, badge: "novedades" },
+    ],
+  },
+  {
+    label: "Control",
+    items: [
+      { href: "/auditoria", label: "Auditoría", icon: ShieldCheck, permission: "audit:view" },
+      { href: "/cliente", label: "Vista del cliente", icon: Eye, permission: "client:view" },
     ],
   },
   {

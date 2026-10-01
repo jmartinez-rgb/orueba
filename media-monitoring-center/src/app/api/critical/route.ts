@@ -1,10 +1,11 @@
 import { headers } from "next/headers";
 import { z } from "zod";
 import { requireAuth, hasPermission } from "@/lib/auth/session";
+import { mustAcknowledgeCritical } from "@/lib/auth/roles";
 import { acknowledgeCritical, pendingCritical } from "@/lib/services/critical";
 import { requestInfo } from "@/lib/records/audit";
 import { TICKET_CHANNELS, type TicketChannel } from "@/lib/records/ticket-model";
-import { badRequest, json, readJson, serverError, unauthorized } from "@/lib/services/http";
+import { badRequest, forbidden, json, readJson, serverError, unauthorized } from "@/lib/services/http";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const session = await requireAuth();
   if (!session) return unauthorized();
+  if (!mustAcknowledgeCritical(session.role)) return json({ ok: true, pending: [] });
   try {
     return json({ ok: true, pending: await pendingCritical(session) });
   } catch (err) {
@@ -28,10 +30,11 @@ const body = z.object({
   confirmed: z.literal(true, { message: "Confirma que revisaste la alerta y la vas a reportar." }),
 });
 
-/** Acuse obligatorio de alertas críticas: cualquier rol puede (y debe) hacerlo. */
+/** Acuse obligatorio de alertas críticas: lo hace quien opera o consulta (no el auditor). */
 export async function POST(req: Request) {
   const session = await requireAuth();
   if (!session) return unauthorized();
+  if (!mustAcknowledgeCritical(session.role)) return forbidden("El equipo de auditoría observa el proceso; el acuse lo hace quien opera.");
   const parsed = body.safeParse(await readJson(req));
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? "Datos inválidos.");
   try {

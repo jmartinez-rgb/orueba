@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Check, Copy, KeyRound, Loader2, MoreHorizontal, Plus, RefreshCw, ShieldCheck, Trash2, UserCog, UserRoundX, UserRoundCheck } from "lucide-react";
 import { sileo } from "sileo";
 import { BRAND_IDS, BRANDS, type BrandId } from "@/lib/brands";
-import { PERMISSION_LABEL, PERMISSIONS, permissionsOf, ROLE_LABEL, ROLES, type Permission, type Role } from "@/lib/auth/roles";
+import { PERMISSION_LABEL, PERMISSIONS, permissionsOf, ROLE_DESCRIPTION, ROLE_LABEL, ROLES, type Permission, type Role } from "@/lib/auth/roles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -466,13 +466,20 @@ function AccountDialog({ mode, account, self, grantable, onClose, onSaved }: { m
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-[11px] leading-snug text-muted-foreground">{ROLE_DESCRIPTION[role]}</p>
           </div>
           <div className="space-y-1.5">
             <Label>Marcas que puede ver</Label>
             <BrandPicker value={brands} onChange={setBrands} />
           </div>
         </div>
-        <PermissionPicker role={role} custom={custom} value={permissions} onCustom={setCustom} onChange={setPermissions} grantable={grantable} disabled={lockAccess} />
+        {role === "client" ? (
+          <p className="rounded-md border px-3 py-2 text-[13px] text-muted-foreground">
+            El cliente solo entra a su vista de estado (marcas seleccionadas arriba). No recibe permisos internos aunque se le asignen.
+          </p>
+        ) : (
+          <PermissionPicker role={role} custom={custom} value={permissions} onCustom={setCustom} onChange={setPermissions} grantable={grantable} disabled={lockAccess} />
+        )}
         {mode === "create" && (
           <div className="space-y-1.5">
             <Label>Contraseña inicial</Label>
@@ -562,6 +569,7 @@ function UniversalDialog({ universal, onClose, onSaved }: { universal: Universal
                 <SelectItem value="manager">{ROLE_LABEL.manager}</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-[11px] leading-snug text-muted-foreground">{ROLE_DESCRIPTION[role]}</p>
           </div>
           <div className="space-y-1.5">
             <Label>Marcas que puede ver</Label>

@@ -99,6 +99,15 @@ export interface IncidentEvent {
   notified: boolean;
 }
 
+/** Acción de una persona sobre un incidente (para auditar atención, seguimiento y cierre). */
+export interface IncidentAction {
+  at: string;
+  by: string;
+  kind: "STATUS" | "OWNER" | "NOTE";
+  /** Nuevo estado, nuevo responsable (null = sin responsable) o null en una nota. */
+  value: string | null;
+}
+
 export interface Incident extends EntityFields {
   id: string;
   fingerprint: string;
@@ -116,6 +125,8 @@ export interface Incident extends EntityFields {
   status: IncidentStatus;
   owner: string | null;
   notes: Array<{ at: string; author: string; text: string }>;
+  /** Acciones de personas con fecha y autor (registros anteriores pueden no traerlas). */
+  actions?: IncidentAction[];
   timeline: IncidentEvent[];
   evidence: AnomalyEvidence[];
   childAlertIds: string[];

@@ -6,7 +6,7 @@ import { getEnv } from "@/lib/config/env";
 import { fullTableName, getBigQuery, runQuery } from "@/lib/bigquery/client";
 import type { BigQueryMapping } from "@/lib/bigquery/mapping";
 import { logger, recordIntegrationEvent } from "@/lib/logging/logger";
-import type { RunSummary, StateStore, UserOverrides } from "./store";
+import { incidentActions, type RunSummary, type StateStore, type UserOverrides } from "./store";
 
 /**
  * Estado operativo en BigQuery con tablas propias de la app (append-only).
@@ -147,6 +147,7 @@ export class BigQueryStateStore implements StateStore {
     if (patch.owner !== undefined) inc.owner = patch.owner;
     if (patch.status) inc.status = patch.status;
     if (patch.note) inc.notes.push({ at: now, author: by, text: patch.note });
+    inc.actions = [...(inc.actions ?? []), ...incidentActions(patch, by, now)];
     await this.insert(this.tables.incidents, [
       { id: inc.id, fingerprint: inc.fingerprint, platform: inc.platform, severity: inc.severity, status: inc.status, started_at: inc.startedAt, resolved_at: inc.resolvedAt, updated_at: now, payload: JSON.stringify(inc) },
     ]);

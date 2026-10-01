@@ -152,6 +152,8 @@ function applyOverrides(state: AlertState, overrides: Awaited<ReturnType<AppCont
     a.status = o.status;
     if (o.status === "RESOLVED" && a.resolvedAt === null) a.resolvedAt = o.at;
     const inc = state.incidents.find((i) => i.alertId === a.id && i.resolvedAt === null);
+    // El cambio de estado desde la alerta también es una acción de una persona sobre el incidente.
+    if (inc && o.status !== "NEW") inc.actions = [...(inc.actions ?? []), { at: o.at, by: o.by, kind: "STATUS", value: o.status }];
     if (inc && (o.status === "ACKNOWLEDGED" || o.status === "INVESTIGATING")) inc.status = o.status;
     if (inc && (o.status === "RESOLVED" || o.status === "FALSE_POSITIVE")) {
       inc.status = "RESOLVED";
@@ -165,6 +167,7 @@ function applyOverrides(state: AlertState, overrides: Awaited<ReturnType<AppCont
     if (o.owner !== undefined) inc.owner = o.owner;
     if (o.status && inc.resolvedAt === null) inc.status = o.status;
     if (o.notes) inc.notes = [...inc.notes, ...o.notes];
+    if (o.actions) inc.actions = [...(inc.actions ?? []), ...o.actions].sort((x, y) => x.at.localeCompare(y.at));
   }
   return state;
 }

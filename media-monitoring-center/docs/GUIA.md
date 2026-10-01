@@ -265,6 +265,42 @@ Cuentas, contraseñas y permisos**: asigna la contraseña, el rol, permisos pers
 marcas que cada persona ve. Cada persona puede cambiar su contraseña desde su menú (*Cambiar mi
 contraseña*). Detalle en `docs/AUTH.md`.
 
+### Roles
+
+| Rol | Para quién | Qué puede hacer |
+| --- | --- | --- |
+| Administrador | Responsable de la herramienta | Todo, incluidos usuarios, la bandeja de bugs y el dictamen de auditoría. |
+| Co-administrador | Líder del equipo | Igual que el administrador, sin usuarios, sin bandeja de bugs y sin dictaminar auditorías (las ve). |
+| Operativo | Equipo de Paid Media | Atiende alertas, incidentes, tickets y novedades; ejecuta evaluaciones. |
+| Consulta interna | Quien solo revisa | Ve el monitoreo, acusa críticos, levanta tickets y genera el mensaje de monitoreo. |
+| Auditor | Equipo de auditoría | Ve todo el monitoreo y la bitácora en modo lectura y dictamina el proceso de cada incidente. No opera ni acusa críticos. |
+| Cliente | El cliente (izzi, Sky) | Solo su **Vista del cliente**: si todo está en orden, cada plataforma y lo que se atiende. Nunca ve notas, responsables, tickets ni configuración. |
+
+El acceso del cliente se bloquea en el servidor (no solo en el menú): cualquier consulta interna le
+responde "sin sesión". El equipo puede abrir **Control → Vista del cliente** para ver exactamente lo
+mismo que ve el cliente.
+
+## Auditoría de incidencias
+
+**Control → Auditoría** (auditores y administración) revisa si el proceso se cumple en cada
+incidente del periodo (7, 30 o 90 días), con lo que el equipo dejó registrado:
+
+| Verificación | Se cumple si… |
+| --- | --- |
+| Atención a tiempo | Una persona actuó (estado, responsable, nota o acuse crítico) dentro de la meta: crítico 30 min, alerta 2 h, atención 8 h. |
+| Responsable asignado | Desde alerta, el incidente tiene responsable. |
+| Seguimiento | Mientras estuvo abierto nunca pasó más de 4 h (crítico), 12 h (alerta) o 24 h (atención) sin actualización. |
+| Reportado por el equipo | Desde alerta hay un ticket, un acuse crítico con destinatario o un mensaje de monitoreo de esa plataforma. |
+| Aviso automático | El sistema envió el aviso (se mide aparte de lo que hizo el equipo). |
+| Cierre documentado | Se recuperó solo, se cerró por un cambio autorizado o novedad, o se cerró con nota. |
+| Resuelto a tiempo | Crítico en 24 h, alerta en 72 h, atención en 168 h. |
+
+Cada incidente muestra su porcentaje de cumplimiento, lo que hizo el equipo (quién y cuándo) y una
+evaluación automática. El auditor registra su **dictamen** (Cumple, Con observación o No cumple; las
+dos últimas con comentario). Cada dictamen queda en la bitácora y en el historial del incidente, y se
+puede exportar todo a CSV. Desde esta versión, cada cambio de estado o responsable guarda quién y
+cuándo lo hizo; los incidentes anteriores se auditan con sus notas y acuses.
+
 ## Bugs y sugerencias
 
 ¿Algo no funciona o se te ocurre una mejora? Menú de usuario → *Reportar bug o sugerencia* (o

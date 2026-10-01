@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { requireAuth } from "@/lib/auth/session";
+import { requireClientView } from "@/lib/auth/session";
 import { BRAND_COOKIE, BRAND_IDS, isBrand } from "@/lib/brands";
 import { badRequest, forbidden, json, readJson, unauthorized } from "@/lib/services/http";
 
@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 
 /** Cambia la marca del monitoreo (izzi / Sky) para este navegador. */
 export async function POST(req: Request) {
-  const session = await requireAuth();
+  // El cliente también puede cambiar entre las marcas que tiene asignadas (solo fija una cookie).
+  const session = await requireClientView();
   if (!session) return unauthorized();
   const body = await readJson<{ brand?: string }>(req);
   if (!isBrand(body?.brand)) return badRequest("Marca inválida.");

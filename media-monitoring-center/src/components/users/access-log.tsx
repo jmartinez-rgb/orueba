@@ -34,6 +34,7 @@ const LABEL: Record<AuditType, string> = {
   NOVEDAD_CREATED: "Novedad",
   NOVEDAD_UPDATED: "Novedad actualizada",
   KICKOFF_CONFIRMED: "Arranque de mes",
+  AUDIT_REVIEWED: "Dictamen de auditoría",
 };
 
 const TONE: Partial<Record<AuditType, string>> = {

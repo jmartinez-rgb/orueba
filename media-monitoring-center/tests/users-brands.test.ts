@@ -53,7 +53,8 @@ describe("cuentas, contraseñas y permisos desde la app", () => {
     const res = await createAccount(admin, { username: "Ana.Lopez", name: "Ana López", role: "viewer", permissions: ["tickets:write", "reports:write", "alerts:write"], brands: ["sky"], password: "Sky-Monitoreo-2026" });
     expect(res.ok).toBe(true);
     const acc = await findEffectiveAccount("ana.lopez");
-    expect(acc?.permissions).toEqual(["tickets:write", "reports:write", "alerts:write"]);
+    // Los personalizados se respetan; todo rol interno suma el acceso al monitoreo y a la vista del cliente.
+    expect(acc?.permissions).toEqual(["tickets:write", "reports:write", "alerts:write", "internal:view", "client:view"]);
     expect(acc?.brands).toEqual(["sky"]);
     expect(acc?.source).toBe("app");
     const raw = JSON.stringify(await getRecordStore().get("auth/users"));

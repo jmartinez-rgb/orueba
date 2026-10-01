@@ -3,7 +3,7 @@ import { getRecordStore } from "@/lib/records/store";
 import { BRAND_IDS, isBrand, type BrandId } from "@/lib/brands";
 import { getAuthConfig, normalizeUsername, type NamedAccount } from "./config";
 import { isPasswordHash } from "./password";
-import { isPermission, isRole, permissionsOf, type Permission, type Role } from "./roles";
+import { effectivePermissions, isPermission, isRole, permissionsOf, type Permission, type Role } from "./roles";
 
 /**
  * Cuentas administradas desde la app (sección Usuarios → Cuentas y permisos). Se guardan en el
@@ -151,7 +151,7 @@ function effective(env: NamedAccount | undefined, app: ManagedUser | undefined):
       name: app.name,
       role: app.role,
       hash: app.hash,
-      permissions: app.permissions ?? permissionsOf(app.role),
+      permissions: effectivePermissions(app.role, app.permissions),
       customPermissions: app.permissions !== null,
       brands: app.brands,
       active: app.active,

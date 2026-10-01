@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { isRole, permissionsOf, type Permission, type Role } from "./roles";
+import { effectivePermissions, isInternalRole, isRole, type Permission, type Role } from "./roles";
 import { getAuthConfig } from "./config";
 import { effectiveUniversal, findEffectiveAccount } from "./users";
 import type { BrandId } from "@/lib/brands";
@@ -50,7 +50,7 @@ export async function getSession(): Promise<Session> {
       authenticated: true,
       user: { id: `sso:${(h.get("x-immc-email") ?? name).toLowerCase()}`, name, email: h.get("x-immc-email"), kind: "header" },
       role: isRole(role) ? role : "viewer",
-      permissions: permissionsOf(isRole(role) ? role : "viewer"),
+      permissions: effectivePermissions(isRole(role) ? role : "viewer", null),
       brands: [],
       mode: "header",
       sid: null,
@@ -64,7 +64,7 @@ export async function getSession(): Promise<Session> {
       authenticated: true,
       user: { id: "open", name: "Acceso abierto", email: null, kind: "open" },
       role: isRole(role) ? role : cfg.openRole,
-      permissions: permissionsOf(isRole(role) ? role : cfg.openRole),
+      permissions: effectivePermissions(isRole(role) ? role : cfg.openRole, null),
       brands: [],
       mode: "open",
       sid: null,
@@ -86,7 +86,7 @@ export async function getSession(): Promise<Session> {
   }
   const universal = await effectiveUniversal();
   if (!universal.enabled || universal.version !== (claims.v ?? 0)) return denied;
-  return { ...base, user: { id: claims.sub, name: claims.name, email: null, kind: "universal" }, role: universal.role, permissions: permissionsOf(universal.role), brands: universal.brands };
+  return { ...base, user: { id: claims.sub, name: claims.name, email: null, kind: "universal" }, role: universal.role, permissions: effectivePermissions(universal.role, null), brands: universal.brands };
 }
 
 export function auditUser(s: Session): AuditUser {
@@ -111,10 +111,19 @@ export async function requirePermission(permission: Permission): Promise<Session
   return hasPermission(s, permission) ? s : null;
 }
 
-/** Para API routes de solo lectura: cualquier sesión autenticada. */
+/**
+ * Para API routes de solo lectura del monitoreo interno: sesión autenticada de un rol interno.
+ * El rol cliente queda fuera: nunca lee alertas, incidentes, notas, tickets ni configuración.
+ */
 export async function requireAuth(): Promise<Session | null> {
   const s = await getSession();
-  return s.authenticated ? s : null;
+  return s.authenticated && isInternalRole(s.role) && s.permissions.includes("internal:view") ? s : null;
+}
+
+/** Para la vista del cliente: el cliente y cualquier rol interno que quiera ver lo mismo que él. */
+export async function requireClientView(): Promise<Session | null> {
+  const s = await getSession();
+  return hasPermission(s, "client:view") ? s : null;
 }
 
 export function sessionPermissions(s: Session): Permission[] {

@@ -32,7 +32,8 @@ export type AuditType =
   | "UNIVERSAL_UPDATED"
   | "NOVEDAD_CREATED"
   | "NOVEDAD_UPDATED"
-  | "KICKOFF_CONFIRMED";
+  | "KICKOFF_CONFIRMED"
+  | "AUDIT_REVIEWED";
 
 export const AUDIT_LABEL: Record<AuditType, string> = {
   LOGIN_OK: "Inicio de sesión",
@@ -58,6 +59,7 @@ export const AUDIT_LABEL: Record<AuditType, string> = {
   NOVEDAD_CREATED: "Novedad registrada",
   NOVEDAD_UPDATED: "Novedad actualizada",
   KICKOFF_CONFIRMED: "Arranque de mes confirmado",
+  AUDIT_REVIEWED: "Dictamen de auditoría",
 };
 
 export type AuditUserKind = "named" | "universal" | "open" | "header" | "anon";

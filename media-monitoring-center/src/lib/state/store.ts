@@ -1,5 +1,5 @@
 import type { BudgetRow, DataState, PlatformId, Severity } from "@/lib/types";
-import type { AlertState, AlertStatus, IncidentStatus, NotificationRecord } from "@/lib/alerts/types";
+import type { AlertState, AlertStatus, IncidentAction, IncidentStatus, NotificationRecord } from "@/lib/alerts/types";
 import { emptyAlertState } from "@/lib/alerts/types";
 
 /**
@@ -24,7 +24,7 @@ export interface RunSummary {
 
 export interface UserOverrides {
   alerts: Record<string, { status: AlertStatus; at: string; by: string }>;
-  incidents: Record<string, { owner?: string | null; status?: IncidentStatus; notes?: Array<{ at: string; author: string; text: string }> }>;
+  incidents: Record<string, { owner?: string | null; status?: IncidentStatus; notes?: Array<{ at: string; author: string; text: string }>; actions?: IncidentAction[] }>;
   budgets: BudgetRow[];
 }
 
@@ -97,9 +97,11 @@ export class MemoryStateStore implements StateStore {
   }
   async updateIncident(id: string, patch: { owner?: string | null; status?: IncidentStatus; note?: string }, by: string) {
     const cur = memoryOf(this.namespace).overrides.incidents[id] ?? {};
+    const at = new Date().toISOString();
     if (patch.owner !== undefined) cur.owner = patch.owner;
     if (patch.status) cur.status = patch.status;
-    if (patch.note) cur.notes = [...(cur.notes ?? []), { at: new Date().toISOString(), author: by, text: patch.note }];
+    if (patch.note) cur.notes = [...(cur.notes ?? []), { at, author: by, text: patch.note }];
+    cur.actions = [...(cur.actions ?? []), ...incidentActions(patch, by, at)];
     memoryOf(this.namespace).overrides.incidents[id] = cur;
   }
   async setBudget(row: BudgetRow) {
@@ -107,4 +109,13 @@ export class MemoryStateStore implements StateStore {
     const same = (b: BudgetRow) => b.month === row.month && b.level === row.level && b.platform === row.platform && b.accountId === row.accountId && b.campaignId === row.campaignId;
     m.overrides.budgets = [...m.overrides.budgets.filter((b) => !same(b)), row];
   }
+}
+
+/** Acciones registradas por un cambio de incidente (estado, responsable y nota). */
+export function incidentActions(patch: { owner?: string | null; status?: IncidentStatus; note?: string }, by: string, at: string): IncidentAction[] {
+  const out: IncidentAction[] = [];
+  if (patch.status) out.push({ at, by, kind: "STATUS", value: patch.status });
+  if (patch.owner !== undefined) out.push({ at, by, kind: "OWNER", value: patch.owner });
+  if (patch.note) out.push({ at, by, kind: "NOTE", value: null });
+  return out;
 }
