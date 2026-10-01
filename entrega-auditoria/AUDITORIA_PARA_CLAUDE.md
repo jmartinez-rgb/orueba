@@ -1,3 +1,8 @@
+> **Documento histórico de la primera entrega.** Para continuar desde GitHub con TikTok real y X
+> implementado, usa el [traspaso actualizado del 1 de octubre de 2026](../unified-ads-api/docs/TRASPASO_CLAUDE.md)
+> en `codex/continuacion-tiktok-x`. El estado de ramas, pruebas y accesos descrito debajo pertenece
+> a la entrega anterior; se conserva como antecedente.
+
 Quiero que audites y mejores este proyecto continuando el trabajo que hizo Codex. Comienza por una revisión independiente del código y sus contratos; después propone y aplica correcciones justificadas con pruebas. No des por correcta la implementación porque sus pruebas pasan. Distingue defectos de código, limitaciones documentadas de cada plataforma y bloqueos del entorno. Entrega hallazgos con severidad, archivo/línea, impacto, evidencia y corrección recomendada, y un orden concreto para resolver los pendientes.
 
 **Entrega y ubicación del trabajo**

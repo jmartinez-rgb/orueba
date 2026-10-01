@@ -241,6 +241,11 @@ Claude no tuvo credenciales para repetirla. TikTok sí se verificó en esta cont
 
 ## Pendientes y orden recomendado
 
+El [traspaso actualizado a Claude](TRASPASO_CLAUDE.md) incluye el punto de partida, archivos a
+auditar y tareas posibles sin permisos nuevos. La siguiente revisión debe comprobar también la
+persistencia atómica del asistente Google y el tratamiento de fallos de lectura del almacén de
+tokens; se señalan como puntos de revisión, sin afirmar un incidente real.
+
 **Decisiones de negocio**
 
 - Acción principal de Meta por cuenta. Para izzi hay dos universos que no se mezclan: las campañas

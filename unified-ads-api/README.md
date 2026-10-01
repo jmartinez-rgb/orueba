@@ -279,6 +279,9 @@ La guía incluye el formulario oficial y la renovación del par de tokens de usu
 
 ## Continuación para auditoría de Claude
 
+El [traspaso actualizado a Claude](docs/TRASPASO_CLAUDE.md) reúne la rama entregada, commits,
+evidencias reales, validación, reglas vigentes y trabajo que puede avanzar sin accesos nuevos.
+
 La rama `codex/continuacion-tiktok-x` parte de `1bf278f` y conserva las correcciones previas.
 Meta divide reportes diarios en bloques de 30 días y horarios en un día. Google consulta hasta
 cuatro cuentas a la vez y decodifica ceros escalares seleccionados sin fabricar filas.
