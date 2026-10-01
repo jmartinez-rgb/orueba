@@ -76,3 +76,69 @@ export async function fetchUnifiedStatus(request: typeof fetch = fetch): Promise
 export function unifiedStatus(): Promise<UnifiedStatus> {
   return cached("unified-api:providers", 60_000, () => fetchUnifiedStatus());
 }
+
+/* ---------- Presupuestos vigentes (Meta, Google, TikTok y Microsoft) ---------- */
+
+const budgetSchema = z.object({
+  platform: z.string(),
+  account_id: z.string(),
+  account_name: z.string(),
+  currency: z.string().nullable(),
+  campaign_id: z.string(),
+  campaign_name: z.string(),
+  objective: z.string().nullable(),
+  budget_level: z.enum(["campaign", "ad_set"]),
+  ad_set_id: z.string().nullable(),
+  ad_set_name: z.string().nullable(),
+  budget_type: z.enum(["daily", "lifetime"]),
+  daily_budget: z.number().nullable(),
+  lifetime_budget: z.number().nullable(),
+  budget_remaining: z.number().nullable(),
+  daily_estimate: z.number().nullable(),
+  shared_budget_id: z.string().nullable(),
+  limited_by_budget: z.boolean().nullable(),
+  recommended_daily_budget: z.number().nullable(),
+  end_time: z.string().nullable(),
+  extracted_at: z.string(),
+});
+const budgetsResponseSchema = z.object({
+  data: z.array(budgetSchema),
+  errors: z.array(z.object({ provider: z.string(), error: z.object({ code: z.string(), message: z.string() }).passthrough() })),
+});
+
+export type UnifiedBudget = z.infer<typeof budgetSchema>;
+export type UnifiedBudgets =
+  | { ok: true; budgets: UnifiedBudget[]; warnings: string[]; checkedAt: string }
+  | { ok: false; configured: boolean; reason: string; checkedAt: string };
+
+/** Presupuestos vigentes de campañas y conjuntos activos de las plataformas que los exponen (solo lectura). */
+export async function fetchUnifiedBudgets(request: typeof fetch = fetch): Promise<UnifiedBudgets> {
+  const env = getEnv().unifiedApi;
+  const checkedAt = new Date().toISOString();
+  if (!env.configured) return { ok: false, configured: false, reason: "Configura UNIFIED_ADS_API_URL y UNIFIED_ADS_API_KEY.", checkedAt };
+  const base = validUnifiedUrl(env.url);
+  if (!base) return { ok: false, configured: true, reason: "UNIFIED_ADS_API_URL debe usar HTTPS (o ser local en desarrollo).", checkedAt };
+  let res: Response;
+  try {
+    res = await request(new URL("/api/v1/budgets", base), {
+      headers: { "X-API-Key": env.apiKey!, Accept: "application/json" },
+      redirect: "error",
+      cache: "no-store",
+      // Una cuenta grande pagina varias veces: más margen que el estado de conexión.
+      signal: AbortSignal.timeout(Math.max(env.timeoutMs, 20_000)),
+    });
+  } catch (err) {
+    const timeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+    return { ok: false, configured: true, reason: timeout ? "La API unificada no respondió a tiempo." : "No se pudo conectar con la API unificada.", checkedAt };
+  }
+  if (res.status === 401) return { ok: false, configured: true, reason: "La API unificada rechazó la llave (UNIFIED_ADS_API_KEY).", checkedAt };
+  if (!res.ok) return { ok: false, configured: true, reason: `La API unificada respondió HTTP ${res.status}.`, checkedAt };
+  const parsed = budgetsResponseSchema.safeParse(await res.json().catch(() => null));
+  if (!parsed.success) return { ok: false, configured: true, reason: "La API unificada devolvió una respuesta inesperada.", checkedAt };
+  return { ok: true, budgets: parsed.data.data, warnings: parsed.data.errors.map((e) => `${e.provider}: ${e.error.message}`), checkedAt };
+}
+
+/** Presupuestos con caché de cinco minutos: cambian poco y cada lectura recorre todas las cuentas. */
+export function unifiedBudgets(): Promise<UnifiedBudgets> {
+  return cached("unified-api:budgets", 300_000, () => fetchUnifiedBudgets());
+}

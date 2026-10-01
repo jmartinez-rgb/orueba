@@ -10,6 +10,12 @@ import { BudgetTable } from "@/components/monitoring/budget-table";
 import { BudgetLevels } from "@/components/monitoring/budget-levels";
 import { DeltaText, SeverityBadge } from "@/components/monitoring/status";
 import { ErrorPanel } from "@/components/monitoring/error-panel";
+import { BudgetPanel, type BudgetPanelState } from "@/components/monitoring/budget-panel";
+import { unifiedBudgets } from "@/lib/integrations/unified-api";
+import { demoBudgets } from "@/lib/mock/platform-budgets";
+import { buildBudgetOverview } from "@/lib/services/platform-budgets";
+import { DEFAULT_CLASSIFIERS } from "@/lib/classifiers/defaults";
+import type { Snapshot } from "@/lib/services/snapshot";
 
 export const metadata: Metadata = { title: "Budget Control" };
 export const dynamic = "force-dynamic";
@@ -23,6 +29,7 @@ export default async function BudgetPage() {
   const total = bc.lines.find((l) => l.level === "total");
   const [y, m] = bc.month.split("-").map(Number);
   const b = snap.settings.budget;
+  const budgets = await budgetState(snap, bc.fxRate);
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -50,6 +57,7 @@ export default async function BudgetPage() {
           </div>
         </div>
       )}
+      <BudgetPanel state={budgets} />
       <Card>
         <CardHeader>
           <div>
@@ -80,6 +88,30 @@ export default async function BudgetPage() {
       </Card>
     </div>
   );
+}
+
+/** Presupuestos vigentes: API unificada con datos reales; derivados del catálogo en modo demo. */
+async function budgetState(snap: Snapshot, fxRate: number | null): Promise<BudgetPanelState> {
+  const demo = snap.meta.mode === "mock";
+  const source = demo ? { ok: true as const, budgets: demoBudgets(snap, fxRate), warnings: [] as string[] } : await unifiedBudgets();
+  if (!source.ok) return { kind: "unavailable", reason: source.reason, configured: source.configured };
+  const spendToday = new Map<string, number>();
+  for (const e of snap.run.entities)
+    if (e.level === "campaign" && e.campaignId) spendToday.set(`${e.platform}:${e.campaignId}`, e.cumulative.spend?.current ?? 0);
+  const overview = buildBudgetOverview({
+    budgets: source.budgets,
+    brand: snap.meta.brand.id,
+    platforms: snap.run.platforms,
+    classifiers: { ...DEFAULT_CLASSIFIERS, ...snap.settings.classifiers },
+    campaigns: new Map(snap.catalog.campaigns.map((c) => [`${c.platform}:${c.id}`, c])),
+    spendToday,
+    curveShare: Object.fromEntries(snap.run.platforms.map((p) => [p, snap.run.pacing[p]?.curveShare ?? null])),
+    fxRate,
+    thresholds: snap.settings.thresholds,
+  });
+  if (source.warnings.length)
+    overview.insights.push({ tone: "warn", text: `${source.warnings.length === 1 ? "Una lectura de presupuestos falló" : `${source.warnings.length} lecturas de presupuestos fallaron`}: ${source.warnings[0]}` });
+  return { kind: "ready", overview, demo };
 }
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
