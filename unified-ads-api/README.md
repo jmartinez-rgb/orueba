@@ -7,15 +7,15 @@ cada API: n8n solo pregunta a esta API.
 
 ## Estado
 
-| Fase | Contenido                                | Estado                                                                                      |
-| ---- | ---------------------------------------- | ------------------------------------------------------------------------------------------- |
-| 1    | Infraestructura base (sin integraciones) | **Lista**                                                                                   |
-| 2    | Google Ads                               | **Implementada y verificada con Google real y simulador**                                   |
-| 3    | Meta Marketing API                       | **Implementada y verificada con Meta real y simulador**                                     |
-| 4    | TikTok Ads                               | **OAuth y lectura real de cuatro cuentas verificados; conciliación pendiente**              |
-| 5    | Microsoft Advertising                    | **Autorización y campañas reales verificadas; descarga de informes bloqueada por el proxy** |
-| 6    | Spotify Ads                              | **OAuth real validado; Ads API aún responde 403 (`ACCESS_REQUIRED`) tras aceptar términos** |
-| 7    | X Ads                                    | **Implementada en API 12; validada con fixtures; falta conexión real**                      |
+| Fase | Contenido                                | Estado                                                                                                |
+| ---- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1    | Infraestructura base (sin integraciones) | **Lista**                                                                                             |
+| 2    | Google Ads                               | **Implementada y verificada con Google real y simulador**                                             |
+| 3    | Meta Marketing API                       | **Implementada y verificada con Meta real y simulador**                                               |
+| 4    | TikTok Ads                               | **OAuth y lectura real de cuatro cuentas verificados; conciliación pendiente**                        |
+| 5    | Microsoft Advertising                    | **Autorización y campañas reales verificadas; descarga de informes bloqueada por el proxy**           |
+| 6    | Spotify Ads                              | **OAuth real validado; Ads API aún responde 403 (`ACCESS_REQUIRED`) tras aceptar términos**           |
+| 7    | X Ads                                    | **API 12 y fixtures listos; credenciales aplicadas, Ads API bloqueada por habilitación de app (403)** |
 
 La Fase 1 ya incluye piezas que las integraciones van a usar: fórmulas normalizadas (CTR, CPC, CPM,
 CPA sin NaN ni Infinity), reintentos con espera exponencial y variación (respetan `Retry-After`),
@@ -271,8 +271,10 @@ estados y vocabulario de conversiones. El panel de monitoreo lo muestra como el 
 Configura los cuatro valores privados `X_ADS_CONSUMER_KEY`, `X_ADS_CONSUMER_SECRET`,
 `X_ADS_ACCESS_TOKEN`, `X_ADS_ACCESS_TOKEN_SECRET`. No se elige un evento principal automáticamente.
 Consulta [docs/X_ADS.md](docs/X_ADS.md) para versión, fuentes, permisos y límites comprobados.
-Las pruebas no salen a red; faltan la app y su aprobación para Ads API, credenciales y conciliación
-real. La guía incluye el registro desde el navegador y la generación de tokens tras la aprobación.
+Las pruebas no salen a red. La app ya existe y sus cuatro variables privadas llegaron al proceso;
+la primera petición real devuelve HTTP 403 `UNAUTHORIZED_CLIENT_APPLICATION`, normalizado como
+`ACCESS_REQUIRED`. Falta la aprobación/permisos de Ads API, seguida de lectura y conciliación real.
+La guía incluye el formulario oficial y la renovación del par de tokens de usuario tras la aprobación.
 
 ## Continuación para auditoría de Claude
 

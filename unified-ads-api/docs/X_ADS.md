@@ -60,9 +60,9 @@ una autorización limitada a Analytics puede no permitir esas lecturas. El códi
 
 ### Crear la app desde el navegador
 
-Estado comunicado por el usuario el 1 de octubre de 2026: tiene cuenta publicitaria, pero todavía
-no tiene la app de desarrolladores. La configuración y el proceso no contienen credenciales de X;
-no se ha intentado una lectura autenticada ni se ha supuesto que la app esté aprobada.
+La app ya está creada en la consola nueva; el ID mostrado es `33489379`. Las cuatro variables
+privadas están aplicadas. La primera lectura real del 1 de octubre de 2026 quedó bloqueada por
+habilitación de Ads API, como se detalla abajo. Una app marcada `active` no demuestra ese acceso.
 
 1. Abre la [Developer Console](https://developer.x.com/en/portal/petition/essential/basic-info)
    enlazada por la documentación oficial. Usa el usuario con acceso a las cuentas publicitarias
@@ -75,8 +75,13 @@ no se ha intentado una lectura autenticada ni se ha supuesto que la app esté ap
    > Access is limited to advertisers who authorize our agency. We preserve each account's
    > currency and reporting timezone when preparing performance reports.
 
-3. Solicita acceso a **Ads API para esa app** mediante el Ads API Access Form indicado en la
+3. Solicita acceso a **Ads API para esa app** mediante el
+   [Ads API Access Form](https://docs.x.com/forms/ads-api-access), enlazado en la
    [guía oficial](https://docs.x.com/x-ads-api/getting-started/step-by-step-guide).
+   Si no carga el formulario integrado, su destino oficial es
+   [help.x.com/en/forms/xdev/conversion-api-request](https://help.x.com/en/forms/xdev/conversion-api-request).
+   Ese destino se comprobó en la versión Markdown oficial del formulario; el nombre de la ruta
+   no cambia que la guía lo publica como solicitud de Ads API.
    Para las operaciones de este proveedor corresponde **Standard Access**, que incluye Analytics
    y Campaign Management. El nivel Conversion Only cubre envío de conversiones y no habilita
    nuestro contrato de cuentas/campañas/reportes. La aprobación de Ads API es adicional al registro
@@ -90,8 +95,9 @@ no se ha intentado una lectura autenticada ni se ha supuesto que la app esté ap
 
 Una vez guardadas y aplicadas las variables, verificar primero `GET /api/v1/providers/x/status`
 y `GET /api/v1/accounts?provider=x`; después campañas y un rango diario de tres días por cuenta.
-La primera lectura permanece bloqueada por **app ausente / aprobación y credenciales pendientes**.
-No se agregan campos privados vacíos al panel mientras se completa ese prerrequisito.
+La primera lectura permanece bloqueada por **habilitación de la app**, con credenciales ya
+aplicadas. No se solicita volver a cargar los cuatro valores ni se repite la consulta denegada
+sin un cambio de permisos o de configuración que justifique el intento.
 
 ## Informes y semántica
 
@@ -160,16 +166,37 @@ Incluyen RFC OAuth, estados compartidos, moneda, fechas no UTC, medianoche, ubic
 trabajos de 64 bits, gzip, polling, límites de tasa, permisos parciales y rutas autenticadas.
 El panel del monitoreo consume X mediante el mismo esquema y estados de los otros proveedores.
 
-**No se realizó una conexión real de X:** el usuario todavía no tiene la app; faltan aprobación
-de Ads API y sus cuatro credenciales en esta sesión.
-Quedan por validar aprobación/permisos de la app, forma real de conversiones, conciliación con
-Ads Manager, offset/DST y las tres ubicaciones. No se declara esta fase lista para producción.
+### Primera petición real: app sin habilitación de Ads API
+
+El 1 de octubre de 2026, tras publicar la configuración y reiniciar, las cuatro variables
+OAuth 1.0a estaban presentes, sin errores de inyección. La configuración del proveedor es válida
+(`configured=true`, `missing_config=[]`). Con TLS y el proxy nativo de Node se solicitó
+`GET https://ads-api.x.com/12/accounts` mediante la firma implementada; no se enviaron operaciones
+de escritura publicitaria ni trabajos de informes.
+
+- Respuesta real: **HTTP 403**, código `UNAUTHORIZED_CLIENT_APPLICATION`.
+- Error normalizado: **`ACCESS_REQUIRED`**; estado compartido: **`access_required`**.
+- No se obtuvieron cuentas, campañas, monedas, zonas, conversiones ni métricas.
+- La presencia de variables no demuestra que los pares OAuth sean válidos: la habilitación de
+  la app debe resolverse antes de afirmar autenticación y acceso a las cuentas.
+- El diagnóstico adicional solo recogió el HTTP y un código de una lista permitida; no registró
+  cabeceras, mensajes originales, cuerpos OAuth ni valores de credenciales.
+
+Solicitar Standard Access para la app `33489379`. Tras la aprobación, la guía oficial pide renovar
+los tokens de usuario previos; actualizar únicamente `X_ADS_ACCESS_TOKEN` y
+`X_ADS_ACCESS_TOKEN_SECRET` con ese nuevo par, manteniendo las claves de la misma app. Después
+reintentar cuentas y una lectura diaria acotada de las cuentas elegidas por el usuario.
+Quedan por validar permisos efectivos, forma real de conversiones, conciliación con Ads Manager,
+offset/DST y las tres ubicaciones. No se declara esta fase lista para producción.
 
 ## Fuentes oficiales
 
 - [Registro, creación de app, solicitud de Ads API y tokens posteriores a aprobación](https://docs.x.com/x-ads-api/getting-started/step-by-step-guide),
   revisado el 1 de octubre de 2026. El ejemplo de esa página todavía usa `/11`; para llamadas
   de este proveedor prevalece la referencia de versiones actual que especifica `/12`.
+- [Formulario de acceso](https://docs.x.com/forms/ads-api-access) y su
+  [versión Markdown](https://docs.x.com/forms/ads-api-access.md), que identifica el formulario
+  integrado de help.x.com. Fuentes públicas comprobadas; no se envió ninguna solicitud desde esta sesión.
 - [Versiones](https://docs.x.com/x-ads-api/fundamentals/versioning).
 - [OAuth y solicitudes autenticadas](https://docs.x.com/x-ads-api/fundamentals/making-authenticated-requests).
 - [Cuentas, campañas e instrumentos](https://docs.x.com/x-ads-api/campaign-management/reference).
