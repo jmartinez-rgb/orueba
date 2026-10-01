@@ -4,11 +4,18 @@ import { stateFromError } from "../status.js";
 import type { ProviderRequestOptions } from "../provider.js";
 import type { RetryOptions } from "../../utils/retry.js";
 import { ApiError, isApiError } from "../../utils/errors.js";
-import type { AccountQuery, CampaignQuery, PerformanceQuery, NormalizedAccount } from "../../types/normalized.js";
+import type {
+  AccountQuery,
+  CampaignQuery,
+  PerformanceQuery,
+  NormalizedAccount,
+  NormalizedBudget,
+} from "../../types/normalized.js";
 import { MICROSOFT_REQUIRED, microsoftId, readMicrosoftConfig } from "./config.js";
 import { MicrosoftClient, type MicrosoftFetch } from "./client.js";
 import { discoverMicrosoftAccounts, readMicrosoftAccount, readMicrosoftUser, rows } from "./accounts.js";
 import { microsoftAccountWarning } from "./errors.js";
+import { normalizeMicrosoftBudgets } from "./budgets.js";
 import { microsoftReport, reportRequest, type ReportRow, type MicrosoftResolver } from "./reports.js";
 import { normalizeCampaign, normalizeConversion, normalizePerformance, reportBucket } from "./normalize.js";
 
@@ -171,6 +178,25 @@ export class MicrosoftProvider extends BaseProvider {
             seen.add(campaign.campaign_id);
             return campaign;
           });
+        }),
+      options,
+    );
+  }
+  /** Presupuestos vigentes de campañas activas (diario o total; compartido con su ID). */
+  listBudgets(query: CampaignQuery, options?: ProviderRequestOptions): Promise<NormalizedBudget[]> {
+    return this.run(
+      (client, signal) =>
+        this.eachAccount(client, signal, query, options, async (account) => {
+          const data = await client.call(
+            "campaigns",
+            {
+              AccountId: account.account_id,
+              CampaignType: "Search, Shopping, Audience, PerformanceMax, Hotel, App, ObjectiveBased",
+            },
+            signal,
+            account,
+          );
+          return normalizeMicrosoftBudgets(account, rows(data.Campaigns), new Date().toISOString());
         }),
       options,
     );

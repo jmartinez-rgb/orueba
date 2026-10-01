@@ -4,13 +4,20 @@ import { stateFromError } from "../status.js";
 import type { ProviderRequestOptions } from "../provider.js";
 import type { RetryOptions } from "../../utils/retry.js";
 import { ApiError, isApiError } from "../../utils/errors.js";
-import type { AccountQuery, CampaignQuery, PerformanceQuery, NormalizedAccount } from "../../types/normalized.js";
+import type {
+  AccountQuery,
+  CampaignQuery,
+  PerformanceQuery,
+  NormalizedAccount,
+  NormalizedBudget,
+} from "../../types/normalized.js";
 import { readTikTokConfig, tiktokId } from "./config.js";
 import { TikTokClient } from "./client.js";
 import { authorizedAdvertisers, readTikTokAccount, discoverTikTokAccounts } from "./accounts.js";
 import { CAMPAIGN_FIELDS, reportWindows, reportParams } from "./queries.js";
 import { normalizeCampaign, normalizePerformance, normalizeConversions, reportBucket } from "./normalize.js";
 import { tiktokAccountWarning } from "./errors.js";
+import { BUDGET_ADGROUP_FIELDS, BUDGET_CAMPAIGN_FIELDS, needsAdGroups, normalizeTikTokBudgets } from "./budgets.js";
 import type { TikTokFetch, TikTokCampaign, TikTokReport } from "./types.js";
 
 /** Integración de lectura TikTok API for Business v1.3. */
@@ -167,6 +174,30 @@ export class TikTokProvider extends BaseProvider {
             seen.add(campaign.campaign_id);
             return campaign;
           });
+        }),
+      options,
+    );
+  }
+  /** Presupuestos vigentes: campaña con presupuesto propio o, si no tiene, sus grupos encendidos. */
+  listBudgets(query: CampaignQuery, options?: ProviderRequestOptions): Promise<NormalizedBudget[]> {
+    return this.run(
+      (client, signal) =>
+        this.eachAccount(client, signal, query, options, async (account) => {
+          const at = new Date().toISOString();
+          const filtering = JSON.stringify({ primary_status: "STATUS_ALL" });
+          const campaigns = await client.list<Record<string, unknown>>(
+            "campaign/get/",
+            { advertiser_id: account.account_id, fields: JSON.stringify(BUDGET_CAMPAIGN_FIELDS), filtering },
+            signal,
+          );
+          const adGroups = needsAdGroups(campaigns)
+            ? await client.list<Record<string, unknown>>(
+                "adgroup/get/",
+                { advertiser_id: account.account_id, fields: JSON.stringify(BUDGET_ADGROUP_FIELDS), filtering },
+                signal,
+              )
+            : [];
+          return normalizeTikTokBudgets(account, campaigns, adGroups, at);
         }),
       options,
     );

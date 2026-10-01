@@ -77,8 +77,17 @@ export interface NormalizedBudget {
   daily_budget: number | null;
   lifetime_budget: number | null;
   budget_remaining: number | null;
-  /** Solo presupuestos totales: restante ÷ días que faltan (incluido hoy). Es una estimación. */
+  /**
+   * Solo presupuestos totales: diario estimado. Meta: restante ÷ días que faltan (incluido hoy);
+   * Google/TikTok: total ÷ días del periodo. El método va en raw_metrics.estimate_method.
+   */
   daily_estimate: number | null;
+  /** Presupuesto compartido entre campañas (Google, Microsoft): su monto se cuenta una sola vez. */
+  shared_budget_id: string | null;
+  /** La plataforma reporta la campaña limitada por presupuesto (Google); null si no lo informa. */
+  limited_by_budget: boolean | null;
+  /** Presupuesto diario que recomienda la plataforma (Google); null si no hay recomendación. */
+  recommended_daily_budget: number | null;
   start_time: string | null;
   end_time: string | null;
   extracted_at: string;

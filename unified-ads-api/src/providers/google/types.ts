@@ -10,7 +10,25 @@ export interface GoogleCustomer {
 export interface GoogleRow {
   customer?: GoogleCustomer;
   customerClient?: GoogleCustomer & { clientCustomer?: string; level?: string | number };
-  campaign?: { id?: string; name?: string; status?: string; advertisingChannelType?: string };
+  campaign?: {
+    id?: string;
+    name?: string;
+    status?: string;
+    advertisingChannelType?: string;
+    servingStatus?: string;
+    primaryStatusReasons?: string[];
+    startDateTime?: string;
+    endDateTime?: string;
+  };
+  campaignBudget?: {
+    resourceName?: string;
+    amountMicros?: string | number;
+    totalAmountMicros?: string | number;
+    period?: string;
+    explicitlyShared?: boolean;
+    hasRecommendedBudget?: boolean;
+    recommendedBudgetAmountMicros?: string | number;
+  };
   segments?: {
     date?: string;
     hour?: number;

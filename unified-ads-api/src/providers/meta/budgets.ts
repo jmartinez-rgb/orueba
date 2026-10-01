@@ -5,7 +5,7 @@ import { metaObject } from "./types.js";
  * Presupuestos vigentes de Meta. La plataforma guarda los montos como texto en la unidad mínima de
  * la moneda de la cuenta (centavos para MXN y USD). Solo se leen campañas y conjuntos con estado
  * efectivo ACTIVE y sin fecha de fin vencida; un conjunto con la campaña pausada aparece como
- * CAMPAIGN_PAUSED y queda fuera.
+ * CAMPAIGN_PAUSED y queda fuera. Lo programado para iniciar después tampoco cuenta: hoy no gasta.
  */
 
 export const BUDGET_CAMPAIGN_FIELDS =
@@ -35,6 +35,11 @@ const amount = (units: number | null, offset: number | null) =>
 function ended(time: string | null, now: number): boolean {
   const at = time ? Date.parse(time) : Number.NaN;
   return Number.isFinite(at) && at <= now;
+}
+
+function future(time: string | null, now: number): boolean {
+  const at = time ? Date.parse(time) : Number.NaN;
+  return Number.isFinite(at) && at > now;
 }
 
 function dailyEstimate(remaining: number | null, end: string | null, now: number): number | null {
@@ -82,8 +87,9 @@ export function normalizeBudgets(
 ): NormalizedBudget[] {
   const offset = currencyOffset(account.currency);
   const out: NormalizedBudget[] = [];
+  // Activo hoy: estado ACTIVE, ya inició y no ha terminado (lo programado no gasta hoy).
   const running = (row: Record<string, unknown>, endField: string) =>
-    row.effective_status === "ACTIVE" && !ended(text(row[endField]), now);
+    row.effective_status === "ACTIVE" && !ended(text(row[endField]), now) && !future(text(row.start_time), now);
   const byCampaign = new Map<string, Record<string, unknown>[]>();
   for (const set of adSets.filter(metaObject)) {
     const id = text(set.campaign_id);
@@ -122,12 +128,16 @@ export function normalizeBudgets(
         lifetime_budget: l.lifetime,
         budget_remaining: l.remaining,
         daily_estimate: l.hasDaily ? null : dailyEstimate(l.remaining, end, now),
+        shared_budget_id: null,
+        limited_by_budget: null,
+        recommended_daily_budget: null,
         start_time: text(source.start_time),
         end_time: end,
         raw_metrics: {
           daily_budget_minor_units: l.rawDaily,
           lifetime_budget_minor_units: l.rawLifetime,
           currency_offset: offset,
+          estimate_method: l.hasDaily ? null : "remaining_over_days_left",
           bid_strategy: text(source.bid_strategy) ?? text(campaign.bid_strategy),
           effective_status: source.effective_status ?? null,
         },

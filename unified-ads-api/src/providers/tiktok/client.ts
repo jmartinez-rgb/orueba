@@ -20,7 +20,15 @@ export class TikTokClient {
   ) {}
 
   async get(path: string, params: TikTokParams, signal: AbortSignal): Promise<Record<string, unknown>> {
-    if (!["oauth2/advertiser/get/", "advertiser/info/", "campaign/get/", "report/integrated/get/"].includes(path))
+    if (
+      ![
+        "oauth2/advertiser/get/",
+        "advertiser/info/",
+        "campaign/get/",
+        "adgroup/get/",
+        "report/integrated/get/",
+      ].includes(path)
+    )
       throw new ApiError("INVALID_REQUEST", "Ruta de TikTok inválida.");
     const url = new URL(`${TIKTOK_BASE_URL}/open_api/${this.config.version}/${path}`);
     for (const [key, value] of Object.entries(params)) {
