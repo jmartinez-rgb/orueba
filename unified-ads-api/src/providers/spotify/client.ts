@@ -167,32 +167,34 @@ export class SpotifyClient {
       throw new ApiError("INVALID_REQUEST", "Operación de Spotify Ads no admitida.");
     const url = new URL(SPOTIFY_API + path);
     url.search = params.toString();
-    return this.breaker.exec(() =>
-      withRetry(async () => {
-        let token = await this.token(signal);
-        for (let renew = 0; renew < 2; renew++) {
-          signal.throwIfAborted();
-          try {
-            return await this.json(
-              url,
-              { method: "GET", headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } },
-              signal,
-            );
-          } catch (err) {
-            if (
-              renew ||
-              !isApiError(err) ||
-              err.code !== "AUTH_ERROR" ||
-              !object(err.details) ||
-              err.details.http_status !== 401
-            )
-              throw err;
-            if (this.access?.token === token) this.access = null;
-            token = await this.token(signal);
+    return this.breaker.exec(
+      () =>
+        withRetry(async () => {
+          let token = await this.token(signal);
+          for (let renew = 0; renew < 2; renew++) {
+            signal.throwIfAborted();
+            try {
+              return await this.json(
+                url,
+                { method: "GET", headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } },
+                signal,
+              );
+            } catch (err) {
+              if (
+                renew ||
+                !isApiError(err) ||
+                err.code !== "AUTH_ERROR" ||
+                !object(err.details) ||
+                err.details.http_status !== 401
+              )
+                throw err;
+              if (this.access?.token === token) this.access = null;
+              token = await this.token(signal);
+            }
           }
-        }
-        throw new ApiError("AUTH_ERROR", "Spotify requiere una autorización nueva.");
-      }, this.retryOptions(signal)),
+          throw new ApiError("AUTH_ERROR", "Spotify requiere una autorización nueva.");
+        }, this.retryOptions(signal)),
+      signal,
     );
   }
 }

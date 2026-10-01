@@ -35,7 +35,12 @@ export class CircuitBreaker {
     return this.state;
   }
 
-  async exec<T>(fn: () => Promise<T>): Promise<T> {
+  /**
+   * `signal` es la señal de la consulta: si quien llama la canceló (otra consulta falló, el cliente
+   * se desconectó), el error resultante no dice nada del proveedor y no cuenta como falla. Un plazo
+   * vencido (TimeoutError) sí cuenta: el proveedor no respondió a tiempo.
+   */
+  async exec<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     if (this.current === "OPEN") {
       const wait = Math.ceil((this.opts.resetTimeoutMs - (this.now() - this.openedAt)) / 1000);
       throw new ApiError("PROVIDER_ERROR", `${this.name} falla de forma repetida: se pausan las consultas ${wait} s.`, {
@@ -50,7 +55,7 @@ export class CircuitBreaker {
       return result;
     } catch (err) {
       // Un error de la solicitud (400, 401, 403) no dice que el proveedor esté caído.
-      if (!(this.opts.isFailure ?? isRetryable)(err)) throw err;
+      if (!(this.opts.isFailure ?? isRetryable)(err) || cancelledByCaller(signal)) throw err;
       this.failures++;
       if (this.state === "HALF_OPEN" || this.failures >= this.opts.failureThreshold) {
         this.state = "OPEN";
@@ -59,4 +64,10 @@ export class CircuitBreaker {
       throw err;
     }
   }
+}
+
+function cancelledByCaller(signal: AbortSignal | undefined): boolean {
+  if (!signal?.aborted) return false;
+  const reason: unknown = signal.reason;
+  return !(reason instanceof Error && reason.name === "TimeoutError");
 }

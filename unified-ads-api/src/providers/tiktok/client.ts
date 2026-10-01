@@ -36,49 +36,51 @@ export class TikTokClient {
       url.searchParams.set("secret", this.config.appSecret);
     }
     try {
-      return await this.breaker.exec(() =>
-        withRetry(
-          async () => {
-            signal.throwIfAborted();
-            let response: Response;
-            try {
-              response = await this.request(url, {
-                method: "GET",
-                headers: { "Access-Token": this.config.accessToken },
-                signal,
-                redirect: "error",
-              });
-            } catch {
-              throw new ApiError(
-                signal.aborted ? "PROVIDER_TIMEOUT" : "PROVIDER_ERROR",
-                "No se pudo completar la conexión con TikTok.",
-                { details: { provider: "tiktok", transient: !signal.aborted } },
-              );
-            }
-            let body: unknown;
-            try {
-              body = await response.json();
-            } catch {
-              if (signal.aborted) throw new ApiError("PROVIDER_TIMEOUT", "TikTok agotó su tiempo máximo.");
-              if (!response.ok) throw tiktokError(response.status, null, response.headers);
-              throw new ApiError("PROVIDER_ERROR", "TikTok devolvió una respuesta inválida.");
-            }
-            if (!response.ok || (tiktokObject(body) && typeof body.code === "number" && body.code !== 0))
-              throw tiktokError(response.status, body, response.headers);
-            if (!tiktokObject(body) || body.code !== 0 || !tiktokObject(body.data))
-              throw new ApiError("PROVIDER_ERROR", "TikTok no devolvió el código y los datos esperados.");
-            return body.data;
-          },
-          {
-            retries: this.config.retries,
-            maxMs: Math.max(16000, this.config.timeoutMs),
-            sleep: (ms) => delay(ms, undefined, { signal }),
-            ...this.retry,
-            shouldRetry: (err) =>
-              isTikTokRetryable(err) &&
-              !(err instanceof ApiError && err.retryAfter !== null && err.retryAfter * 1000 >= this.config.timeoutMs),
-          },
-        ),
+      return await this.breaker.exec(
+        () =>
+          withRetry(
+            async () => {
+              signal.throwIfAborted();
+              let response: Response;
+              try {
+                response = await this.request(url, {
+                  method: "GET",
+                  headers: { "Access-Token": this.config.accessToken },
+                  signal,
+                  redirect: "error",
+                });
+              } catch {
+                throw new ApiError(
+                  signal.aborted ? "PROVIDER_TIMEOUT" : "PROVIDER_ERROR",
+                  "No se pudo completar la conexión con TikTok.",
+                  { details: { provider: "tiktok", transient: !signal.aborted } },
+                );
+              }
+              let body: unknown;
+              try {
+                body = await response.json();
+              } catch {
+                if (signal.aborted) throw new ApiError("PROVIDER_TIMEOUT", "TikTok agotó su tiempo máximo.");
+                if (!response.ok) throw tiktokError(response.status, null, response.headers);
+                throw new ApiError("PROVIDER_ERROR", "TikTok devolvió una respuesta inválida.");
+              }
+              if (!response.ok || (tiktokObject(body) && typeof body.code === "number" && body.code !== 0))
+                throw tiktokError(response.status, body, response.headers);
+              if (!tiktokObject(body) || body.code !== 0 || !tiktokObject(body.data))
+                throw new ApiError("PROVIDER_ERROR", "TikTok no devolvió el código y los datos esperados.");
+              return body.data;
+            },
+            {
+              retries: this.config.retries,
+              maxMs: Math.max(16000, this.config.timeoutMs),
+              sleep: (ms) => delay(ms, undefined, { signal }),
+              ...this.retry,
+              shouldRetry: (err) =>
+                isTikTokRetryable(err) &&
+                !(err instanceof ApiError && err.retryAfter !== null && err.retryAfter * 1000 >= this.config.timeoutMs),
+            },
+          ),
+        signal,
       );
     } catch (err) {
       if (signal.aborted) throw new ApiError("PROVIDER_TIMEOUT", "La consulta a TikTok agotó su tiempo máximo.");

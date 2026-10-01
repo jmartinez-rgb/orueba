@@ -174,31 +174,33 @@ export class MicrosoftClient {
   ): Promise<Record<string, unknown>> {
     if (!Object.hasOwn(ENDPOINTS, operation))
       throw new ApiError("INVALID_REQUEST", "Operación de Microsoft no admitida.");
-    return this.breaker.exec(() =>
-      withRetry(async () => {
-        let token = await this.token(signal);
-        for (let renew = 0; renew < 2; renew++) {
-          signal.throwIfAborted();
-          const headers: Record<string, string> = {
-            Authorization: `Bearer ${token}`,
-            DeveloperToken: this.config.developerToken,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          };
-          if (account) {
-            headers.CustomerAccountId = account.account_id;
-            if (account.manager_account_id) headers.CustomerId = account.manager_account_id;
+    return this.breaker.exec(
+      () =>
+        withRetry(async () => {
+          let token = await this.token(signal);
+          for (let renew = 0; renew < 2; renew++) {
+            signal.throwIfAborted();
+            const headers: Record<string, string> = {
+              Authorization: `Bearer ${token}`,
+              DeveloperToken: this.config.developerToken,
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            };
+            if (account) {
+              headers.CustomerAccountId = account.account_id;
+              if (account.manager_account_id) headers.CustomerId = account.manager_account_id;
+            }
+            try {
+              return await this.json(ENDPOINTS[operation], JSON.stringify(payload), headers, signal);
+            } catch (err) {
+              if (renew !== 0 || !expiredAccessToken(err)) throw err;
+              if (this.access?.token === token) this.access = null;
+              token = await this.token(signal);
+            }
           }
-          try {
-            return await this.json(ENDPOINTS[operation], JSON.stringify(payload), headers, signal);
-          } catch (err) {
-            if (renew !== 0 || !expiredAccessToken(err)) throw err;
-            if (this.access?.token === token) this.access = null;
-            token = await this.token(signal);
-          }
-        }
-        throw new ApiError("AUTH_ERROR", "Microsoft requiere una nueva autorización.");
-      }, this.retryOptions(signal)),
+          throw new ApiError("AUTH_ERROR", "Microsoft requiere una nueva autorización.");
+        }, this.retryOptions(signal)),
+      signal,
     );
   }
 }

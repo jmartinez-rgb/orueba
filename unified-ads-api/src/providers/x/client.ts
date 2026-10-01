@@ -64,51 +64,55 @@ export class XClient {
       throw new ApiError("INVALID_REQUEST", "Parámetro OAuth reservado.");
     const url = new URL(X_BASE + path);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-    return this.breaker.exec(() =>
-      withRetry(
-        async () => {
-          signal.throwIfAborted();
-          let response: Response;
-          try {
-            response = await this.request(url, {
-              method,
-              headers: { Authorization: oauthHeader(method, url, this.config) },
-              redirect: "error",
-              signal,
-            });
-          } catch {
-            throw new ApiError(
-              signal.aborted ? "PROVIDER_TIMEOUT" : "PROVIDER_ERROR",
-              "No se pudo completar la conexión con X Ads.",
-              { details: { provider: "x", transient: !signal.aborted } },
-            );
-          }
-          let body: unknown;
-          try {
-            body = JSON.parse(
-              new TextDecoder("utf-8", { fatal: true }).decode(await boundedBytes(response, 10 * 1024 * 1024, signal)),
-            );
-          } catch {
-            if (!response.ok) throw xError(response.status, null, response.headers);
-            throw new ApiError("PROVIDER_ERROR", "X Ads devolvió JSON inválido.");
-          }
-          if (!response.ok || (object(body) && Array.isArray(body.errors) && body.errors.length))
-            throw xError(response.status, body, response.headers);
-          if (!object(body)) throw new ApiError("PROVIDER_ERROR", "X Ads devolvió una respuesta incompatible.");
-          return body;
-        },
-        {
-          retries: this.config.retries,
-          sleep: (ms) => delay(ms, undefined, { signal }),
-          ...this.retry,
-          // No clamp below the provider's reset time. Stop when the reset exceeds the whole deadline.
-          maxMs: this.config.timeoutMs,
-          shouldRetry: (e) =>
-            xRetryable(e) &&
-            (method === "GET" || (e instanceof ApiError && e.code === "RATE_LIMITED")) &&
-            !(e instanceof ApiError && e.retryAfter !== null && e.retryAfter * 1000 >= this.config.timeoutMs),
-        },
-      ),
+    return this.breaker.exec(
+      () =>
+        withRetry(
+          async () => {
+            signal.throwIfAborted();
+            let response: Response;
+            try {
+              response = await this.request(url, {
+                method,
+                headers: { Authorization: oauthHeader(method, url, this.config) },
+                redirect: "error",
+                signal,
+              });
+            } catch {
+              throw new ApiError(
+                signal.aborted ? "PROVIDER_TIMEOUT" : "PROVIDER_ERROR",
+                "No se pudo completar la conexión con X Ads.",
+                { details: { provider: "x", transient: !signal.aborted } },
+              );
+            }
+            let body: unknown;
+            try {
+              body = JSON.parse(
+                new TextDecoder("utf-8", { fatal: true }).decode(
+                  await boundedBytes(response, 10 * 1024 * 1024, signal),
+                ),
+              );
+            } catch {
+              if (!response.ok) throw xError(response.status, null, response.headers);
+              throw new ApiError("PROVIDER_ERROR", "X Ads devolvió JSON inválido.");
+            }
+            if (!response.ok || (object(body) && Array.isArray(body.errors) && body.errors.length))
+              throw xError(response.status, body, response.headers);
+            if (!object(body)) throw new ApiError("PROVIDER_ERROR", "X Ads devolvió una respuesta incompatible.");
+            return body;
+          },
+          {
+            retries: this.config.retries,
+            sleep: (ms) => delay(ms, undefined, { signal }),
+            ...this.retry,
+            // No clamp below the provider's reset time. Stop when the reset exceeds the whole deadline.
+            maxMs: this.config.timeoutMs,
+            shouldRetry: (e) =>
+              xRetryable(e) &&
+              (method === "GET" || (e instanceof ApiError && e.code === "RATE_LIMITED")) &&
+              !(e instanceof ApiError && e.retryAfter !== null && e.retryAfter * 1000 >= this.config.timeoutMs),
+          },
+        ),
+      signal,
     );
   }
   async list(path: string, params: Record<string, string>, signal: AbortSignal) {

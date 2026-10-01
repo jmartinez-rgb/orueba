@@ -60,62 +60,64 @@ export class GoogleAdsClient {
 
   private async call<T>(path: string, body: unknown, login: string | undefined, signal: AbortSignal): Promise<T> {
     try {
-      return await this.breaker.exec(() =>
-        withRetry(
-          async () => {
-            signal.throwIfAborted();
-            let token = await this.auth.token(signal);
-            let refreshed = false;
-            for (;;) {
+      return await this.breaker.exec(
+        () =>
+          withRetry(
+            async () => {
               signal.throwIfAborted();
-              const headers: Record<string, string> = { authorization: `Bearer ${token}` };
-              if (body !== undefined) headers["content-type"] = "application/json";
-              if (this.config.developerToken) headers["developer-token"] = this.config.developerToken;
-              if (this.config.cloudProject) headers["x-goog-user-project"] = this.config.cloudProject;
-              // ListAccessibleCustomers es independiente del contexto del MCC.
-              if (login && path !== "customers:listAccessibleCustomers")
-                headers["login-customer-id"] = customerId(login);
-              let response: Response;
-              try {
-                response = await this.request(`${GOOGLE_ADS_API_URL}/${this.config.version}/${path}`, {
-                  method: body === undefined ? "GET" : "POST",
-                  headers,
-                  ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-                  signal,
-                  redirect: "error",
-                });
-              } catch (err) {
-                if (signal.aborted || (err instanceof Error && ["AbortError", "TimeoutError"].includes(err.name)))
-                  throw new ApiError("PROVIDER_TIMEOUT", "Google Ads no respondió a tiempo.");
-                throw new ApiError("PROVIDER_ERROR", "No se pudo conectar con Google Ads.");
+              let token = await this.auth.token(signal);
+              let refreshed = false;
+              for (;;) {
+                signal.throwIfAborted();
+                const headers: Record<string, string> = { authorization: `Bearer ${token}` };
+                if (body !== undefined) headers["content-type"] = "application/json";
+                if (this.config.developerToken) headers["developer-token"] = this.config.developerToken;
+                if (this.config.cloudProject) headers["x-goog-user-project"] = this.config.cloudProject;
+                // ListAccessibleCustomers es independiente del contexto del MCC.
+                if (login && path !== "customers:listAccessibleCustomers")
+                  headers["login-customer-id"] = customerId(login);
+                let response: Response;
+                try {
+                  response = await this.request(`${GOOGLE_ADS_API_URL}/${this.config.version}/${path}`, {
+                    method: body === undefined ? "GET" : "POST",
+                    headers,
+                    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+                    signal,
+                    redirect: "error",
+                  });
+                } catch (err) {
+                  if (signal.aborted || (err instanceof Error && ["AbortError", "TimeoutError"].includes(err.name)))
+                    throw new ApiError("PROVIDER_TIMEOUT", "Google Ads no respondió a tiempo.");
+                  throw new ApiError("PROVIDER_ERROR", "No se pudo conectar con Google Ads.");
+                }
+                let data: unknown;
+                try {
+                  data = await response.json();
+                } catch {
+                  if (!response.ok) throw googleError(response.status, null, response.headers);
+                  throw new ApiError("PROVIDER_ERROR", "Google Ads devolvió una respuesta inválida.");
+                }
+                if (response.status === 401 && !refreshed) {
+                  this.auth.invalidate(token);
+                  token = await this.auth.token(signal);
+                  refreshed = true;
+                  continue;
+                }
+                if (!response.ok) throw googleError(response.status, data, response.headers);
+                if (!data || typeof data !== "object" || Array.isArray(data))
+                  throw new ApiError("PROVIDER_ERROR", "Google Ads devolvió una respuesta inválida.");
+                return data as T;
               }
-              let data: unknown;
-              try {
-                data = await response.json();
-              } catch {
-                if (!response.ok) throw googleError(response.status, null, response.headers);
-                throw new ApiError("PROVIDER_ERROR", "Google Ads devolvió una respuesta inválida.");
-              }
-              if (response.status === 401 && !refreshed) {
-                this.auth.invalidate(token);
-                token = await this.auth.token(signal);
-                refreshed = true;
-                continue;
-              }
-              if (!response.ok) throw googleError(response.status, data, response.headers);
-              if (!data || typeof data !== "object" || Array.isArray(data))
-                throw new ApiError("PROVIDER_ERROR", "Google Ads devolvió una respuesta inválida.");
-              return data as T;
-            }
-          },
-          {
-            retries: this.config.retries,
-            // El cap compartido de Retry-After no debe adelantar reintentos dentro de nuestro deadline.
-            maxMs: Math.max(16000, this.config.timeoutMs),
-            sleep: (ms) => delay(ms, undefined, { signal }),
-            ...this.retry,
-          },
-        ),
+            },
+            {
+              retries: this.config.retries,
+              // El cap compartido de Retry-After no debe adelantar reintentos dentro de nuestro deadline.
+              maxMs: Math.max(16000, this.config.timeoutMs),
+              sleep: (ms) => delay(ms, undefined, { signal }),
+              ...this.retry,
+            },
+          ),
+        signal,
       );
     } catch (err) {
       if (signal.aborted) throw new ApiError("PROVIDER_TIMEOUT", "La consulta a Google Ads agotó su tiempo máximo.");

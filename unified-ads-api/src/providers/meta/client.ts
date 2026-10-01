@@ -35,48 +35,50 @@ export class MetaClient {
     }
     if (this.proof) url.searchParams.set("appsecret_proof", this.proof);
     try {
-      return await this.breaker.exec(() =>
-        withRetry(
-          async () => {
-            signal.throwIfAborted();
-            let response: Response;
-            try {
-              response = await this.request(url, {
-                method: "GET",
-                headers: { authorization: `Bearer ${this.config.accessToken}` },
-                signal,
-                redirect: "error",
-              });
-            } catch {
-              throw new ApiError(
-                signal.aborted ? "PROVIDER_TIMEOUT" : "PROVIDER_ERROR",
-                signal.aborted ? "Meta agotó su tiempo máximo." : "No se pudo conectar con Meta.",
-                { details: { provider: "meta", transient: !signal.aborted } },
-              );
-            }
-            let data: unknown;
-            try {
-              data = await response.json();
-            } catch {
-              if (signal.aborted) throw new ApiError("PROVIDER_TIMEOUT", "Meta agotó su tiempo máximo.");
-              if (!response.ok) throw metaError(response.status, null, response.headers);
-              throw new ApiError("PROVIDER_ERROR", "Meta devolvió una respuesta inválida.");
-            }
-            if (!response.ok || (metaObject(data) && data.error))
-              throw metaError(response.status, data, response.headers);
-            if (!metaObject(data)) throw new ApiError("PROVIDER_ERROR", "Meta devolvió una respuesta inválida.");
-            return data as T;
-          },
-          {
-            retries: this.config.retries,
-            maxMs: Math.max(16000, this.config.timeoutMs),
-            sleep: (ms) => delay(ms, undefined, { signal }),
-            ...this.retry,
-            shouldRetry: (err) =>
-              isMetaRetryable(err) &&
-              !(err instanceof ApiError && err.retryAfter !== null && err.retryAfter * 1000 >= this.config.timeoutMs),
-          },
-        ),
+      return await this.breaker.exec(
+        () =>
+          withRetry(
+            async () => {
+              signal.throwIfAborted();
+              let response: Response;
+              try {
+                response = await this.request(url, {
+                  method: "GET",
+                  headers: { authorization: `Bearer ${this.config.accessToken}` },
+                  signal,
+                  redirect: "error",
+                });
+              } catch {
+                throw new ApiError(
+                  signal.aborted ? "PROVIDER_TIMEOUT" : "PROVIDER_ERROR",
+                  signal.aborted ? "Meta agotó su tiempo máximo." : "No se pudo conectar con Meta.",
+                  { details: { provider: "meta", transient: !signal.aborted } },
+                );
+              }
+              let data: unknown;
+              try {
+                data = await response.json();
+              } catch {
+                if (signal.aborted) throw new ApiError("PROVIDER_TIMEOUT", "Meta agotó su tiempo máximo.");
+                if (!response.ok) throw metaError(response.status, null, response.headers);
+                throw new ApiError("PROVIDER_ERROR", "Meta devolvió una respuesta inválida.");
+              }
+              if (!response.ok || (metaObject(data) && data.error))
+                throw metaError(response.status, data, response.headers);
+              if (!metaObject(data)) throw new ApiError("PROVIDER_ERROR", "Meta devolvió una respuesta inválida.");
+              return data as T;
+            },
+            {
+              retries: this.config.retries,
+              maxMs: Math.max(16000, this.config.timeoutMs),
+              sleep: (ms) => delay(ms, undefined, { signal }),
+              ...this.retry,
+              shouldRetry: (err) =>
+                isMetaRetryable(err) &&
+                !(err instanceof ApiError && err.retryAfter !== null && err.retryAfter * 1000 >= this.config.timeoutMs),
+            },
+          ),
+        signal,
       );
     } catch (err) {
       if (signal.aborted) throw new ApiError("PROVIDER_TIMEOUT", "La consulta a Meta agotó su tiempo máximo.");
