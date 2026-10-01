@@ -18,6 +18,12 @@ import { ErrorPanel } from "@/components/monitoring/error-panel";
 import { LiveClock } from "@/components/layout/live-clock";
 import { ConfidenceMeter } from "@/components/monitoring/confidence-meter";
 import { ExecutionChip } from "@/components/monitoring/execution-chip";
+import { DeliveryHealthPanel, type DeliveryPanelState } from "@/components/monitoring/delivery-health-panel";
+import { unifiedBudgets, unifiedDelivery } from "@/lib/integrations/unified-api";
+import { demoDeliverySignals } from "@/lib/mock/delivery-health";
+import { demoBudgets } from "@/lib/mock/platform-budgets";
+import { buildDeliveryView } from "@/lib/services/delivery-health";
+import type { Snapshot } from "@/lib/services/snapshot";
 
 export const metadata: Metadata = { title: "Overview" };
 export const dynamic = "force-dynamic";
@@ -102,6 +108,10 @@ export default async function OverviewPage() {
         </Card>
       </div>
 
+      <div className="order-2 lg:order-none">
+        <DeliveryHealthPanel state={await deliveryState(snap)} />
+      </div>
+
       <div className="order-5 grid gap-5 lg:order-none xl:grid-cols-3">
         <div className="min-w-0 xl:col-span-2">
           <SpendPacingCard curves={charts.spendCurves} pacing={charts.pacing} scopes={charts.scopes} weeks={charts.weeks} />
@@ -120,4 +130,18 @@ export default async function OverviewPage() {
       </div>
     </div>
   );
+}
+
+/** Salud de entrega: API unificada con datos reales; señales de ejemplo en modo demo. */
+async function deliveryState(snap: Snapshot): Promise<DeliveryPanelState> {
+  const demo = snap.meta.mode === "mock";
+  const [delivery, budgets] = demo
+    ? [{ ok: true as const, signals: demoDeliverySignals(snap), warnings: [] as string[] }, { ok: true as const, budgets: demoBudgets(snap, null) }]
+    : await Promise.all([unifiedDelivery(), unifiedBudgets()]);
+  if (!delivery.ok) return { kind: "unavailable", reason: delivery.reason, configured: delivery.configured };
+  const [y, m, d] = snap.meta.businessDate.split("-").map(Number);
+  const daysLeft = new Date(Date.UTC(y!, m!, 0)).getUTCDate() - d!;
+  const view = buildDeliveryView({ signals: delivery.signals, brand: snap.meta.brand.id, platforms: snap.run.platforms, budgets: budgets.ok ? budgets.budgets : [], daysLeft });
+  if (delivery.warnings.length) view.insights.push({ tone: "warn", text: `Lectura incompleta: ${delivery.warnings[0]}` });
+  return { kind: "ready", view, demo };
 }

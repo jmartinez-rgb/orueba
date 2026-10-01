@@ -142,3 +142,64 @@ export async function fetchUnifiedBudgets(request: typeof fetch = fetch): Promis
 export function unifiedBudgets(): Promise<UnifiedBudgets> {
   return cached("unified-api:budgets", 300_000, () => fetchUnifiedBudgets());
 }
+
+/* ---------- Salud de entrega (Meta, Google y Microsoft) ---------- */
+
+const deliverySchema = z.object({
+  platform: z.string(),
+  account_id: z.string(),
+  account_name: z.string(),
+  entity_level: z.enum(["account", "campaign", "ad_set"]),
+  campaign_id: z.string().nullable(),
+  campaign_name: z.string().nullable(),
+  entity_id: z.string(),
+  entity_name: z.string(),
+  kind: z.string(),
+  severity: z.enum(["critical", "warning", "info"]),
+  code: z.string().nullable(),
+  detail: z.string().nullable(),
+  currency: z.string().nullable(),
+  spend_cap: z.number().nullable(),
+  amount_spent: z.number().nullable(),
+  extracted_at: z.string(),
+});
+const deliveryResponseSchema = z.object({
+  data: z.array(deliverySchema),
+  errors: z.array(z.object({ provider: z.string(), error: z.object({ code: z.string(), message: z.string() }).passthrough() })),
+});
+
+export type UnifiedDeliverySignal = z.infer<typeof deliverySchema>;
+export type UnifiedDelivery =
+  | { ok: true; signals: UnifiedDeliverySignal[]; warnings: string[]; checkedAt: string }
+  | { ok: false; configured: boolean; reason: string; checkedAt: string };
+
+/** Señales de salud de entrega que reporta cada plataforma (solo lectura). */
+export async function fetchUnifiedDelivery(request: typeof fetch = fetch): Promise<UnifiedDelivery> {
+  const env = getEnv().unifiedApi;
+  const checkedAt = new Date().toISOString();
+  if (!env.configured) return { ok: false, configured: false, reason: "Configura UNIFIED_ADS_API_URL y UNIFIED_ADS_API_KEY.", checkedAt };
+  const base = validUnifiedUrl(env.url);
+  if (!base) return { ok: false, configured: true, reason: "UNIFIED_ADS_API_URL debe usar HTTPS (o ser local en desarrollo).", checkedAt };
+  let res: Response;
+  try {
+    res = await request(new URL("/api/v1/delivery-health", base), {
+      headers: { "X-API-Key": env.apiKey!, Accept: "application/json" },
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(Math.max(env.timeoutMs, 20_000)),
+    });
+  } catch (err) {
+    const timeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+    return { ok: false, configured: true, reason: timeout ? "La API unificada no respondió a tiempo." : "No se pudo conectar con la API unificada.", checkedAt };
+  }
+  if (res.status === 401) return { ok: false, configured: true, reason: "La API unificada rechazó la llave (UNIFIED_ADS_API_KEY).", checkedAt };
+  if (!res.ok) return { ok: false, configured: true, reason: `La API unificada respondió HTTP ${res.status}.`, checkedAt };
+  const parsed = deliveryResponseSchema.safeParse(await res.json().catch(() => null));
+  if (!parsed.success) return { ok: false, configured: true, reason: "La API unificada devolvió una respuesta inesperada.", checkedAt };
+  return { ok: true, signals: parsed.data.data, warnings: parsed.data.errors.map((e) => `${e.provider}: ${e.error.message}`), checkedAt };
+}
+
+/** Salud con caché de cinco minutos (Overview y Platforms la comparten). */
+export function unifiedDelivery(): Promise<UnifiedDelivery> {
+  return cached("unified-api:delivery", 300_000, () => fetchUnifiedDelivery());
+}
