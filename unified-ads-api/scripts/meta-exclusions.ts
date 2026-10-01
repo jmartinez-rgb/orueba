@@ -21,7 +21,7 @@ import { ApiError } from "../src/utils/errors.js";
 /**
  * Genera un Excel con las cuentas, campañas y grupos de anuncios de Meta que excluyen la audiencia
  * de clientes activos y los que no. Solo lectura: no cambia nada en Meta. Usa META_ACCESS_TOKEN
- * del .env local y nunca lo muestra. Uso:
+ * del .env local (o lo pide en la terminal sin mostrarlo ni guardarlo) y nunca lo muestra. Uso:
  *   npm run meta:exclusiones -- 902854812517704 801573051220234
  *   npm run meta:exclusiones -- --solo-activos --patron "clientes activos|base activa" <IDs>
  * Sin IDs usa META_AD_ACCOUNT_IDS. El archivo queda en reportes/ (fuera de git).
@@ -44,6 +44,43 @@ function args(argv: string[]) {
   return { ids, pattern, onlyActive, output };
 }
 
+/** Pide un valor en la terminal sin mostrarlo (modo crudo). Sin terminal interactiva devuelve "". */
+async function askHidden(question: string): Promise<string> {
+  const input = process.stdin;
+  if (!input.isTTY) return "";
+  process.stdout.write(question);
+  input.setRawMode(true);
+  input.setEncoding("utf8");
+  input.resume();
+  return new Promise((resolve, reject) => {
+    let value = "";
+    const finish = () => {
+      input.off("data", onData);
+      input.setRawMode(false);
+      input.pause();
+      process.stdout.write("\n");
+    };
+    const onData = (chunk: string) => {
+      // Quita las marcas de pegado entre corchetes que algunas terminales agregan.
+      for (const ch of chunk.replaceAll("\u001b[200~", "").replaceAll("\u001b[201~", "")) {
+        if (ch === "\r" || ch === "\n") {
+          finish();
+          resolve(value.trim());
+          return;
+        }
+        if (ch === "\u0003") {
+          finish();
+          reject(new Error("Cancelado."));
+          return;
+        }
+        if (ch === "\u007f" || ch === "\b") value = value.slice(0, -1);
+        else if (ch >= " ") value += ch;
+      }
+    };
+    input.on("data", onData);
+  });
+}
+
 function safeMessage(e: unknown): string {
   return e instanceof ApiError ? e.message : "Error inesperado al leer la cuenta.";
 }
@@ -51,6 +88,11 @@ function safeMessage(e: unknown): string {
 async function main() {
   prepareEnv();
   const options = args(process.argv.slice(2));
+  // Sin token en .env se pide en la terminal; solo vive en este proceso y no se guarda.
+  if (!process.env.META_ACCESS_TOKEN?.trim()) {
+    const token = await askHidden("Pega tu token de Meta con ads_read (no se muestra ni se guarda) y presiona Enter: ");
+    if (token) process.env.META_ACCESS_TOKEN = token;
+  }
   const { config, missing } = readMetaConfig(process.env);
   if (!config)
     throw new Error(`Configura Meta en .env antes de continuar (faltan o son inválidas: ${missing.join(", ")}).`);

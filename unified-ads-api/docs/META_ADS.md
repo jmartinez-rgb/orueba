@@ -154,7 +154,8 @@ conversiones, valor y CPA en `null`.
 
 `npm run meta:exclusiones` genera un Excel con las cuentas, campañas y grupos de anuncios que excluyen la
 audiencia de clientes activos y los que no. Es solo lectura: no cambia nada en Meta. Usa
-`META_ACCESS_TOKEN` del `.env` local (requiere `ads_read`) y nunca lo muestra.
+`META_ACCESS_TOKEN` del `.env` local (requiere `ads_read`); si no existe, lo pide en la terminal sin mostrarlo
+y solo lo usa en esa ejecución, sin guardarlo.
 
 ```bash
 npm run meta:exclusiones -- 902854812517704 801573051220234 1002273077117011
