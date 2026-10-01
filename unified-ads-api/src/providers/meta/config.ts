@@ -12,6 +12,11 @@ export interface MetaConfig {
   conversionMapping: Record<string, string>;
   primaryAction?: string;
   primaryActions: Record<string, string>;
+  /**
+   * Acción principal por nombre de campaña (gana sobre la de la cuenta y la global). Permite medir
+   * campañas de un mismo tipo con su propia acción, p. ej. las que dicen «CAPI WhatsApp».
+   */
+  primaryRules: Array<{ contains: string; action: string }>;
   timeoutMs: number;
   retries: number;
 }
@@ -58,6 +63,7 @@ export function readMetaConfig(
     clientMapping: {} as Record<string, string>,
     conversionMapping: {} as Record<string, string>,
     primaryActions: {} as Record<string, string>,
+    primaryRules: [] as Array<{ contains: string; action: string }>,
   };
   const parse = (name: string, fn: (value: string) => void) => {
     const value = get(name);
@@ -83,6 +89,17 @@ export function readMetaConfig(
   });
   parse("META_PRIMARY_CONVERSION_MAPPING", (v) => {
     values.primaryActions = stringMap(v, true);
+  });
+  parse("META_PRIMARY_CONVERSION_RULES", (v) => {
+    const raw: unknown = JSON.parse(v);
+    if (!Array.isArray(raw) || raw.length > 50) throw new Error();
+    values.primaryRules = raw.map((r: unknown) => {
+      if (!r || typeof r !== "object") throw new Error();
+      const { campaign_contains: contains, action } = r as Record<string, unknown>;
+      if (typeof contains !== "string" || !contains.trim() || contains.length > 120) throw new Error();
+      if (typeof action !== "string" || !/^[\w.:-]{1,200}$/.test(action)) throw new Error();
+      return { contains: contains.trim(), action };
+    });
   });
   const primaryAction = get("META_PRIMARY_CONVERSION_ACTION");
   if (primaryAction && !/^[\w.:-]{1,200}$/.test(primaryAction)) missing.push("META_PRIMARY_CONVERSION_ACTION");

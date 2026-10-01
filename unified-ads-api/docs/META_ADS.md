@@ -45,6 +45,7 @@ Configurar un token no demuestra que esas aprobaciones ya existan.
 | `META_CONVERSION_MAPPING`         | JSON tipo de acción → categoría interna. Permite categorías como `LEAD`, `PURCHASE`, `CONTACT`, `WHATSAPP`.                                                                                           |
 | `META_PRIMARY_CONVERSION_ACTION`  | Acción exacta usada para conversiones, valor y CPA en rendimiento. Sin ella esas métricas quedan en `null`.                                                                                           |
 | `META_PRIMARY_CONVERSION_MAPPING` | JSON cuenta → acción principal. Sobrescribe la acción global por cuenta.                                                                                                                              |
+| `META_PRIMARY_CONVERSION_RULES`   | JSON `[{"campaign_contains":"CAPI WhatsApp","action":"..."}]`. Acción por nombre de campaña (sin acentos ni mayúsculas); gana sobre la de cuenta y la global.                                         |
 | `META_TIMEOUT_MS`                 | Tiempo máximo de la operación completa; por defecto el timeout común, 15000 ms.                                                                                                                       |
 | `META_RETRIES`                    | Reintentos transitorios por llamada, 2 por defecto, máximo 5.                                                                                                                                         |
 
@@ -149,6 +150,22 @@ Pasaron **162 pruebas**, además de typecheck, lint, build y formato. Google Ads
 Las pruebas con simulador no reemplazan la verificación de permisos y datos de cada cuenta. La acción
 principal aún debe configurarse según la medición del cliente; sin ella rendimiento mantiene
 conversiones, valor y CPA en `null`.
+
+## Elegir la acción principal (`npm run meta:acciones`)
+
+La regla de medición de izzi es por campaña: las que dicen «CAPI WhatsApp» se miden con On-Facebook
+Purchase y las demás con Compras Offline Web (Inbound). `META_PRIMARY_CONVERSION_RULES` la expresa
+sin código; los identificadores exactos (`action_type`) los confirma el equipo.
+
+```bash
+npm run meta:acciones -- 902854812517704 801573051220234            # últimos 7 días completos
+npm run meta:acciones -- --desde 2026-09-01 --hasta 2026-09-30 <IDs>
+```
+
+Deja en `reportes/` un Excel con las acciones que reporta cada cuenta por universo, su volumen, el peso
+del gasto de las campañas que las usan y el nombre de las conversiones personalizadas. Marca como
+«Revisar» las que coinciden por nombre con la regla y propone las líneas de configuración solo si hay
+una única candidata; si hay varias o ninguna, lo dice. Nada se aplica solo. Solo lectura.
 
 ## Revisión de públicos excluidos (clientes activos)
 

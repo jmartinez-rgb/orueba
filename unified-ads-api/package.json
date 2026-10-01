@@ -23,7 +23,8 @@
     "spotify:auth": "tsx scripts/spotify-auth.ts",
     "tiktok:auth": "tsx scripts/tiktok-auth.ts",
     "meta:exclusiones": "tsx scripts/meta-exclusions.ts",
-    "verificar": "tsx scripts/verify-real.ts"
+    "verificar": "tsx scripts/verify-real.ts",
+    "meta:acciones": "tsx scripts/meta-actions.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",

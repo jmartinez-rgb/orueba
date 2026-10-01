@@ -49,3 +49,26 @@ describe("auditoría Meta: cero real frente a dato ausente", () => {
     expect((await provider.getPerformance(query))[0]).toMatchObject({ conversions: null, cpa: null });
   });
 });
+
+describe("auditoría Claude: acción principal por nombre de campaña", () => {
+  it("una regla por nombre gana sobre la cuenta y la global, sin distinguir acentos ni mayúsculas", async () => {
+    const { readMetaConfig } = await import("../src/providers/meta/config.js");
+    const { primaryFor } = await import("../src/providers/meta/normalize.js");
+    const { config, missing } = readMetaConfig({
+      META_ACCESS_TOKEN: "t",
+      META_PRIMARY_CONVERSION_ACTION: "offsite_conversion.custom.111",
+      META_PRIMARY_CONVERSION_MAPPING: '{"222":"lead"}',
+      META_PRIMARY_CONVERSION_RULES: '[{"campaign_contains":"CAPI WhatsApp","action":"onsite_conversion.purchase"}]',
+    });
+    expect(missing).toEqual([]);
+    expect(primaryFor(config!, "111", "MXN | Venta CAPI WHATSAPP | Hogar")).toBe("onsite_conversion.purchase");
+    expect(primaryFor(config!, "222", "Mensajes WhatsApp")).toBe("lead");
+    expect(primaryFor(config!, "111", "Sitio Web | Venta")).toBe("offsite_conversion.custom.111");
+    expect(
+      readMetaConfig({
+        META_ACCESS_TOKEN: "t",
+        META_PRIMARY_CONVERSION_RULES: '[{"campaign_contains":"","action":"x"}]',
+      }).missing,
+    ).toContain("META_PRIMARY_CONVERSION_RULES");
+  });
+});

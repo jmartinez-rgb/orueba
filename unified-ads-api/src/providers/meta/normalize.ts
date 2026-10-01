@@ -147,6 +147,23 @@ export function isHourlyActionSupported(type: string): boolean {
   );
 }
 
+const fold = (v: string) =>
+  v
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+
+/** Acción principal de una fila: regla por nombre de campaña, luego la de la cuenta, luego la global. */
+export function primaryFor(
+  config: MetaConfig,
+  accountId: string,
+  campaignName: string | null | undefined,
+): string | undefined {
+  const name = campaignName ? fold(campaignName) : "";
+  const rule = name ? config.primaryRules.find((r) => name.includes(fold(r.contains))) : undefined;
+  return rule?.action ?? config.primaryActions[accountId] ?? config.primaryAction;
+}
+
 export function normalizePerformance(
   row: MetaInsight,
   account: NormalizedAccount,
@@ -156,7 +173,7 @@ export function normalizePerformance(
   campaign?: NormalizedCampaign,
 ): NormalizedPerformance {
   const { date, hour, campaignId } = bucket(row, account, query);
-  const primary = config.primaryActions[account.account_id] ?? config.primaryAction;
+  const primary = primaryFor(config, account.account_id, row.campaign_name ?? campaign?.campaign_name);
   // Las conversiones externas no están soportadas con el breakdown horario.
   const supported = primary && (hour === null || isHourlyActionSupported(primary));
   // Meta solo lista las acciones que ocurrieron: si se pidió y no aparece, ese día fueron 0.
@@ -216,7 +233,7 @@ export function normalizeConversions(
   const counts = actions(row.actions),
     values = actions(row.action_values);
   const all = new Map([...counts, ...values].map((a) => [a.action_type!, a]));
-  const primary = config.primaryActions[account.account_id] ?? config.primaryAction;
+  const primary = primaryFor(config, account.account_id, row.campaign_name);
   return [...all.keys()]
     .filter((type) => isConversionAction(type, config, primary) && (hour === null || isHourlyActionSupported(type)))
     .map((type) => ({
