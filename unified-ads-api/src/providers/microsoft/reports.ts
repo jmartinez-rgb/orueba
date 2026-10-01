@@ -35,6 +35,11 @@ export const CONVERSION_COLUMNS = [
 export type ReportRow = Record<string, string>;
 export type MicrosoftResolver = (hostname: string) => Promise<{ address: string; family: number }[]>;
 
+// Trust only the Microsoft reporting storage account observed in an authenticated v13 response.
+// Allowing arbitrary public hosts permits attacker-controlled DNS to change after validation.
+// A vendor hostname migration must be reviewed; do not expand this to all Azure storage tenants.
+export const MICROSOFT_REPORT_HOST = "bingadsappsstorageprod.blob.core.windows.net";
+
 const blocked = new BlockList();
 for (const [ip, prefix] of [
   ["0.0.0.0", 8],
@@ -71,6 +76,7 @@ export async function safeDownloadUrl(
   }
   if (
     url.protocol !== "https:" ||
+    url.hostname !== MICROSOFT_REPORT_HOST ||
     url.username ||
     url.password ||
     url.hash ||
@@ -205,7 +211,7 @@ export async function microsoftReport(
     const url = await safeDownloadUrl(status.ReportDownloadUrl, resolve);
     let response: Response;
     try {
-      // The signed URL is issued by Microsoft; its domain may change. No credentials or redirects are used.
+      // Fixed trusted Microsoft host; preserve the configured proxy and TLS verification.
       response = await client.request(url, { method: "GET", signal, redirect: "error" });
     } catch {
       throw new ApiError(

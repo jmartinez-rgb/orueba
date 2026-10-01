@@ -12,10 +12,10 @@ cada API: n8n solo pregunta a esta API.
 | 1    | Infraestructura base (sin integraciones) | **Lista**                                                                                   |
 | 2    | Google Ads                               | **Implementada y verificada con Google real y simulador**                                   |
 | 3    | Meta Marketing API                       | **Implementada y verificada con Meta real y simulador**                                     |
-| 4    | TikTok Ads                               | **Implementada y verificada con simulador; faltan credenciales reales**                     |
+| 4    | TikTok Ads                               | **App aprobada; OAuth y lectura real pendientes de variables privadas**                     |
 | 5    | Microsoft Advertising                    | **Autorización y campañas reales verificadas; descarga de informes bloqueada por el proxy** |
 | 6    | Spotify Ads                              | **OAuth real validado; Ads API aún responde 403 (`ACCESS_REQUIRED`) tras aceptar términos** |
-| 7    | X Ads                                    | Pendiente (puede requerir aprobación de acceso)                                             |
+| 7    | X Ads                                    | **Implementada en API 12; validada con fixtures; falta conexión real**                      |
 
 La Fase 1 ya incluye piezas que las integraciones van a usar: fórmulas normalizadas (CTR, CPC, CPM,
 CPA sin NaN ni Infinity), reintentos con espera exponencial y variación (respetan `Retry-After`),
@@ -168,6 +168,11 @@ con credenciales necesita autorización de las cuentas y permisos de lectura/rep
 Consulta [docs/TIKTOK_ADS.md](docs/TIKTOK_ADS.md) para el flujo desde el navegador, fuentes oficiales,
 semántica de métricas y límites. El contrato v2.0 y los reportes asíncronos quedan fuera de esta fase.
 
+Cuentas solicitadas para la primera lectura: Sky México `7338571937913978882`, Sky Sports MXN
+`7545502925565771792`, izzi - ABCW `7361545670072909840` e izzi ABCW US `7688066712031182866`.
+Guarda esos IDs como texto en `TIKTOK_ADVERTISER_IDS`. El token y la lista son suficientes para
+reporting. App ID/Secret sirven para discovery y para `npm run tiktok:auth`, no sustituyen al token.
+
 ## Microsoft Advertising (Fase 5)
 
 Lee cuentas, campañas de todos los tipos actuales e informes diarios/horarios de rendimiento y
@@ -254,3 +259,24 @@ src/
 ```
 
 Más detalle en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## X Ads (Fase 7)
+
+Implementa **Ads API 12** con OAuth 1.0a de usuario, cuentas, campañas, métricas diarias/horarias,
+conversiones web y reportes asíncronos para rangos largos. Comparte interfaz, timeout propio,
+estados y vocabulario de conversiones. El panel de monitoreo lo muestra como el resto.
+Configura los cuatro valores privados `X_ADS_CONSUMER_KEY`, `X_ADS_CONSUMER_SECRET`,
+`X_ADS_ACCESS_TOKEN`, `X_ADS_ACCESS_TOKEN_SECRET`. No se elige un evento principal automáticamente.
+Consulta [docs/X_ADS.md](docs/X_ADS.md) para versión, fuentes, permisos y límites comprobados.
+Las pruebas no salen a red; faltan credenciales y conciliación real.
+
+## Continuación para auditoría de Claude
+
+La rama `codex/continuacion-tiktok-x` parte de `1bf278f` y conserva las correcciones previas.
+Meta divide reportes diarios en bloques de 30 días y horarios en un día. Google consulta hasta
+cuatro cuentas a la vez y decodifica ceros escalares seleccionados sin fabricar filas.
+Spotify mantiene el día final inclusivo, confirmado contra la referencia oficial v3.
+Microsoft solo descarga de `bingadsappsstorageprod.blob.core.windows.net`: otros destinos se
+rechazan hasta revisar una migración del proveedor. No se elude el bloqueo del proxy.
+Los riesgos y pendientes separados por código, permisos, configuración y negocio están en
+[docs/AUDITORIA.md](docs/AUDITORIA.md). La conciliación de plataformas sigue pendiente.

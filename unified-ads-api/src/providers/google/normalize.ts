@@ -12,6 +12,15 @@ import type { GoogleConfig } from "./config.js";
 import { campaignStatus } from "./queries.js";
 import { googleNumber, type GoogleRow } from "./types.js";
 
+/** Only scalars selected by our fixed GAQL queries may receive their protobuf zero default. */
+function selectedMetrics(row: GoogleRow) {
+  if (!row.metrics || typeof row.metrics !== "object" || Array.isArray(row.metrics))
+    throw new ApiError("PROVIDER_ERROR", "Google Ads devolvió una fila sin el objeto de métricas solicitado.");
+  return row.metrics;
+}
+const selectedNumber = (metrics: Record<string, unknown>, field: string) =>
+  Object.hasOwn(metrics, field) ? googleNumber(metrics[field]) : 0;
+
 export function normalizeCampaign(row: GoogleRow, account: NormalizedAccount): NormalizedCampaign {
   if (!row.campaign?.id) throw new ApiError("PROVIDER_ERROR", "Google Ads devolvió una campaña sin identificador.");
   return {
@@ -44,12 +53,12 @@ export function normalizePerformance(
   at: string,
 ): NormalizedPerformance {
   const campaign = normalizeCampaign(row, account);
-  const m = row.metrics ?? {};
+  const m = selectedMetrics(row);
   const base = {
-    spend: microsToCurrency(googleNumber(m.costMicros)),
-    impressions: googleNumber(m.impressions),
-    clicks: googleNumber(m.clicks),
-    conversions: googleNumber(m.conversions),
+    spend: microsToCurrency(selectedNumber(m, "costMicros")),
+    impressions: selectedNumber(m, "impressions"),
+    clicks: selectedNumber(m, "clicks"),
+    conversions: selectedNumber(m, "conversions"),
   };
   return {
     ...campaign,
@@ -58,11 +67,11 @@ export function normalizePerformance(
     currency: row.customer?.currencyCode ?? account.currency,
     ...base,
     ...derivedMetrics(base),
-    conversion_value: googleNumber(m.conversionsValue),
+    conversion_value: selectedNumber(m, "conversionsValue"),
     reach: null,
     frequency: null,
     link_clicks: null,
-    video_views: googleNumber(m.videoTrueviewViews),
+    video_views: selectedNumber(m, "videoTrueviewViews"),
     // Google reporta tasas por cuartil, no sus conteos: conserva las tasas sin inventar conteos.
     video_25: null,
     video_50: null,
@@ -97,7 +106,7 @@ export function normalizeConversion(
 ): NormalizedConversion {
   const s = row.segments;
   if (!s?.conversionAction) throw new ApiError("PROVIDER_ERROR", "Google Ads devolvió una conversión sin acción.");
-  const m = row.metrics ?? {};
+  const m = selectedMetrics(row);
   const mapping = config.conversionMapping;
   const lookup = (key: string) => (Object.hasOwn(mapping, key) ? mapping[key] : undefined);
   const id = s.conversionAction.split("/").pop()!;
@@ -115,8 +124,8 @@ export function normalizeConversion(
       lookup(s.conversionActionCategory ?? "") ??
       (Object.hasOwn(CATEGORIES, s.conversionActionCategory ?? "") ? CATEGORIES[s.conversionActionCategory!] : null) ??
       null,
-    conversions: googleNumber(m.conversions),
-    conversion_value: googleNumber(m.conversionsValue),
+    conversions: selectedNumber(m, "conversions"),
+    conversion_value: selectedNumber(m, "conversionsValue"),
     extracted_at: at,
     raw_metrics: {
       ...m,

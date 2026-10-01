@@ -3,6 +3,81 @@
 Fecha: 1 de octubre de 2026. Rama: `codex/entrega-auditoria-claude`. Estado recibido: commit
 `39a65be` (idéntico al ZIP `unified-ads-api-para-auditoria.zip`, comprobado archivo por archivo).
 
+## Continuación desde la auditoría de Claude
+
+Rama de trabajo: `codex/continuacion-tiktok-x`, basada en `claude/blissful-goodall-vh8k7n`
+(commit `1bf278f`). Se preservó el trabajo local anterior antes de cambiar de rama.
+La línea base de esta continuación fue **434 pruebas**, con `fetch` global bloqueado;
+no se sustituyeron las correcciones de Claude ni se eliminaron pruebas.
+
+La documentación oficial de X y Spotify pudo consultarse en esta sesión. Las evidencias históricas
+reales de Google, Meta, Microsoft y Spotify se conservan y **no se presentan como revalidadas**.
+No se ejecutaron escrituras publicitarias, despliegues ni lecturas de `Ventas Detalle`.
+
+### TikTok: primer intento condicionado, bloqueado
+
+El usuario confirmó app aprobada y proporcionó cuatro cuentas:
+
+| Cuenta         | Advertiser ID (texto) |
+| -------------- | --------------------- |
+| Sky México     | `7338571937913978882` |
+| Sky Sports MXN | `7545502925565771792` |
+| izzi - ABCW    | `7361545670072909840` |
+| izzi ABCW US   | `7688066712031182866` |
+
+En la comprobación de esta sesión no estaban inyectados `TIKTOK_ACCESS_TOKEN` ni
+`TIKTOK_ADVERTISER_IDS`; tampoco App ID/Secret. El usuario indicó que los introdujo en el panel,
+pero eso aún no demuestra inyección en el proceso. Los requisitos están declarados en el borrador.
+Se omitieron lecturas reales conforme a la condición solicitada y se continuó con X.
+La salida al host de reporting **no se da por validada** sin esas condiciones.
+
+Al recibir token y lista privada, extraer cuentas, campañas y métricas diarias del **27 al 29 de
+septiembre de 2026** (tres días cerrados), verificando permisos, moneda y zona de cada cuenta.
+Preparar por cuenta y fecha sumas de costo y conteos, CPA = costo total / conversiones totales,
+y los valores originales de compra para conciliar. `total_complete_payment_rate` y la zona horaria
+siguen sin comprobación real. No elegir un evento principal ni sumar tipos superpuestos.
+
+### Riesgos resueltos con contrato o código
+
+- **Spotify, final inclusivo:** la referencia oficial v3 de `getAggregateReport`, parámetro
+  `report_end`, dice explícitamente que DAY/LIFETIME incluyen el día completo de la fecha final.
+  HOUR incluye la hora final. Se mantiene el código y se añadió una regresión de bloques de 90 días.
+  Fuente: [Aggregate report v3](https://developer.spotify.com/documentation/ads-api/reference/v3/getAggregateReport).
+- **Google, ceros escalares seleccionados:** se decodifican como cero los campos de nuestras
+  consultas fijas omitidos dentro de un objeto `metrics` válido. Valores explícitamente nulos,
+  inválidos o imprecisos no se convierten en ceros. Un objeto ausente produce error; no se fabrican
+  campañas/días ausentes. REST usa la representación canónica protobuf y la documentación de
+  reporting aclara que las filas segmentadas con todas las métricas cero no se devuelven.
+  Fuentes: [JSON mappings](https://developers.google.com/google-ads/api/rest/design/json-mappings),
+  [ProtoJSON](https://protobuf.dev/programming-guides/json/),
+  [Zero metrics](https://developers.google.com/google-ads/api/docs/reporting/zero-metrics).
+- **Meta, rangos grandes:** bloques inclusivos de 30 días diarios o un día horario, sin solapamiento,
+  con paginación y un solo timeout. Se rechazan periodos repetidos o fuera del bloque. Regresiones
+  de 366 días mantienen 732 conversiones, sin duplicar fechas, alias ni alterar atribución.
+- **Google, consultas secuenciales:** hasta cuatro cuentas habilitadas en paralelo, manteniendo
+  orden y avisos por permisos parciales. Un fallo global cancela y drena las otras consultas.
+  Sigue siendo necesario filtrar por cuenta/cliente cuando la jerarquía supera el plazo de una petición.
+- **Microsoft, dominio controlado por un atacante:** se rechazan destinos fuera de
+  `bingadsappsstorageprod.blob.core.windows.net` antes de consultar DNS, incluidas otras cuentas
+  Azure Blob. Se mantienen validación de IP pública, TLS, proxy y bloqueo de redirecciones.
+  **Mitigación, no fijación de IP:** con `fetch` y el proxy actual aún hay dos resoluciones; no se
+  declara eliminada esa ventana ante un cambio del DNS del host Microsoft confiado. Si Microsoft
+  cambia el destino, la descarga falla hasta revisar explícitamente ese cambio.
+
+Pruebas de estas correcciones: `tests/continuation-risks.test.ts` y suite existente. X está
+implementado con contrato API 12, OAuth 1.0a, estados compartidos, timeout propio, conversiones web,
+reportes asíncronos y fixtures; contrato y límites en [X_ADS.md](X_ADS.md).
+
+### Validación de esta continuación
+
+- `unified-ads-api`: **501 pruebas en 22 archivos**, incluidas 55 de X y 12 regresiones de riesgos.
+  `typecheck`, `lint`, `format:check` y `build` pasan en Node 24.19.0. La CI conserva Node 22/24;
+  no se afirma una ejecución local nueva en Node 22.
+- `media-monitoring-center`: **202 pruebas en 20 archivos**; `npm run check` pasa (tipos, lint y pruebas).
+  Se añadieron cinco comprobaciones de estados de X en el mismo esquema del panel.
+- No se saltaron, desactivaron ni pusieron en cuarentena pruebas. Las pruebas de API bloquean red global.
+- La conexión real de TikTok y X no está validada; los bloqueos están separados abajo.
+
 ## Cómo se auditó
 
 - **Línea base sobre lo recibido**, en Node 22.22.2 (la versión mínima declarada): tipos, lint,
@@ -128,32 +203,28 @@ Las líneas se refieren al código recibido (`39a65be`).
 
 ## Riesgos por verificar (no confirmados como defecto)
 
-| Sev.     | Ubicación                                           | Riesgo                                                                                                                                                                                            | Cómo cerrarlo                                                                                  |
-| -------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Alta     | `microsoft/reports.ts:140`, `normalize.ts:106`      | Se asume que las filas del CSV vienen en **UTC**. Si vinieran en la zona de la cuenta, los días y las horas estarían desplazados. Los WSDL no lo especifican y la documentación no fue accesible. | Conciliar un día por hora contra la interfaz de Microsoft con una cuenta cuya zona no sea UTC. |
-| Alta     | `spotify/queries.ts:86`                             | `report_end` del último día diario es `T00:00:00Z`. Si Spotify lo tratara como exclusivo, se perdería el último día de cada bloque.                                                               | Con acceso habilitado, pedir dos días y comparar contra el informe de Spotify.                 |
-| Media    | `google/normalize.ts:48`                            | Métricas ausentes = `null`. Si Google omitiera ceros en REST, CPA y CTR serían `null` donde corresponde 0.                                                                                        | Consultar una campaña con un día sin gasto y revisar el JSON.                                  |
-| Media    | `google/queries.ts:45`                              | Las conversiones por hora combinan `segments.hour` con `segments.conversion_action`; la compatibilidad no está confirmada.                                                                        | Ejecutar una consulta horaria real de conversiones.                                            |
-| Media    | `meta/index.ts:206`                                 | Insights sincrónico de hasta 366 días por campaña sin dividir en bloques. Meta puede pedir reducir datos.                                                                                         | Probar 90 y 366 días reales; si falla, dividir en bloques o usar informes asíncronos.          |
-| Media    | `meta/queries.ts` (`action_report_time=impression`) | Puede diferir del criterio configurado en Ads Manager.                                                                                                                                            | Conciliar el mismo día y la misma cuenta con el mismo criterio de atribución.                  |
-| Media    | `google/index.ts`                                   | Las cuentas se recorren una a una: miles de cuentas en una sola solicitud exceden el tiempo.                                                                                                      | Consultar por `account_id` o `client_id`; evaluar paralelismo limitado.                        |
-| Baja     | `tiktok/config.ts:8`                                | `total_complete_payment_rate` se usa como valor de `complete_payment`; el nombre sugiere una tasa.                                                                                                | Revisar un reporte real cuando haya credenciales.                                              |
-| Baja     | `microsoft/reports.ts:62`                           | La IP se valida por DNS y `fetch` vuelve a resolver (ventana de _rebinding_). La URL la emite Microsoft.                                                                                          | Aceptar el riesgo o fijar la IP resuelta en el agente.                                         |
-| Decisión | API                                                 | Las llaves internas ven a todos los clientes; `client_id` filtra, pero no aísla.                                                                                                                  | Definir un modelo de acceso por cliente antes de un uso multicliente.                          |
+| Sev.     | Ubicación                                           | Riesgo                                                                                                                                                                                            | Cómo cerrarlo                                                                                   |
+| -------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Alta     | `microsoft/reports.ts:140`, `normalize.ts:106`      | Se asume que las filas del CSV vienen en **UTC**. Si vinieran en la zona de la cuenta, los días y las horas estarían desplazados. Los WSDL no lo especifican y la documentación no fue accesible. | Conciliar un día por hora contra la interfaz de Microsoft con una cuenta cuya zona no sea UTC.  |
+| Media    | `google/queries.ts:45`                              | Las conversiones por hora combinan `segments.hour` con `segments.conversion_action`; la compatibilidad no está confirmada.                                                                        | Ejecutar una consulta horaria real de conversiones.                                             |
+| Media    | `meta/queries.ts` (`action_report_time=impression`) | Puede diferir del criterio configurado en Ads Manager.                                                                                                                                            | Conciliar el mismo día y la misma cuenta con el mismo criterio de atribución.                   |
+| Baja     | `tiktok/config.ts:8`                                | `total_complete_payment_rate` se usa como valor de `complete_payment`; el nombre sugiere una tasa.                                                                                                | Revisar un reporte real cuando haya credenciales.                                               |
+| Baja     | `microsoft/reports.ts`                              | Mitigación por host Microsoft fijo y DNS público; no hay IP fijada al transporte del proxy.                                                                                                       | Revisar un transporte que respete el proxy y fije la resolución; no desactivar TLS ni eludirlo. |
+| Decisión | API                                                 | Las llaves internas ven a todos los clientes; `client_id` filtra, pero no aísla.                                                                                                                  | Definir un modelo de acceso por cliente antes de un uso multicliente.                           |
 
 ## Matriz de validación por plataforma
 
 "Real" proviene de los registros de Codex del 30 de septiembre y del 1 de octubre; la auditoría no
 tuvo credenciales para repetirlo.
 
-| Plataforma | Simulador | OAuth y credenciales reales      | Cuentas reales                     | Campañas reales     | Informes y métricas reales                   | Conciliación con la interfaz |
-| ---------- | --------- | -------------------------------- | ---------------------------------- | ------------------- | -------------------------------------------- | ---------------------------- |
-| Google Ads | Sí        | Sí                               | Sí (33 raíces, 2274 en jerarquías) | Sí (muestra de 150) | Muestras diarias, horarias y de conversiones | Pendiente                    |
-| Meta       | Sí        | Sí (token)                       | Sí (17 activas)                    | Sí (muestra)        | Muestras diarias, horarias y de conversiones | Pendiente                    |
-| TikTok     | Sí        | No (app pendiente de aprobación) | No                                 | No                  | No                                           | No                           |
-| Microsoft  | Sí        | Sí                               | Sí (4)                             | Sí (43)             | No: el proxy bloquea la descarga del ZIP     | No                           |
-| Spotify    | Sí        | Sí (refresh token)               | No (403 `ACCESS_REQUIRED`)         | No                  | No                                           | No                           |
-| X Ads      | —         | —                                | —                                  | —                   | —                                            | Fase 7, sin implementar      |
+| Plataforma | Simulador            | OAuth y credenciales reales                        | Cuentas reales                     | Campañas reales     | Informes y métricas reales                   | Conciliación con la interfaz |
+| ---------- | -------------------- | -------------------------------------------------- | ---------------------------------- | ------------------- | -------------------------------------------- | ---------------------------- |
+| Google Ads | Sí                   | Sí                                                 | Sí (33 raíces, 2274 en jerarquías) | Sí (muestra de 150) | Muestras diarias, horarias y de conversiones | Pendiente                    |
+| Meta       | Sí                   | Sí (token)                                         | Sí (17 activas)                    | Sí (muestra)        | Muestras diarias, horarias y de conversiones | Pendiente                    |
+| TikTok     | Sí                   | No: app aprobada según usuario, token no inyectado | No                                 | No                  | No                                           | Pendiente                    |
+| Microsoft  | Sí                   | Sí                                                 | Sí (4)                             | Sí (43)             | No: el proxy bloquea la descarga del ZIP     | No                           |
+| Spotify    | Sí                   | Sí (refresh token)                                 | No (403 `ACCESS_REQUIRED`)         | No                  | No                                           | No                           |
+| X Ads      | Sí, fixtures sin red | No: faltan cuatro credenciales                     | No                                 | No                  | No                                           | Pendiente                    |
 
 ## Pendientes y orden recomendado
 
@@ -168,36 +239,39 @@ tuvo credenciales para repetirlo.
 **Permisos**
 
 - Habilitación de Spotify Ads API (403).
-- Aprobación de la app de TikTok y emisión de App ID, App Secret y Access Token.
+- TikTok: autorización de las cuatro cuentas y permisos de lectura/reporting; app aprobada según usuario.
+- X: app aprobada para Ads API y usuario con acceso a Analytics y lectura de cuentas/campañas.
 
 **Configuración y entorno**
 
 - `TOKEN_STORE_FILE` o un gestor de secretos en el despliegue.
 - Acciones principales y mapeos.
+- TikTok: aplicar App ID/Secret guardados en el panel, completar OAuth y cargar token más lista de cuatro IDs.
+- X: cuatro credenciales OAuth 1.0a; timeout propio apropiado para backfills.
 - Un entorno con salida a `*.blob.core.windows.net` para las descargas de Microsoft.
 - Despliegue (Cloud Run) con sus secretos.
 
 **Código**
 
-- X Ads (fase 7).
-- TikTok v2.0 y OAuth completo cuando haya aprobación.
-- Bloques o informes asíncronos en Meta, si la verificación lo exige.
-- Paralelismo limitado en jerarquías de Google.
+- X: OAuth multiusuario y conversiones móviles, si se requieren; primera lectura real y conciliación pendientes.
+- TikTok v2.0, si se decide migrar; el intercambio OAuth v1.3 ya existe.
+- Microsoft: transporte con resolución fijada compatible con el proxy, o revisión explícita del riesgo residual del host confiado.
+- Meta: informes asíncronos si una cuenta supera los bloques síncronos ya implementados.
+- Google: extracciones persistentes fuera del ciclo HTTP para jerarquías que excedan el timeout; paralelismo limitado ya implementado.
 - Persistencia real: `performance.repository.ts` es solo un contrato.
 - Aislamiento multicliente, tras la decisión.
 
 **Orden**
 
 1. Conciliar Google y Meta contra sus interfaces: un día, una cuenta, mismo criterio de atribución
-   (cierra los riesgos de métricas ausentes y de atribución).
+   (comprueba ceros reales y cierra atribución).
 2. Decidir y configurar las acciones principales y los mapeos de conversiones.
 3. Microsoft desde un entorno con salida al almacenamiento de informes; conciliar un día por hora
    (cierra el riesgo de UTC).
-4. Spotify cuando se habilite: cuentas, campañas y un informe de dos días (cierra el riesgo de
-   `report_end`).
-5. TikTok cuando se apruebe la app: credenciales, lectura real y revisión de v2.0.
+4. Spotify cuando se habilite: cuentas, campañas y un informe de dos días (confirma también la conciliación del final inclusivo documentado).
+5. TikTok con la app aprobada: inyección de variables, OAuth, lectura de las cuatro cuentas y revisión de valores/zonas.
 6. Despliegue con secretos y `TOKEN_STORE_FILE`; después n8n, BigQuery y alertas.
 7. Modelo de acceso multicliente.
-8. X Ads.
+8. X Ads: conexión real y conciliación de cuentas/campañas/reportes; código ya implementado.
 
 El proyecto **no está listo para producción** mientras los puntos 1 a 4 sigan sin comprobarse.

@@ -10,6 +10,22 @@ export function accountFields(config: MetaConfig): string {
 }
 export const CAMPAIGN_FIELDS = "id,name,status,effective_status,objective";
 export const HOUR_FIELD = "hourly_stats_aggregated_by_advertiser_time_zone";
+export function insightsWindows(q: PerformanceQuery): PerformanceQuery[] {
+  insightsParams(q); // Validate the entire user range before splitting it.
+  const size = q.granularity === "hourly" ? 1 : 30,
+    day = 86400000;
+  const windows: PerformanceQuery[] = [];
+  for (let start = Date.parse(q.date_from), end = Date.parse(q.date_to); start <= end;) {
+    const last = Math.min(end, start + (size - 1) * day);
+    windows.push({
+      ...q,
+      date_from: new Date(start).toISOString().slice(0, 10),
+      date_to: new Date(last).toISOString().slice(0, 10),
+    });
+    start = last + day;
+  }
+  return windows;
+}
 const baseFields = "account_id,account_name,account_currency,campaign_id,campaign_name,date_start,date_stop";
 export function insightsParams(q: PerformanceQuery, conversions = false): Record<string, string> {
   if (

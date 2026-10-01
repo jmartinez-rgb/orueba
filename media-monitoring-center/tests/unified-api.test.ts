@@ -13,6 +13,13 @@ const providers = {
       status: { provider: "google", name: "Google Ads", state: "connected", configured: true, implemented: true, missing_config: [], last_successful_sync: "2026-10-01T10:00:00Z", last_error: null, latency_ms: 120, checked_at: "2026-10-01T10:00:00Z" },
     },
     {
+      id: "x",
+      enum: "X",
+      name: "X Ads",
+      implemented: true,
+      status: { provider: "x", name: "X Ads", state: "not_configured", configured: false, implemented: true, missing_config: ["X_ADS_CONSUMER_KEY"], last_successful_sync: null, last_error: null, latency_ms: null, checked_at: "2026-10-01T10:00:00Z" },
+    },
+    {
       id: "spotify",
       enum: "SPOTIFY",
       name: "Spotify Ads",
@@ -56,6 +63,7 @@ describe("API unificada desde el monitoreo", () => {
     const r = await fetchUnifiedStatus(request as unknown as typeof fetch);
     expect(r.ok && r.providers.map((p) => [p.id, p.status.state])).toEqual([
       ["google", "connected"],
+      ["x", "not_configured"],
       ["spotify", "access_required"],
     ]);
     const [url, init] = request.mock.calls[0] as unknown as [URL, RequestInit];
@@ -63,6 +71,16 @@ describe("API unificada desde el monitoreo", () => {
     expect((init.headers as Record<string, string>)["X-API-Key"]).toBe(KEY);
     expect(init.redirect).toBe("error");
     expect(JSON.stringify(r)).not.toContain(KEY);
+  });
+
+  it.each(["connected", "access_required", "permission_denied", "degraded", "error"])("preserva X como integración implementada con estado %s para el panel", async (state) => {
+    configure();
+    const payload = structuredClone(providers);
+    payload.data[1]!.status.state = state;
+    payload.data[1]!.status.configured = true;
+    const result = await fetchUnifiedStatus(vi.fn(async () => Response.json(payload)) as unknown as typeof fetch);
+    expect(result.ok && result.providers.find((p) => p.id === "x")).toMatchObject({ name: "X Ads", implemented: true, status: { state, configured: true } });
+    expect(JSON.stringify(result)).not.toContain(KEY);
   });
 
   it("llave rechazada, error HTTP, respuesta inesperada o caída se reportan sin tumbar el monitoreo", async () => {

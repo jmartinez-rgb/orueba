@@ -144,28 +144,44 @@ export class GoogleProvider extends BaseProvider {
     gaql: string,
     options?: ProviderRequestOptions,
   ): Promise<Array<{ row: GoogleRow; account: NormalizedAccount }>> {
-    const output: Array<{ row: GoogleRow; account: NormalizedAccount }> = [];
-    let successfulAccounts = 0;
-    let firstUnavailable: ApiError | null = null;
-    for (const account of await this.select(client, signal, query, options)) {
-      if (account.is_manager) continue;
-      // Una jerarquía puede traer miles de cuentas cerradas: sin métricas que leer, no se consultan.
-      if (!query.account_id && account.status !== null && account.status !== "ENABLED") continue;
-      let rows: GoogleRow[];
-      try {
-        rows = await client.search(account.account_id, gaql, signal, account.manager_account_id ?? undefined);
-      } catch (error) {
-        const warning = accountWarning(error, account.account_id);
-        if (query.account_id || !warning) throw error;
-        firstUnavailable ??= warning;
-        options?.onWarning?.(warning);
-        continue;
+    const accounts = (await this.select(client, signal, query, options)).filter(
+      (account) => !account.is_manager && (query.account_id || account.status === null || account.status === "ENABLED"),
+    );
+    const results: Array<Array<{ row: GoogleRow; account: NormalizedAccount }>> = accounts.map(() => []);
+    const cancel = new AbortController(),
+      scoped = AbortSignal.any([signal, cancel.signal]);
+    let next = 0,
+      successfulAccounts = 0,
+      failed = false;
+    let fatal: unknown,
+      firstUnavailable: ApiError | null = null;
+    const worker = async () => {
+      while (next < accounts.length && !failed) {
+        const index = next++,
+          account = accounts[index]!;
+        try {
+          const rows = await client.search(account.account_id, gaql, scoped, account.manager_account_id ?? undefined);
+          successfulAccounts++;
+          results[index] = rows.map((row) => ({ row, account }));
+        } catch (error) {
+          if (failed) return;
+          const warning = accountWarning(error, account.account_id);
+          if (query.account_id || !warning) {
+            failed = true;
+            fatal = error;
+            cancel.abort();
+            return;
+          }
+          firstUnavailable ??= warning;
+          options?.onWarning?.(warning);
+        }
       }
-      successfulAccounts++;
-      for (const row of rows) output.push({ row, account });
-    }
+    };
+    // Bound API pressure, preserve account ordering and drain cancelled requests on a fatal failure.
+    await Promise.all(Array.from({ length: Math.min(4, accounts.length) }, worker));
+    if (failed) throw fatal;
     if (!successfulAccounts && firstUnavailable) throw firstUnavailable;
-    return output;
+    return results.flat();
   }
 
   override listCampaigns(query: CampaignQuery, options?: ProviderRequestOptions) {

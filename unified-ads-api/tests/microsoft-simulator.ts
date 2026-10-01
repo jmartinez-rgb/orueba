@@ -118,10 +118,11 @@ export function microsoftSimulator(handler?: MicrosoftHandler) {
             ? { Status: "Pending" }
             : {
                 Status: "Success",
-                ReportDownloadUrl: "https://report.example.com/report.zip?signature=private-signature",
+                ReportDownloadUrl:
+                  "https://bingadsappsstorageprod.blob.core.windows.net/report.zip?signature=private-signature",
               },
       });
-    if (url.hostname === "report.example.com") {
+    if (url.hostname === "bingadsappsstorageprod.blob.core.windows.net") {
       const row = conversions ? CONV_ROW : PERF_ROW;
       return new Response(reportZip(columns, [{ ...row, TimePeriod: hourly ? "2026-09-29|7" : row.TimePeriod! }]));
     }

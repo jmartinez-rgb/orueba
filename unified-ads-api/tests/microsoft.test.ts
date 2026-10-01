@@ -217,7 +217,7 @@ describe("Microsoft asynchronous reporting", () => {
       Scope: { Campaigns: [{ AccountId: "101", CampaignId: CAMPAIGN_ID }] },
     });
     expect(calls.filter((c) => c.url.pathname.endsWith("/Poll"))).toHaveLength(2);
-    const download = calls.find((c) => c.url.hostname === "report.example.com")!;
+    const download = calls.find((c) => c.url.hostname === "bingadsappsstorageprod.blob.core.windows.net")!;
     expect([...download.headers]).toEqual([]);
     expect(download.init?.redirect).toBe("error");
     expect(warnings).toMatchObject([{ details: { limitation: "provisional_reporting" } }]);
@@ -290,7 +290,7 @@ describe("Microsoft asynchronous reporting", () => {
   });
   it("rejects a repeated report bucket instead of double counting", async () => {
     const { provider } = microsoftFixture((c) =>
-      c.url.hostname === "report.example.com"
+      c.url.hostname === "bingadsappsstorageprod.blob.core.windows.net"
         ? new Response(reportZip(PERFORMANCE_COLUMNS, [PERF_ROW, PERF_ROW]))
         : undefined,
     );
@@ -325,23 +325,29 @@ describe("Microsoft asynchronous reporting", () => {
 describe("Microsoft download and error handling", () => {
   const resolve = async () => [{ address: "8.8.8.8", family: 4 }];
   it.each([
-    "http://report.example.com/file",
+    "http://bingadsappsstorageprod.blob.core.windows.net/file",
     "https://127.0.0.1/file",
     "https://localhost/file",
-    "https://user:secret@report.example.com/file",
-    "https://report.example.com:8080/file",
+    "https://user:secret@bingadsappsstorageprod.blob.core.windows.net/file",
+    "https://bingadsappsstorageprod.blob.core.windows.net:8080/file",
   ])("rejects unsafe download %s", async (url) => {
     await expect(safeDownloadUrl(url, resolve)).rejects.toMatchObject({ code: "PROVIDER_ERROR" });
   });
   it("rejects a hostname resolving to private addresses", async () => {
     await expect(
-      safeDownloadUrl("https://reports.example.com/file", async () => [{ address: "10.0.0.1", family: 4 }]),
+      safeDownloadUrl("https://bingadsappsstorageprod.blob.core.windows.net/file", async () => [
+        { address: "10.0.0.1", family: 4 },
+      ]),
     ).rejects.toMatchObject({ code: "PROVIDER_ERROR" });
   });
-  it("does not assume a fixed download domain", async () =>
-    expect((await safeDownloadUrl("https://cdn.example.com/file?signature=x", resolve)).hostname).toBe(
-      "cdn.example.com",
-    ));
+  it("rejects public hosts outside the trusted Microsoft reporting account", async () => {
+    for (const url of [
+      "https://cdn.example.com/file?signature=x",
+      "https://attacker.blob.core.windows.net/file",
+      "https://bingadsappsstorageprod.blob.core.windows.net.attacker.test/file",
+    ])
+      await expect(safeDownloadUrl(url, resolve)).rejects.toMatchObject({ code: "PROVIDER_ERROR" });
+  });
   it.each([
     strToU8("not zip"),
     zipSync({ "report.csv": strToU8("Wrong,Headers\n1,2") }),

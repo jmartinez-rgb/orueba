@@ -26,7 +26,7 @@ export function UnifiedApiPanel({ status, timezone, canTest }: { status: Unified
             <p className="text-muted-foreground">{status.reason}</p>
             {!status.configured && (
               <p className="text-xs text-muted-foreground">
-                La API unificada (carpeta <code>unified-ads-api</code>) conecta directo con Google Ads, Meta, TikTok, Microsoft y Spotify. Define su URL y una llave interna en las variables privadas del monitoreo para ver aquí el estado de cada conexión.
+                La API unificada (carpeta <code>unified-ads-api</code>) conecta directo con Google Ads, Meta, TikTok, Microsoft, Spotify y X Ads. Define su URL y una llave interna en las variables privadas del monitoreo para ver aquí el estado de cada conexión.
               </p>
             )}
           </div>

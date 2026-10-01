@@ -120,8 +120,9 @@ No equivale necesariamente a compras, leads o conversaciones.
 | `on_web_order`       | ORDER, web               | Sin valor                     |
 | `onsite_shopping`    | PURCHASE, Shop           | `total_onsite_shopping_value` |
 
-El nombre `total_complete_payment_rate` corresponde a **valor de compra web** según la referencia
-oficial; no es una tasa. Shop reporta ingreso bruto, que puede tener una definición distinta a otras
+La implementación heredada usa `total_complete_payment_rate` como valor de compra web.
+La auditoría deja esa semántica **pendiente de comprobación** con un reporte real y Ads Manager;
+el nombre por sí solo no demuestra que sea valor monetario. Shop reporta ingreso bruto, que puede tener una definición distinta a otras
 compras. No se suman estos valores entre acciones. `/conversions` devuelve cada fuente por separado
 y marca `overlapping_action_types=true`: la métrica de optimización puede coincidir con alguna de
 las compras o formularios. El CPA usa exclusivamente la métrica principal seleccionada.
@@ -201,3 +202,23 @@ GET /api/v1/conversions?provider=tiktok&account_id=<ID>&date_from=2026-09-29&dat
 - [Códigos de retorno](https://business-api.tiktok.com/portal/docs?id=1737172488964097).
 - [Reporte v2.0](https://business-api.tiktok.com/portal/docs/run-a-synchronous-report/v2.0)
   y [token v2.0](https://business-api.tiktok.com/portal/docs/obtain-an-advertiser-access-token/v2.0), contratos revisados para distinguir versiones.
+
+## Continuación: cuatro cuentas y variables privadas
+
+App aprobada según el usuario; primera lectura real todavía bloqueada en esta sesión porque
+no están inyectados token y lista. Los valores que el usuario agregó al panel deben guardarse con
+Done/Publicar y aplicarse al entorno; declarar un requisito no equivale a recibir la credencial.
+
+`TIKTOK_ADVERTISER_IDS` debe contener, como texto separado por comas:
+
+```text
+7338571937913978882,7545502925565771792,7361545670072909840,7688066712031182866
+```
+
+Corresponden a Sky México, Sky Sports MXN, izzi - ABCW e izzi ABCW US, respectivamente.
+App ID va solo en `TIKTOK_APP_ID`; Secret solo en `TIKTOK_APP_SECRET`; ninguno sustituye
+`TIKTOK_ACCESS_TOKEN`. Con token y lista no hacen falta App ID/Secret para reporting.
+Si un campo de token vacío bloquea Done, retirarlo temporalmente; no rellenarlo con el Secret.
+Después de autorizar en el portal, guardar la URL de retorno con código únicamente en
+`TIKTOK_AUTH_CALLBACK_URL` privado y ejecutar `npm run tiktok:auth` con el proxy soportado.
+No compartir esa URL por chat. El asistente guarda el token en `.env` privado 0600.

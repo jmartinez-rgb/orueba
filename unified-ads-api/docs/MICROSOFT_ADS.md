@@ -169,3 +169,15 @@ La validación real se realiza después de aplicar credenciales y autorizar una 
 - [Columnas de conversiones](https://learn.microsoft.com/en-us/advertising/reporting-service/conversionperformancereportcolumn?view=bingads-13)
 - [Formato, procesamiento y UTC](https://learn.microsoft.com/en-us/advertising/guides/reports?view=bingads-13)
 - [Códigos de error](https://learn.microsoft.com/en-us/advertising/guides/operation-error-codes?view=bingads-13)
+
+## Restricción del host de descarga (continuación de auditoría)
+
+Solo se acepta HTTPS en `bingadsappsstorageprod.blob.core.windows.net`, el almacenamiento
+observado en una respuesta auténtica de Reporting v13. Otros hosts, incluidas otras cuentas
+Azure Blob, se rechazan antes de DNS. Se mantienen comprobación de IP pública, TLS, proxy y
+prohibición de redirecciones. Si Microsoft migra el destino, hay que revisar el contrato antes
+de actualizar la lista; no basta ampliar a `*.blob.core.windows.net`.
+
+La IP no queda fijada al socket del proxy: el riesgo residual de otra resolución del host
+Microsoft confiado permanece documentado. No se declara resuelto por la comprobación DNS.
+La descarga real continúa bloqueada por la red; no se elude el proxy para validarla.

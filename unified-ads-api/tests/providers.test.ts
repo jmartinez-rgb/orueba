@@ -3,7 +3,16 @@ import type { FastifyInstance } from "fastify";
 import { ProviderRegistry } from "../src/providers/registry.js";
 import { BaseProvider } from "../src/providers/base-provider.js";
 import { GoogleProvider } from "../src/providers/google/index.js";
-import { XProvider } from "../src/providers/x/index.js";
+// Keep coverage of the BaseProvider contract with an intentionally unimplemented test provider.
+class Unimplemented extends BaseProvider {
+  constructor(env: Readonly<Record<string, string | undefined>>) {
+    super(
+      Provider.X,
+      ["X_ADS_CONSUMER_KEY", "X_ADS_CONSUMER_SECRET", "X_ADS_ACCESS_TOKEN", "X_ADS_ACCESS_TOKEN_SECRET"],
+      env,
+    );
+  }
+}
 import { Provider, PROVIDER_SLUGS } from "../src/types/providers.js";
 import { ApiError } from "../src/utils/errors.js";
 import { KEY, makeApp } from "./helpers.js";
@@ -44,7 +53,7 @@ describe("GET /api/v1/providers", () => {
       X_ADS_ACCESS_TOKEN: "token-secreto",
       X_ADS_ACCESS_TOKEN_SECRET: "token-secreto",
     };
-    const configured = await makeApp({ providerEnv: env });
+    const configured = await makeApp({}, { registry: new ProviderRegistry([new Unimplemented(env)]) });
     const res = await configured.inject({ method: "GET", url: "/api/v1/providers/x/status", headers: auth });
     expect(res.statusCode).toBe(200);
     expect(res.json().data).toMatchObject({
@@ -100,7 +109,7 @@ describe("proveedores sin integración", () => {
       code: "NOT_CONFIGURED",
       details: { provider: "google" },
     });
-    const configured = new XProvider({
+    const configured = new Unimplemented({
       X_ADS_CONSUMER_KEY: "test-id",
       X_ADS_CONSUMER_SECRET: "test-secret",
       X_ADS_ACCESS_TOKEN: "test-token",

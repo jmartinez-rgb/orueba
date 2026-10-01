@@ -33,7 +33,7 @@ export class ProviderRegistry {
         timeoutMs,
         onRefreshTokenRotated: (token) => onRefreshTokenRotated?.("SPOTIFY_ADS_REFRESH_TOKEN", token),
       }),
-      new XProvider(env),
+      new XProvider(env, { timeoutMs }),
     ]);
   }
 

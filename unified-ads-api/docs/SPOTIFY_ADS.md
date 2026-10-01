@@ -170,3 +170,12 @@ tokens no demuestra acceso a Ads API.
 - [Campañas](https://developer.spotify.com/documentation/ads-api/reference/v3.0/getCampaigns)
 - [Informes agregados y métricas](https://developer.spotify.com/documentation/ads-api/reference/v3.0/getAggregateReport)
 - [Requisitos de redirección](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri)
+
+## Confirmación del final inclusivo (1 de octubre de 2026)
+
+La [referencia oficial v3 de Aggregate Report](https://developer.spotify.com/documentation/ads-api/reference/v3/getAggregateReport)
+indica en `report_end` que DAY/LIFETIME incluyen **el día completo** de la fecha final;
+HOUR incluye la hora final. Se mantiene `T00:00:00Z` del último día en reportes diarios,
+y `T23:00:00Z` en horarios. La prueba de bloques de 90 días en
+`tests/continuation-risks.test.ts` verifica sus límites sin solapamiento.
+Esto cierra la duda contractual; la conciliación real sigue bloqueada por `ACCESS_REQUIRED`.

@@ -14,7 +14,7 @@ import type {
 import { readMetaConfig, metaAccountId } from "./config.js";
 import { MetaClient } from "./client.js";
 import { readMetaAccount, discoverMetaAccounts } from "./accounts.js";
-import { CAMPAIGN_FIELDS, insightsParams } from "./queries.js";
+import { CAMPAIGN_FIELDS, HOUR_FIELD, insightsParams, insightsWindows } from "./queries.js";
 import { normalizeCampaign, normalizePerformance, normalizeConversions } from "./normalize.js";
 import { metaAccountWarning } from "./errors.js";
 import { metaObject, type MetaFetch, type MetaCampaign, type MetaInsight } from "./types.js";
@@ -198,13 +198,13 @@ export class MetaProvider extends BaseProvider {
       );
   }
   override async getPerformance(query: PerformanceQuery, options?: ProviderRequestOptions) {
-    const params = insightsParams(query);
+    insightsParams(query);
     return this.run(async (client, signal) => {
       this.hourlyWarning(query, options);
       const at = new Date().toISOString();
       return this.eachAccount(client, signal, query, options, async (account) => {
         const [rows, campaigns] = await Promise.all([
-          client.list<MetaInsight>(`act_${account.account_id}/insights`, params, signal),
+          this.insights(client, account, query, false, signal),
           this.campaigns(client, account, signal),
         ]);
         const byId = new Map(campaigns.map((c) => [c.campaign_id, c]));
@@ -215,14 +215,41 @@ export class MetaProvider extends BaseProvider {
     }, options);
   }
   override async getConversions(query: PerformanceQuery, options?: ProviderRequestOptions) {
-    const params = insightsParams(query, true);
+    insightsParams(query, true);
     return this.run(async (client, signal) => {
       this.hourlyWarning(query, options);
       const at = new Date().toISOString();
       return this.eachAccount(client, signal, query, options, async (account) => {
-        const rows = await client.list<MetaInsight>(`act_${account.account_id}/insights`, params, signal);
+        const rows = await this.insights(client, account, query, true, signal);
         return rows.flatMap((row) => normalizeConversions(row, account, query, client.config, at));
       });
     }, options);
+  }
+  private async insights(
+    client: MetaClient,
+    account: NormalizedAccount,
+    query: PerformanceQuery,
+    conversions: boolean,
+    signal: AbortSignal,
+  ) {
+    const output: MetaInsight[] = [],
+      seen = new Set<string>();
+    for (const window of insightsWindows(query)) {
+      const rows = await client.list<MetaInsight>(
+        `act_${account.account_id}/insights`,
+        insightsParams(window, conversions),
+        signal,
+      );
+      for (const row of rows) {
+        if (typeof row.date_start !== "string" || row.date_start < window.date_from || row.date_start > window.date_to)
+          throw new ApiError("PROVIDER_ERROR", "Meta devolvió un periodo fuera del bloque solicitado.");
+        const key = `${row.campaign_id}/${row.date_start}/${row[HOUR_FIELD] ?? "daily"}`;
+        if (seen.has(key)) throw new ApiError("PROVIDER_ERROR", "Meta repitió un periodo de campaña en el informe.");
+        seen.add(key);
+        output.push(row);
+        if (output.length > 200000) throw new ApiError("PROVIDER_ERROR", "Meta superó el tamaño admitido del informe.");
+      }
+    }
+    return output;
   }
 }
