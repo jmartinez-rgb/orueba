@@ -1,5 +1,6 @@
 import { ApiError } from "../../utils/errors.js";
 import { derivedMetrics } from "../../normalization/metrics.js";
+import type { ConversionCategory } from "../../normalization/conversions.js";
 import type {
   CampaignStatus,
   NormalizedAccount,
@@ -127,14 +128,15 @@ export function normalizePerformance(
     raw_metrics: { ...metrics, primary_conversion_metric: primary, source_timezone: "UTC" },
   };
 }
-const CATEGORIES: Record<string, string> = {
-  PAGE_VIEWS: "page_view",
-  LEADS: "lead",
-  ADD_TO_CART: "add_to_cart",
-  PURCHASES: "purchase",
-  START_CHECKOUT: "initiate_checkout",
-  PRODUCTS: "view_content",
-  SIGN_UPS: "registration",
+// Mismo vocabulario en mayúsculas que las demás plataformas (normalization/conversions.ts).
+const CATEGORIES: Record<string, ConversionCategory> = {
+  PAGE_VIEWS: "PAGE_VIEW",
+  LEADS: "LEAD",
+  ADD_TO_CART: "ADD_TO_CART",
+  PURCHASES: "PURCHASE",
+  START_CHECKOUT: "BEGIN_CHECKOUT",
+  PRODUCTS: "VIEW_CONTENT",
+  SIGN_UPS: "REGISTRATION",
 };
 export function normalizeConversions(
   row: Record<string, unknown>,

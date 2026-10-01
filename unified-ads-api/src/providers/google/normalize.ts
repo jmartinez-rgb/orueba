@@ -6,6 +6,7 @@ import type {
   PerformanceQuery,
 } from "../../types/normalized.js";
 import { derivedMetrics, microsToCurrency } from "../../normalization/metrics.js";
+import type { ConversionCategory } from "../../normalization/conversions.js";
 import { ApiError } from "../../utils/errors.js";
 import type { GoogleConfig } from "./config.js";
 import { campaignStatus } from "./queries.js";
@@ -73,12 +74,13 @@ export function normalizePerformance(
   };
 }
 
-const CATEGORIES: Record<string, string> = {
+const CATEGORIES: Record<string, ConversionCategory> = {
   PURCHASE: "PURCHASE",
   SUBMIT_LEAD_FORM: "LEAD",
   QUALIFIED_LEAD: "LEAD",
   CONVERTED_LEAD: "LEAD",
-  SIGNUP: "LEAD",
+  // Un registro no es un lead: misma etiqueta que TikTok (total_registration) y Spotify (SIGN_UPS).
+  SIGNUP: "REGISTRATION",
   PHONE_CALL_LEAD: "CALL",
   CONTACT: "CONTACT",
   ADD_TO_CART: "ADD_TO_CART",

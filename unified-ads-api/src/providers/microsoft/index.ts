@@ -1,5 +1,6 @@
 import { Provider } from "../../types/providers.js";
 import { BaseProvider } from "../base-provider.js";
+import { stateFromError } from "../status.js";
 import type { ProviderRequestOptions } from "../provider.js";
 import type { RetryOptions } from "../../utils/retry.js";
 import { ApiError, isApiError } from "../../utils/errors.js";
@@ -86,10 +87,7 @@ export class MicrosoftProvider extends BaseProvider {
     } catch (err) {
       return {
         ...base,
-        state:
-          isApiError(err) && ["AUTH_ERROR", "ACCESS_DENIED"].includes(err.code)
-            ? ("permission_denied" as const)
-            : ("error" as const),
+        state: stateFromError(err),
         last_successful_sync: this.lastSync,
         last_error: this.lastError,
         latency_ms: Date.now() - started,

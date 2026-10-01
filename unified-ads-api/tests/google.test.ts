@@ -88,7 +88,7 @@ describe("Google configuration and OAuth", () => {
       body: { error: "invalid_grant", error_description: "test-client-secret test-refresh-token" },
     });
     const status = await provider.status();
-    expect(status).toMatchObject({ state: "permission_denied", last_error: { code: "AUTH_ERROR" } });
+    expect(status).toMatchObject({ state: "error", last_error: { code: "AUTH_ERROR" } });
     expect(JSON.stringify(status)).not.toContain("test-client-secret");
     expect(simulator.calls).toHaveLength(1);
   });

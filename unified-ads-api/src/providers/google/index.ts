@@ -1,5 +1,6 @@
 import { Provider } from "../../types/providers.js";
 import { BaseProvider } from "../base-provider.js";
+import { stateFromError } from "../status.js";
 import type { AccountQuery, CampaignQuery, PerformanceQuery, NormalizedAccount } from "../../types/normalized.js";
 import { ApiError, isApiError } from "../../utils/errors.js";
 import { readGoogleConfig, customerId } from "./config.js";
@@ -8,7 +9,7 @@ import { discoverAccounts, readAccount } from "./accounts.js";
 import { campaignsQuery, performanceQuery, conversionsQuery } from "./queries.js";
 import { normalizeCampaign, normalizePerformance, normalizeConversion } from "./normalize.js";
 import type { GoogleFetch, GoogleRow } from "./types.js";
-import { unavailableAccountWarning } from "./errors.js";
+import { accountWarning } from "./errors.js";
 import type { RetryOptions } from "../../utils/retry.js";
 import type { ProviderRequestOptions } from "../provider.js";
 
@@ -80,12 +81,7 @@ export class GoogleProvider extends BaseProvider {
         latency_ms: Date.now() - started,
       };
     } catch (err) {
-      const state =
-        isApiError(err) && err.code === "ACCESS_REQUIRED"
-          ? ("access_required" as const)
-          : isApiError(err) && (err.code === "ACCESS_DENIED" || err.code === "AUTH_ERROR")
-            ? ("permission_denied" as const)
-            : ("error" as const);
+      const state = stateFromError(err);
       return {
         ...base,
         state,
@@ -94,6 +90,15 @@ export class GoogleProvider extends BaseProvider {
         latency_ms: Date.now() - started,
       };
     }
+  }
+
+  private async hierarchy(client: GoogleAdsClient, signal: AbortSignal) {
+    if (!this.accounts || this.accounts.until <= Date.now()) {
+      const warnings: ApiError[] = [];
+      const value = await discoverAccounts(client, signal, (warning) => warnings.push(warning));
+      this.accounts = { value, until: Date.now() + 300000, warnings };
+    }
+    return this.accounts;
   }
 
   private async select(
@@ -105,16 +110,16 @@ export class GoogleProvider extends BaseProvider {
     let accounts: NormalizedAccount[];
     if (q.account_id) {
       const id = customerId(q.account_id);
-      const known = this.accounts?.value.find((a) => a.account_id === id);
+      let known = this.accounts?.value.find((a) => a.account_id === id);
+      // Sin MCC configurada, una cuenta cliente solo se opera con el login-customer-id de la MCC
+      // accesible que la contiene: se toma de la jerarquía (en caché) antes de consultarla.
+      if (!known && !client.config.loginCustomerId)
+        known = (await this.hierarchy(client, signal)).value.find((a) => a.account_id === id);
       accounts = [await readAccount(client, id, signal, known?.manager_account_id ?? client.config.loginCustomerId)];
     } else {
-      if (!this.accounts || this.accounts.until <= Date.now()) {
-        const warnings: ApiError[] = [];
-        const value = await discoverAccounts(client, signal, (warning) => warnings.push(warning));
-        this.accounts = { value, until: Date.now() + 300000, warnings };
-      }
-      accounts = this.accounts.value;
-      this.accounts.warnings.forEach((warning) => options?.onWarning?.(warning));
+      const found = await this.hierarchy(client, signal);
+      accounts = found.value;
+      found.warnings.forEach((warning) => options?.onWarning?.(warning));
     }
     return accounts.filter((a) => q.client_id === undefined || a.client_id === q.client_id);
   }
@@ -139,11 +144,13 @@ export class GoogleProvider extends BaseProvider {
     let firstUnavailable: ApiError | null = null;
     for (const account of await this.select(client, signal, query, options)) {
       if (account.is_manager) continue;
+      // Una jerarquía puede traer miles de cuentas cerradas: sin métricas que leer, no se consultan.
+      if (!query.account_id && account.status !== null && account.status !== "ENABLED") continue;
       let rows: GoogleRow[];
       try {
         rows = await client.search(account.account_id, gaql, signal, account.manager_account_id ?? undefined);
       } catch (error) {
-        const warning = unavailableAccountWarning(error, account.account_id);
+        const warning = accountWarning(error, account.account_id);
         if (query.account_id || !warning) throw error;
         firstUnavailable ??= warning;
         options?.onWarning?.(warning);

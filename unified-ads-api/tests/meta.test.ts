@@ -60,11 +60,11 @@ describe("Meta configuración y conexión", () => {
     await provider.listAccounts({});
     expect(await provider.status()).toMatchObject({ state: "connected", last_successful_sync: expect.any(String) });
   });
-  it("token vencido reporta permiso denegado y no se renueva con el mismo token", async () => {
+  it("token vencido reporta error de autenticación (reautorizar) y no se renueva con el mismo token", async () => {
     const { provider, sim } = setup({ META_RETRIES: "3" });
     sim.handler = () => Sim.error(190);
     const result = await provider.status();
-    expect(result).toMatchObject({ state: "permission_denied", last_error: { code: "AUTH_ERROR" } });
+    expect(result).toMatchObject({ state: "error", last_error: { code: "AUTH_ERROR" } });
     expect(JSON.stringify(result)).not.toContain(sim.env.META_ACCESS_TOKEN);
     expect(JSON.stringify(result)).not.toContain(sim.env.META_APP_SECRET);
     expect(sim.calls).toHaveLength(1);
@@ -189,7 +189,7 @@ describe("Meta cuentas y campañas", () => {
     await provider.listAccounts({});
     expect(sim.calls).toHaveLength(1);
     sim.handler = () => Sim.error(190);
-    expect(await provider.status()).toMatchObject({ state: "permission_denied" });
+    expect(await provider.status()).toMatchObject({ state: "error", last_error: { code: "AUTH_ERROR" } });
   });
 });
 
@@ -257,13 +257,12 @@ describe("Meta Insights y conversiones", () => {
       cpa: null,
     });
   });
-  it("acción principal por cuenta y conversión ausente no se inventa", async () => {
+  it("acción principal por cuenta ausente del día cuenta 0 y lo marca para revisar la elección", async () => {
+    // Meta solo lista acciones ocurridas: si la acción pedida no aparece, el día tuvo 0 (no "sin dato").
     const { provider } = setup({ META_PRIMARY_CONVERSION_MAPPING: '{"act_111":"lead"}' });
-    expect((await provider.getPerformance(query))[0]).toMatchObject({
-      conversions: null,
-      conversion_value: null,
-      cpa: null,
-    });
+    const [row] = await provider.getPerformance(query);
+    expect(row).toMatchObject({ conversions: 0, conversion_value: 0, cpa: null });
+    expect(row?.raw_metrics).toMatchObject({ primary_conversion_action: "lead", primary_action_present: false });
   });
   it("hora cero conservada, únicos y conversiones externas no disponibles", async () => {
     const { provider, sim } = setup();
@@ -337,7 +336,7 @@ describe("Meta Insights y conversiones", () => {
         : undefined;
     expect((await provider.getPerformance(query))[0]).toMatchObject({
       reach: null,
-      conversions: null,
+      conversions: 0,
       ctr: null,
       cpc: null,
       cpm: null,

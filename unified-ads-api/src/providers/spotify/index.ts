@@ -1,5 +1,6 @@
 import { Provider } from "../../types/providers.js";
 import { BaseProvider } from "../base-provider.js";
+import { stateFromError } from "../status.js";
 import { ApiError, isApiError } from "../../utils/errors.js";
 import type { RetryOptions } from "../../utils/retry.js";
 import type { AccountQuery, CampaignQuery, NormalizedAccount, PerformanceQuery } from "../../types/normalized.js";
@@ -82,12 +83,7 @@ export class SpotifyProvider extends BaseProvider {
     } catch (err) {
       return {
         ...base,
-        state:
-          isApiError(err) && err.code === "ACCESS_REQUIRED"
-            ? ("access_required" as const)
-            : isApiError(err) && ["AUTH_ERROR", "ACCESS_DENIED"].includes(err.code)
-              ? ("permission_denied" as const)
-              : ("error" as const),
+        state: stateFromError(err),
         last_error: this.lastError,
         last_successful_sync: this.lastSync,
         latency_ms: Date.now() - started,

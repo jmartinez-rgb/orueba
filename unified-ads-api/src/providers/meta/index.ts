@@ -1,5 +1,6 @@
 import { Provider } from "../../types/providers.js";
 import { BaseProvider } from "../base-provider.js";
+import { stateFromError } from "../status.js";
 import type { ProviderRequestOptions } from "../provider.js";
 import type { RetryOptions } from "../../utils/retry.js";
 import { ApiError, isApiError } from "../../utils/errors.js";
@@ -97,12 +98,7 @@ export class MetaProvider extends BaseProvider {
         latency_ms: Date.now() - started,
       };
     } catch (err) {
-      const state =
-        isApiError(err) && err.code === "ACCESS_REQUIRED"
-          ? ("access_required" as const)
-          : isApiError(err) && ["AUTH_ERROR", "ACCESS_DENIED"].includes(err.code)
-            ? ("permission_denied" as const)
-            : ("error" as const);
+      const state = stateFromError(err);
       return {
         ...base,
         state,

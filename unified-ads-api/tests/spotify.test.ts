@@ -83,7 +83,7 @@ describe("Spotify configuration and actual authorization", () => {
     const { provider, sim } = setup({ SPOTIFY_ADS_RETRIES: "3" });
     sim.handler = () => json({ error: "invalid_grant", error_description: "PRIVATE_REFRESH" }, 400);
     const state = await provider.status();
-    expect(state).toMatchObject({ state: "permission_denied", last_error: { code: "AUTH_ERROR" } });
+    expect(state).toMatchObject({ state: "error", last_error: { code: "AUTH_ERROR" } });
     expect(JSON.stringify(state)).not.toContain("PRIVATE_REFRESH");
     expect(sim.calls).toHaveLength(1);
   });
@@ -102,7 +102,7 @@ describe("Spotify safe HTTP and retries", () => {
   it("401 renews once, using a rotated refresh token without an infinite loop", async () => {
     const { provider, sim } = setup();
     sim.handler = (u) => (u.pathname.endsWith("/businesses") ? json({ messages: ["expired"] }, 401) : undefined);
-    expect((await provider.status()).state).toBe("permission_denied");
+    expect(await provider.status()).toMatchObject({ state: "error", last_error: { code: "AUTH_ERROR" } });
     const tokens = sim.calls.filter((c) => c.path === "/api/token");
     expect(tokens).toHaveLength(2);
     expect(tokens[1]!.form.get("refresh_token")).toBe("synthetic-rotated-refresh");

@@ -89,7 +89,7 @@ describe("Microsoft REST and OAuth", () => {
     const { provider, calls } = microsoftFixture((c) =>
       c.url.pathname.endsWith("/User/Query") ? fault(105, "InvalidCredentials", 500) : undefined,
     );
-    expect((await provider.status()).state).toBe("permission_denied");
+    expect(await provider.status()).toMatchObject({ state: "error", last_error: { code: "AUTH_ERROR" } });
     expect(calls.filter((c) => c.url.hostname === "login.microsoftonline.com")).toHaveLength(1);
   });
   it("sanitizes OAuth errors", async () => {

@@ -85,7 +85,7 @@ describe("TikTok configuración y conexión", () => {
     const { provider, sim } = setup();
     await provider.listAccounts({});
     sim.handler = () => Sim.error(40105);
-    expect(await provider.status()).toMatchObject({ state: "permission_denied", last_error: { code: "AUTH_ERROR" } });
+    expect(await provider.status()).toMatchObject({ state: "error", last_error: { code: "AUTH_ERROR" } });
   });
 });
 

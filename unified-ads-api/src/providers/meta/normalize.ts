@@ -104,6 +104,24 @@ const DEFAULT_CONVERSIONS: Readonly<Record<string, string>> = {
   "offsite_conversion.fb_pixel_lead": "LEAD",
   "onsite_conversion.lead_grouped": "LEAD",
 };
+/**
+ * Meta reporta la misma compra o el mismo lead bajo varios tipos que se solapan (total omnicanal,
+ * alias, pixel, on-Facebook). Por omisión solo un tipo por categoría lleva la categoría: la acción
+ * principal de la cuenta o, si no coincide, el total agregado. Así sumar por categoría no duplica.
+ */
+const AGGREGATE_ACTIONS: Readonly<Record<string, string>> = { PURCHASE: "omni_purchase", LEAD: "lead" };
+function defaultCategory(type: string, config: MetaConfig, primary: string | undefined): string | null {
+  if (Object.hasOwn(config.conversionMapping, type)) return config.conversionMapping[type]!;
+  const category = Object.hasOwn(DEFAULT_CONVERSIONS, type) ? DEFAULT_CONVERSIONS[type]! : null;
+  if (!category) return null;
+  if (type === primary) return category;
+  const primaryCategory = primary
+    ? Object.hasOwn(config.conversionMapping, primary)
+      ? config.conversionMapping[primary]
+      : DEFAULT_CONVERSIONS[primary]
+    : undefined;
+  return AGGREGATE_ACTIONS[category] === type && primaryCategory !== category ? category : null;
+}
 function isConversionAction(type: string, config: MetaConfig, primary: string | undefined): boolean {
   if (Object.hasOwn(config.conversionMapping, type) || type === primary) return true;
   // Meta etiqueta reacciones, guardados y bloqueos como onsite_conversion: no son resultados de negocio.
@@ -141,8 +159,10 @@ export function normalizePerformance(
   const primary = config.primaryActions[account.account_id] ?? config.primaryAction;
   // Las conversiones externas no están soportadas con el breakdown horario.
   const supported = primary && (hour === null || isHourlyActionSupported(primary));
-  const conversions = supported ? actionValue(row.actions, primary) : null;
-  const conversionValue = supported ? actionValue(row.action_values, primary) : null;
+  // Meta solo lista las acciones que ocurrieron: si se pidió y no aparece, ese día fueron 0.
+  const present = supported ? actions(row.actions).some((a) => a.action_type === primary) : false;
+  const conversions = supported ? (actionValue(row.actions, primary) ?? (present ? null : 0)) : null;
+  const conversionValue = supported ? (actionValue(row.action_values, primary) ?? (present ? null : 0)) : null;
   const spend = metaNumber(row.spend),
     impressions = metaNumber(row.impressions),
     clicks = metaNumber(row.clicks);
@@ -177,6 +197,8 @@ export function normalizePerformance(
     raw_metrics: {
       ...row,
       primary_conversion_action: primary ?? null,
+      // false con una acción principal configurada: 0 real del día o una acción mal elegida para la cuenta.
+      ...(supported ? { primary_action_present: present } : {}),
       action_report_time: "impression",
       use_unified_attribution_setting: true,
       ...(hour === null ? {} : { unsupported_metrics: ["reach", "frequency", "offsite_conversions"] }),
@@ -205,7 +227,7 @@ export function normalizeConversions(
       date,
       hour,
       source_conversion: type,
-      normalized_conversion: config.conversionMapping[type] ?? DEFAULT_CONVERSIONS[type] ?? null,
+      normalized_conversion: defaultCategory(type, config, primary),
       conversions: metaNumber(counts.find((a) => a.action_type === type)?.value),
       conversion_value: metaNumber(values.find((a) => a.action_type === type)?.value),
       extracted_at: at,
@@ -218,6 +240,8 @@ export function normalizeConversions(
         use_unified_attribution_setting: true,
         is_primary: type === primary,
         overlapping_action_types: true,
+        // Categoría de referencia aunque no se asigne para no duplicar la suma por categoría.
+        category_hint: Object.hasOwn(DEFAULT_CONVERSIONS, type) ? DEFAULT_CONVERSIONS[type] : null,
       },
     }));
 }
