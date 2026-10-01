@@ -46,6 +46,23 @@ El portal documenta también tokens cortos de 24 horas y renovación en v2.0. Es
 vigente, usa el flujo largo v1.3 y **no renueva tokens automáticamente**. Un token revocado produce
 `AUTH_ERROR`; se debe volver a autorizar y actualizar la variable privada.
 
+### Obtener el token de acceso (`npm run tiktok:auth`)
+
+Con la app aprobada (1 de octubre de 2026):
+
+1. Guarda `TIKTOK_APP_ID` y `TIKTOK_APP_SECRET` en las variables privadas del entorno (nunca en el chat).
+2. En el portal de TikTok for Business abre la app y usa su **enlace de autorización de anunciantes**.
+   Entra con el usuario administrador de las cuentas y autoriza las cuentas publicitarias que se
+   monitorean.
+3. TikTok te regresa a la URL de retorno registrada con `auth_code` en la dirección. El código vence
+   en minutos y solo sirve una vez.
+4. Ejecuta `npm run tiktok:auth` y pega esa URL completa en la terminal (o guárdala antes en la variable
+   privada `TIKTOK_AUTH_CALLBACK_URL`). El asistente canjea el código, guarda `TIKTOK_ACCESS_TOKEN` en
+   `.env` con permisos 0600 sin mostrarlo y, si aún no hay lista, `TIKTOK_ADVERTISER_IDS` con las
+   cuentas autorizadas.
+
+El servidor necesita salida a `business-api.tiktok.com`.
+
 ## Variables
 
 | Variable                             | Uso                                                                                          |
@@ -155,7 +172,8 @@ transporte que puedan incluir esa URL.
 Se añadieron 70 pruebas aisladas con un simulador local: IDs largos, cuentas, permisos parciales,
 campañas, reportes diarios/horarios, medianoche, bloques de fechas, compras/leads, CPA, alias,
 paginación, cancelación, circuito, reintentos y rutas autenticadas. No salen a internet.
-La conexión real queda pendiente de configurar credenciales y verificar los permisos de la app.
+La app ya está aprobada; la conexión real queda pendiente de obtener el token con
+`npm run tiktok:auth`, configurar las variables privadas y hacer la primera lectura acotada.
 
 Rutas para comprobar con `X-API-Key` después de configurar el entorno:
 
