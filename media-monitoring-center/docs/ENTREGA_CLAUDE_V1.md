@@ -1,4 +1,9 @@
-# Entrega vigente a Claude: auditoría y continuación de v1
+# Entrega histórica a Claude: base v1 anterior a Dominios/Absolute Top
+
+**La entrega vigente es [ENTREGA_CLAUDE_FASE_FINAL.md](ENTREGA_CLAUDE_FASE_FINAL.md), en
+`codex/dominios-absolute-top`, base funcional `2c8ca56` más el traspaso documental.**
+Este documento conserva evidencia y contexto de la base anterior; no usar la rama ni los
+conteos que siguen como estado actual. El [prompt](PROMPT_PARA_CLAUDE.md) apunta a la entrega nueva.
 
 Fecha: **2 de octubre de 2026 UTC**. Repositorio `jmartinez-rgb/orueba`.
 Rama entregada: **`codex/finalizacion-verificador-meta-x`**. Base funcional:
@@ -9,7 +14,7 @@ funcionalidades y operación sin cambiar las reglas de negocio. **No declarar v1
 producción aceptada**. La extracción y conciliación de esta aceptación cubren **solo izzi**;
 conservar Sky y sus permisos, sin incorporar lecturas reales de Sky a este alcance.
 
-Este documento reúne el estado actual. Los informes enlazados conservan sus fechas y límites;
+Este documento reúne el estado de esa base anterior. Los informes conservan sus fechas y límites;
 una comprobación anterior no cuenta como ejecución nueva. Ante discrepancias, revisar código,
 evidencia fechada e instrucciones del usuario. No repetir bloqueos históricos ya superados.
 

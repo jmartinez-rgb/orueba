@@ -1,21 +1,22 @@
-# Entrega para Claude — monitoreo v1
+# Entrega para Claude — auditoría final y candidata v1
 
-Punto de entrada de la entrega del **2 de octubre de 2026 UTC**.
+Preparada el **2 de octubre de 2026, zona America/Bogota**.
+Repositorio: `jmartinez-rgb/orueba`. Rama vigente: **`codex/dominios-absolute-top`**.
+Base funcional comprobada: **`2c8ca5608de8801af42524ffa0a5ef8a1e5d20ae`**.
+Usar el último HEAD publicado de esta rama, incluyendo la entrega documental posterior,
+y registrar su hash al empezar. Crear una rama propia; no reescribir las ramas anteriores.
 
-**Continuación vigente:** rama `codex/dominios-absolute-top`, desde `f32ba707`.
-Auditar primero [Dominios y Absolute Top, informe A–J](media-monitoring-center/docs/DOMINIOS_ABSOLUTE_TOP.md)
-y [contrato Google v25](unified-ads-api/docs/GOOGLE_ABSOLUTE_TOP.md), después la base v1
-descrita a continuación. Crear una rama propia desde el nuevo HEAD entregado; no reescribir
-las ramas de Codex ni Claude. No desplegar ni activar envíos para auditar esta funcionalidad.
+- [Guía vigente de la fase final](media-monitoring-center/docs/ENTREGA_CLAUDE_FASE_FINAL.md): estado, evidencia, prioridades, límites y pendientes.
+- [Prompt completo listo para pegar](media-monitoring-center/docs/PROMPT_PARA_CLAUDE.md).
+- [Dominios y Absolute Top, informe A–J](media-monitoring-center/docs/DOMINIOS_ABSOLUTE_TOP.md) y [contrato Google v25](unified-ads-api/docs/GOOGLE_ABSOLUTE_TOP.md).
+- [Revisión manual del equipo](media-monitoring-center/docs/ENTREGA_CLAUDE_FASE_FINAL.md#revisión-manual-del-equipo-antes-de-aceptar).
+- [Base v1 anterior, histórica](media-monitoring-center/docs/ENTREGA_CLAUDE_V1.md): conservar su contexto, sin usar su rama o conteos como actuales.
 
-- [Guía de la base v1 anterior](media-monitoring-center/docs/ENTREGA_CLAUDE_V1.md): evidencia histórica, permisos, pendientes, pruebas y revisión de diseño.
-- [Texto listo para pegar en Claude](media-monitoring-center/docs/PROMPT_PARA_CLAUDE.md).
-- [Revisión manual del equipo](media-monitoring-center/docs/ENTREGA_CLAUDE_V1.md#revisión-manual-del-equipo).
+API: **775 pruebas**; monitoreo: **1217**. CI de la API pasa Node 22 y 24 para la base
+funcional. El informe distingue fixtures, UX, ocho lecturas Google reales y aceptación pendiente.
+La nueva extracción y conciliación cubren **solo izzi**; conservar Sky y sus permisos.
 
-Repositorio: `jmartinez-rgb/orueba`. Rama de entrega anterior: `codex/finalizacion-verificador-meta-x`.
-Base funcional auditada: `f7431b2139c52925729f64ddbfbb22b033ed2bc2`; esta entrega documental
-se añade después. Claude debe crear su propia rama desde el HEAD entregado, conservando esos cambios.
-
-La publicación confirmada corresponde al **entorno de Codex**. No se han proporcionado URLs
-públicas del monitoreo ni de la API. Conciliación independiente y aceptación de producción siguen
-pendientes. Los secretos, contraseñas y datos privados no se incluyen en esta entrega.
+La publicación confirmada corresponde al **entorno de Codex**. No hay URLs públicas confirmadas
+del monitoreo ni de la API. Faltan conciliación independiente y aceptación del alojamiento.
+Secretos, contraseñas y datos privados no viajan en Git. No desplegar ni activar envíos/schedulers
+para realizar esta auditoría; preparar el resultado y los bloqueos para revisión.

@@ -1,7 +1,8 @@
 # Dominios Google y Absolute Top Monitoring
 
 Entrega del 2 de octubre de 2026 UTC en `codex/dominios-absolute-top`, desde `f32ba707`.
-Este informe describe la funcionalidad nueva; la [entrega anterior](ENTREGA_CLAUDE_V1.md)
+La [entrega vigente para la fase final](ENTREGA_CLAUDE_FASE_FINAL.md) añade el orden de
+auditoría y aceptación. Este informe describe la funcionalidad nueva; la [entrega anterior](ENTREGA_CLAUDE_V1.md)
 conserva la evidencia histórica de las seis plataformas y los pendientes de producción.
 La aceptación de esta funcionalidad es para **izzi**. Sky conserva su acceso y sus datos.
 
@@ -305,8 +306,10 @@ los fixtures positivos del navegador no certifican la persistencia de esas cooki
 
 Evidencia pública **sintética**: [`evidence/absolute-top-2026-10-02/`](evidence/absolute-top-2026-10-02/).
 Los datos publicitarios reales y los archivos privados de importación quedan fuera de Git.
-CI conserva la matriz de Node 22 y 24 de la API; esta tabla identifica el runtime local usado,
-sin confundir una ejecución anterior de Node 22 con las pruebas de esta funcionalidad.
+La [CI de API, run 37058044843](https://github.com/jmartinez-rgb/orueba/actions/runs/37058044843),
+pasa Node 22 y 24 sobre el commit funcional `2c8ca5608de8801af42524ffa0a5ef8a1e5d20ae`.
+La tabla anterior identifica el runtime local usado; la CI no sustituye la aceptación de
+producción ni constituye una ejecución del monitoreo en Node 22.
 
 Pendientes separados:
 

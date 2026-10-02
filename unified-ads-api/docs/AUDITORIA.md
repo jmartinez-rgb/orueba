@@ -1,5 +1,12 @@
 # Auditoría de la entrega de Codex — Unified Ads API
 
+**Traspaso vigente para la fase final:**
+[guía](../../media-monitoring-center/docs/ENTREGA_CLAUDE_FASE_FINAL.md) y
+[prompt](../../media-monitoring-center/docs/PROMPT_PARA_CLAUDE.md).
+Usar el último HEAD de `codex/dominios-absolute-top`, que contiene `2c8ca56` y el traspaso
+documental. La [CI de API](https://github.com/jmartinez-rgb/orueba/actions/runs/37058044843)
+pasa Node 22 y 24 para ese commit funcional. No acredita conciliación ni producción.
+
 ## Continuación de dominios y Absolute Top — 2 de octubre de 2026 UTC
 
 Rama `codex/dominios-absolute-top`, desde `f32ba707`.

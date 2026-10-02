@@ -8,7 +8,8 @@ independiente y aceptación de producción siguen pendientes.
 
 **Continuación y auditoría del monitoreo v1:** [ENTREGA_CLAUDE.md](ENTREGA_CLAUDE.md).
 Incluye la guía vigente, un texto listo para pegar en Claude y la revisión manual del equipo.
-Rama `codex/finalizacion-verificador-meta-x`; conciliación y producción aún pendientes.
+Rama vigente `codex/dominios-absolute-top`, base funcional `2c8ca56`; conciliación y producción
+aún pendientes. [Guía de la fase final](media-monitoring-center/docs/ENTREGA_CLAUDE_FASE_FINAL.md).
 
 | Carpeta | Qué es |
 |---|---|
@@ -23,7 +24,7 @@ Versiones: plataforma **6.1.0**, plan masivo y motor **5.7.0**, API de Meta **v2
 Hallazgos y cambios de esta versión: `AUDITORIA.md`.
 
 Revisión del monitoreo del 2 de octubre: [auditoría funcional, UX y Nexus](media-monitoring-center/docs/AUDITORIA_UX_NEXUS_2026-10-02.md).
-La [auditoría ampliada](media-monitoring-center/docs/AUDITORIA_AMPLIADA_2026-10-02.md) añade
+La [auditoría ampliada histórica](media-monitoring-center/docs/AUDITORIA_AMPLIADA_2026-10-02.md) documenta
 regresiones de permisos, marcas, concurrencia, cobertura y CPA agregado: monitoreo **658 pruebas**,
 API **648**, compilaciones y recorrido de navegador reproducible. V1 sigue pendiente de aceptación.
 Nexus consulta campañas y explica el monitoreo con acceso por marca; quedan pendientes la

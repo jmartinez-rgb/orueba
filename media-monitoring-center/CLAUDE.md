@@ -1,5 +1,8 @@
 @AGENTS.md
 
-Para continuar la v1, leer primero [la entrega vigente](docs/ENTREGA_CLAUDE_V1.md).
-La rama de entrega es `codex/finalizacion-verificador-meta-x`; crear una rama propia desde
-su HEAD. El alcance de extracción/conciliación es solo izzi. No publicar ni desplegar.
+Para continuar hacia la candidata v1, leer primero
+[la entrega vigente](docs/ENTREGA_CLAUDE_FASE_FINAL.md) y
+[el informe A–J](docs/DOMINIOS_ABSOLUTE_TOP.md).
+La rama de entrega es `codex/dominios-absolute-top`; usar su último HEAD, que contiene la
+base funcional `2c8ca56` y el traspaso documental. Crear una rama propia desde ahí.
+El alcance de extracción/conciliación es solo izzi; conservar Sky. No publicar ni desplegar.

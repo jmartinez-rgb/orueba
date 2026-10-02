@@ -9,10 +9,13 @@ las auditorías guardadas. Se comprobaron las cuatro cuentas izzi en granularida
 horaria para el 1 de octubre de 2026, con reloj `America/Mexico_City`; las auditorías diarias
 quedaron almacenadas localmente en privado. La conciliación independiente sigue pendiente.
 
-**Entrega anterior de la base v1:** [guía de auditoría y continuación](docs/ENTREGA_CLAUDE_V1.md)
-y [texto listo para pegar](docs/PROMPT_PARA_CLAUDE.md). Incluye evidencia fechada, revisión de
-diseño/UX, permisos nominales, pendientes y tareas manuales del equipo. La publicación confirmada
-es del entorno de Codex; no hay URLs públicas confirmadas ni aceptación de producción.
+**Entrega vigente para la fase final:** [guía de auditoría y continuación](docs/ENTREGA_CLAUDE_FASE_FINAL.md)
+y [prompt listo para pegar](docs/PROMPT_PARA_CLAUDE.md). Usar el último HEAD de
+`codex/dominios-absolute-top`, que contiene la base funcional `2c8ca56` y esta documentación.
+Incluye evidencia fechada, revisión UX, permisos, conciliación y tareas manuales. La
+[entrega de la base v1](docs/ENTREGA_CLAUDE_V1.md) conserva contexto histórico.
+La publicación confirmada es del entorno de Codex; no hay URLs públicas confirmadas ni
+aceptación de producción.
 
 Plataforma interna de monitoreo de Paid Media para **izzi y Sky**, cada una como un monitoreo
 aparte que se cambia con un botón (izzi | Sky). Responde en segundos a la pregunta **¿está todo
