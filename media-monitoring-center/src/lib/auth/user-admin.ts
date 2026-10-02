@@ -3,7 +3,7 @@ import { z } from "zod";
 import { BRAND_IDS, type BrandId } from "@/lib/brands";
 import { getAuthConfig, normalizeUsername } from "./config";
 import { hashPassword, verifyPassword } from "./password";
-import { PERMISSIONS, permissionsOf, ROLES, type Permission, type Role } from "./roles";
+import { applyAlertResponderPolicy, effectivePermissions, PERMISSIONS, permissionsOf, ROLES, type Permission, type Role } from "./roles";
 import { withUserAdminWrite } from "./user-admin-lock";
 import {
   effectiveUniversal,
@@ -21,8 +21,9 @@ import {
 
 /**
  * Reglas para administrar cuentas desde la app (solo quien tiene "users:manage"):
- * - Nadie puede dar permisos que no tiene.
- * - Nadie puede quitarse a sí mismo la gestión de usuarios, desactivarse ni borrarse.
+ * - Nadie puede dar permisos ni marcas que no tiene.
+ * - Nadie puede cambiar su propio rol, permisos o estado, ni borrarse; sus marcas solo se reducen.
+ * - El ID del administrador principal (AUTH_PRIMARY_ADMIN_ID) no se puede crear desde la app.
  * - Siempre queda al menos una cuenta activa con gestión de usuarios.
  * - Cambiar la contraseña o desactivar una cuenta cierra sus sesiones abiertas.
  */
@@ -31,6 +32,8 @@ export interface Actor {
   id: string;
   name: string;
   permissions: Permission[];
+  /** Marcas de quien administra (las de su sesión); vacío u omitido = ambas. */
+  brands?: BrandId[];
 }
 
 export type AdminResult<T = undefined> = { ok: true; value: T } | { ok: false; status: number; message: string };
@@ -113,6 +116,21 @@ function grantProblem(actor: Actor, role: Role, permissions: Permission[] | null
   return wanted.some((p) => !actor.permissions.includes(p)) ? "No puedes dar permisos que tú no tienes." : null;
 }
 
+const BRAND_DENIED = "No puedes dar acceso a una marca que tú no tienes.";
+
+/** Una cuenta limitada a una marca no concede la otra (ni "ambas") a nadie, tampoco a sí misma. */
+function brandProblem(actor: Actor, brands: BrandId[]): string | null {
+  const scope = actor.brands?.length ? actor.brands : BRAND_IDS;
+  const wanted = brands.length ? brands : BRAND_IDS;
+  return wanted.some((b) => !scope.includes(b)) ? BRAND_DENIED : null;
+}
+
+function sameBrands(a: BrandId[], b: BrandId[]): boolean {
+  const x = normBrands(a);
+  const y = normBrands(b);
+  return x.length === y.length && x.every((brand) => y.includes(brand));
+}
+
 function managersLeft(list: EffectiveAccount[]): number {
   return list.filter((a) => a.active && a.permissions.includes("users:manage")).length;
 }
@@ -137,7 +155,10 @@ async function createAccountUnlocked(actor: Actor, input: unknown): Promise<Admi
   if (!USERNAME_RE.test(d.username)) return fail("Usuario inválido: de 3 a 40 caracteres, solo letras minúsculas, números, punto, guion o guion bajo.");
   const problem = passwordProblem(d.password);
   if (problem) return fail(problem);
+  // Esa identidad recibe todos los permisos por política: solo existe en la configuración privada.
+  if (getAuthConfig().primaryAdminId === d.username) return fail("Ese usuario está reservado para el administrador principal.", 403);
   if (grantProblem(actor, d.role, d.permissions)) return fail("No puedes dar permisos que tú no tienes.", 403);
+  if (brandProblem(actor, normBrands(d.brands))) return fail(BRAND_DENIED, 403);
   const all = await listAccounts();
   if (all.some((a) => a.username === d.username)) return fail("Ya existe una cuenta con ese usuario.", 409);
   if (d.email && all.some(a => a.email === d.email)) return fail("Ya existe una cuenta con ese correo.", 409);
@@ -179,6 +200,10 @@ async function updateAccountUnlocked(actor: Actor, username: string, input: unkn
   const self = actor.id === u;
   const touchesAccess = d.role !== undefined || d.permissions !== undefined || d.active !== undefined;
   if (self && touchesAccess) return fail("No puedes cambiar tu propio rol, permisos o estado. Pídeselo a otro administrador.", 403);
+  // El formulario reenvía las marcas vigentes: solo cuenta como cambio si son distintas. Reducir
+  // marcas (también las propias) se permite; ampliar a una marca que quien edita no tiene, no.
+  const brandsChange = d.brands !== undefined && !sameBrands(d.brands, current.brands);
+  if (brandsChange && brandProblem(actor, normBrands(d.brands!))) return fail(BRAND_DENIED, 403);
   if (d.password !== undefined) {
     const problem = passwordProblem(d.password);
     if (problem) return fail(problem);
@@ -223,8 +248,8 @@ async function updateAccountUnlocked(actor: Actor, username: string, input: unkn
     next.permissions = d.permissions ? [...new Set(d.permissions)] : null;
     changes.push(d.permissions ? `permisos personalizados (${d.permissions.length})` : "permisos del rol");
   }
-  if (d.brands !== undefined) {
-    next.brands = normBrands(d.brands);
+  if (brandsChange) {
+    next.brands = normBrands(d.brands!);
     changes.push(next.brands.length ? `marcas: ${next.brands.join(", ")}` : "marcas: todas");
   }
   let revoke = false;
@@ -272,6 +297,11 @@ async function deleteAccountUnlocked(actor: Actor, username: string): Promise<Ad
   return { ok: true, value: { revertedTo: inEnv ? "netlify" : null } };
 }
 
+/** Permisos efectivos de quien entra con la contraseña universal (nunca figura en la lista nominal). */
+function guestPermissions(role: Role): Permission[] {
+  return applyAlertResponderPolicy(effectivePermissions(role, null), "invitado:", getAuthConfig().alertResponders ?? null);
+}
+
 export function updateUniversal(actor: Actor, input: unknown): Promise<AdminResult<{ enabled: boolean; changes: string[] }>> {
   return withUserAdminWrite(() => updateUniversalUnlocked(actor, input));
 }
@@ -286,6 +316,13 @@ async function updateUniversalUnlocked(actor: Actor, input: unknown): Promise<Ad
   }
   const cur = await getUniversalConfig(true);
   const eff = await effectiveUniversal();
+  const wasEnabled = cur?.enabled ?? eff.enabled;
+  const role = d.role ?? cur?.role ?? eff.role;
+  const brands = d.brands !== undefined ? normBrands(d.brands) : (cur?.brands ?? eff.brands);
+  // Activarla o ampliar su rol/marcas concede ese acceso a quien conozca la contraseña.
+  const enabling = (d.enabled ?? cur?.enabled ?? true) && !wasEnabled;
+  if ((enabling || role !== (cur?.role ?? eff.role)) && guestPermissions(role).some((p) => !actor.permissions.includes(p))) return fail("No puedes dar permisos que tú no tienes.", 403);
+  if ((enabling || !sameBrands(brands, cur?.brands ?? eff.brands)) && brandProblem(actor, brands)) return fail(BRAND_DENIED, 403);
   const now = new Date().toISOString();
   const next = {
     enabled: d.enabled ?? cur?.enabled ?? true,

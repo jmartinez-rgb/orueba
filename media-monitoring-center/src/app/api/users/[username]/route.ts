@@ -17,7 +17,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ username: str
   const { username } = await ctx.params;
   if (!username || username.length > 40) return badRequest("Usuario inválido.");
   try {
-    const res = await updateAccount({ id: session.user.id, name: session.user.name, permissions: session.permissions }, decodeURIComponent(username), await readJson(req));
+    const res = await updateAccount({ id: session.user.id, name: session.user.name, permissions: session.permissions, brands: session.brands }, decodeURIComponent(username), await readJson(req));
     if (!res.ok) return json({ ok: false, message: res.message }, res.status);
     const { account, passwordChanged, changes } = res.value;
     // Si la persona cambió su propia contraseña desde la tabla, se renueva su sesión en este navegador.
@@ -41,7 +41,7 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ username: s
   if (!session) return forbidden(DENIED);
   const { username } = await ctx.params;
   try {
-    const res = await deleteAccount({ id: session.user.id, name: session.user.name, permissions: session.permissions }, decodeURIComponent(username));
+    const res = await deleteAccount({ id: session.user.id, name: session.user.name, permissions: session.permissions, brands: session.brands }, decodeURIComponent(username));
     if (!res.ok) return json({ ok: false, message: res.message }, res.status);
     await logActivity(session, "USER_DELETED", `${decodeURIComponent(username)}${res.value.revertedTo ? " (vuelve a la cuenta de Netlify)" : ""}`);
     return json({ ok: true, revertedTo: res.value.revertedTo });

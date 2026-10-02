@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   const session = await requirePermission("users:manage");
   if (!session) return forbidden(DENIED);
   try {
-    const res = await createAccount({ id: session.user.id, name: session.user.name, permissions: session.permissions }, await readJson(req));
+    const res = await createAccount({ id: session.user.id, name: session.user.name, permissions: session.permissions, brands: session.brands }, await readJson(req));
     if (!res.ok) return json({ ok: false, message: res.message }, res.status);
     const a = res.value.account;
     await logActivity(session, "USER_CREATED", `${a.username} (${a.name}) · ${a.role}${a.customPermissions ? " · permisos personalizados" : ""}${a.brands.length ? ` · ${a.brands.join(", ")}` : ""}`);

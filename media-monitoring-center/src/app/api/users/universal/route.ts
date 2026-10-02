@@ -10,7 +10,7 @@ export async function PUT(req: Request) {
   const session = await requirePermission("users:manage");
   if (!session) return forbidden("Solo quien administra usuarios puede cambiar la contraseña universal.");
   try {
-    const res = await updateUniversal({ id: session.user.id, name: session.user.name, permissions: session.permissions }, await readJson(req));
+    const res = await updateUniversal({ id: session.user.id, name: session.user.name, permissions: session.permissions, brands: session.brands }, await readJson(req));
     if (!res.ok) return json({ ok: false, message: res.message }, res.status);
     if (res.value.changes.length) await logActivity(session, "UNIVERSAL_UPDATED", res.value.changes.join(", "));
     return json({ ok: true, enabled: res.value.enabled });
