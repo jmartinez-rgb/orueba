@@ -151,9 +151,11 @@ con un aviso. Autenticación, límites de tasa, timeout y cancelación se propag
 de respaldo. Un filtro explícito de campañas conserva su alcance original.
 
 `verificar` desactiva esa ventana en su copia de configuración para que la primera lectura sea
-completa. El usuario comunicó la aprobación de la app de X, pero la última prueba responde 401 de
-autorización tras cambiar permisos y par de usuario: ver [X_ADS.md](X_ADS.md). Fixtures verifican el código, no el acceso real
-ni el contrato de una descarga asíncrona en producción.
+completa. Tras aplicar el nuevo par, la primera lectura real de X devolvió HTTP 200, tres cuentas,
+1288 campañas y 3864 filas diarias del 27 al 29 de septiembre, sin selección incremental:
+[X_PRIMERA_LECTURA.md](X_PRIMERA_LECTURA.md). El aviso de evento principal no elegido deja conversiones
+y CPA desconocidos. El flujo incremental y la descarga asíncrona aún solo están comprobados con
+fixtures; esta muestra síncrona no certifica esos accesos ni sustituye conciliación.
 
 ## Validación y pendientes
 

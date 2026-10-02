@@ -13,15 +13,15 @@ La continuación `codex/finalizacion-verificador-meta-x` parte de la auditoría 
 incremental opcional de X con respaldo. Consulta [la guía de verificación](docs/VERIFICACION.md).
 La conciliación y los permisos externos siguen pendientes; no se declara listo para producción.
 
-| Fase | Contenido                                | Estado                                                                                               |
-| ---- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| 1    | Infraestructura base (sin integraciones) | **Lista**                                                                                            |
-| 2    | Google Ads                               | **Implementada y verificada con Google real y simulador**                                            |
-| 3    | Meta Marketing API                       | **Implementada y verificada con Meta real y simulador**                                              |
-| 4    | TikTok Ads                               | **OAuth y lectura real de cuatro cuentas verificados; conciliación pendiente**                       |
-| 5    | Microsoft Advertising                    | **Autorización y campañas reales verificadas; descarga de informes bloqueada por el proxy**          |
-| 6    | Spotify Ads                              | **6 cuentas, 14 campañas y muestra diaria reales; 1 cuenta USD sin permiso; conciliación pendiente** |
-| 7    | X Ads                                    | **API 12 y fixtures listos; aprobación y Read and Write comunicados; última consulta 401 de OAuth**  |
+| Fase | Contenido                                | Estado                                                                                                      |
+| ---- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 1    | Infraestructura base (sin integraciones) | **Lista**                                                                                                   |
+| 2    | Google Ads                               | **Implementada y verificada con Google real y simulador**                                                   |
+| 3    | Meta Marketing API                       | **Implementada y verificada con Meta real y simulador**                                                     |
+| 4    | TikTok Ads                               | **OAuth y lectura real de cuatro cuentas verificados; conciliación pendiente**                              |
+| 5    | Microsoft Advertising                    | **Autorización y campañas reales verificadas; descarga de informes bloqueada por el proxy**                 |
+| 6    | Spotify Ads                              | **6 cuentas, 14 campañas y muestra diaria reales; 1 cuenta USD sin permiso; conciliación pendiente**        |
+| 7    | X Ads                                    | **OAuth, 3 cuentas, 1288 campañas y 3864 filas diarias reales; conciliación y evento principal pendientes** |
 
 La Fase 1 ya incluye piezas que las integraciones van a usar: fórmulas normalizadas (CTR, CPC, CPM,
 CPA sin NaN ni Infinity), reintentos con espera exponencial y variación (respetan `Retry-After`),
@@ -298,11 +298,12 @@ estados y vocabulario de conversiones. El panel de monitoreo lo muestra como el 
 Configura los cuatro valores privados `X_ADS_CONSUMER_KEY`, `X_ADS_CONSUMER_SECRET`,
 `X_ADS_ACCESS_TOKEN`, `X_ADS_ACCESS_TOKEN_SECRET`. No se elige un evento principal automáticamente.
 Consulta [docs/X_ADS.md](docs/X_ADS.md) para versión, fuentes, permisos y límites comprobados.
-Las pruebas no salen a red. La app ya existe y sus cuatro variables privadas llegaron al proceso;
-la primera petición real devuelve HTTP 403 `UNAUTHORIZED_CLIENT_APPLICATION`, normalizado como
-`ACCESS_REQUIRED`. El usuario envió la solicitud de acceso el 1 de octubre de 2026 y el formulario
-confirmó recepción. Falta la aprobación/permisos de Ads API, seguida de lectura y conciliación real.
-La guía incluye el formulario oficial y la renovación del par de tokens de usuario tras la aprobación.
+Las pruebas no salen a red. Tras aprobar la app y aplicar el par nuevo, la lectura real respondió
+HTTP 200: **3 cuentas MXN**, **1288 campañas** y **3864 filas diarias** del 27 al 29 de septiembre.
+Se verificó el catálogo completo sin selección incremental; conversiones y CPA siguen desconocidos
+porque falta elegir el evento principal. Los nueve agregados para conciliar, zonas y límites están
+en [docs/X_PRIMERA_LECTURA.md](docs/X_PRIMERA_LECTURA.md). Informes horarios, conversiones y descarga
+asíncrona real siguen pendientes, además de la conciliación con Ads Manager.
 
 ## Continuación para auditoría de Claude
 

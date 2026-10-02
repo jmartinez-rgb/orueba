@@ -1,0 +1,10 @@
+account_id,account_name,currency,report_timezone,date,campaign_day_rows,data_status,spend,impressions,clicks,conversions,cpa
+18ce53wx5ui,iz,MXN,America/Mexico_City,2026-09-27,1276,rows_returned,1694.508515,152694,0,,
+18ce53wx5ui,iz,MXN,America/Mexico_City,2026-09-28,1276,rows_returned,1239.592947,77519,0,,
+18ce53wx5ui,iz,MXN,America/Mexico_City,2026-09-29,1276,rows_returned,1233.027009,109349,0,,
+18ce53zbn6a,SKY | ABCW | 2024,MXN,America/Mexico_City,2026-09-27,0,no_rows_returned,,,,,
+18ce53zbn6a,SKY | ABCW | 2024,MXN,America/Mexico_City,2026-09-28,0,no_rows_returned,,,,,
+18ce53zbn6a,SKY | ABCW | 2024,MXN,America/Mexico_City,2026-09-29,0,no_rows_returned,,,,,
+18ce55mysa4,Sky México - Socialand LLYC,MXN,America/Mexico_City,2026-09-27,12,rows_returned,0,0,0,,
+18ce55mysa4,Sky México - Socialand LLYC,MXN,America/Mexico_City,2026-09-28,12,rows_returned,0,0,0,,
+18ce55mysa4,Sky México - Socialand LLYC,MXN,America/Mexico_City,2026-09-29,12,rows_returned,0,0,0,,

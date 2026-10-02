@@ -99,9 +99,10 @@ habilitación de Ads API, como se detalla abajo. Una app marcada `active` no dem
 
 Una vez guardadas y aplicadas las variables, verificar primero `GET /api/v1/providers/x/status`
 y `GET /api/v1/accounts?provider=x`; después campañas y un rango diario de tres días por cuenta.
-El estado histórico de habilitación de la app se conserva abajo. En la consulta posterior a la
-aprobación comunicada por el usuario, el bloqueo cambió a **permisos del token**. No se repite
-una consulta denegada sin un cambio de permisos o de configuración que justifique el intento.
+La lectura posterior a aplicar el nuevo par ya fue **HTTP 200**: tres cuentas, campañas y tres
+días de métricas comprobados en [X_PRIMERA_LECTURA.md](X_PRIMERA_LECTURA.md).
+Los rechazos anteriores se conservan abajo como históricos. No se repite una consulta denegada
+sin un cambio de permisos o de configuración que justifique el intento.
 
 ## Informes y semántica
 
@@ -176,7 +177,18 @@ de errores ni URLs de descarga.
 
 ## Validación y pendientes
 
-### Actualización tras la aprobación comunicada (1–2 de octubre de 2026)
+### Estado vigente: OAuth y métricas diarios comprobados
+
+El 1 de octubre de 2026 (Bogotá; 2 de octubre UTC), tras aplicar el par nuevo, `GET /12/accounts`
+respondió **HTTP 200** y estado `connected`. Se leyeron tres cuentas MXN, 1.288 campañas y
+3.864 filas diarias del 27 al 29 de septiembre, sin selección incremental. La única limitación
+fue falta de evento principal: conversiones y CPA permanecen `null`; no fallaron las métricas de
+gasto. Las rutas autenticadas de estado, cuentas y rendimiento de una campaña también respondieron
+HTTP 200 mediante `app.inject`. Alcance, nueve agregados diarios y pendientes en
+[X_PRIMERA_LECTURA.md](X_PRIMERA_LECTURA.md). No se afirma conciliación, descarga asíncrona real o
+conexión a un sitio publicado a partir de esta lectura.
+
+### Historial tras la aprobación comunicada (1–2 de octubre de 2026)
 
 El usuario confirmó el correo de aprobación y la regeneración del par OAuth. La nueva petición
 `GET /12/accounts` respondió HTTP 403 **`INSUFFICIENT_USER_AUTHORIZED_PERMISSION`**:
@@ -187,8 +199,8 @@ actualización solo de Access Token y Access Token Secret. La consulta posterior
 `UNAUTHORIZED_ACCESS`**: `AUTH_ERROR`, estado `error`. Las cuatro variables llegaron al proceso,
 sin duplicados, comillas o caracteres de copia detectados y sin valores X en `.env`. No se afirma
 que correspondan al nuevo par guardado en el panel: tras regenerar, el anterior queda invalidado.
-Aplicar configuración/reiniciar y revisar que el par pertenezca al mismo diálogo y app; conservar
-Consumer Key/Secret de esa app. La identidad debe tener acceso a todas las cuentas
+En aquel intento se indicó aplicar configuración/reiniciar y revisar el par; la petición
+posterior HTTP 200 resolvió ese bloqueo. Se conservaron Consumer Key/Secret de la misma app. La identidad debe tener acceso a todas las cuentas
 solicitadas. Si persiste el rechazo, revisar identidad, roles y que la aprobación sea Standard
 Access (Analytics + Campaign Management). El proveedor sigue usando operaciones de lectura.
 
@@ -215,16 +227,15 @@ de escritura publicitaria ni trabajos de informes.
 
 El usuario envió la solicitud de acceso el **1 de octubre de 2026**. La captura del formulario
 oficial muestra **«Success! Someone from the X Developer Platform will reach out shortly.»**
-Esto confirma la recepción de la solicitud, no la aprobación de Ads API. No se muestra un número
-de caso ni un plazo de resolución; queda pendiente la respuesta de X al contacto indicado.
-No se repite la petición bloqueada ni se renuevan tokens mientras no haya aprobación.
+En ese momento solo confirmó recepción, sin número de caso ni plazo de resolución. La aprobación
+posterior y su lectura real constan arriba; este apartado conserva la evidencia del primer intento.
 
 La integración requiere Standard Access para la app `33489379`. Tras la aprobación, la guía oficial pide renovar
 los tokens de usuario previos; actualizar únicamente `X_ADS_ACCESS_TOKEN` y
 `X_ADS_ACCESS_TOKEN_SECRET` con ese nuevo par, manteniendo las claves de la misma app. Después
-reintentar cuentas y una lectura diaria acotada de las cuentas elegidas por el usuario.
-Quedan por validar permisos efectivos, forma real de conversiones, conciliación con Ads Manager,
-offset/DST y las tres ubicaciones. No se declara esta fase lista para producción.
+reintentar cuentas y una lectura diaria acotada; ambos pasos ya se comprobaron en la muestra.
+Quedan por validar conversiones, conciliación con Ads Manager, transiciones DST, descarga asíncrona
+real y otras ubicaciones. No se declara esta fase lista para producción.
 
 ## Fuentes oficiales
 
