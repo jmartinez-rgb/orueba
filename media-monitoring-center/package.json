@@ -21,7 +21,8 @@
     "sheets:setup": "node scripts/sheets-setup.mjs",
     "sheets:check": "node scripts/sheets-setup.mjs --check",
     "unified:sync": "node --conditions=react-server --import tsx scripts/unified-sync.ts",
-    "auth:bootstrap": "node --conditions=react-server --import tsx scripts/auth-bootstrap.ts"
+    "auth:bootstrap": "node --conditions=react-server --import tsx scripts/auth-bootstrap.ts",
+    "unified:refresh": "node --conditions=react-server --import tsx scripts/unified-refresh.ts"
   },
   "dependencies": {
     "@blobatar/react": "^2.7.0",

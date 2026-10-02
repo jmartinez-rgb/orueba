@@ -3,6 +3,27 @@
 Fecha: 1 de octubre de 2026. Rama: `codex/entrega-auditoria-claude`. Estado recibido: commit
 `39a65be` (idéntico al ZIP `unified-ads-api-para-auditoria.zip`, comprobado archivo por archivo).
 
+## Actualización incremental local — 2 de octubre de 2026 UTC
+
+El monitoreo incorpora `unified:refresh`: ronda acotada de tres días por cuenta del mapeo,
+diaria/horaria, espera persistida y backoff de errores hasta 24 horas. Un worker opcional
+`--watch` respeta esa espera y cancela transporte con SIGINT/SIGTERM. No se instaló un cron,
+se desplegó ni se activaron mensajes externos. Particiones válidas se conservan ante fallos.
+
+- TikTok real: cuatro cuentas, **755 filas procesadas** (diarias y horarias combinadas, no
+  suma de métricas ni filas nuevas) del 29 de septiembre al 1 de octubre. Tres cuentas con filas;
+  izzi US devolvió vacío válido para ese periodo y conserva su histórico anterior.
+- Repetición inmediata: cuatro `WAITING`, sin consultas nuevas. Prueba de watch: espera,
+  SIGTERM y bloqueo liberado. Monitoreo: **284 pruebas**, tipos/lint y build pasan.
+- Cuentas reales reconsultadas: Meta 17, Microsoft 4, Spotify 6, HTTP 200; inventario privado
+  de 27 cuentas, **sin asignar marcas por sus nombres**. Google no se recorrió de nuevo.
+- Microsoft ZIP, permiso Spotify USD y X horario no se revalidaron en esta ronda: sus bloqueos
+  siguen pendientes. No se confundió descubrimiento con acceso a reportes.
+
+Comandos y evidencia: [ACTUALIZACION_DIRECTA.md](../../media-monitoring-center/docs/ACTUALIZACION_DIRECTA.md).
+La extracción local está implementada; falta definir cuentas/marcas de los demás proveedores,
+activación del worker, volumen durable y evaluación desatendida en el entorno destino.
+
 ## Monitoreo con APIs directas — 2 de octubre de 2026 UTC
 
 El usuario eligió APIs directas para v1. En `media-monitoring-center`, `DATA_SOURCE=unified`

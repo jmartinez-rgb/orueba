@@ -146,3 +146,9 @@ local del adaptador, no aceptación visual de producción ni conciliación de ci
 
 Validación y aceptación: [V1.md](V1.md). Matriz por plataforma y reglas de negocio:
 [AUDITORIA.md](../../unified-ads-api/docs/AUDITORIA.md). No se declara terminado el proyecto.
+
+## Actualización incremental
+
+`unified:refresh` relee hoy y los dos días anteriores por cuenta, con cooldown persistido y
+backoff de fallos. [Comandos, límites y operación](ACTUALIZACION_DIRECTA.md). El worker local
+está implementado; su activación y evaluación desatendida en producción siguen pendientes.

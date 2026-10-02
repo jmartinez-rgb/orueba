@@ -170,3 +170,7 @@ media-monitoring-center/
 | 7. Acceso con contraseña, bitácora, Monitoreos, tickets, alerta crítica, monedas, clasificadores, confianza | ✅ con pruebas |
 | 8. Lectura directa de la hoja de Dataslayer, bugs y sugerencias | ✅ con pruebas |
 | 9. Conexión real (cuenta de servicio, hoja compartida, Netlify, n8n y plantillas de WhatsApp) | Pendiente de accesos |
+
+**Actualización del histórico:** `npm run unified:refresh -- --provider tiktok` ejecuta una ronda
+acotada con espera persistida y backoff; `--watch` permite un worker local explícito.
+Ver [ACTUALIZACION_DIRECTA.md](docs/ACTUALIZACION_DIRECTA.md). No instala un cron ni publica.
