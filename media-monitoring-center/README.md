@@ -72,6 +72,12 @@ Los extractores admiten `--brand izzi`; usar ese filtro explícito durante esta 
 [Informe para la siguiente auditoría](docs/PREPARACION_PRODUCCION_2026-10-02.md):
 839 pruebas del monitoreo y 678 de la API, evidencia sin cifras privadas y bloqueos separados.
 
+Tras publicar el entorno de Codex se comprobó nuevamente su arranque y el acceso a los seis
+proveedores. `npm run produccion:smoke` prepara siete comprobaciones públicas sin llaves ni
+escrituras, para usar cuando existan las URL del alojamiento. La continuación también protege
+el contador de accesos y las detecciones del arranque mensual ante actualizaciones simultáneas;
+ver [informe del entorno publicado](docs/CONTINUACION_ENTORNO_PUBLICADO_2026-10-02.md).
+
 Requisitos: Node.js 22+.
 
 ```bash
@@ -122,6 +128,7 @@ gastar** (datos al día, gasto en cero las últimas 3 horas).
 | `npm test` | Pruebas de motores (comparación, anomalías, incidentes, pacing, data health, BigQuery, escenarios), acceso, clasificadores, monedas, confianza y mensaje de monitoreo |
 | `npm run check` | typecheck + lint + tests |
 | `npm run v1:check` | Configuración de producción y estados de API; `-- --sin-red` evita red. No certifica conciliación ni publica |
+| `npm run produccion:smoke` | Siete comprobaciones HTTPS sin autenticación ni escrituras; requiere `--monitor` y `--api`; no acepta la v1 |
 | `npm run conciliar` | Comparación offline izzi por cuenta/día con referencia independiente; JSON/CSV privados, sin inventar ceros, tasas ni eventos |
 | `npm run unified:sync` | Extrae las cuentas del mapeo explícito, guarda catálogo y particiones diarias/horarias privadas; `-- --help` muestra opciones |
 | `npm run auth:setup` | Genera contraseñas nuevas, sus hashes y `AUTH_SECRET` (`-- --write` los guarda en `.env.local`) |

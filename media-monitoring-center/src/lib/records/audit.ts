@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import type { Role } from "@/lib/auth/roles";
 import { addDays, businessDate } from "@/lib/time/tz";
 import { getRecordStore, readImmutable, stamp } from "./store";
@@ -94,6 +95,17 @@ export interface UserDirectoryEntry {
   lastAgent: string | null;
 }
 
+interface StoredUserDirectoryEntry extends UserDirectoryEntry {
+  /** Bounded replay receipts; never exposed in the directory response. */
+  appliedOperations?: string[];
+}
+
+function publicDirectoryEntry(entry: StoredUserDirectoryEntry): UserDirectoryEntry {
+  const result = { ...entry };
+  delete result.appliedOperations;
+  return result;
+}
+
 const TZ = () => process.env.APP_TIMEZONE || "America/Mexico_City";
 
 /** IP enmascarada (último bloque oculto) para ubicar accesos sin guardar la IP completa. */
@@ -148,26 +160,34 @@ export async function touchUser(user: AuditUser, opts: { login?: boolean; agent?
   const store = getRecordStore();
   const key = `users/${encodeURIComponent(user.id)}`;
   const now = new Date().toISOString();
-  const cur = await store.get<UserDirectoryEntry>(key);
+  const nowMs = Date.parse(now);
+  const recentlySeen = (cur: UserDirectoryEntry | null) => cur !== null && nowMs - Date.parse(cur.lastSeenAt) < 5 * 60 * 1000;
   // Evita escrituras en cada request: la presencia se actualiza cada 5 minutos como máximo.
-  if (!opts.login && cur && Date.now() - new Date(cur.lastSeenAt).getTime() < 5 * 60 * 1000) return;
-  const next: UserDirectoryEntry = {
-    id: user.id,
-    name: user.name,
-    role: user.role,
-    kind: user.kind,
-    firstSeenAt: cur?.firstSeenAt ?? now,
-    lastLoginAt: opts.login ? now : (cur?.lastLoginAt ?? null),
-    lastSeenAt: now,
-    logins: (cur?.logins ?? 0) + (opts.login ? 1 : 0),
-    lastAgent: opts.agent ?? cur?.lastAgent ?? null,
-  };
-  await store.set(key, next);
+  if (!opts.login && recentlySeen(await store.get<UserDirectoryEntry>(key))) return;
+  // CAS may replay this pure transform; generating its ID and timestamp here keeps
+  // a confirmed login from being counted twice while its receipt is retained.
+  const operationId = randomUUID();
+  await store.update<StoredUserDirectoryEntry>(key, cur => {
+    if (cur?.appliedOperations?.includes(operationId) || (!opts.login && recentlySeen(cur))) return cur;
+    const latest = !cur || now >= cur.lastSeenAt;
+    return {
+      id: user.id,
+      name: latest ? user.name : cur!.name,
+      role: latest ? user.role : cur!.role,
+      kind: latest ? user.kind : cur!.kind,
+      firstSeenAt: cur && cur.firstSeenAt < now ? cur.firstSeenAt : now,
+      lastLoginAt: opts.login && (!cur?.lastLoginAt || now > cur.lastLoginAt) ? now : (cur?.lastLoginAt ?? null),
+      lastSeenAt: latest ? now : cur!.lastSeenAt,
+      logins: (cur?.logins ?? 0) + (opts.login ? 1 : 0),
+      lastAgent: latest ? (opts.agent ?? cur?.lastAgent ?? null) : cur!.lastAgent,
+      appliedOperations: [...(cur?.appliedOperations ?? []), operationId].slice(-50),
+    };
+  });
 }
 
 export async function listUsers(): Promise<UserDirectoryEntry[]> {
   const store = getRecordStore();
   const keys = await store.list("users/");
-  const rows = await Promise.all(keys.map((k) => store.get<UserDirectoryEntry>(k)));
-  return rows.filter((r): r is UserDirectoryEntry => r !== null).sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt));
+  const rows = await Promise.all(keys.map((k) => store.get<StoredUserDirectoryEntry>(k)));
+  return rows.filter((r): r is StoredUserDirectoryEntry => r !== null).map(publicDirectoryEntry).sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt));
 }

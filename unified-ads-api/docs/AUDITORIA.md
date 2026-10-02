@@ -3,6 +3,21 @@
 Fecha: 1 de octubre de 2026. Rama: `codex/entrega-auditoria-claude`. Estado recibido: commit
 `39a65be` (idéntico al ZIP `unified-ads-api-para-auditoria.zip`, comprobado archivo por archivo).
 
+## Entorno publicado y continuación — 2 de octubre de 2026 UTC
+
+Desde `a7d1650`, rama `codex/finalizacion-verificador-meta-x`:
+[informe](../../media-monitoring-center/docs/CONTINUACION_ENTORNO_PUBLICADO_2026-10-02.md).
+Arranque de la instancia reconectada y ocho comprobaciones HTTP pasan. Estados reales de los
+seis proveedores `connected` a las 16:44 UTC; esa lectura no concilia métricas ni acredita todos
+los reportes. Ronda Microsoft solo izzi: catálogo/campañas HTTP 200, reportes diario y horario
+HTTP 502/`PROVIDER_ERROR`, cero filas nuevas y espera persistida. HEAD del host fijo responde
+HTTP 400: DNS/transporte disponibles, sin validar descarga firmada ni causa del 502.
+
+El monitoreo añade un sondeo público de siete GET sin credenciales y corrige pérdida de accesos,
+inicio y autoenlace del arranque mensual concurrentes. Las URL públicas siguen faltando; no
+hubo despliegue ni aceptación de v1. Pendientes de código, configuración, permisos y negocio en
+el informe. La evidencia de lecturas anteriores permanece histórica, sin declarar conciliación.
+
 ## Auditoría ampliada — 2 de octubre de 2026
 
 Desde `501e45f`, misma rama de continuación: [informe](../../media-monitoring-center/docs/AUDITORIA_AMPLIADA_2026-10-02.md).
@@ -676,14 +691,14 @@ Spotify y la primera lectura real de X, descritos al inicio. TikTok se verificó
 detalles y totales en [TIKTOK_PRIMERA_LECTURA.md](TIKTOK_PRIMERA_LECTURA.md). La finalización del
 verificador añadió una lectura de un día y 26 presupuestos actuales, descrita arriba.
 
-| Plataforma | Simulador            | OAuth y credenciales reales                  | Cuentas reales                              | Campañas reales         | Informes y métricas reales                                                                         | Conciliación con la interfaz |
-| ---------- | -------------------- | -------------------------------------------- | ------------------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------- |
-| Google Ads | Sí                   | Sí                                           | Sí (9 mapeadas; jerarquías verificadas)     | Sí                      | Monitoreo 30/09: 100 diarias/2390 horarias; Universal+ diario fuera de zona                        | Pendiente                    |
-| Meta       | Sí                   | Sí (token)                                   | Sí (15 mapeadas de 17 activas)              | Sí                      | Monitoreo 30/09: 109 diarias/2789 horarias; izzi ABCW diario fuera de zona                         | Pendiente                    |
-| TikTok     | Sí                   | Sí, OAuth y token real                       | Sí (4, monedas y zonas leídas)              | Sí (178)                | Monitoreo: 35 días, 1022 filas diarias/10432 horarias; US con actividad                            | Pendiente                    |
-| Microsoft  | Sí                   | Sí                                           | Sí (4; monitoreo 1 izzi)                    | Sí (43; cuenta izzi 15) | ZIP descargado: 266 horarias completas; diario UTC fuera de zona                                   | Pendiente                    |
-| Spotify    | Sí                   | Sí (refresh token)                           | Sí (6; monitoreo 1 MXN izzi)                | Sí (14 accesibles)      | Diarios UTC; izzi: 30 filas horarias UTC recuperadas; ingresos desconocidos; USD extra sin permiso | Pendiente                    |
-| X Ads      | Sí, fixtures sin red | Sí, OAuth 1.0a; HTTP 200, estado `connected` | Sí (3); monitoreo solo izzi por instrucción | Sí (1288); izzi 1276    | API: 3864 filas diarias; monitoreo izzi: 3828; horas HTTP 429                                      | Pendiente                    |
+| Plataforma | Simulador            | OAuth y credenciales reales                  | Cuentas reales                              | Campañas reales         | Informes y métricas reales                                                                            | Conciliación con la interfaz |
+| ---------- | -------------------- | -------------------------------------------- | ------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Google Ads | Sí                   | Sí                                           | Sí (9 mapeadas; jerarquías verificadas)     | Sí                      | Monitoreo 30/09: 100 diarias/2390 horarias; Universal+ diario fuera de zona                           | Pendiente                    |
+| Meta       | Sí                   | Sí (token)                                   | Sí (15 mapeadas de 17 activas)              | Sí                      | Monitoreo 30/09: 109 diarias/2789 horarias; izzi ABCW diario fuera de zona                            | Pendiente                    |
+| TikTok     | Sí                   | Sí, OAuth y token real                       | Sí (4, monedas y zonas leídas)              | Sí (178)                | Monitoreo: 35 días, 1022 filas diarias/10432 horarias; US con actividad                               | Pendiente                    |
+| Microsoft  | Sí                   | Sí                                           | Sí (4; monitoreo 1 izzi)                    | Sí (43; cuenta izzi 15) | Histórico: 266 horarias; diario UTC fuera de zona. 02/10: refresh izzi HTTP 502, histórico conservado | Pendiente                    |
+| Spotify    | Sí                   | Sí (refresh token)                           | Sí (6; monitoreo 1 MXN izzi)                | Sí (14 accesibles)      | Diarios UTC; izzi: 30 filas horarias UTC recuperadas; ingresos desconocidos; USD extra sin permiso    | Pendiente                    |
+| X Ads      | Sí, fixtures sin red | Sí, OAuth 1.0a; HTTP 200, estado `connected` | Sí (3); monitoreo solo izzi por instrucción | Sí (1288); izzi 1276    | API: 3864 filas diarias; monitoreo izzi: 3828; horas HTTP 429                                         | Pendiente                    |
 
 ## Preparación de conciliación y producción (2 de octubre)
 

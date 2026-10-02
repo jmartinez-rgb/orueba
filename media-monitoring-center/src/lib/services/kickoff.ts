@@ -1,7 +1,7 @@
 import "server-only";
 import type { PlatformId } from "@/lib/types";
 import { PLATFORMS } from "@/lib/platforms/registry";
-import { createNovedad, getKickoff, markKickoffStarted, saveKickoff, type KickoffBudget, type KickoffItem, type MonthKickoff } from "@/lib/records/novedades";
+import { createNovedad, getKickoff, linkKickoffCampaigns, markKickoffStarted, saveKickoff, type KickoffBudget, type KickoffItem, type MonthKickoff } from "@/lib/records/novedades";
 import { addDays, businessDate } from "@/lib/time/tz";
 import { logger } from "@/lib/logging/logger";
 import type { AppContext } from "./context";
@@ -39,6 +39,8 @@ const norm = (v: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const identityOf = ({ name, platform, accountName, campaignId }: KickoffItem) => ({ name, platform, accountName, campaignId });
+
 /**
  * Estado del arranque del mes para el aviso obligatorio y el recordatorio diario. De paso detecta
  * las campañas pendientes que ya empezaron a gastar (por ID o por nombre) y las marca como iniciadas.
@@ -50,25 +52,26 @@ export async function kickoffStatus(ctx: AppContext, snap: Snapshot | null): Pro
   const justStarted: string[] = [];
 
   if (kickoff && snap) {
+    const approvedBy = kickoff.confirmedBy;
     const spendToday = new Map<string, number>();
     for (const e of snap.run.entities) if (e.level === "campaign" && e.campaignId) spendToday.set(e.campaignId, e.cumulative.spend?.current ?? 0);
-    const started: Array<{ key: string; at: string }> = [];
-    let renamed = false;
+    const started: Array<{ key: string; at: string; campaignId: string; expected: ReturnType<typeof identityOf> }> = [];
+    const links: Array<{ key: string; campaignId: string; expected: ReturnType<typeof identityOf> }> = [];
     for (const it of kickoff.items) {
       if (it.state !== "PENDING" || it.startedAt) continue;
       // Una campaña capturada a mano (aún sin ID) se busca por nombre en el catálogo de la hoja.
-      if (!it.campaignId) {
+      let campaignId = it.campaignId;
+      if (!campaignId) {
         const match = snap.catalog.campaigns.find((c) => c.platform === it.platform && (norm(c.name) === norm(it.name) || norm(c.name).includes(norm(it.name))));
         if (match) {
-          it.campaignId = match.id;
-          renamed = true;
+          campaignId = match.id;
+          links.push({ key: it.key, campaignId, expected: identityOf(it) });
         }
       }
-      if (it.campaignId && (spendToday.get(it.campaignId) ?? 0) > 0) started.push({ key: it.key, at: new Date().toISOString() });
+      if (campaignId && (spendToday.get(campaignId) ?? 0) > 0) started.push({ key: it.key, at: new Date().toISOString(), campaignId, expected: { ...identityOf(it), campaignId } });
     }
-    if (renamed && !started.length) await saveKickoff(kickoff);
+    if (links.length) kickoff = await linkKickoffCampaigns(ctx.brand, month, links, "Monitoreo automático");
     if (started.length) {
-      if (renamed) await saveKickoff(kickoff);
       const done = await markKickoffStarted(ctx.brand, month, started, "Monitoreo automático");
       for (const it of done) {
         justStarted.push(it.name);
@@ -82,7 +85,7 @@ export async function kickoffStatus(ctx: AppContext, snap: Snapshot | null): Pro
             accountName: it.accountName,
             campaignId: it.campaignId,
             campaignName: it.name,
-            approvedBy: kickoff.confirmedBy,
+            approvedBy,
             approvalChannel: "OTRO",
             approvalRef: `Arranque de ${month}`,
             effectiveFrom: today,
@@ -143,7 +146,7 @@ export async function confirmKickoff(ctx: AppContext, input: { month: string; bu
     updatedAt: now,
     updatedBy: by,
   };
-  await saveKickoff(k);
+  const saved = await saveKickoff(k);
   const total = input.budgets.reduce((a, b) => a + b.amount, 0);
   const byPlatform = [...new Set(input.budgets.map((b) => b.platform))]
     .map((p) => `${PLATFORMS[p].shortName} ${Math.round(input.budgets.filter((b) => b.platform === p && !b.accountId).reduce((a, b) => a + b.amount, 0) || input.budgets.filter((b) => b.platform === p).reduce((a, b) => a + b.amount, 0)).toLocaleString("es-MX")}`)
@@ -174,5 +177,5 @@ export async function confirmKickoff(ctx: AppContext, input: { month: string; bu
     by,
     ctx.brand,
   );
-  return k;
+  return saved;
 }

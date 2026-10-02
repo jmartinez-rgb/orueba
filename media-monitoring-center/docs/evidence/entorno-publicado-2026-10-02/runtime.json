@@ -1,0 +1,153 @@
+{
+  "checkedAt": "2026-10-02T16:44:26.382Z",
+  "configurationPublicationConfirmed": true,
+  "independentFreshTaskRestorationVerified": false,
+  "publicHostingVerified": false,
+  "postBuildHttp": {
+    "checkedAt": "2026-10-02T17:04:28.267Z",
+    "checks": 8,
+    "passed": 8,
+    "monitorBuildRestarted": true,
+    "onlyAnonymousRequests": true
+  },
+  "localHttp": {
+    "checks": 8,
+    "passed": 8
+  },
+  "providers": [
+    {
+      "provider": "google",
+      "configured": true,
+      "state": "connected",
+      "code": null
+    },
+    {
+      "provider": "meta",
+      "configured": true,
+      "state": "connected",
+      "code": null
+    },
+    {
+      "provider": "tiktok",
+      "configured": true,
+      "state": "connected",
+      "code": null
+    },
+    {
+      "provider": "microsoft",
+      "configured": true,
+      "state": "connected",
+      "code": null
+    },
+    {
+      "provider": "spotify",
+      "configured": true,
+      "state": "connected",
+      "code": null
+    },
+    {
+      "provider": "x",
+      "configured": true,
+      "state": "connected",
+      "code": null
+    }
+  ],
+  "microsoft": {
+    "scope": "izzi",
+    "accountsDiscovered": 4,
+    "campaignsInScope": 15,
+    "catalogHttpStatus": 200,
+    "reportHttpStatus": 502,
+    "reportCode": "PROVIDER_ERROR",
+    "newRows": 0,
+    "refreshExitCode": 2,
+    "nextDueAt": "2026-10-02T20:47:10.898Z",
+    "networkProbe": {
+      "method": "HEAD",
+      "httpStatus": 400,
+      "reachable": true,
+      "signedDownloadVerified": false
+    }
+  },
+  "publicSmoke": {
+    "version": 1,
+    "generatedAt": "2026-10-02T16:55:22.518Z",
+    "status": "blocked",
+    "checks": [
+      {
+        "target": "monitor",
+        "id": "monitor_health",
+        "status": "blocked",
+        "code": "URL_MISSING",
+        "httpStatus": null
+      },
+      {
+        "target": "monitor",
+        "id": "monitor_login",
+        "status": "blocked",
+        "code": "URL_MISSING",
+        "httpStatus": null
+      },
+      {
+        "target": "monitor",
+        "id": "monitor_settings_denied",
+        "status": "blocked",
+        "code": "URL_MISSING",
+        "httpStatus": null
+      },
+      {
+        "target": "monitor",
+        "id": "monitor_nexus_denied",
+        "status": "blocked",
+        "code": "URL_MISSING",
+        "httpStatus": null
+      },
+      {
+        "target": "api",
+        "id": "api_health",
+        "status": "blocked",
+        "code": "URL_MISSING",
+        "httpStatus": null
+      },
+      {
+        "target": "api",
+        "id": "api_providers_denied",
+        "status": "blocked",
+        "code": "URL_MISSING",
+        "httpStatus": null
+      },
+      {
+        "target": "api",
+        "id": "api_accounts_denied",
+        "status": "blocked",
+        "code": "URL_MISSING",
+        "httpStatus": null
+      }
+    ],
+    "counts": {
+      "pass": 0,
+      "fail": 0,
+      "blocked": 7
+    },
+    "exitCode": 2,
+    "transport": "DEFAULT_FETCH",
+    "policy": {
+      "method": "GET",
+      "maxRequests": 7,
+      "credentials": "omit",
+      "redirects": "manual",
+      "timeoutMs": 5000,
+      "maxBodyBytes": 524288
+    },
+    "certifiesV1": false,
+    "hostingHttpsVerified": false,
+    "dnsBindingVerified": false,
+    "pendingEvidence": [
+      "TLS_PROXY_DNS_ORIGIN_NOT_CERTIFIED",
+      "NOMINAL_LOGIN_NOT_VERIFIED",
+      "ADVERTISING_PLATFORM_ACCESS_NOT_VERIFIED",
+      "RECONCILIATION_NOT_VERIFIED",
+      "DURABLE_STORAGE_AND_WORKER_NOT_VERIFIED"
+    ]
+  }
+}

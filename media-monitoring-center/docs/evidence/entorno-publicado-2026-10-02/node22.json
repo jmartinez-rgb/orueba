@@ -1,0 +1,55 @@
+{
+  "generatedAt": "2026-10-02T17:02:42.647Z",
+  "nodeVersion": "v22.23.3",
+  "source": "https://nodejs.org/dist/v22.23.3/node-v22.23.3-linux-x64.tar.xz",
+  "checksumSource": "https://nodejs.org/dist/v22.23.3/SHASUMS256.txt",
+  "sha256": "df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de",
+  "sha256VerifiedBeforeExtraction": true,
+  "commandExitCode": 0,
+  "success": true,
+  "files": [
+    {
+      "name": "kickoff-concurrency.test.ts",
+      "tests": 34,
+      "status": "passed"
+    },
+    {
+      "name": "kickoff-service-concurrency.test.ts",
+      "tests": 6,
+      "status": "passed"
+    },
+    {
+      "name": "production-smoke-cli.test.ts",
+      "tests": 24,
+      "status": "passed"
+    },
+    {
+      "name": "production-smoke.test.ts",
+      "tests": 107,
+      "status": "passed"
+    },
+    {
+      "name": "user-directory-concurrency.test.ts",
+      "tests": 20,
+      "status": "passed"
+    }
+  ],
+  "totalTests": 191,
+  "passed": 191,
+  "failed": 0,
+  "skipped": 0,
+  "todo": 0,
+  "warnings": [
+    {
+      "code": "UNDICI-EHPA",
+      "meaning": "Experimental EnvHttpProxyAgent notice from the active runtime proxy",
+      "suppressed": false
+    }
+  ],
+  "limits": [
+    "Only five specified test files ran.",
+    "Existing installed dependencies reused; no dependency reinstall or Docker verification.",
+    "Global fetch test guard, HTTPS/TLS validation and proxy configuration retained.",
+    "No repository edits or real advertising-platform requests."
+  ]
+}

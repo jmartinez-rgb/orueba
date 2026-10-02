@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { DEFAULT_BRAND, type BrandId } from "@/lib/brands";
 import { cached, invalidate } from "@/lib/data/cache";
-import { getRecordStore, mapLimit } from "./store";
+import { getRecordStore, mapLimit, RecordStoreError } from "./store";
 import { nextRecordId } from "./counter";
 import { NOVEDAD_KIND_LABEL, type KickoffItem, type MonthKickoff, type NewNovedad, type Novedad } from "./novedad-model";
 
@@ -125,30 +125,86 @@ export async function listNovedades(brand: BrandId): Promise<Novedad[]> {
 
 const kickoffKey = (brand: BrandId, month: string) => `kickoff/${brand}/${month}`;
 
-export async function getKickoff(brand: BrandId, month: string): Promise<MonthKickoff | null> {
-  if (!/^\d{4}-\d{2}$/.test(month)) return null;
-  return cached(`kickoff:${brand}:${month}`, LIST_TTL, () => getRecordStore().get<MonthKickoff>(kickoffKey(brand, month)));
+interface StoredMonthKickoff extends MonthKickoff {
+  /** Short-lived replay receipts for confirmed detections, never public. */
+  startedOperations?: Array<{ id: string; items: KickoffItem[] }>;
 }
 
-export async function saveKickoff(k: MonthKickoff): Promise<void> {
-  await getRecordStore().set(kickoffKey(k.brand, k.month), k);
+type KickoffIdentity = Pick<KickoffItem, "name" | "platform" | "accountName" | "campaignId">;
+function sameKickoffIdentity(item: KickoffItem, expected: KickoffIdentity): boolean {
+  return item.name === expected.name && item.platform === expected.platform
+    && item.accountName === expected.accountName && item.campaignId === expected.campaignId;
+}
+
+function publicKickoff(k: StoredMonthKickoff): MonthKickoff {
+  const result = { ...k, items: k.items.map(item => ({ ...item })), budgets: k.budgets.map(budget => ({ ...budget })) };
+  delete result.startedOperations;
+  return result;
+}
+
+export async function getKickoff(brand: BrandId, month: string): Promise<MonthKickoff | null> {
+  if (!/^\d{4}-\d{2}$/.test(month)) return null;
+  return cached(`kickoff:${brand}:${month}`, LIST_TTL, async () => {
+    const k = await getRecordStore().get<StoredMonthKickoff>(kickoffKey(brand, month));
+    return k ? publicKickoff(k) : null;
+  });
+}
+
+export async function saveKickoff(k: MonthKickoff): Promise<MonthKickoff> {
+  const updated = await getRecordStore().update<StoredMonthKickoff>(kickoffKey(k.brand, k.month), current => ({
+    ...k,
+    // Confirmations replace the editable plan; detections and the first confirmation
+    // come from the current document, never an earlier cached snapshot.
+    confirmedAt: current?.confirmedAt ?? k.confirmedAt,
+    confirmedBy: current?.confirmedBy ?? k.confirmedBy,
+    budgets: k.budgets.map(budget => ({ ...budget })),
+    items: k.items.map(item => ({ ...item, startedAt: item.startedAt ?? current?.items.find(previous => previous.key === item.key)?.startedAt ?? null })),
+    ...(current?.startedOperations ? { startedOperations: current.startedOperations } : {}),
+  }));
+  if (!updated) throw new RecordStoreError();
   changed();
+  return publicKickoff(updated);
+}
+
+/** Only fill the still-unlinked campaign IDs; never save an older budget/plan snapshot. */
+export async function linkKickoffCampaigns(brand: BrandId, month: string, links: Array<{ key: string; campaignId: string; expected: KickoffIdentity }>, by: string): Promise<MonthKickoff | null> {
+  const now = new Date().toISOString();
+  const ids = new Map(links.map(link => [link.key, { campaignId: link.campaignId, expected: { ...link.expected } }]));
+  const updated = await getRecordStore().update<StoredMonthKickoff>(kickoffKey(brand, month), current => {
+    if (!current) return null;
+    const items = current.items.map(item => {
+      const link = ids.get(item.key);
+      return item.state === "PENDING" && !item.startedAt && !item.campaignId && link && sameKickoffIdentity(item, link.expected)
+        ? { ...item, campaignId: link.campaignId } : item;
+    });
+    if (items.every((item, index) => item === current.items[index])) return current;
+    return { ...current, items, updatedAt: now, updatedBy: by };
+  });
+  if (updated) changed();
+  return updated ? publicKickoff(updated) : null;
 }
 
 /** Marca como iniciadas las campañas pendientes que ya gastan (se detecta solo, una vez). */
-export async function markKickoffStarted(brand: BrandId, month: string, started: Array<{ key: string; at: string }>, by: string): Promise<KickoffItem[]> {
-  const k = await getRecordStore().get<MonthKickoff>(kickoffKey(brand, month));
-  if (!k) return [];
-  const done: KickoffItem[] = [];
-  for (const s of started) {
-    const it = k.items.find((i) => i.key === s.key && i.state === "PENDING" && !i.startedAt);
-    if (!it) continue;
-    it.startedAt = s.at;
-    done.push(it);
-  }
-  if (!done.length) return [];
-  k.updatedAt = new Date().toISOString();
-  k.updatedBy = by;
-  await saveKickoff(k);
-  return done;
+export async function markKickoffStarted(brand: BrandId, month: string, started: Array<{ key: string; at: string; campaignId?: string; expected?: KickoffIdentity }>, by: string): Promise<KickoffItem[]> {
+  if (!started.length) return [];
+  const operationId = randomUUID();
+  const now = new Date().toISOString();
+  const starts = new Map<string, { at: string; campaignId?: string; expected?: KickoffIdentity }>();
+  for (const item of started) if (!starts.has(item.key)) starts.set(item.key, { at: item.at, campaignId: item.campaignId, expected: item.expected ? { ...item.expected } : undefined });
+  const updated = await getRecordStore().update<StoredMonthKickoff>(kickoffKey(brand, month), current => {
+    if (!current || current.startedOperations?.some(operation => operation.id === operationId)) return current;
+    const items = current.items.map(item => {
+      const start = starts.get(item.key);
+      return item.state === "PENDING" && !item.startedAt && start && (!start.campaignId || start.campaignId === item.campaignId)
+        && (!start.expected || sameKickoffIdentity(item, start.expected))
+        ? { ...item, startedAt: start.at } : item;
+    });
+    const detected = items.filter((item, index) => item !== current.items[index]);
+    if (!detected.length) return current;
+    return { ...current, items, updatedAt: now, updatedBy: by, startedOperations: [...(current.startedOperations ?? []), { id: operationId, items: detected }].slice(-50) };
+  });
+  const detected = updated?.startedOperations?.find(operation => operation.id === operationId)?.items;
+  if (!detected?.length) return [];
+  changed();
+  return detected.map(item => ({ ...item }));
 }

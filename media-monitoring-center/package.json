@@ -7,6 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "produccion:smoke": "node --import tsx scripts/production-smoke.ts",
     "conciliar": "node --conditions=react-server --import tsx scripts/reconcile.ts",
     "v1:check": "node --conditions=react-server --import tsx scripts/v1-check.ts",
     "dev": "next dev",

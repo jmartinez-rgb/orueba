@@ -110,6 +110,29 @@ durable/escribible para reportes. No usar el directorio de la imagen como almace
 
 ## Aceptación en el alojamiento elegido
 
+La comprobación pública puede ejecutarse desde el monitoreo, cuando existan ambas direcciones:
+
+```bash
+npm run produccion:smoke -- --monitor https://monitoreo.example.com --api https://api.example.com
+```
+
+Reemplazar solo las dos direcciones públicas. Acepta también la base `/api/v1` para la API;
+otros prefijos no están implementados. El comando no carga `.env`, no recibe llaves/cookies ni
+inicia sesión. Hace como máximo siete GET sin reintentos: salud de ambos servicios, formulario
+de acceso y rechazo 401 con el contrato JSON esperado en cuatro rutas privadas. Exige fuente
+`unified`, API en `production` y reloj de salud dentro de cinco minutos. No consulta plataformas
+publicitarias, escribe registros ni sigue redirecciones. Un acceso privado sin autenticación
+es fallo, aunque ambos health respondan 200.
+
+Salida **0**: esas comprobaciones HTTP pasan; **1**: fallo comprobado/opciones inválidas;
+**2**: faltan URL o hubo bloqueo/timeout. `--timeout-ms` admite 1000–15000 por comprobación.
+Solo imprime códigos y estados HTTP; no registra las URL, cuerpos ni cabeceras. Rechaza URL
+con credenciales/query/fragmento, HTTP, hosts locales e IP literales privadas/especiales. Respeta
+el proxy y TLS del entorno; bloquea el CLI si `NODE_TLS_REJECT_UNAUTHORIZED=0`. La validación de
+host es sintáctica: no fija la resolución DNS del transporte ni certifica el origen TLS detrás
+del proxy. Tampoco verifica usuarios nominales, cookies Secure, discos, worker o conciliación.
+`certifiesV1` permanece `false` incluso con salida 0. No es un validador de destinos no confiables.
+
 - HTTPS/DNS y health de ambos servicios; páginas privadas, API sin llave y rutas fuera del rol
   deben denegarse. Health 200 por sí solo no certifica datos, permisos ni preparación.
 - Login y cookie Secure, 15 cuentas nominales, marcas y delegación de los cinco respondedores;

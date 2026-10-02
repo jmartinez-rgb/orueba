@@ -18,6 +18,13 @@ incorpora imágenes Node 22 sin secretos/histórico en el contexto y volumen pri
 La [conciliación offline](../media-monitoring-center/docs/CONCILIACION.md) compara únicamente izzi
 con exports independientes de Ads Manager, sin llamar a las APIs ni convertir monedas/relojes.
 Faltan esos exports y el alojamiento durable: no se ha publicado ni aceptado producción.
+
+Tras publicar el entorno de Codex se verificó nuevamente el arranque y el estado `connected`
+de los seis proveedores. El [informe de continuación](../media-monitoring-center/docs/CONTINUACION_ENTORNO_PUBLICADO_2026-10-02.md)
+distingue esa conexión del resultado de reportes: Microsoft izzi respondió HTTP 502 en la ronda
+actual aunque cuentas/campañas y la salida al host de informes funcionen. El histórico se conserva.
+El monitoreo incorpora `produccion:smoke` para comprobar siete endpoints públicos sin llaves
+cuando existan ambas URL; no despliega ni certifica la v1.
 Microsoft/Spotify esperan ahora a que se conserve el token rotado; un fallo de disco bloquea la
 operación y permite reintentar el mismo guardado sin renovar OAuth otra vez. El cierre espera las
 escrituras registradas; no sustituye un volumen durable ni coordinación entre procesos.
