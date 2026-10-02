@@ -34,6 +34,11 @@ con `DATA_SOURCE=unified`: [APIs directas](docs/APIS_DIRECTAS.md). Se comprobaro
 TikTok y tres días de X de izzi; las conversiones de negocio permanecen pendientes.
 Hay acceso nominal y delegación de incidencias: [cuentas y responsables](docs/ACCESOS_NOMINALES.md).
 
+La [preauditoría de v1](../unified-ads-api/docs/PREAUDITORIA_V1.md) corrigió acceso ante registros
+inválidos, duplicados, advertencias y pérdida de tasas con guardados simultáneos. Spotify izzi
+ya aporta 30 filas horarias UTC recuperadas; ingresos y conversiones de negocio siguen pendientes.
+Validación: 310 pruebas del monitoreo, tipos/lint/build y permisos nominales por HTTP.
+
 ## Arranque rápido
 
 Requisitos: Node.js 22+.

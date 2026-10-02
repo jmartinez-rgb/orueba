@@ -15,7 +15,7 @@ de cada plataforma siguen exclusivamente en el servidor de la API; Next.js usa s
 
 ## Configuración local
 
-En `unified-ads-api/.env`, conservar las credenciales vigentes y definir `PORT=8088`,
+En `unified-ads-api/.env`, conservar las credenciales vigentes y definir `PORT=8086`,
 `HOST=127.0.0.1` y `TOKEN_STORE_FILE` en una ruta privada persistente. En este entorno se reutiliza
 el `.env` privado para conservar rotaciones. No copiar valores al chat o al repositorio.
 Iniciar la API desde su carpeta con `npm run dev` o, después del build, `npm start`.
@@ -26,7 +26,7 @@ En `media-monitoring-center/.env.local`, configurar:
 DATA_SOURCE=unified
 USE_MOCK_DATA=false
 APP_TIMEZONE=America/Mexico_City
-UNIFIED_ADS_API_URL=http://127.0.0.1:8088
+UNIFIED_ADS_API_URL=http://127.0.0.1:8086
 # UNIFIED_ADS_API_KEY: una llave interna ya autorizada en API_KEYS; guardar privadamente.
 UNIFIED_ADS_DATA_DIR=.data/unified
 UNIFIED_ADS_MAPPING_FILE=config/unified.mapping.example.json
@@ -136,15 +136,29 @@ Prueba manual del motor con archivos reales, por marca: catálogos y métricas d
 sin cruzar cuentas; eventos de negocio siguen desconocidos y falta la tasa USD. Es una prueba
 local del adaptador, no aceptación visual de producción ni conciliación de cifras.
 
+## Preauditoría y recuperación de Spotify
+
+[PREAUDITORIA_V1.md](../../unified-ads-api/docs/PREAUDITORIA_V1.md) documenta las correcciones
+sobre acceso, histórico, advertencias y actualización concurrente de tasas. Lectura/escritura del
+histórico rechazan duplicados y alcance inválido; errores de acceso/cuota no se toleran como
+advertencias de conversiones. La configuración serializa cambios dentro de un proceso, no entre instancias.
+
+Spotify izzi: **30 filas horarias UTC/MXN del 30/09 al 01/10**, recuperadas sin REVENUE por el 502
+observado. El adaptador leyó 24 filas del 30/09 en el reloj mexicano; conversiones/ingresos siguen
+sin mapeo de negocio. [Totales originales](evidence/spotify-hourly-2026-09-30_10-01.csv), con
+24 horas reportadas el 30/09 UTC y seis el 01/10 UTC. No certificar cobertura de todas las campañas
+ni asumir ceros en las horas ausentes. Lectura real, todavía sin conciliación con Ads Manager.
+
 ## Pendientes para v1
 
 1. Configurar cuentas individuales (`AUTH_SECRET`, `AUTH_USERS`) y probar roles/marcas en el
    entorno destino. Hay 15 cuentas configuradas y comprobadas localmente; producción permanece
    bloqueada si faltan. No trasladar contraseñas al repositorio.
-2. Confirmar IDs por marca de Google, Meta, Microsoft y Spotify. Mantener X de Sky fuera.
+2. Auditar el alcance de los 31 IDs ya mapeados por marca. Mantener X de Sky fuera.
 3. Conciliar días/horas, atribución, ausencia de filas y tipos de cambio contra las plataformas.
-4. Recuperar extracción horaria e histórico de X después del límite de solicitudes. Microsoft
-   mantiene `proxy_denied` al ZIP; una cuenta USD de Spotify sigue sin permiso de reportes.
+4. Recuperar horas/histórico de X tras el límite observado. Microsoft ya descargó su ZIP local;
+   validar la descarga en el destino. Spotify izzi horario se recuperó; la cuenta USD adicional
+   sigue fuera del mapeo y sin permiso comprobado de reportes.
 5. Definir eventos de negocio: Meta por cuenta/campaña; Spotify/TikTok; Google offline válidos.
 6. Elegir almacenamiento durable compartido y scheduler para producción. El volumen de archivos
    funciona en este entorno; **no es compatible con disco efímero de Netlify Functions**. Un

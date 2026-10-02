@@ -1,4 +1,4 @@
-import { ApiError } from "../../utils/errors.js";
+import { ApiError, isApiError } from "../../utils/errors.js";
 import type { PerformanceQuery } from "../../types/normalized.js";
 import { object, spotifyId } from "./config.js";
 import type { SpotifyClient } from "./client.js";
@@ -100,57 +100,99 @@ export async function spotifyReport(
       });
       for (const field of [...new Set(fields)]) initial.append("fields", field);
       for (const campaign of batch) initial.append("entity_ids", campaign);
-      let params = initial;
-      const seen = new Set<string>();
-      let finished = false;
-      for (let page = 0; page < 4000; page++) {
-        const body = await client.get(`/ad_accounts/${id}/aggregate_reports`, params, signal);
-        if (body.granularity !== (query.granularity === "hourly" ? "HOUR" : "DAY"))
-          throw new ApiError("PROVIDER_ERROR", "Spotify devolvió una granularidad distinta a la solicitada.");
-        const items = rows(body.rows);
-        if (items.length > 50) throw new ApiError("PROVIDER_ERROR", "Spotify excedió el tamaño de página de informes.");
-        for (const row of items) {
-          if (
-            row.entity_type !== "CAMPAIGN" ||
-            !allowed.has(vendorId(row.entity_id)) ||
-            typeof row.start_time !== "string" ||
-            row.start_time.slice(0, 10) < range.from ||
-            row.start_time.slice(0, 10) > range.to
-          )
-            throw new ApiError("PROVIDER_ERROR", "Spotify devolvió datos fuera del bloque de fechas solicitado.");
-          out.push(row);
-        }
-        if (body.warnings != null && !Array.isArray(body.warnings))
-          throw new ApiError("PROVIDER_ERROR", "Spotify devolvió advertencias incompatibles.");
-        if (Array.isArray(body.warnings) && body.warnings.length)
-          onWarning(
-            new ApiError(
-              "PROVIDER_ERROR",
-              "Spotify incluyó advertencias en el informe; revisa las limitaciones antes de sumar los datos.",
-              {
-                details: {
-                  provider: "spotify",
-                  account_id: id,
-                  limitation: "reporting_warning",
-                  warning_count: body.warnings.length,
+      const readBlock = async (initialParams: URLSearchParams) => {
+        const block: Record<string, unknown>[] = [];
+        let params = initialParams;
+        const seen = new Set<string>();
+        let finished = false;
+        for (let page = 0; page < 4000; page++) {
+          const body = await client.get(`/ad_accounts/${id}/aggregate_reports`, params, signal);
+          if (body.granularity !== (query.granularity === "hourly" ? "HOUR" : "DAY"))
+            throw new ApiError("PROVIDER_ERROR", "Spotify devolvió una granularidad distinta a la solicitada.");
+          const items = rows(body.rows);
+          if (items.length > 50)
+            throw new ApiError("PROVIDER_ERROR", "Spotify excedió el tamaño de página de informes.");
+          for (const row of items) {
+            if (
+              row.entity_type !== "CAMPAIGN" ||
+              !allowed.has(vendorId(row.entity_id)) ||
+              typeof row.start_time !== "string" ||
+              row.start_time.slice(0, 10) < range.from ||
+              row.start_time.slice(0, 10) > range.to
+            )
+              throw new ApiError("PROVIDER_ERROR", "Spotify devolvió datos fuera del bloque de fechas solicitado.");
+            block.push(row);
+          }
+          if (body.warnings != null && !Array.isArray(body.warnings))
+            throw new ApiError("PROVIDER_ERROR", "Spotify devolvió advertencias incompatibles.");
+          if (Array.isArray(body.warnings) && body.warnings.length)
+            onWarning(
+              new ApiError(
+                "PROVIDER_ERROR",
+                "Spotify incluyó advertencias en el informe; revisa las limitaciones antes de sumar los datos.",
+                {
+                  details: {
+                    provider: "spotify",
+                    account_id: id,
+                    limitation: "reporting_warning",
+                    warning_count: body.warnings.length,
+                  },
                 },
-              },
-            ),
-          );
-        if (out.length > 200000)
-          throw new ApiError("PROVIDER_ERROR", "El informe de Spotify supera el tamaño admitido.");
-        const token = body.continuation_token;
-        if (token == null || token === "") {
-          finished = true;
-          break;
+              ),
+            );
+          if (out.length + block.length > 200000)
+            throw new ApiError("PROVIDER_ERROR", "El informe de Spotify supera el tamaño admitido.");
+          const token = body.continuation_token;
+          if (token == null || token === "") {
+            finished = true;
+            break;
+          }
+          if (typeof token !== "string" || token.length > 16384 || /[\r\n]/.test(token) || seen.has(token))
+            throw new ApiError("PROVIDER_ERROR", "Spotify devolvió una continuación inválida o repetida.");
+          seen.add(token);
+          // Spotify explicitly requires the continuation token alone, without even fields or limit.
+          params = new URLSearchParams({ continuation_token: token });
         }
-        if (typeof token !== "string" || token.length > 16384 || /[\r\n]/.test(token) || seen.has(token))
-          throw new ApiError("PROVIDER_ERROR", "Spotify devolvió una continuación inválida o repetida.");
-        seen.add(token);
-        // Spotify explicitly requires the continuation token alone, without even fields or limit.
-        params = new URLSearchParams({ continuation_token: token });
+        if (!finished)
+          throw new ApiError("PROVIDER_ERROR", "Spotify superó el límite seguro de paginación de informes.");
+        return block;
+      };
+      let block: Record<string, unknown>[];
+      try {
+        block = await readBlock(initial);
+      } catch (error) {
+        // Observed v3 backend failure for hourly REVENUE. Restart this whole batch;
+        // no partial page can survive, and no auth/rate/transport error is masked.
+        if (
+          query.granularity !== "hourly" ||
+          !fields.includes("REVENUE") ||
+          !isApiError(error) ||
+          !object(error.details) ||
+          error.details.provider !== "spotify" ||
+          error.details.http_status !== 502
+        )
+          throw error;
+        const reduced = new URLSearchParams(initial);
+        reduced.delete("fields");
+        for (const field of [...new Set(fields)].filter((f) => f !== "REVENUE")) reduced.append("fields", field);
+        block = await readBlock(reduced);
+        onWarning(
+          new ApiError(
+            "PROVIDER_ERROR",
+            "Spotify no pudo devolver ingresos por hora; las otras métricas se recuperaron sin REVENUE y los ingresos quedan desconocidos.",
+            {
+              details: {
+                provider: "spotify",
+                account_id: id,
+                limitation: "revenue_unavailable",
+                granularity: "hourly",
+                retry_without_revenue: true,
+              },
+            },
+          ),
+        );
       }
-      if (!finished) throw new ApiError("PROVIDER_ERROR", "Spotify superó el límite seguro de paginación de informes.");
+      for (const row of block) out.push(row);
     }
   }
   return out;

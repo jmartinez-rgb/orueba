@@ -89,9 +89,18 @@ function cleanPermissions(v: unknown): Permission[] | null {
   return [...new Set(v.filter(isPermission))];
 }
 
+/** Missing legacy fields keep their defaults; present, invalid access fields never widen access. */
+function validAccessFields(u: Partial<ManagedUser>): boolean {
+  return (u.brands === undefined || (Array.isArray(u.brands) && u.brands.every(isBrand)))
+    && (u.permissions == null || (Array.isArray(u.permissions) && u.permissions.every(isPermission)))
+    && (u.active === undefined || typeof u.active === "boolean")
+    && (u.version === undefined || (Number.isSafeInteger(u.version) && u.version >= 0))
+    && (u.email == null || (typeof u.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.email.trim())));
+}
+
 function sanitize(raw: unknown): ManagedUser | null {
   const u = raw as Partial<ManagedUser> | null;
-  if (!u || typeof u.username !== "string" || !USERNAME_RE.test(u.username) || !isRole(u.role) || !isPasswordHash(u.hash)) return null;
+  if (!u || typeof u.username !== "string" || !USERNAME_RE.test(u.username) || !isRole(u.role) || !isPasswordHash(u.hash) || !validAccessFields(u)) return null;
   return {
     username: u.username,
     email: typeof u.email === "string" ? u.email.trim().toLowerCase() : null,
@@ -117,6 +126,8 @@ export async function listManagedUsers(fresh = false): Promise<ManagedUser[]> {
   const value = raw.map(sanitize);
   if (value.some(u => u === null)) throw new RecordStoreError();
   const valid = value as ManagedUser[];
+  const emails = valid.flatMap(u => u.email ? [u.email] : []);
+  if (new Set(valid.map(u => u.username)).size !== valid.length || new Set(emails).size !== emails.length) throw new RecordStoreError();
   usersCache = { at: Date.now(), value: valid };
   return valid;
 }
@@ -129,7 +140,8 @@ export async function saveManagedUsers(list: ManagedUser[]): Promise<void> {
 export async function getUniversalConfig(fresh = false): Promise<UniversalConfig | null> {
   if (!fresh && universalCache && Date.now() - universalCache.at < TTL_MS) return universalCache.value;
   const raw = await getRecordStore().get<Partial<UniversalConfig>>(UNIVERSAL_KEY);
-  if (raw !== null && (typeof raw !== "object" || !isRole(raw.role) || (raw.hash !== null && !isPasswordHash(raw.hash)))) throw new RecordStoreError();
+  if (raw !== null && (typeof raw !== "object" || !isRole(raw.role) || (raw.hash !== null && !isPasswordHash(raw.hash))
+    || !validAccessFields({ brands: raw.brands, version: raw.version }) || (raw.enabled !== undefined && typeof raw.enabled !== "boolean"))) throw new RecordStoreError();
   const value: UniversalConfig | null =
     raw && typeof raw === "object"
       ? {

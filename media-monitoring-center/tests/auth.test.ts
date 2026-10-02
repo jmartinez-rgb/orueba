@@ -68,6 +68,15 @@ describe("configuración de cuentas", () => {
     process.env = { ...prev };
     resetAuthConfig();
   });
+  it.each(["[]", "{invalid", '[{"u":"admin","r":"admin","h":"invalid"}]'])("no abre desarrollo cuando las credenciales nominales configuradas son inválidas: %s", raw => {
+    process.env = { ...process.env, NODE_ENV: "development" };
+    process.env.AUTH_MODE = "password";
+    process.env.AUTH_SECRET = SECRET;
+    process.env.AUTH_USERS = raw;
+    delete process.env.AUTH_UNIVERSAL_PASSWORD_HASH;
+    resetAuthConfig();
+    expect(getAuthConfig().mode).toBe("locked");
+  });
   it("lee AUTH_USERS con formato corto y valida roles/hashes", async () => {
     const h = await hashPassword("Izzi-Prueba-1234");
     process.env.AUTH_SECRET = SECRET;

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
-import { requireSession } from "@/lib/auth/session";
+import { hasPermission, requireSession } from "@/lib/auth/session";
 import { isInternalRole } from "@/lib/auth/roles";
 
 /**
@@ -9,6 +9,6 @@ import { isInternalRole } from "@/lib/auth/roles";
  */
 export default async function MonitoringLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const session = await requireSession();
-  if (!isInternalRole(session.role)) redirect("/cliente");
+  if (!isInternalRole(session.role) || !hasPermission(session, "internal:view")) redirect("/cliente");
   return <AppShell session={session}>{children}</AppShell>;
 }

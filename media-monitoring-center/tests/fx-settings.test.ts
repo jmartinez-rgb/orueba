@@ -3,7 +3,7 @@ import { DEFAULT_SETTINGS, setSettingAtPath } from "@/lib/config/settings";
 import { fxRateChanges } from "@/lib/config/fx-audit";
 import { fxMonths } from "@/lib/data/fx-months";
 import { rateLookup } from "@/lib/data/currency";
-import { PATCH } from "@/app/api/settings/route";
+import { DELETE, PATCH } from "@/app/api/settings/route";
 
 const mocks = vi.hoisted(() => ({ permission: vi.fn(), context: vi.fn(), load: vi.fn(), save: vi.fn(), activity: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ requirePermission: mocks.permission, getSession: vi.fn(), requireAuth: vi.fn(), hasPermission: vi.fn() }));
@@ -13,7 +13,7 @@ const session = { user: { id: "principal", name: "Administradora" } };
 const patch = (path: string, value: unknown) => PATCH(new Request("https://monitor.test/api/settings", { method: "PATCH", body: JSON.stringify({ path, value }) }));
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   mocks.permission.mockResolvedValue(session);
   mocks.context.mockResolvedValue({ mode: "unified" });
   mocks.load.mockResolvedValue({ ...structuredClone(DEFAULT_SETTINGS), currency: { rates: { "2026-09": 18 }, accountCurrency: {} } });
@@ -52,6 +52,30 @@ describe("captura mensual de tipo de cambio", () => {
     mocks.save.mockClear();
     expect((await patch("currency.rates.2026-13", 18)).status).toBe(400);
     expect(mocks.save).not.toHaveBeenCalled();
+  });
+  it("dos administradores guardando meses distintos a la vez no pierden ninguna tasa", async () => {
+    let stored = structuredClone(DEFAULT_SETTINGS);
+    let release!: () => void, entered!: () => void;
+    const blocked = new Promise<void>(resolve => { release = resolve; });
+    const firstSave = new Promise<void>(resolve => { entered = resolve; });
+    mocks.load.mockImplementation(async () => structuredClone(stored));
+    mocks.save.mockImplementation(async (_ctx, next) => {
+      if (next.currency.rates["2026-09"] === 19 && next.currency.rates["2026-10"] === undefined) { entered(); await blocked; }
+      stored = structuredClone(next);
+    });
+    const first = patch("currency.rates.2026-09", 19);
+    await firstSave;
+    const second = patch("currency.rates.2026-10", 20);
+    await new Promise(resolve => setImmediate(resolve)); release();
+    const responses = await Promise.all([first, second]);
+    expect(responses.map(r => r.status)).toEqual([200, 200]);
+    expect(stored.currency.rates).toEqual({ "2026-09": 19, "2026-10": 20 });
+  });
+  it("un fallo al restablecer configuración devuelve error y no bloquea el siguiente guardado", async () => {
+    mocks.save.mockRejectedValueOnce(new Error("fixture storage failure"));
+    expect((await DELETE()).status).toBe(500);
+    expect(mocks.activity).not.toHaveBeenCalled();
+    expect((await patch("currency.rates.2026-10", 19)).status).toBe(200);
   });
   it("registra altas, cambios y bajas sin inventar cambios cuando el valor es igual", () => {
     expect(fxRateChanges({ "2026-08": 17, "2026-09": 18 }, { "2026-09": 18, "2026-10": 19 })).toBe("2026-08: 17 → sin tasa MXN por USD; 2026-10: sin tasa → 19 MXN por USD");

@@ -24,6 +24,9 @@ de la fecha del costo, antes de agregar importes o calcular razones.
   **Usuarios y accesos → Bitácora de accesos y actividad** registra actor, fecha, mes y valor
   anterior/nuevo al guardar, quitar o restablecer tasas. La bitácora existente es de mejor esfuerzo:
   un fallo al registrar actividad no revierte la configuración; no es un libro financiero transaccional.
+- PUT/PATCH/DELETE serializan lectura y escritura en el mismo proceso: dos capturas simultáneas
+  de meses distintos conservan ambas tasas. La cola se libera ante errores. Sigue pendiente
+  la protección entre instancias y contra formularios completos abiertos con valores antiguos.
 
 La tasa no determina conversiones ni eventos principales. CPA sigue siendo suma de costo /
 suma de conversiones, cuando ambas magnitudes estén definidas y conciliadas. La edición general
@@ -31,4 +34,5 @@ de moneda/tasas en Settings utiliza la misma configuración.
 
 Validación local: permisos nominales por HTTP, captura y eliminación con fixtures, meses
 calendario consecutivos, límites, registro de cambios y correspondencia de la tasa visible con
-la usada por la conversión. No se escribieron tasas ficticias en el almacén operativo.
+la usada por la conversión, dos guardados simultáneos y fallos de almacenamiento. No se
+escribieron tasas ficticias en el almacén operativo.

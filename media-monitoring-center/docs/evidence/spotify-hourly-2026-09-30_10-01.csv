@@ -1,0 +1,3 @@
+account_id,currency,source_timezone,source_date,granularity,rows,reported_hours,spend,impressions,clicks,unknown_metric_rows,extracted_at
+f154306e-82ce-4c8b-a772-09140c1a24c6,MXN,UTC,2026-09-30,hourly,24,24,303.550004,7889,163,0,2026-10-02T04:14:30.928Z
+f154306e-82ce-4c8b-a772-09140c1a24c6,MXN,UTC,2026-10-01,hourly,6,6,0,259,13,0,2026-10-02T04:14:30.933Z

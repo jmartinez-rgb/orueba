@@ -366,6 +366,79 @@ describe("Spotify aggregate reports and conversion semantics", () => {
       ]),
     );
   });
+  it("recovers the observed hourly REVENUE 502 with a complete scoped report and explicit unknown income", async () => {
+    const { provider, sim } = setup({ SPOTIFY_ADS_RETRIES: "0" });
+    const warnings: ApiError[] = [];
+    sim.handler = (u) => {
+      if (!u.pathname.endsWith("/aggregate_reports")) return undefined;
+      if (u.searchParams.getAll("fields").includes("REVENUE")) return json({ messages: ["synthetic failure"] }, 502);
+      const body = sim.report("HOUR");
+      body.rows[0]!.stats = body.rows[0]!.stats.filter((s) => s.field_type !== "REVENUE");
+      return json(body);
+    };
+    const rows = await provider.getPerformance(
+      { ...query, granularity: "hourly" },
+      { onWarning: (e) => warnings.push(e) },
+    );
+    expect(rows[0]).toMatchObject({
+      spend: 100.5,
+      impressions: 1000,
+      clicks: 20,
+      conversion_value: null,
+      conversions: null,
+      cpa: null,
+    });
+    const calls = reportCalls(sim);
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.params.getAll("fields")).toEqual(calls[0]!.params.getAll("fields").filter((f) => f !== "REVENUE"));
+    for (const key of ["entity_ids", "report_start", "report_end", "granularity"])
+      expect(calls[1]!.params.getAll(key)).toEqual(calls[0]!.params.getAll(key));
+    expect(warnings.map((w) => w.details)).toContainEqual(
+      expect.objectContaining({
+        provider: "spotify",
+        account_id: ACCOUNT,
+        limitation: "revenue_unavailable",
+        retry_without_revenue: true,
+      }),
+    );
+  });
+  it("discards partial pages before restarting without revenue rather than doubling their metrics", async () => {
+    const { provider, sim } = setup({ SPOTIFY_ADS_RETRIES: "0" });
+    sim.handler = (u) => {
+      if (!u.pathname.endsWith("/aggregate_reports")) return undefined;
+      if (u.searchParams.has("continuation_token")) return json({}, 502);
+      const body = sim.report("HOUR");
+      if (u.searchParams.getAll("fields").includes("REVENUE"))
+        return json({ ...body, continuation_token: "synthetic-page" });
+      body.rows[0]!.stats = body.rows[0]!.stats.filter((s) => s.field_type !== "REVENUE");
+      return json(body);
+    };
+    const rows = await provider.getPerformance({ ...query, granularity: "hourly" });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.spend).toBe(100.5);
+    expect(reportCalls(sim)).toHaveLength(3);
+    expect(reportCalls(sim)[2]!.params.has("continuation_token")).toBe(false);
+  });
+  it.each([401, 403, 429, 500])("does not hide HTTP %i as an hourly revenue limitation", async (status) => {
+    const { provider, sim } = setup({ SPOTIFY_ADS_RETRIES: "0" });
+    sim.handler = (u) => (u.pathname.endsWith("/aggregate_reports") ? json({}, status) : undefined);
+    await expect(provider.getPerformance({ ...query, granularity: "hourly" })).rejects.toMatchObject({
+      details: { http_status: status },
+    });
+    expect(reportCalls(sim).every((c) => c.params.getAll("fields").includes("REVENUE"))).toBe(true);
+  });
+  it("keeps daily 502 failures and failed hourly fallbacks as errors instead of returning partial data", async () => {
+    const { provider, sim } = setup({ SPOTIFY_ADS_RETRIES: "0" });
+    sim.handler = (u) => (u.pathname.endsWith("/aggregate_reports") ? json({}, 502) : undefined);
+    await expect(provider.getPerformance(query)).rejects.toMatchObject({ code: "PROVIDER_ERROR" });
+    expect(reportCalls(sim)).toHaveLength(1);
+    const warnings: ApiError[] = [];
+    await expect(
+      provider.getPerformance({ ...query, granularity: "hourly" }, { onWarning: (e) => warnings.push(e) }),
+    ).rejects.toMatchObject({ code: "PROVIDER_ERROR" });
+    expect(reportCalls(sim)).toHaveLength(3);
+    expect(warnings.some((w) => (w.details as { retry_without_revenue?: boolean }).retry_without_revenue)).toBe(false);
+  });
   it("uses native currency units, UTC, current campaign dimension and source metrics", async () => {
     const { provider, sim } = setup({ SPOTIFY_ADS_PRIMARY_CONVERSION_METRIC: "PURCHASES" });
     const rows = await provider.getPerformance(query);

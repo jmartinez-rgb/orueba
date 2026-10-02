@@ -3,6 +3,28 @@
 Fecha: 1 de octubre de 2026. Rama: `codex/entrega-auditoria-claude`. Estado recibido: commit
 `39a65be` (idéntico al ZIP `unified-ads-api-para-auditoria.zip`, comprobado archivo por archivo).
 
+## Preauditoría de v1 — 2 de octubre de 2026 UTC
+
+Esta revisión parte de `df5aeac` en `codex/finalizacion-verificador-meta-x`. Se corrigieron
+seis defectos: acceso ampliado por registros corruptos, modo abierto ante credenciales inválidas,
+duplicados en histórico, excepciones de advertencias demasiado amplias, pérdida concurrente de
+configuración y caída del informe horario de Spotify al solicitar REVENUE. El control del layout
+es defensa adicional, sin alterar permisos nominales. Evidencia, archivo/línea y riesgos restantes:
+[PREAUDITORIA_V1.md](PREAUDITORIA_V1.md).
+
+Spotify izzi se recuperó: **30 filas horarias UTC/MXN** guardadas del 30/09 al 01/10. El 502
+se reprodujo agregando REVENUE; base, alcance/frecuencia y video funcionaron por separado.
+La recuperación vuelve a pedir el bloque completo sin ingresos y declara esos ingresos
+como desconocidos. No se afirmó que HOUR/REVENUE estén prohibidos por el contrato v3, ni se
+inventaron conversiones o ceros. Totales agregados para conciliar:
+[CSV Spotify](../../media-monitoring-center/docs/evidence/spotify-hourly-2026-09-30_10-01.csv).
+
+API: **626 pruebas / 33 archivos**, tipos/lint/formato/build. Monitoreo: **310 pruebas / 34 archivos**,
+tipos/lint/build, permisos por HTTP y `RECORD_IO_VERIFIED`. Se preservó configuración privada;
+API actual **8086**, Next.js **3000**. Sin publicación ni despliegue. La cola de Settings solo
+serializa este proceso; transacciones entre instancias y edición de formularios antiguos siguen
+pendientes. No se volvieron a consultar X, Google, Meta, Microsoft ni TikTok en esta ronda.
+
 ## Cuentas autorizadas y captura mensual de divisas — 2 de octubre de 2026 UTC
 
 Continuación en `codex/finalizacion-verificador-meta-x` después de `0350770`. El usuario entregó
@@ -612,14 +634,14 @@ Spotify y la primera lectura real de X, descritos al inicio. TikTok se verificó
 detalles y totales en [TIKTOK_PRIMERA_LECTURA.md](TIKTOK_PRIMERA_LECTURA.md). La finalización del
 verificador añadió una lectura de un día y 26 presupuestos actuales, descrita arriba.
 
-| Plataforma | Simulador            | OAuth y credenciales reales                  | Cuentas reales                              | Campañas reales         | Informes y métricas reales                                                   | Conciliación con la interfaz |
-| ---------- | -------------------- | -------------------------------------------- | ------------------------------------------- | ----------------------- | ---------------------------------------------------------------------------- | ---------------------------- |
-| Google Ads | Sí                   | Sí                                           | Sí (9 mapeadas; jerarquías verificadas)     | Sí                      | Monitoreo 30/09: 100 diarias/2390 horarias; Universal+ diario fuera de zona  | Pendiente                    |
-| Meta       | Sí                   | Sí (token)                                   | Sí (15 mapeadas de 17 activas)              | Sí                      | Monitoreo 30/09: 109 diarias/2789 horarias; izzi ABCW diario fuera de zona   | Pendiente                    |
-| TikTok     | Sí                   | Sí, OAuth y token real                       | Sí (4, monedas y zonas leídas)              | Sí (178)                | Monitoreo: 35 días, 1022 filas diarias/10432 horarias; US con actividad      | Pendiente                    |
-| Microsoft  | Sí                   | Sí                                           | Sí (4; monitoreo 1 izzi)                    | Sí (43; cuenta izzi 15) | ZIP descargado: 266 horarias completas; diario UTC fuera de zona             | Pendiente                    |
-| Spotify    | Sí                   | Sí (refresh token)                           | Sí (6; monitoreo 1 MXN izzi)                | Sí (14 accesibles)      | Muestras diarias UTC; izzi horario 502/PROVIDER_ERROR; USD extra sin permiso | Pendiente                    |
-| X Ads      | Sí, fixtures sin red | Sí, OAuth 1.0a; HTTP 200, estado `connected` | Sí (3); monitoreo solo izzi por instrucción | Sí (1288); izzi 1276    | API: 3864 filas diarias; monitoreo izzi: 3828; horas HTTP 429                | Pendiente                    |
+| Plataforma | Simulador            | OAuth y credenciales reales                  | Cuentas reales                              | Campañas reales         | Informes y métricas reales                                                                         | Conciliación con la interfaz |
+| ---------- | -------------------- | -------------------------------------------- | ------------------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Google Ads | Sí                   | Sí                                           | Sí (9 mapeadas; jerarquías verificadas)     | Sí                      | Monitoreo 30/09: 100 diarias/2390 horarias; Universal+ diario fuera de zona                        | Pendiente                    |
+| Meta       | Sí                   | Sí (token)                                   | Sí (15 mapeadas de 17 activas)              | Sí                      | Monitoreo 30/09: 109 diarias/2789 horarias; izzi ABCW diario fuera de zona                         | Pendiente                    |
+| TikTok     | Sí                   | Sí, OAuth y token real                       | Sí (4, monedas y zonas leídas)              | Sí (178)                | Monitoreo: 35 días, 1022 filas diarias/10432 horarias; US con actividad                            | Pendiente                    |
+| Microsoft  | Sí                   | Sí                                           | Sí (4; monitoreo 1 izzi)                    | Sí (43; cuenta izzi 15) | ZIP descargado: 266 horarias completas; diario UTC fuera de zona                                   | Pendiente                    |
+| Spotify    | Sí                   | Sí (refresh token)                           | Sí (6; monitoreo 1 MXN izzi)                | Sí (14 accesibles)      | Diarios UTC; izzi: 30 filas horarias UTC recuperadas; ingresos desconocidos; USD extra sin permiso | Pendiente                    |
+| X Ads      | Sí, fixtures sin red | Sí, OAuth 1.0a; HTTP 200, estado `connected` | Sí (3); monitoreo solo izzi por instrucción | Sí (1288); izzi 1276    | API: 3864 filas diarias; monitoreo izzi: 3828; horas HTTP 429                                      | Pendiente                    |
 
 ## Pendientes y orden recomendado
 
@@ -668,6 +690,10 @@ y esta rama conserva esas correcciones.
 - Despliegue (Cloud Run) con sus secretos.
 
 **Código**
+
+- Preauditoría: transacciones entre instancias para Settings/usuarios/incidentes, control de edición
+  sobre formularios antiguos y bitácora financiera durable. La cola local de Settings no cubre
+  estos casos; ver [PREAUDITORIA_V1.md](PREAUDITORIA_V1.md).
 
 - X (auditoría de Claude): confirmar `PUBLISHER_NETWORK` en v12 (se activa con `X_ADS_PLACEMENTS`).
   `active_entities` ya está implementado y probado con fixtures como selección incremental

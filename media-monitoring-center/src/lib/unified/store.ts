@@ -1,9 +1,27 @@
 import "server-only";
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { resolve, join } from "node:path";
+import { z } from "zod";
 import { FileRecordStore } from "@/lib/records/store";
 import { attemptSchema, catalogSchema, mappingSchema, partitionSchema, sameScope, UnifiedDataError, type ApiCatalog, type ApiPartition, type SyncAttempt, type UnifiedMapping, type UnifiedScope } from "./schema";
 import { getEnv } from "@/lib/config/env";
+
+function validatedCatalog(value: unknown, expected?: UnifiedScope): ApiCatalog {
+  const parsed = catalogSchema.safeParse(value);
+  if (!parsed.success) throw new UnifiedDataError("INVALID_SAVED_CATALOG");
+  const c = parsed.data, s = expected ?? c.scope;
+  if (!sameScope(c.scope, s) || c.account.platform !== s.platform || c.account.account_id !== s.accountId || c.account.currency !== s.currency || c.campaigns.some(r => r.platform !== s.platform || r.account_id !== s.accountId) || new Set(c.campaigns.map(r => r.campaign_id)).size !== c.campaigns.length) throw new UnifiedDataError("INVALID_SAVED_CATALOG");
+  return c;
+}
+
+function validatedPartition(value: unknown, expected?: UnifiedScope, date?: string, granularity?: "daily" | "hourly"): ApiPartition {
+  const parsed = partitionSchema.safeParse(value);
+  if (!parsed.success) throw new UnifiedDataError("INVALID_SAVED_PARTITION");
+  const p = parsed.data, s = expected ?? p.scope;
+  const keys = p.rows.map(r => `${r.date}/${r.hour}/${r.campaign_id}`);
+  if ((date !== undefined && p.date !== date) || (granularity !== undefined && p.granularity !== granularity) || !sameScope(p.scope, s) || p.rows.some(r => r.account_id !== s.accountId || r.platform !== s.platform || r.currency !== s.currency || r.date !== p.date || (p.granularity === "daily") !== (r.hour === null)) || new Set(keys).size !== keys.length) throw new UnifiedDataError("INVALID_SAVED_PARTITION");
+  return p;
+}
 
 export async function loadUnifiedMapping(): Promise<UnifiedMapping> {
   const env = getEnv().unifiedData;
@@ -20,20 +38,22 @@ export class UnifiedSnapshotStore {
   async catalog(s: UnifiedScope): Promise<ApiCatalog | null> {
     const value = await this.files.get(`${this.prefix(s)}/catalog`);
     if (value === null) return null;
-    const parsed = catalogSchema.safeParse(value);
-    if (!parsed.success || !sameScope(parsed.data.scope, s) || parsed.data.account.platform !== s.platform || parsed.data.account.account_id !== s.accountId || parsed.data.account.currency !== s.currency || parsed.data.campaigns.some(c => c.platform !== s.platform || c.account_id !== s.accountId)) throw new UnifiedDataError("INVALID_SAVED_CATALOG");
-    return parsed.data;
+    return validatedCatalog(value, s);
   }
-  async saveCatalog(value: ApiCatalog) { await this.files.set(`${this.prefix(value.scope)}/catalog`, catalogSchema.parse(value)); }
+  async saveCatalog(value: ApiCatalog) {
+    const valid = validatedCatalog(value);
+    await this.files.set(`${this.prefix(valid.scope)}/catalog`, valid);
+  }
   async partition(s: UnifiedScope, date: string, granularity: "daily" | "hourly"): Promise<ApiPartition | null> {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new UnifiedDataError("INVALID_DATE");
+    if (!z.iso.date().safeParse(date).success) throw new UnifiedDataError("INVALID_DATE");
     const value = await this.files.get(`${this.prefix(s)}/${granularity}/${date}`);
     if (value === null) return null;
-    const parsed = partitionSchema.safeParse(value);
-    if (!parsed.success || parsed.data.date !== date || parsed.data.granularity !== granularity || !sameScope(parsed.data.scope, s) || parsed.data.rows.some(r => r.account_id !== s.accountId || r.platform !== s.platform || r.currency !== s.currency || r.date !== date || (granularity === "daily") !== (r.hour === null))) throw new UnifiedDataError("INVALID_SAVED_PARTITION");
-    return parsed.data;
+    return validatedPartition(value, s, date, granularity);
   }
-  async savePartition(value: ApiPartition) { await this.files.set(`${this.prefix(value.scope)}/${value.granularity}/${value.date}`, partitionSchema.parse(value)); }
+  async savePartition(value: ApiPartition) {
+    const valid = validatedPartition(value);
+    await this.files.set(`${this.prefix(valid.scope)}/${valid.granularity}/${valid.date}`, valid);
+  }
   async attempt(s: UnifiedScope, granularity: "daily" | "hourly"): Promise<SyncAttempt | null> {
     const value = await this.files.get(`${this.prefix(s)}/attempt-${granularity}`);
     if (value === null) return null;

@@ -56,6 +56,43 @@ describe("cuentas, contraseñas y permisos desde la app", () => {
     expect((await findEffectiveAccount("admin"))?.brands).toEqual(["izzi"]);
   });
 
+  it("rechaza campos de acceso corruptos en lugar de ampliar marcas, reactivar o restaurar permisos", async () => {
+    const hash = await hashPassword("Privada-Prueba-2026");
+    const legacy = { username: "jmartinez", role: "admin", hash };
+    for (const patch of [{ brands: "izzi" }, { brands: ["desconocida"] }, { permissions: "internal:view" }, { permissions: ["no-existe"] }, { active: "false" }, { version: -1 }, { version: 1.5 }, { email: 123 }]) {
+      await getRecordStore().set("auth/users", [{ ...legacy, ...patch }]);
+      resetUsersCache();
+      await expect(findEffectiveAccount("jmartinez")).rejects.toMatchObject({ code: "RECORDS_UNAVAILABLE" });
+    }
+    await getRecordStore().set("auth/users", [legacy]); resetUsersCache();
+    expect(await findEffectiveAccount("jmartinez")).toMatchObject({ brands: [], active: true, version: 1 });
+  });
+
+  it("conserva la versión cero válida al administrar una cuenta del entorno sin revocar sus sesiones", async () => {
+    expect(await updateAccount(admin, "jmartinez", { name: "Administrador nominal", brands: ["izzi"] })).toMatchObject({ ok: true });
+    resetUsersCache();
+    expect(await findEffectiveAccount("jmartinez")).toMatchObject({ name: "Administrador nominal", brands: ["izzi"], version: 0, source: "netlify+app" });
+  });
+
+  it("rechaza identidades duplicadas en registros nominales", async () => {
+    const hash = await hashPassword("Privada-Prueba-2026");
+    const user = { username: "ana", role: "manager", hash, email: "ana@example.test" };
+    for (const other of [{ ...user, email: "otra@example.test" }, { ...user, username: "otra", email: "ANA@EXAMPLE.TEST" }]) {
+      await getRecordStore().set("auth/users", [user, other]); resetUsersCache();
+      await expect(findEffectiveAccount("ana")).rejects.toMatchObject({ code: "RECORDS_UNAVAILABLE" });
+    }
+  });
+
+  it("no reactiva ni amplía la contraseña universal si su configuración está corrupta", async () => {
+    const hash = await hashPassword("Privada-Prueba-2026");
+    for (const patch of [{ brands: ["desconocida"] }, { brands: "sky" }, { enabled: "false" }, { version: -1 }]) {
+      await getRecordStore().set("auth/universal", { role: "viewer", hash, ...patch }); resetUsersCache();
+      await expect(effectiveUniversal()).rejects.toMatchObject({ code: "RECORDS_UNAVAILABLE" });
+    }
+    await getRecordStore().set("auth/universal", { role: "viewer", hash, enabled: false, brands: ["sky"], version: 1 }); resetUsersCache();
+    expect(await effectiveUniversal()).toMatchObject({ enabled: false, brands: ["sky"], source: "app" });
+  });
+
   it("inicia identidad por correo, conserva permisos nominales y evita correos repetidos", async () => {
     const hash = await hashPassword("Privada-Prueba-2026");
     process.env.AUTH_USERS = JSON.stringify([{ u: "operativo", n: "Operativo", email: "operativo@example.test", r: "manager", h: hash, brands: ["izzi"], permissions: ["incidents:write", "users:view"] }]);

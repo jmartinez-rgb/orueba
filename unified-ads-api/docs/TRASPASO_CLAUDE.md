@@ -1,5 +1,31 @@
 # Traspaso a Claude: continuación de TikTok y X Ads
 
+## Última continuación: preauditoría de v1 (2 de octubre de 2026 UTC)
+
+Auditar el HEAD remoto de `codex/finalizacion-verificador-meta-x`, después de `df5aeac`.
+Esta sección prevalece sobre todos los checkpoints anteriores. Lee primero
+[PREAUDITORIA_V1.md](PREAUDITORIA_V1.md): seis defectos corregidos, regresiones demostradas,
+lectura horaria real de Spotify y pendientes por código, permisos, configuración y negocio.
+
+- **Spotify izzi:** 30 filas horarias UTC/MXN del 30/09 al 01/10 guardadas. REVENUE provocaba
+  HTTP 502; el bloque se recupera sin ingresos con advertencia explícita. No mezclar día UTC
+  y mexicano. CSV agregado sin secretos enlazado en el informe. Conciliación pendiente.
+- **Acceso:** registros corruptos no amplían marcas/permisos ni reactivan usuarios; credenciales
+  inválidas no abren desarrollo. Se preserva la migración nominal con versión cero y el control
+  máximo de Juan Pablo. No se cambiaron las 15 identidades ni quién responde alertas.
+- **Datos:** advertencias se validan por ruta/código/plataforma/cuenta; duplicados y alcance inválido
+  bloquean lectura/escritura del histórico. Tasas de meses distintos no se pierden con dos PATCH
+  simultáneos en un proceso. Multiinstancia, formularios antiguos y bitácora transaccional pendientes.
+- **Validación:** API 626 pruebas + tipos/lint/formato/build; monitoreo 310 + tipos/lint/build;
+  permisos nominales por HTTP y almacenamiento comprobado. No hay pruebas omitidas ni cuarentena.
+- **Entorno actual:** API 8086, Next.js 3000; configuración privada conservada y arranque actualizado.
+  No detener listeners antiguos sin identificar su propietario. No se publicó ni desplegó.
+
+Mantener las 31 cuentas autorizadas, X solo izzi y las reglas de negocio. Capturar las tasas desde
+la sección preparada, conciliar horas/días y preparar volumen/scheduler antes de liberar v1.
+No repetir OAuth ni pedir secretos por chat. El código está en Git; credenciales e histórico
+privado no viajan con la rama. Continuar en una rama propia, sin force-push ni sobrescribir trabajo.
+
 ## Actualización para retomar — cuentas y tipo de cambio (2 de octubre de 2026 UTC)
 
 La rama activa es `codex/finalizacion-verificador-meta-x`, continuación después de `0350770`.

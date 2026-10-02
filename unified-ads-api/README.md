@@ -13,15 +13,15 @@ La continuación `codex/finalizacion-verificador-meta-x` parte de la auditoría 
 incremental opcional de X con respaldo. Consulta [la guía de verificación](docs/VERIFICACION.md).
 La conciliación y los permisos externos siguen pendientes; no se declara listo para producción.
 
-| Fase | Contenido                                | Estado                                                                                                      |
-| ---- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 1    | Infraestructura base (sin integraciones) | **Lista**                                                                                                   |
-| 2    | Google Ads                               | **Implementada y verificada con Google real y simulador**                                                   |
-| 3    | Meta Marketing API                       | **Implementada y verificada con Meta real y simulador**                                                     |
-| 4    | TikTok Ads                               | **OAuth y lectura real de cuatro cuentas verificados; conciliación pendiente**                              |
-| 5    | Microsoft Advertising                    | **Autorización y campañas reales verificadas; descarga de informes bloqueada por el proxy**                 |
-| 6    | Spotify Ads                              | **6 cuentas, 14 campañas y muestra diaria reales; 1 cuenta USD sin permiso; conciliación pendiente**        |
-| 7    | X Ads                                    | **OAuth, 3 cuentas, 1288 campañas y 3864 filas diarias reales; conciliación y evento principal pendientes** |
+| Fase | Contenido                                | Estado                                                                                                         |
+| ---- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| 1    | Infraestructura base (sin integraciones) | **Lista**                                                                                                      |
+| 2    | Google Ads                               | **Implementada y verificada con Google real y simulador**                                                      |
+| 3    | Meta Marketing API                       | **Implementada y verificada con Meta real y simulador**                                                        |
+| 4    | TikTok Ads                               | **OAuth y lectura real de cuatro cuentas verificados; conciliación pendiente**                                 |
+| 5    | Microsoft Advertising                    | **OAuth y campañas verificados; ZIP real descargado y 266 filas horarias de izzi; conciliación pendiente**     |
+| 6    | Spotify Ads                              | **6 cuentas, 14 campañas; izzi: 30 filas horarias recuperadas; USD extra sin permiso; conciliación pendiente** |
+| 7    | X Ads                                    | **OAuth, 3 cuentas, 1288 campañas y 3864 filas diarias reales; conciliación y evento principal pendientes**    |
 
 La Fase 1 ya incluye piezas que las integraciones van a usar: fórmulas normalizadas (CTR, CPC, CPM,
 CPA sin NaN ni Infinity), reintentos con espera exponencial y variación (respetan `Retry-After`),
@@ -307,6 +307,10 @@ asíncrona real siguen pendientes, además de la conciliación con Ads Manager.
 
 ## Continuación para auditoría de Claude
 
+[Preauditoría de v1](docs/PREAUDITORIA_V1.md): seis defectos corregidos con regresiones,
+626 pruebas de API y 310 del monitoreo, build y validación local. Incluye límites de concurrencia,
+seguridad de acceso y evidencia de Spotify. La aceptación de producción sigue pendiente.
+
 El monitoreo ahora consume rendimiento/histórico con `DATA_SOURCE=unified` y su comando
 `npm run unified:sync`: [APIs directas](../media-monitoring-center/docs/APIS_DIRECTAS.md).
 Se guardaron 35 días de TikTok (1022 filas diarias/10432 horarias) y tres días de X de izzi
@@ -316,7 +320,8 @@ La extracción horaria de X encontró HTTP 429. La continuación verificó las 3
 por el usuario (25 izzi/seis Sky) y guardó 2390 filas horarias de Google, 2789 de Meta y 266 de
 Microsoft para el 30 de septiembre. El ZIP de Microsoft ya se descargó en este entorno; se
 configuró `MICROSOFT_ADS_RETURN_ONLY_COMPLETE_DATA=true`. No se aceptan diarios UTC como
-días mexicanos. Spotify horario sigue respondiendo `PROVIDER_ERROR`.
+días mexicanos. Spotify izzi recuperó 30 filas horarias UTC del 30/09 al 01/10: el 502 de
+REVENUE se trata pidiendo de nuevo el bloque completo sin ingresos, con advertencia explícita.
 El acceso nominal y la sección [Tipo de cambio mensual](../media-monitoring-center/docs/TIPO_DE_CAMBIO.md)
 están validados localmente. Captura de tasas, volumen/scheduler en producción y conciliación
 siguen pendientes. Las conversiones de negocio no se inventan ni se cambian sus reglas.

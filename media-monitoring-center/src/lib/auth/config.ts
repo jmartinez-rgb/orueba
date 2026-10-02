@@ -110,7 +110,8 @@ export function getAuthConfig(): AuthConfig {
 
   let mode = resolveAuthMode(env);
   const usable = secret.length >= MIN_SECRET_LENGTH && (accounts.length > 0 || isPasswordHash(universal));
-  if (mode === "password" && !usable) mode = env.NODE_ENV === "production" ? "locked" : "open";
+  // An intended password setup with invalid credentials must never become an open demo.
+  if (mode === "password" && !usable) mode = "locked";
   if (issues.length) logger.warn("auth.config_issues", { issues });
 
   cached = {

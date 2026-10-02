@@ -6,7 +6,7 @@ import { accountSchema, campaignSchema, mappingSchema, performanceSchema, Unifie
 import { UnifiedSnapshotStore } from "./store";
 import { dailyAligned } from "./source";
 
-const errors = z.array(z.object({ error: z.object({ code: z.string(), details: z.object({ limitation: z.string().optional(), account_id: z.string().optional(), provider: z.string().optional(), partial_data: z.boolean().optional(), unsupported_metrics: z.array(z.string()).optional() }).optional() }) })).default([]);
+const errors = z.array(z.object({ provider: z.string().optional(), error: z.object({ code: z.string(), details: z.object({ limitation: z.string().optional(), account_id: z.string().optional(), provider: z.string().optional(), partial_data: z.boolean().optional(), unsupported_metrics: z.array(z.string()).optional() }).optional() }) })).default([]);
 export interface UnifiedSyncOptions {
   mapping: UnifiedMapping; store: UnifiedSnapshotStore; url: string; apiKey: string;
   from: string; to: string; granularities: Array<"daily" | "hourly">;
@@ -18,7 +18,7 @@ export async function syncUnified(options: UnifiedSyncOptions) {
   const mapping = mappingSchema.safeParse(options.mapping);
   if (!mapping.success) throw new UnifiedDataError("INVALID_ACCOUNT_MAPPING");
   const from = z.iso.date().safeParse(options.from), to = z.iso.date().safeParse(options.to);
-  if (!from.success || !to.success || diffDays(options.to, options.from) < 0 || diffDays(options.to, options.from) > 44 || !options.granularities.length || new Set(options.granularities).size !== options.granularities.length)
+  if (!from.success || !to.success || diffDays(options.to, options.from) < 0 || diffDays(options.to, options.from) > 44 || !z.array(z.enum(["daily", "hourly"])).min(1).max(2).safeParse(options.granularities).success || new Set(options.granularities).size !== options.granularities.length)
     throw new UnifiedDataError("INVALID_SYNC_RANGE");
   const base = validUnifiedUrl(options.url);
   if (!base || !options.apiKey) throw new UnifiedDataError("API_CONFIGURATION_MISSING");
@@ -42,10 +42,12 @@ export async function syncUnified(options: UnifiedSyncOptions) {
     const parsed = z.object({ data: z.array(schema).max(options.maxRows ?? 100000), errors }).safeParse(body);
     if (!parsed.success) throw new UnifiedDataError("INVALID_API_RESPONSE");
     const selectedPresent = selectedAccountId && parsed.data.data.some(row => (row as { account_id?: string; platform?: string }).account_id === selectedAccountId && (row as { platform?: string }).platform === query.provider);
-    if (parsed.data.errors.some(({ error }) => {
+    if (parsed.data.errors.some(({ provider, error }) => {
       const d = error.details;
-      if (d?.limitation === "primary_conversion_not_selected") return false;
+      if ((provider !== undefined && provider !== query.provider) || (d?.provider !== undefined && d.provider !== query.provider)) return true;
       if (route === "accounts" && selectedPresent && error.code === "ACCESS_DENIED" && d?.account_id && d.account_id !== selectedAccountId) return false;
+      if (d?.account_id !== undefined && d.account_id !== query.account_id) return true;
+      if (route === "performance" && query.provider === "x" && error.code === "INVALID_REQUEST" && d?.provider === "x" && d.account_id === query.account_id && d.limitation === "primary_conversion_not_selected") return false;
       // The adapter imports only spend/impressions/clicks; Meta's explicit limitation
       // concerns other metrics. Any warning touching imported metrics still fails closed.
       if (route === "performance" && query.provider === "meta" && query.granularity === "hourly" && error.code === "PROVIDER_ERROR" && d?.provider === "meta" && d.limitation === "hourly_breakdown" && d.partial_data === true && d.unsupported_metrics?.length && d.unsupported_metrics.every(m => ["reach", "frequency", "offsite_conversions"].includes(m))) return false;

@@ -201,3 +201,19 @@ ese día. La cuenta USD `4bf9f073-8f04-4d76-8074-970f364c3e52` requiere revisar 
 en Ads Manager para campañas e informes. Descubrirla no demuestra permiso sobre esas operaciones.
 Salida 2 por cobertura parcial y valores desconocidos; Excel privado 0600 fuera de Git.
 No se eligió evento principal ni se validó gasto, atribución o conversión contra la interfaz.
+
+## Recuperación horaria comprobada — 2 de octubre de 2026 UTC
+
+La cuenta izzi `f154306e-82ce-4c8b-a772-09140c1a24c6` devolvió HTTP 502 al pedir REVENUE
+con HOUR. Consultas base, alcance/frecuencia y video funcionaron. La referencia v3 enumera
+REVENUE y HOUR: no se generaliza este fallo observado como una incompatibilidad contractual.
+
+Solo ante un HTTP 502 del informe horario con REVENUE se vuelve a pedir el mismo bloque
+sin ese campo, desde la primera página. Páginas parciales se descartan. Se mantienen IDs,
+fechas, granularidad, límites y señal de cancelación. Si la recuperación falla, la operación
+falla; 401/403/429/500, errores de transporte y JSON inválido no se ocultan. La respuesta recuperada
+incluye `revenue_unavailable` y `retry_without_revenue=true`; ingresos y valor de conversión
+permanecen desconocidos. No se modifica la elección del evento principal ni los informes diarios.
+
+API y sincronizador del monitoreo guardaron 30 filas UTC/MXN del 30/09 al 01/10.
+[Preauditoría y evidencia](PREAUDITORIA_V1.md). Las horas ausentes no son ceros; conciliación pendiente.

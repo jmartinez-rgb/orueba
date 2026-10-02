@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { UnifiedSnapshotStore } from "@/lib/unified/store";
+import { FileRecordStore } from "@/lib/records/store";
 import { UnifiedDataSource } from "@/lib/unified/source";
 import { syncUnified } from "@/lib/unified/sync";
 import { mappingSchema, performanceSchema, type UnifiedScope } from "@/lib/unified/schema";
@@ -97,10 +98,69 @@ describe("durable direct advertising source", () => {
     }
   });
   it("accepts missing principal action but rejects other partial responses", async () => {
-    const warning = { provider: "tiktok", error: { code: "INVALID_REQUEST", details: { limitation: "primary_conversion_not_selected" } } };
-    expect((await sync(request([row()], warning)))[0].status).toBe("SUCCESS");
-    expect((await sync(request([row({ spend: 500 })], { provider: "tiktok", error: { code: "ACCESS_DENIED" } })))[0].code).toBe("PARTIAL_API_RESPONSE");
-    expect((await source().getDaily({ from: "2026-09-29", to: "2026-09-29", level: "campaign" }))[0].metrics.spend).toBe(40);
+    const xScope = { ...scope, platform: "x" as const };
+    const warning = { provider: "x", error: { code: "INVALID_REQUEST", details: { provider: "x", account_id: scope.accountId, limitation: "primary_conversion_not_selected" } } };
+    const fetcher = (error: unknown, spend = 40, warningRoute = "performance"): typeof fetch => async input => {
+      const response = await request([row({ spend })])(input); const body = await response.json();
+      body.data = body.data.map((r: Record<string, unknown>) => ({ ...r, platform: "x" }));
+      if (new URL(String(input)).pathname.endsWith(`/${warningRoute}`)) body.errors = [error];
+      return Response.json(body);
+    };
+    const extra = { mapping: { version: 1, accounts: [xScope] } };
+    expect((await sync(fetcher(warning), extra))[0].status).toBe("SUCCESS");
+    for (const error of [{ ...warning, provider: "tiktok" }, { ...warning, error: { ...warning.error, code: "ACCESS_DENIED" } }, { ...warning, error: { ...warning.error, details: { ...warning.error.details, account_id: "foreign" } } }]) {
+      expect((await sync(fetcher(error, 500), extra))[0].code).toBe("PARTIAL_API_RESPONSE");
+      expect((await store.partition(xScope, "2026-09-29", "daily"))?.rows[0].spend).toBe(40);
+    }
+    expect((await sync(fetcher(warning, 500, "campaigns"), extra))[0].code).toBe("PARTIAL_API_RESPONSE");
+    expect((await sync(request([row()], warning)))[0].code).toBe("PARTIAL_API_RESPONSE");
+  });
+
+  it("checks warning provenance even for discovery and Meta's supported hourly warning", async () => {
+    const base = request();
+    const foreignWarning: typeof fetch = async (input, init) => {
+      const response = await base(input, init); const body = await response.json();
+      if (new URL(String(input)).pathname.endsWith("/accounts")) body.errors = [{ provider: "spotify", error: { code: "ACCESS_DENIED", details: { provider: "spotify", account_id: "foreign" } } }];
+      return Response.json(body);
+    };
+    expect((await sync(foreignWarning))[0].code).toBe("PARTIAL_API_RESPONSE");
+    const metaScope = { ...scope, platform: "meta" as const };
+    const metaWarning: typeof fetch = async input => {
+      const response = await request([row({ hour: 12 })])(input); const body = await response.json();
+      body.data = body.data.map((r: Record<string, unknown>) => ({ ...r, platform: "meta" }));
+      if (new URL(String(input)).pathname.endsWith("/performance")) body.errors = [{ provider: "meta", error: { code: "PROVIDER_ERROR", details: { provider: "meta", account_id: "foreign", limitation: "hourly_breakdown", partial_data: true, unsupported_metrics: ["reach"] } } }];
+      return Response.json(body);
+    };
+    expect((await sync(metaWarning, { mapping: { version: 1, accounts: [metaScope] }, granularities: ["hourly"] }))[0].code).toBe("PARTIAL_API_RESPONSE");
+  });
+
+  it("rejects duplicate or foreign saved metrics before replacing valid history and when reading corrupted files", async () => {
+    await sync();
+    const partition = (await store.partition(scope, "2026-09-29", "daily"))!;
+    for (const rows of [[...partition.rows, ...partition.rows], [performanceSchema.parse(row({ account_id: "foreign" }))], [performanceSchema.parse(row({ hour: 12 }))]]) {
+      await expect(store.savePartition({ ...partition, rows })).rejects.toMatchObject({ code: "INVALID_SAVED_PARTITION" });
+      expect((await store.partition(scope, "2026-09-29", "daily"))?.rows[0].spend).toBe(40);
+    }
+    const files = new FileRecordStore(directory);
+    await files.set("izzi/tiktok/acct1/daily/2026-09-29", { ...partition, rows: [...partition.rows, ...partition.rows] });
+    await expect(source().getDaily({ from: "2026-09-29", to: "2026-09-29", level: "platform" })).rejects.toMatchObject({ code: "INVALID_SAVED_PARTITION" });
+    await expect(store.partition(scope, "2026-02-30", "daily")).rejects.toMatchObject({ code: "INVALID_DATE" });
+  });
+
+  it("rejects duplicate catalogs before saving and after stored corruption", async () => {
+    await sync(); const catalog = (await store.catalog(scope))!;
+    const invalid = { ...catalog, campaigns: [...catalog.campaigns, ...catalog.campaigns] };
+    await expect(store.saveCatalog(invalid)).rejects.toMatchObject({ code: "INVALID_SAVED_CATALOG" });
+    expect((await store.catalog(scope))?.campaigns).toHaveLength(1);
+    await new FileRecordStore(directory).set("izzi/tiktok/acct1/catalog", invalid);
+    await expect(source().getCatalog()).rejects.toMatchObject({ code: "INVALID_SAVED_CATALOG" });
+  });
+
+  it("rejects unsupported runtime granularities before network or storage mutations", async () => {
+    let calls = 0;
+    const fetcher: typeof fetch = async () => { calls++; return Response.json({ data: [] }); };
+    await expect(sync(fetcher, { granularities: ["weekly"] })).rejects.toMatchObject({ code: "INVALID_SYNC_RANGE" });
+    expect(calls).toBe(0); expect(await store.catalog(scope)).toBeNull();
   });
   it("accepts Meta's hourly limitation only when it excludes all imported metrics", async () => {
     const metaScope = { ...scope, platform: "meta" as const };
