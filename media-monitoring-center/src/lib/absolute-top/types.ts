@@ -75,6 +75,8 @@ export interface AbsoluteTopEvaluation extends AbsoluteTopRow {
   window_end_hour?: number | null;
   episode_open?: boolean;
   last_valid_rate?: number | null;
+  /** End instant (UTC ISO) of the newest complete window that advanced this checkpoint; older windows cannot move it back. Null: none yet; absent: saved before this field. */
+  checkpoint_end_at?: string | null;
   entity_key: string;
   audit_id: string;
   audit_at: string;

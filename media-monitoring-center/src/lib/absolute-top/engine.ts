@@ -38,26 +38,59 @@ const compare = (current: number | null, rows: AbsoluteTopRow[]): AbsoluteTopCom
 };
 const valid = (row: AbsoluteTopEvaluation) => row.coverage === "complete" && !["insufficient", "unclassified"].includes(row.state);
 
+/** Rows evaluated from a window older than the customer's checkpoint: kept as history, never as the current reading. */
+export const STALE_PERIOD_WARNING = "AUDIT_PERIOD_PRECEDES_CHECKPOINT";
+const isStalePeriod = (row: AbsoluteTopRow) => row.warnings.includes(STALE_PERIOD_WARNING);
+/** Exclusive end of the cumulative window [00:00, endHour + 1) of `date` in the source clock (endHour 23 = closed day). */
+const windowEnd = (date: string, endHour: number, timezone: string) => zonedTimeToUtc(date, endHour + 1, 0, timezone).getTime();
+function checkpointEnd(row: AbsoluteTopEvaluation): number | null {
+  if (row.checkpoint_end_at !== undefined) { const at = row.checkpoint_end_at === null ? NaN : Date.parse(row.checkpoint_end_at); return Number.isFinite(at) ? at : null; }
+  // Checkpoints saved before this field existed: only a complete hourly cut or closed day established a window.
+  try {
+    const date = row.window_to ?? row.date;
+    if (row.coverage !== "complete" || ((row.window_end_hour ?? null) === null && date >= businessDate(new Date(row.audit_at), row.source_timezone))) return null;
+    return windowEnd(date, row.window_end_hour ?? 23, row.source_timezone);
+  } catch { return null; }
+}
+
 /** Pure evaluation; counters advance only when the immutable extraction audit changes. */
 export function evaluateAbsoluteTop(audit: AbsoluteTopAudit, history: AbsoluteTopAudit[], config: GoogleDomainConfig, previous: AbsoluteTopEvaluation[] = []): AbsoluteTopEvaluation[] {
   const domain = config.domains.find(domain => domain.accounts.some(account => account.customerId === audit.customerId));
   const previousByKey = new Map(previous.map(row => [row.entity_key, row]));
+  // The data cut is the earliest extraction instant, not when the response was stored: an hour or day
+  // still open when Google was queried must not be evaluated as closed because the reply arrived later.
+  let cutAt = Date.parse(audit.observedAt);
+  for (const row of audit.rows) { const extracted = Date.parse(row.extracted_at); if (extracted < cutAt) cutAt = extracted; }
+  const cut = new Date(cutAt);
+  const lastHour = (timezone: string) => audit.granularity === "daily" ? 23 : audit.to < businessDate(cut, timezone) ? 23 : audit.to === businessDate(cut, timezone) ? zonedParts(cut, timezone).hour - 1 : -1;
+  // Newest complete window already evaluated for this customer. A later extraction of an older window
+  // (for example a backfill) cannot confirm recovery, restart persistence or drop current entities.
+  const checkpoint = previous.reduce((latest, row) => Math.max(latest, checkpointEnd(row) ?? -Infinity), -Infinity);
+  const auditZone = audit.rows[0]?.source_timezone ?? previous[0]?.source_timezone;
+  const staleAudit = auditZone !== undefined && windowEnd(audit.to, lastHour(auditZone), auditZone) < checkpoint;
   const grouped = new Map<string, AbsoluteTopRow[]>();
   for (const row of audit.rows) { const key = entityKey(row); grouped.set(key, [...(grouped.get(key) ?? []), row]); }
-  // Missing rows in a failed/partial extraction remain visible as unknown, never recovered.
-  for (const row of previous) if (!grouped.has(row.entity_key)) grouped.set(row.entity_key, []);
+  // Missing rows in a failed/partial (or older) extraction remain visible as unknown, never recovered.
+  // A complete current extraction returns every active Search entity: an absent one is no longer active.
+  if (audit.coverage !== "complete" || staleAudit) for (const row of previous) if (!grouped.has(row.entity_key)) grouped.set(row.entity_key, []);
   const periods = deduplicate([...history, audit], audit.granularity, audit.observedAt);
   const evaluations: AbsoluteTopEvaluation[] = [];
   for (const [key, rows] of grouped) {
     const old = previousByKey.get(key);
     const template = rows[0] ?? old!;
-    const observed = new Date(audit.observedAt);
-    const maxHour = audit.granularity === "daily" ? 23 : audit.to < businessDate(observed, template.source_timezone) ? 23 : audit.to === businessDate(observed, template.source_timezone) ? zonedParts(observed, template.source_timezone).hour - 1 : -1;
+    const maxHour = lastHour(template.source_timezone);
     const currentRows = rows.filter(row => row.date === audit.to && (row.hour === null || row.hour <= maxHour));
     const current = aggregate(currentRows, template, audit.to);
     current.domain_id = domain?.id ?? "unclassified"; current.domain_name = domain?.name ?? "Sin clasificar";
     const target = domain?.absoluteTopMinimum ?? null;
-    const eligible = Boolean(domain) && (audit.granularity !== "daily" || audit.to < businessDate(observed, template.source_timezone)) && audit.coverage === "complete" && currentRows.length === (audit.granularity === "daily" ? 1 : maxHour + 1) && currentRows.length > 0 && current.absolute_top_rate !== null && current.impressions !== null && current.impressions >= config.absoluteTop.minImpressions;
+    const currentEnd = windowEnd(audit.to, maxHour, template.source_timezone);
+    const stale = currentEnd < checkpoint;
+    const previousCheckpoint = old ? checkpointEnd(old) : null;
+    // A daily total of a source day still open at the cut is never evaluated, so it does not move the checkpoint.
+    const closedWindow = audit.granularity !== "daily" || audit.to < businessDate(cut, template.source_timezone);
+    const checkpointAt = audit.coverage === "complete" && !stale && closedWindow ? currentEnd : stale && Number.isFinite(checkpoint) ? checkpoint : previousCheckpoint;
+    if (stale) current.warnings = [...new Set([...current.warnings, STALE_PERIOD_WARNING])];
+    const eligible = !stale && Boolean(domain) && closedWindow && audit.coverage === "complete" && currentRows.length === (audit.granularity === "daily" ? 1 : maxHour + 1) && currentRows.length > 0 && current.absolute_top_rate !== null && current.impressions !== null && current.impressions >= config.absoluteTop.minImpressions;
     const gap = target !== null && current.absolute_top_rate !== null ? (current.absolute_top_rate - target) * 100 : null;
     const state = !domain ? "unclassified" : !eligible ? "insufficient" : gap! >= -1e-9 ? "meets" : gap! >= -config.absoluteTop.warningGapPp - 1e-9 ? "near" : "below";
     const entityPeriods = periods.filter(row => entityKey(row) === key && row.currency === current.currency && row.source_timezone === current.source_timezone);
@@ -86,7 +119,7 @@ export function evaluateAbsoluteTop(audit: AbsoluteTopAudit, history: AbsoluteTo
     const known = historicalRates.filter(point => point.rate !== null);
     const scoreComponents = { gap: eligible ? Math.min(40, Math.max(0, -gap!) * 2) : null, volume: eligible ? Math.min(10, Math.log10(current.impressions! / config.absoluteTop.minImpressions + 1) * 5) : null, persistence: eligible ? Math.min(15, consecutive * 5) : null, sudden_drop: eligible ? sudden ? 10 : 0 : null, campaign: eligible ? current.level === "campaign" ? 5 : 0 : null, spend: null as number | null, conversions: null as number | null, group_weight: null as number | null };
     const score = Object.values(scoreComponents).reduce<number>((total, value) => total + (value ?? 0), 0);
-    evaluations.push({ ...current, window_from: audit.to, window_to: audit.to, window_end_hour: audit.granularity === "hourly" ? maxHour : null, episode_open: eligible ? abnormal : old?.episode_open ?? false, last_valid_rate: eligible ? current.absolute_top_rate : old?.last_valid_rate ?? null, entity_key: key, audit_id: audit.auditId, audit_at: audit.observedAt, coverage: audit.coverage, target_rate: target, gap_pp: gap, state, severity: !abnormal ? "NORMAL" : state === "near" || state === "meets" ? "ATTENTION" : consecutive >= 3 && score >= 70 ? "CRITICAL" : "ALERT", severity_score: score, score_components: scoreComponents, group_weight: null, sudden_drop: sudden, persistence: { consecutive_audits: consecutive, label: !eligible ? "Sin evaluación" : !abnormal ? "Dentro del objetivo" : consecutive >= 3 ? "Alerta persistente" : consecutive === 2 ? "Advertencia" : "Observación", first_detected_at: first, last_detected_at: abnormal ? audit.observedAt : eligible ? null : old?.persistence.last_detected_at ?? null, hours_since_detection: first ? Math.max(0, (Date.parse(audit.observedAt) - Date.parse(first)) / 3600000) : null, worst_rate: known.length ? Math.min(...known.map(point => point.rate!)) : null, best_rate: known.length ? Math.max(...known.map(point => point.rate!)) : null, mean_rate: known.length ? known.reduce((total, point) => total + point.rate!, 0) / known.length : null, audit_id: audit.auditId }, comparison: { previous: previousComparison, previous_day: compare(current.absolute_top_rate, completeWindow(yesterday, audit.granularity === "daily" ? 1 : maxHour + 1)), last_24h: compare(current.absolute_top_rate, completeWindow(last24, audit.granularity === "daily" ? 1 : 24)), last_7d: compare(current.absolute_top_rate, completeWindow(last7, audit.granularity === "daily" ? 7 : 168)) }, evolution: historicalRates, cross_status: "unknown", diagnostics: [] });
+    evaluations.push({ ...current, window_from: audit.to, window_to: audit.to, window_end_hour: audit.granularity === "hourly" ? maxHour : null, checkpoint_end_at: checkpointAt !== null ? new Date(checkpointAt).toISOString() : null, episode_open: eligible ? abnormal : old?.episode_open ?? false, last_valid_rate: eligible ? current.absolute_top_rate : old?.last_valid_rate ?? null, entity_key: key, audit_id: audit.auditId, audit_at: audit.observedAt, coverage: audit.coverage, target_rate: target, gap_pp: gap, state, severity: !abnormal ? "NORMAL" : state === "near" || state === "meets" ? "ATTENTION" : consecutive >= 3 && score >= 70 ? "CRITICAL" : "ALERT", severity_score: score, score_components: scoreComponents, group_weight: null, sudden_drop: sudden, persistence: { consecutive_audits: consecutive, label: !eligible ? "Sin evaluación" : !abnormal ? "Dentro del objetivo" : consecutive >= 3 ? "Alerta persistente" : consecutive === 2 ? "Advertencia" : "Observación", first_detected_at: first, last_detected_at: abnormal ? audit.observedAt : eligible ? null : old?.persistence.last_detected_at ?? null, hours_since_detection: first ? Math.max(0, (Date.parse(audit.observedAt) - Date.parse(first)) / 3600000) : null, worst_rate: known.length ? Math.min(...known.map(point => point.rate!)) : null, best_rate: known.length ? Math.max(...known.map(point => point.rate!)) : null, mean_rate: known.length ? known.reduce((total, point) => total + point.rate!, 0) / known.length : null, audit_id: audit.auditId }, comparison: { previous: previousComparison, previous_day: compare(current.absolute_top_rate, completeWindow(yesterday, audit.granularity === "daily" ? 1 : maxHour + 1)), last_24h: compare(current.absolute_top_rate, completeWindow(last24, audit.granularity === "daily" ? 1 : 24)), last_7d: compare(current.absolute_top_rate, completeWindow(last7, audit.granularity === "daily" ? 7 : 168)) }, evolution: historicalRates, cross_status: "unknown", diagnostics: [] });
   }
   for (const row of evaluations) {
     const campaign = evaluations.find(parent => parent.level === "campaign" && parent.campaign_id === row.campaign_id);
@@ -103,6 +136,7 @@ export function evaluateAbsoluteTop(audit: AbsoluteTopAudit, history: AbsoluteTo
     const children = evaluations.filter(child => child.level === "ad_group" && child.campaign_id === row.campaign_id);
     const bad = children.filter(child => valid(child) && ["near", "below"].includes(child.state));
     row.cross_status = !campaign || !valid(campaign) || !children.length || children.some(child => !valid(child)) ? "unknown" : bad.length === 0 && campaign.state === "meets" ? "healthy" : bad.length && campaign.state === "meets" ? "localized" : bad.length === 1 && bad.some(child => (child.group_weight ?? 0) >= .5) ? "concentrated" : bad.length / children.length > .5 ? "generalized" : "unknown";
+    if (isStalePeriod(row)) row.diagnostics.push("Auditoría de un período anterior al último evaluado: se conserva en el historial, pero no avanza la persistencia ni confirma recuperación.");
     if (row.state === "insufficient") row.diagnostics.push("Datos no disponibles, cobertura incompleta o volumen inferior al mínimo; no se confirma recuperación.");
     if (row.state === "unclassified") row.diagnostics.push("Cuenta sin dominio en la configuración central.");
     if (row.share_bounds.search_lost_is_rank || row.share_bounds.search_lost_is_budget) row.diagnostics.push("Cuota de impresiones censurada por Google: se conserva su límite, sin tratarlo como porcentaje exacto.");
@@ -118,6 +152,6 @@ export function summarizeAbsoluteTop(rows: AbsoluteTopEvaluation[], config: Goog
     const selected = rows.filter(row => row.domain_id === domain.id), eligible = selected.filter(valid);
     const campaigns = selected.filter(row => row.level === "campaign");
     const windows = new Set(campaigns.map(row => JSON.stringify([row.window_from ?? row.date, row.window_to ?? row.date, row.window_end_hour ?? row.hour, row.source_timezone])));
-    return { domain_id: domain.id, domain_name: domain.name, target_rate: domain.absoluteTopMinimum, campaigns: campaigns.length, ad_groups: selected.filter(row => row.level === "ad_group").length, meets: selected.filter(row => row.state === "meets").length, near: selected.filter(row => row.state === "near").length, below: selected.filter(row => row.state === "below").length, insufficient: selected.filter(row => !valid(row)).length, compliance_rate: eligible.length ? eligible.filter(row => row.state === "meets").length / eligible.length : null, weighted_absolute_top: windows.size === 1 ? weightedRate(campaigns) : null, weighting_approximate: true, severity_score: selected.reduce((score, row) => Math.max(score, row.severity_score), 0) };
+    return { domain_id: domain.id, domain_name: domain.name, target_rate: domain.absoluteTopMinimum, campaigns: campaigns.length, ad_groups: selected.filter(row => row.level === "ad_group").length, meets: selected.filter(row => row.state === "meets").length, near: selected.filter(row => row.state === "near").length, below: selected.filter(row => row.state === "below").length, insufficient: selected.filter(row => !valid(row)).length, compliance_rate: eligible.length ? eligible.filter(row => row.state === "meets").length / eligible.length : null, weighted_absolute_top: windows.size === 1 && !campaigns.some(isStalePeriod) ? weightedRate(campaigns) : null, weighting_approximate: true, severity_score: selected.reduce((score, row) => Math.max(score, row.severity_score), 0) };
   });
 }
