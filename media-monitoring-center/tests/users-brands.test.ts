@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { resetAuthConfig } from "@/lib/auth/config";
 import { can, PERMISSIONS } from "@/lib/auth/roles";
@@ -28,6 +28,7 @@ describe("cuentas, contraseñas y permisos desde la app", () => {
     resetUsersCache();
   });
   afterEach(() => {
+    vi.restoreAllMocks();
     process.env = { ...prev };
     resetAuthConfig();
     resetUsersCache();
@@ -37,6 +38,53 @@ describe("cuentas, contraseñas y permisos desde la app", () => {
     expect(can("admin", "users:manage")).toBe(true);
     expect(can("coadmin", "users:manage")).toBe(false);
     expect(can("coadmin", "settings:write")).toBe(true);
+  });
+
+  it("no restaura permisos o contraseñas del entorno cuando el almacén falla o contiene usuarios inválidos", async () => {
+    vi.spyOn(getRecordStore(), "get").mockRejectedValue(new Error("storage unavailable"));
+    await expect(findEffectiveAccount("jmartinez")).rejects.toThrow("storage unavailable");
+    await expect(effectiveUniversal()).rejects.toThrow("storage unavailable");
+    vi.restoreAllMocks(); resetUsersCache();
+    await getRecordStore().set("auth/users", [{ username: "jmartinez", role: "admin", hash: "broken" }]);
+    await expect(findEffectiveAccount("jmartinez")).rejects.toMatchObject({ code: "RECORDS_UNAVAILABLE" });
+  });
+
+  it("las marcas de AUTH_USERS se respetan aunque la cuenta no haya sido administrada en la app", async () => {
+    const hash = await hashPassword("Privada-Prueba-2026");
+    process.env.AUTH_USERS = JSON.stringify([{ u: "admin", n: "Admin", r: "admin", h: hash, brands: ["izzi"] }]);
+    resetAuthConfig(); resetUsersCache();
+    expect((await findEffectiveAccount("admin"))?.brands).toEqual(["izzi"]);
+  });
+
+  it("inicia identidad por correo, conserva permisos nominales y evita correos repetidos", async () => {
+    const hash = await hashPassword("Privada-Prueba-2026");
+    process.env.AUTH_USERS = JSON.stringify([{ u: "operativo", n: "Operativo", email: "operativo@example.test", r: "manager", h: hash, brands: ["izzi"], permissions: ["incidents:write", "users:view"] }]);
+    resetAuthConfig(); resetUsersCache();
+    const account = await findEffectiveAccount("OPERATIVO@EXAMPLE.TEST");
+    expect(account).toMatchObject({ username: "operativo", customPermissions: true, email: "operativo@example.test", brands: ["izzi"] });
+    expect(account?.permissions).toContain("users:view");
+    expect(account?.permissions).not.toContain("users:manage");
+    expect((await createAccount(admin, { username: "duplicado", email: "operativo@example.test", name: "Otro", role: "manager", password: "Otra-Clave-2026" })).ok).toBe(false);
+  });
+
+  it("la política limita respuestas nominales sin quitar administración y protege al administrador principal", async () => {
+    const hash = await hashPassword("Privada-Prueba-2026");
+    process.env.AUTH_USERS = JSON.stringify([{ u: "principal", n: "Principal", r: "admin", h: hash }, { u: "otro-admin", n: "Otro Admin", r: "admin", h: hash }, { u: "operativo", n: "Operativo", r: "manager", h: hash }]);
+    process.env.AUTH_PRIMARY_ADMIN_ID = "principal";
+    process.env.ALERT_RESPONDER_USER_IDS = "operativo";
+    resetAuthConfig(); resetUsersCache();
+    const principal = (await findEffectiveAccount("principal"))!;
+    const other = (await findEffectiveAccount("otro-admin"))!;
+    expect(principal.permissions).toEqual(PERMISSIONS);
+    expect(other.permissions).toContain("users:manage");
+    expect(other.permissions).toContain("settings:write");
+    expect(other.permissions).not.toContain("incidents:write");
+    expect(other.permissions).not.toContain("tickets:write");
+    expect((await findEffectiveAccount("operativo"))?.permissions).toContain("incidents:write");
+    const actor = { id: "otro-admin", name: "Otro Admin", permissions: other.permissions };
+    const denied = await updateAccount(actor, "principal", { active: false });
+    expect(denied).toMatchObject({ ok: false, status: 403 });
+    expect(await deleteAccount(actor, "principal")).toMatchObject({ ok: false, status: 403 });
   });
 
   it("contraseñas generadas seguras y reglas mínimas", () => {

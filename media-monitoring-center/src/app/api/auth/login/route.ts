@@ -49,8 +49,9 @@ export async function POST(req: Request) {
     return json({ ok: false, message: `Demasiados intentos. Intenta de nuevo en ${lock.retryInMin} min.` }, 429);
   }
 
-  const account = await findEffectiveAccount(username);
-  const universal = await effectiveUniversal();
+  const access = await Promise.all([findEffectiveAccount(username), effectiveUniversal()]).catch(() => null);
+  if (!access) return json({ ok: false, message: "No se pudo comprobar el acceso. Intenta más tarde." }, 503);
+  const [account, universal] = access;
   let claimsBase: Omit<SessionClaims, "sid" | "iat" | "exp"> | null = null;
   let inactive = false;
   if (account) {

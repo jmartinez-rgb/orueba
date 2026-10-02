@@ -17,6 +17,7 @@ import { UserAvatar } from "./user-avatar";
 
 export interface AccountRow {
   username: string;
+  email?: string | null;
   name: string;
   role: Role;
   permissions: Permission[];
@@ -388,6 +389,7 @@ export function AccountAdmin({ initialAccounts, initialUniversal, selfId, myPerm
 
 function AccountDialog({ mode, account, self, grantable, onClose, onSaved }: { mode: "create" | "edit"; account?: AccountRow; self?: boolean; grantable: Permission[]; onClose: () => void; onSaved: (password: string | null, name: string) => void }) {
   const [name, setName] = useState(account?.name ?? "");
+  const [email, setEmail] = useState(account?.email ?? "");
   const [username, setUsername] = useState(account?.username ?? "");
   const [touchedUser, setTouchedUser] = useState(false);
   const [role, setRole] = useState<Role>(account?.role ?? "viewer");
@@ -402,8 +404,8 @@ function AccountDialog({ mode, account, self, grantable, onClose, onSaved }: { m
     setSaving(true);
     const body =
       mode === "create"
-        ? { username, name, role, permissions: custom ? permissions : null, brands, password }
-        : { name, brands, ...(lockAccess ? {} : { role, permissions: custom ? permissions : null }) };
+        ? { username, name, email: email.trim() || null, role, permissions: custom ? permissions : null, brands, password }
+        : { name, email: email.trim() || null, brands, ...(lockAccess ? {} : { role, permissions: custom ? permissions : null }) };
     const res = await send(mode === "create" ? "/api/users" : `/api/users/${encodeURIComponent(account!.username)}`, mode === "create" ? "POST" : "PATCH", body);
     setSaving(false);
     if (!res.ok) return sileo.error({ title: "No se pudo guardar", description: res.message });
@@ -446,6 +448,10 @@ function AccountDialog({ mode, account, self, grantable, onClose, onSaved }: { m
             />
           </div>
           <div className="space-y-1.5">
+          <Label htmlFor="account-email">Correo</Label>
+          <Input id="account-email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
+        </div>
+        <div className="space-y-1.5">
             <Label>Rol</Label>
             <Select
               value={role}

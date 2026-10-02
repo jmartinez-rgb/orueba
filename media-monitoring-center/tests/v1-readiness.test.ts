@@ -37,6 +37,12 @@ const auth = {
 } as Pick<AuthConfig, "mode" | "accounts" | "issues">;
 
 describe("preparación de configuración de v1", () => {
+  it("direct APIs require a valid account mapping and storage configuration", () => {
+    const direct = { ...env, dataSource: "unified" as const, requestedDataSource: "unified" as const, unifiedData: { configured: true, directory: ".data/unified", mappingFile: "config/unified.mapping.json", mappingJson: undefined } };
+    expect(v1Configuration(direct, auth, "file").configurationReady).toBe(false);
+    expect(v1Configuration(direct, auth, "file", true).configurationReady).toBe(true);
+    expect(v1Configuration({ ...direct, unifiedData: { ...direct.unifiedData, configured: false } }, auth, "file", true).configurationReady).toBe(false);
+  });
   it("una fuente real, cuentas nominales, registros persistentes y API configurada completan configuración, no certifican datos", () => {
     const report = v1Configuration(env, auth, "netlify-blobs");
     expect(report.configurationReady).toBe(true);

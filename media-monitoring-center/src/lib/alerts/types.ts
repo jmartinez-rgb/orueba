@@ -106,6 +106,8 @@ export interface IncidentAction {
   kind: "STATUS" | "OWNER" | "NOTE";
   /** Nuevo estado, nuevo responsable (null = sin responsable) o null en una nota. */
   value: string | null;
+  /** Identidad nominal al asignar; evita confundir personas con el mismo nombre. */
+  valueId?: string | null;
 }
 
 export interface Incident extends EntityFields {
@@ -124,6 +126,8 @@ export interface Incident extends EntityFields {
   maxDeviation: number | null;
   status: IncidentStatus;
   owner: string | null;
+  /** Usuario nominal; los responsables antiguos escritos a mano conservan solo owner. */
+  ownerId?: string | null;
   notes: Array<{ at: string; author: string; text: string }>;
   /** Acciones de personas con fecha y autor (registros anteriores pueden no traerlas). */
   actions?: IncidentAction[];

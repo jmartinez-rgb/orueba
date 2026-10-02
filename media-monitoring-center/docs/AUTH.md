@@ -182,3 +182,9 @@ pantalla completa que no se puede cerrar hasta que escribe qué revisó (mínimo
 quién lo va a reportar y por qué canal, y confirma. Un solo acuse cubre todos los críticos
 pendientes; puede crear un ticket con el historial. Cada persona acusa por su cuenta y el acuse
 queda en la bitácora. Si el problema vuelve después de resolverse (incidente nuevo), se vuelve a pedir.
+
+## Continuación de acceso nominal y atención
+
+Ver [ACCESOS_NOMINALES.md](ACCESOS_NOMINALES.md): administrador principal protegido,
+lista nominal de cinco responsables, delegación por ID y clientes en modo lectura.
+La configuración local tiene 15 cuentas; no certifica configuración de producción.

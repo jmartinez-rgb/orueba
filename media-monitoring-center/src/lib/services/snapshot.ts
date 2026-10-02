@@ -45,6 +45,7 @@ export interface SnapshotMeta {
   comparisonDates: string[];
   role: Role;
   userName: string;
+  userId: string;
   permissions: Permission[];
   integrations: { bigquery: boolean; n8n: boolean; whatsapp: boolean };
   mappingErrors: string[];
@@ -144,7 +145,7 @@ async function mockReplay(ctx: AppContext, asOf: Date): Promise<{ state: AlertSt
   });
 }
 
-function applyOverrides(state: AlertState, overrides: Awaited<ReturnType<AppContext["store"]["getOverrides"]>>): AlertState {
+export function applyOverrides(state: AlertState, overrides: Awaited<ReturnType<AppContext["store"]["getOverrides"]>>): AlertState {
   for (const a of state.alerts) {
     const o = overrides.alerts[a.id];
     if (!o) continue;
@@ -164,10 +165,17 @@ function applyOverrides(state: AlertState, overrides: Awaited<ReturnType<AppCont
   for (const inc of state.incidents) {
     const o = overrides.incidents[inc.id];
     if (!o) continue;
-    if (o.owner !== undefined) inc.owner = o.owner;
+    if (o.owner !== undefined) { inc.owner = o.owner; inc.ownerId = o.ownerId ?? null; }
     if (o.status && inc.resolvedAt === null) inc.status = o.status;
-    if (o.notes) inc.notes = [...inc.notes, ...o.notes];
-    if (o.actions) inc.actions = [...(inc.actions ?? []), ...o.actions].sort((x, y) => x.at.localeCompare(y.at));
+    if (o.status === "RESOLVED" && inc.resolvedAt === null) {
+      const close = o.actions?.findLast(a => a.kind === "STATUS" && a.value === "RESOLVED");
+      if (close) {
+        inc.resolvedAt = close.at;
+        inc.timeline.push({ at: close.at, kind: "STATUS", severity: inc.severity, deviation: inc.currentDeviation, message: `Cierre documentado por ${close.by}.`, notified: false });
+      }
+    }
+    if (o.notes) inc.notes = [...new Map([...inc.notes, ...o.notes].map(note => [JSON.stringify(note), note])).values()];
+    if (o.actions) inc.actions = [...new Map([...(inc.actions ?? []), ...o.actions].map(action => [JSON.stringify(action), action])).values()].sort((x, y) => x.at.localeCompare(y.at));
   }
   return state;
 }
@@ -237,17 +245,17 @@ const autoRuns = ((globalThis as unknown as { __immcAutoRuns?: Map<string, Promi
  * no se hace: la evaluación la dispara n8n y es la que envía los WhatsApp.
  */
 async function autoPersist(ctx: AppContext, asOf: Date, base: AlertState, preview: AlertState, runs: RunSummary[]): Promise<boolean> {
-  if (ctx.mode !== "sheets" || getEnv().n8n.configured || !ctx.brandPlatforms.length) return false;
+  if (!["sheets", "unified"].includes(ctx.mode) || getEnv().n8n.configured || !ctx.brandPlatforms.length) return false;
   const last = runs.map((r) => Date.parse(r.at)).sort((a, b) => a - b).pop();
   const due = last === undefined || asOf.getTime() - last >= ctx.settings.schedule.intervalHours * 3600 * 1000;
   const known = new Set(base.incidents.map((i) => i.id));
-  const newCritical = preview.incidents.some((i) => i.resolvedAt === null && i.severity === "CRITICAL" && !known.has(i.id));
+  const newCritical = preview.incidents.some((i) => i.resolvedAt === null && (ctx.mode === "unified" || i.severity === "CRITICAL") && !known.has(i.id));
   if (!due && !newCritical) return false;
   const key = `${ctx.brand}:${Math.floor(asOf.getTime() / 60000)}`;
   let job = autoRuns.get(key);
   if (!job) {
     job = import("./evaluate")
-      .then(({ evaluateNow }) => evaluateNow(ctx, { dryRun: false, trigger: "schedule", reuseData: true }))
+      .then(({ evaluateNow }) => evaluateNow(ctx, { dryRun: false, trigger: "schedule", reuseData: true, notify: ctx.mode !== "unified" }))
       .then(() => true)
       .catch((err) => {
         logger.warn("auto_evaluation.failed", { brand: ctx.brand, error: err });
@@ -364,6 +372,7 @@ export async function buildSnapshot(ctx: AppContext): Promise<Snapshot> {
     comparisonDates: run.comparisonDates,
     role: ctx.session.role,
     userName: ctx.session.user.name,
+    userId: ctx.session.user.id,
     permissions: sessionPermissions(ctx.session),
     integrations: { bigquery: env.bigquery.configured, n8n: env.n8n.configured, whatsapp: env.whatsapp.enabled },
     mappingErrors: ctx.mappingErrors,

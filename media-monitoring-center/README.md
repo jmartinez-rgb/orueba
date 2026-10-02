@@ -17,7 +17,8 @@ monitoreo se copia y se envía a mano). El acceso es con contraseña y cada entr
 el administrador crea las cuentas, asigna contraseñas, permisos y marcas desde la propia app.
 
 ```
-Plataformas → Dataslayer (cada 2 h) → Google Sheets ─┐
+Plataformas → unified-ads-api → unified:sync → histórico privado ─┐
+            → Dataslayer (cada 2 h) → Google Sheets ─────────────┤
             → n8n (ingesta) → BigQuery ──────────────┴→ Data Health → Monitoring Engine → Anomaly Engine → API (Next.js) → UI (Netlify)
                                                                                            ↘ n8n → WhatsApp Business Cloud API
 ```
@@ -28,7 +29,10 @@ cuenta de servicio, computadora, Netlify).
 **Preparación de v1:** [docs/V1.md](docs/V1.md), con configuración, conexiones comprobadas y
 aceptación pendiente. `npm run v1:check` distingue una demo funcional de configuración real y
 consulta los estados de las seis plataformas sin imprimir valores privados. La API unificada
-aporta estado, presupuestos y entrega; el motor aún obtiene métricas de Sheets/BigQuery/mock.
+aporta estado, presupuestos y entrega. El motor ahora también consume su rendimiento guardado
+con `DATA_SOURCE=unified`: [APIs directas](docs/APIS_DIRECTAS.md). Se comprobaron 35 días de
+TikTok y tres días de X de izzi; las conversiones de negocio permanecen pendientes.
+Hay acceso nominal y delegación de incidencias: [cuentas y responsables](docs/ACCESOS_NOMINALES.md).
 
 ## Arranque rápido
 
@@ -47,7 +51,8 @@ producción el sitio queda bloqueado hasta configurar `AUTH_*`. Cuentas: `jmarti
 (Administrador), `operaciones` (Co-administrador) y una contraseña universal con la que cada
 persona entra con su nombre.
 
-Fuente de datos (`DATA_SOURCE`): **`sheets`** lee directamente la hoja de Google Sheets que
+Fuente de datos (`DATA_SOURCE`): **`unified`** lee el histórico de APIs directas generado por
+`npm run unified:sync`; **`sheets`** lee directamente la hoja de Google Sheets que
 actualiza Dataslayer ("Monitoreo | Big Query"; `npm run sheets:setup` la conecta), `bigquery` lee
 BigQuery y `mock` usa datos simulados.
 
@@ -81,6 +86,7 @@ gastar** (datos al día, gasto en cero las últimas 3 horas).
 | `npm test` | Pruebas de motores (comparación, anomalías, incidentes, pacing, data health, BigQuery, escenarios), acceso, clasificadores, monedas, confianza y mensaje de monitoreo |
 | `npm run check` | typecheck + lint + tests |
 | `npm run v1:check` | Configuración de producción y estados de API; `-- --sin-red` evita red. No certifica conciliación ni publica |
+| `npm run unified:sync` | Extrae las cuentas del mapeo explícito, guarda catálogo y particiones diarias/horarias privadas; `-- --help` muestra opciones |
 | `npm run auth:setup` | Genera contraseñas nuevas, sus hashes y `AUTH_SECRET` (`-- --write` los guarda en `.env.local`) |
 | `npm run auth:hash -- "contraseña"` | Hash scrypt de una contraseña elegida |
 | `npm run sheets:setup -- "URL de la hoja"` | Conecta la hoja de Dataslayer: busca la llave JSON en Descargas/Escritorio, la prueba contra Google (se salta las borradas), guarda en `.env.local` el ID y la cuenta de servicio (no muestra la llave) y revisa la hoja |
@@ -110,6 +116,7 @@ media-monitoring-center/
 ├── src/lib/
 │   ├── config/              Variables de entorno (servidor) y configuración operativa
 │   ├── data/                Contrato de datos (MonitoringDataSource), caché y conversión USD→MXN
+│   ├── unified/             Extracción acotada, histórico atómico y adaptador de APIs directas
 │   ├── mock/                Generador de datos simulados y escenarios de anomalías
 │   ├── bigquery/            Cliente, mapeo configurable del esquema, SQL y fuente real
 │   ├── sheets/              Lectura de la hoja de Dataslayer: mapeo, celdas, reparto horario, fuente de datos
@@ -137,6 +144,7 @@ media-monitoring-center/
 
 ## Documentación
 
+- [docs/APIS_DIRECTAS.md](docs/APIS_DIRECTAS.md): configuración, cuentas, histórico, extracción y límites comprobados.
 - [docs/INSTALACION.md](docs/INSTALACION.md): instalación paso a paso con la hoja de Dataslayer.
 - [docs/GUIA.md](docs/GUIA.md): qué hay en cada sección, cómo leer el semáforo, mensaje de Monitoreos y clasificadores.
 - [docs/AUTH.md](docs/AUTH.md): cuentas, contraseña universal, roles y bitácora de accesos.

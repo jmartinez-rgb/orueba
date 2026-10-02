@@ -6,7 +6,7 @@ import { reconcile } from "@/lib/alerts/incident-manager";
 import { dispatchNotifications } from "@/lib/alerts/dispatcher";
 import { logger } from "@/lib/logging/logger";
 import { businessDate } from "@/lib/time/tz";
-import { baseAlertState, summarizeRun } from "./snapshot";
+import { applyOverrides, baseAlertState, summarizeRun } from "./snapshot";
 import { getAppContext, monitoringInput, type AppContext } from "./context";
 import { BRAND_IDS } from "@/lib/brands";
 
@@ -17,7 +17,7 @@ import { BRAND_IDS } from "@/lib/brands";
  * 5) persistencia de alertas, incidentes, notificaciones y corrida en BigQuery.
  * En MOCK MODE es un ensayo: calcula y simula el despacho, pero no persiste.
  */
-export async function evaluateNow(ctx: AppContext, opts: { dryRun: boolean; trigger: "schedule" | "manual"; reuseData?: boolean }) {
+export async function evaluateNow(ctx: AppContext, opts: { dryRun: boolean; trigger: "schedule" | "manual"; reuseData?: boolean; notify?: boolean }) {
   const env = getEnv();
   const started = Date.now();
   const asOf = ctx.source.now();
@@ -32,7 +32,7 @@ export async function evaluateNow(ctx: AppContext, opts: { dryRun: boolean; trig
   const mock = ctx.mode === "mock";
   // Estado previo: replay de las corridas programadas (mock) o el persistido en BigQuery (sin caché).
   const base = mock ? (await baseAlertState(ctx, asOf, run.businessDate)).state : await ctx.store.loadAlertState();
-  const result = reconcile(base, run, { settings: ctx.settings, notify: true, whatsapp: env.whatsapp, brand: ctx.brandInfo });
+  const result = reconcile(applyOverrides(base, await ctx.store.getOverrides()), run, { settings: ctx.settings, notify: opts.notify !== false, whatsapp: env.whatsapp, brand: ctx.brandInfo });
   const persist = !mock && !opts.dryRun;
   const dispatched = opts.dryRun ? result.notifications.map((n) => ({ ...n, status: "SKIPPED" as const, detail: "dryRun: no se envió." })) : await dispatchNotifications(result.notifications, ctx.settings);
   const summary = summarizeRun(run, result.state, dispatched.length, Date.now() - started, opts.trigger, ctx.brandInfo.idPrefix);

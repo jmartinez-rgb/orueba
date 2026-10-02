@@ -1,7 +1,7 @@
 import "server-only";
 import type { MetricId, PlatformId } from "@/lib/types";
 import { PLATFORM_IDS } from "@/lib/types";
-import { addMetrics, emptyMetrics, metricValue, METRICS, OBJECTIVE_KPI, OBJECTIVE_LABEL } from "@/lib/metrics";
+import { addMetrics, addCompleteMetrics, emptyMetrics, metricValue, METRICS, OBJECTIVE_KPI, OBJECTIVE_LABEL } from "@/lib/metrics";
 import { DEFAULT_CLASSIFIERS } from "@/lib/classifiers/defaults";
 import { classifyCampaign } from "@/lib/classifiers/classify";
 import { PLATFORMS } from "@/lib/platforms/registry";
@@ -15,7 +15,7 @@ export const ANALYSIS_METRICS: MetricId[] = ["spend", "conversions", "cpa", "wha
 
 const KPI = OBJECTIVE_KPI.CONVERSIONS;
 
-function toSeries(rows: HourlyRow[]): Map<PlatformId | "total", HourlySeries> {
+function toSeries(rows: HourlyRow[], strict = false): Map<PlatformId | "total", HourlySeries> {
   const out = new Map<PlatformId | "total", HourlySeries>();
   const add = (key: PlatformId | "total", r: HourlyRow) => {
     let s = out.get(key);
@@ -29,8 +29,8 @@ function toSeries(rows: HourlyRow[]): Map<PlatformId | "total", HourlySeries> {
       s.set(r.date, day);
     }
     const cur = day[r.hour];
-    if (cur) addMetrics(cur, r.metrics);
-    else day[r.hour] = addMetrics(emptyMetrics(), r.metrics);
+    if (cur) (strict ? addCompleteMetrics : addMetrics)(cur, r.metrics);
+    else day[r.hour] = { ...r.metrics };
   };
   for (const r of rows) {
     add(r.platform, r);
@@ -88,12 +88,14 @@ export interface CompareResult {
 }
 
 const MAX_ROWS = 60;
+type AnalysisContext = Pick<AppContext, "mode" | "source" | "brandInfo" | "settings">;
 
 export async function getCompare(
-  ctx: AppContext,
+  ctx: AnalysisContext,
   params: { date: string; cutoffHour: number; weeksBack: number[]; customDates: string[]; metric: MetricId; dimension: CompareDimension; platform: PlatformId | "all"; focus: string | null },
 ): Promise<CompareResult> {
   const { date, cutoffHour, metric, dimension, platform } = params;
+  const strict = ctx.mode === "unified";
   const weeks = [...new Set(params.weeksBack.filter((w) => w >= 1 && w <= 12))].sort((a, b) => a - b);
   const custom = [...new Set(params.customDates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && d !== date))].slice(0, 4);
   const columns: CompareColumn[] = [
@@ -116,8 +118,8 @@ export async function getCompare(
       series.set(r.date, day);
     }
     const cur = day[r.hour];
-    if (cur) addMetrics(cur, r.metrics);
-    else day[r.hour] = addMetrics(emptyMetrics(), r.metrics);
+    if (cur) (strict ? addCompleteMetrics : addMetrics)(cur, r.metrics);
+    else day[r.hour] = { ...r.metrics };
   };
   for (const r of rows) {
     const camp = r.campaignId ? campaignById.get(r.campaignId) : undefined;
@@ -158,7 +160,7 @@ export async function getCompare(
 
   const buildRow = (id: string, name: string, sub: string | null, p: PlatformId | null, series: HourlySeries): CompareRow => {
     const values = columns.map((c) => {
-      const t = windowTotals(series, c.date, 0, cutoffHour);
+      const t = windowTotals(series, c.date, 0, cutoffHour, strict);
       return t ? metricValue(t, metric, KPI) : null;
     });
     const weekVals = values.slice(1, 1 + weeks.length).filter((v): v is number => v !== null);
@@ -177,7 +179,7 @@ export async function getCompare(
       vsPrev: delta(values[0], prev),
       vsAvg: delta(values[0], avg),
       vsMedian: delta(values[0], med),
-      spend: windowTotals(series, date, 0, cutoffHour)?.spend ?? 0,
+      spend: windowTotals(series, date, 0, cutoffHour, strict)?.spend ?? 0,
     };
   };
   const all = [...groups.entries()].map(([id, g]) => buildRow(id, g.name, g.sub, g.platform, g.series)).sort((a, b) => b.spend - a.spend || a.name.localeCompare(b.name));
@@ -185,7 +187,7 @@ export async function getCompare(
   const totalRow = buildRow("total", totalName, null, platform === "all" ? null : platform, total);
   const focus = params.focus && groups.has(params.focus) ? params.focus : "total";
   const focusSeries = focus === "total" ? total : groups.get(focus)!.series;
-  const cum = columns.map((c) => cumulativeByHour(focusSeries, c.date, metric, KPI, c.kind === "base" ? cutoffHour : 24));
+  const cum = columns.map((c) => cumulativeByHour(focusSeries, c.date, metric, KPI, c.kind === "base" ? cutoffHour : 24, strict));
   const chart = Array.from({ length: 24 }, (_, h) => {
     const pt: Record<string, number | string | null> = { hour: h + 1, label: hourLabel(h + 1) };
     columns.forEach((c, i) => (pt[c.key] = cum[i][h]));
@@ -217,14 +219,15 @@ export interface HistoricalResult {
   days: Array<{ date: string; label: string; weekday: number } & Partial<Record<PlatformId | "total", number | null>>>;
   weekdayProfile: Array<{ weekday: number; avg: number | null }>;
   sameWeekday: Array<{ date: string; value: number | null }>;
-  heatmap: number[][];
+  heatmap: Array<Array<number | null>>;
   cutoffHour: number;
   /** Marca del monitoreo (para "Total izzi" / "Total Sky"). */
   brandName: string;
 }
 
-export async function getHistorical(ctx: AppContext, params: { today: string; weeks: number; metric: MetricId; cutoffHour: number }): Promise<HistoricalResult> {
+export async function getHistorical(ctx: AnalysisContext, params: { today: string; weeks: number; metric: MetricId; cutoffHour: number }): Promise<HistoricalResult> {
   const { today, weeks, metric, cutoffHour } = params;
+  const strict = ctx.mode === "unified";
   const to = addDays(today, -1);
   const from = addDays(today, -7 * weeks);
   const daily = await ctx.source.getDaily({ from, to: today, level: "platform" });
@@ -236,9 +239,9 @@ export async function getHistorical(ctx: AppContext, params: { today: string; we
       byDay.set(r.date, m);
     }
     for (const k of [r.platform, "total"] as const) {
-      const cur = m.get(k) ?? emptyMetrics();
-      addMetrics(cur, r.metrics);
-      m.set(k, cur);
+      const cur = m.get(k);
+      if (cur) (strict ? addCompleteMetrics : addMetrics)(cur, r.metrics);
+      else m.set(k, { ...r.metrics });
     }
   }
   const days: HistoricalResult["days"] = [];
@@ -260,9 +263,9 @@ export async function getHistorical(ctx: AppContext, params: { today: string; we
   // Mismo día de la semana a la misma hora de corte (regla principal) en todo el periodo.
   const sameDates = sameWeekdayDates(today, weeks);
   const hourly = await ctx.source.getHourly({ dates: [today, ...sameDates], level: "platform" });
-  const series: HourlySeries = toSeries(hourly).get("total") ?? new Map();
+  const series: HourlySeries = toSeries(hourly, strict).get("total") ?? new Map();
   const sameWeekday = [...sameDates].reverse().concat([today]).map((d) => {
-    const t = windowTotals(series, d, 0, cutoffHour);
+    const t = windowTotals(series, d, 0, cutoffHour, strict);
     return { date: d, value: t ? metricValue(t, metric, KPI) : null };
   });
   // Mapa de calor día × hora (gasto promedio) con las mismas fechas de referencia.
@@ -270,7 +273,7 @@ export async function getHistorical(ctx: AppContext, params: { today: string; we
   const cnt = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
   const heatDates = Array.from({ length: Math.min(28, 7 * weeks) }, (_, i) => addDays(today, -(i + 1)));
   const heatRows = await ctx.source.getHourly({ dates: heatDates, level: "platform" });
-  const heatSeries: HourlySeries = toSeries(heatRows).get("total") ?? new Map();
+  const heatSeries: HourlySeries = toSeries(heatRows, strict).get("total") ?? new Map();
   for (const d of heatDates) {
     const hours = heatSeries.get(d);
     if (!hours) continue;
@@ -282,6 +285,6 @@ export async function getHistorical(ctx: AppContext, params: { today: string; we
       }
     });
   }
-  const heatmap = heat.map((row, wd) => row.map((v, h) => (cnt[wd][h] ? v / cnt[wd][h] : 0)));
+  const heatmap = heat.map((row, wd) => row.map((v, h) => (cnt[wd][h] ? v / cnt[wd][h] : strict ? null : 0)));
   return { from, to, weeks, metric, metricLabel: METRICS[metric].label, days, weekdayProfile, sameWeekday, heatmap, cutoffHour, brandName: ctx.brandInfo.name };
 }

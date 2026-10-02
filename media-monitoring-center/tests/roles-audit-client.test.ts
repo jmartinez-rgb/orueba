@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { effectivePermissions, isInternalRole, isRole, permissionsOf, ROLES, type Permission } from "@/lib/auth/roles";
 import { auditIncident, auditIncidents, type AuditInputs } from "@/lib/audit/incident-audit";
 import { buildClientView } from "@/lib/client/client-view";
-import type { Incident } from "@/lib/alerts/types";
+import type { Alert, Incident } from "@/lib/alerts/types";
 import type { Ticket } from "@/lib/records/ticket-model";
 import type { PlatformId, Severity } from "@/lib/types";
 
@@ -168,6 +168,13 @@ describe("vista del cliente", () => {
     expect(view.attending).toEqual([{ platform: "meta", what: "Variación en la entrega de anuncios", since: T0, stage: "En atención" }]);
     const text = JSON.stringify(view);
     for (const secret of ["Ana Secreta", "Nota interna", "INC-0001", "ALR-0001", "act-1", "MXN - izzi 1"]) expect(text).not.toContain(secret);
+  });
+
+  it("publica alertas de lectura sin diagnósticos, notas, responsables ni otras plataformas", () => {
+    const alert: Alert = { ...incident(), id: "PRIVATE-ID", family: "delivery", currentValue: 10, expectedValue: 20, deviation: -0.5, diagnosis: "PRIVATE-DIAGNOSIS", adjustments: ["PRIVATE-ACTION"], detectedAt: T0, lastUpdateAt: T0, status: "NEW", consecutiveRuns: 1, incidentId: "PRIVATE-INCIDENT", groupedUnder: null, cutoffHour: 12 };
+    const view = buildClientView({ ...base, incidents: [], alerts: [alert, { ...alert, platform: "x" }, { ...alert, status: "FALSE_POSITIVE" }, { ...alert, resolvedAt: at(30) }] });
+    expect(view.alerts).toEqual([{ platform: "meta", severity: "ALERT", what: "Variación en la entrega de anuncios", since: T0 }]);
+    expect(JSON.stringify(view.alerts)).not.toMatch(/PRIVATE|act-1|owner|notes|adjustments|diagnosis/);
   });
 
   it("todo en orden cuando no hay nada abierto; atención menor queda en observación", () => {

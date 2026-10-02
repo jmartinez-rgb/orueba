@@ -95,6 +95,12 @@ export function addMetrics(target: MetricValues, source: MetricValues): MetricVa
   return target;
 }
 
+/** Complete direct-report totals: an unknown component cannot become a complete number. */
+export function addCompleteMetrics(target: MetricValues, source: MetricValues): MetricValues {
+  for (const m of BASE_METRICS) target[m] = target[m] === null || source[m] === null ? null : target[m]! + source[m]!;
+  return target;
+}
+
 export function sumMetrics(rows: Iterable<MetricValues>): MetricValues {
   const acc = emptyMetrics();
   for (const r of rows) addMetrics(acc, r);

@@ -1,7 +1,8 @@
 import "server-only";
 import type { MetricValues, PlatformId, Severity } from "@/lib/types";
 import { PLATFORM_IDS } from "@/lib/types";
-import { addMetrics, emptyMetrics, METRICS } from "@/lib/metrics";
+import { addMetrics, addCompleteMetrics, METRICS } from "@/lib/metrics";
+import { windowTotals, type HourlySeries } from "@/lib/monitoring/historical-comparator";
 import { platformKpi } from "@/lib/platforms/registry";
 import { addDays, weekdayOf, WEEKDAYS_ES, zonedParts } from "@/lib/time/tz";
 import { cached } from "@/lib/data/cache";
@@ -27,6 +28,16 @@ interface Totals {
   today: MetricValues | null;
   yesterday: MetricValues | null;
   lastWeek: MetricValues | null;
+}
+
+/** No declara un total completo cuando falta la ventana de alguna campaña. */
+export function aggregateReportTotals(rows: Array<Totals | undefined>, strict: boolean): Totals {
+  const result: Totals = { today: null, yesterday: null, lastWeek: null };
+  for (const slot of ["today", "yesterday", "lastWeek"] as const) {
+    if (strict && rows.some(row => !row?.[slot])) continue;
+    for (const row of rows) if (row?.[slot]) result[slot] = result[slot] ? (strict ? addCompleteMetrics : addMetrics)(result[slot]!, row[slot]!) : { ...row[slot]! };
+  }
+  return result;
 }
 
 function change(cur: number | null | undefined, ref: number | null | undefined): number | null {
@@ -56,13 +67,25 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
   // Totales por campaña y fecha en la ventana [00:00, corte) de su plataforma.
   const cutOf = (p: PlatformId) => snap.run.entities.find((e) => e.key === `platform:${p}`)?.cutoffHour ?? snap.run.cutoffHour;
   const byCampaign = new Map<string, Totals>();
+  const strict = ctx.mode === "unified";
+  const byCampaignHours = new Map<string, HourlySeries>();
   for (const row of rows) {
     if (!row.campaignId || row.hour >= cutOf(row.platform)) continue;
     const key = row.campaignId;
     const t = byCampaign.get(key) ?? { today: null, yesterday: null, lastWeek: null };
     const slot: keyof Totals = row.date === today ? "today" : row.date === yesterday ? "yesterday" : "lastWeek";
-    t[slot] = addMetrics(t[slot] ?? emptyMetrics(), row.metrics);
+    t[slot] = t[slot] ? (strict ? addCompleteMetrics : addMetrics)(t[slot]!, row.metrics) : { ...row.metrics };
     byCampaign.set(key, t);
+    if (strict) {
+      const series = byCampaignHours.get(key) ?? new Map();
+      const hours = series.get(row.date) ?? Array.from({ length: 24 }, () => null);
+      hours[row.hour] = row.metrics;
+      series.set(row.date, hours); byCampaignHours.set(key, series);
+    }
+  }
+  if (strict) for (const campaign of catalog.campaigns) {
+    const series = byCampaignHours.get(campaign.id);
+    if (series) byCampaign.set(campaign.id, { today: windowTotals(series, today, 0, cutOf(campaign.platform), true), yesterday: windowTotals(series, yesterday, 0, cutOf(campaign.platform), true), lastWeek: windowTotals(series, lastWeek, 0, cutOf(campaign.platform), true) });
   }
   const excluded = new Set(PLATFORM_IDS.flatMap((p) => snap.run.entities.find((e) => e.key === `platform:${p}`)?.excludedAccounts ?? []));
 
@@ -72,14 +95,14 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
     const metricLabel = METRICS[metric].label;
     const accounts = catalog.accounts.filter((a) => a.platform === p);
     const accTotals = new Map<string, Totals>();
+    const accountWindows = new Map<string, Array<Totals | undefined>>();
     const zeroSpend: PlatformReportData["zeroSpend"] = [];
     const higher = new Map<string, string[]>();
     for (const c of catalog.campaigns.filter((x) => x.platform === p)) {
       const t = byCampaign.get(c.id);
-      if (!t || excluded.has(c.accountId)) continue;
-      const acc = accTotals.get(c.accountId) ?? { today: null, yesterday: null, lastWeek: null };
-      for (const k of ["today", "yesterday", "lastWeek"] as const) if (t[k]) acc[k] = addMetrics(acc[k] ?? emptyMetrics(), t[k]!);
-      accTotals.set(c.accountId, acc);
+      if (excluded.has(c.accountId)) continue;
+      accountWindows.set(c.accountId, [...(accountWindows.get(c.accountId) ?? []), t]);
+      if (!t) continue;
       if (c.status !== "ACTIVE") continue;
       const sp = t.today?.spend ?? null;
       const accountName = accountById.get(c.accountId)?.name ?? c.accountId;
@@ -87,6 +110,9 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
       const vsY = change(sp, t.yesterday?.spend);
       if (sp !== null && sp >= MIN_CAMPAIGN_SPEND && vsY !== null && vsY >= r.spendIncreaseVsYesterday) higher.set(accountName, [...(higher.get(accountName) ?? []), c.name]);
     }
+    for (const [id, windows] of accountWindows) accTotals.set(id, aggregateReportTotals(windows, strict));
+    const unknownSpend = strict && accounts.some(a => !accTotals.get(a.id)?.today || accTotals.get(a.id)?.today?.spend == null);
+    const unknownConversions = strict && accounts.some(a => accTotals.get(a.id)?.today?.[metric] == null);
     const lowerLW: string[] = [];
     const higherLW: string[] = [];
     const lowerY: string[] = [];
@@ -115,15 +141,15 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
     const badData = BAD_DATA.includes(pe.dataState);
     const campaignsHigherVsYesterday: CampaignGroup[] = [...higher.entries()].map(([account, campaigns]) => ({ account, campaigns })).sort((a, b) => b.campaigns.length - a.campaigns.length);
     const spendFindings = lowerLW.length + higherLW.length + lowerY.length + zeroSpend.length + campaignsHigherVsYesterday.length;
-    const activeStatus: ReportStatus = deliveryCritical ? "bad" : badData || spendFindings > 0 || snap.platformStatus[p].severity !== "NORMAL" ? "warn" : "ok";
-    const conversionStatus: ReportStatus = trackingCritical ? "bad" : convLW.length + convY.length > 0 ? "warn" : "ok";
+    const activeStatus: ReportStatus = deliveryCritical ? "bad" : badData || unknownSpend || spendFindings > 0 || snap.platformStatus[p].severity !== "NORMAL" ? "warn" : "ok";
+    const conversionStatus: ReportStatus = trackingCritical ? "bad" : unknownConversions || convLW.length + convY.length > 0 ? "warn" : "ok";
     return {
       platform: p,
       name: REPORT_PLATFORM_NAME[p],
       activeStatus,
       conversionStatus,
       engineSeverity: snap.platformStatus[p].severity,
-      dataIssue: badData ? (pe.dataStateReason ?? "Datos atrasados") : null,
+      dataIssue: badData ? (pe.dataStateReason ?? "Datos atrasados") : unknownSpend ? "Cobertura horaria incompleta; inversión desconocida." : unknownConversions ? "Resultados de negocio sin mapear; conversiones desconocidas." : null,
       spendLowerVsLastWeek: lowerLW,
       spendHigherVsLastWeek: higherLW,
       spendLowerVsYesterday: lowerY,
@@ -150,6 +176,7 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
         .filter((l) => l.status !== "NORMAL" && l.forecastVsBudget !== null)
         .map((l) => `${l.name}: cierre estimado ${l.forecastVsBudget! > 0 ? "+" : ""}${Math.round(l.forecastVsBudget! * 100)}% vs presupuesto`),
     };
+    if (strict && lines.some(l => l.spend === null || l.forecast === null)) budget = { status: "warn", details: ["El gasto mensual o el pronóstico están pendientes por datos incompletos.", ...budget.details] };
   } catch {
     budget = { status: "warn", details: ["No se pudo calcular el pacing de presupuesto."] };
   }

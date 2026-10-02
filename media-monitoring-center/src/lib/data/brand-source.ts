@@ -1,5 +1,5 @@
 import type { BudgetRow, Catalog, DailyRow, EntityLevel, FreshnessRecord, HourlyRow, PlatformId } from "@/lib/types";
-import { PLATFORM_IDS } from "@/lib/types";
+import { BASE_METRICS, PLATFORM_IDS } from "@/lib/types";
 import { addMetrics } from "@/lib/metrics";
 import { brandOfAccount, brandOfCampaign, DEFAULT_BRAND, type BrandId } from "@/lib/brands";
 import type { DailyQuery, HourlyQuery, MonitoringDataSource } from "./source";
@@ -29,14 +29,17 @@ interface Scope {
   known: Set<string>;
 }
 
-function aggregate<T extends HourlyRow | DailyRow>(rows: T[], level: EntityLevel): T[] {
+function aggregate<T extends HourlyRow | DailyRow>(rows: T[], level: EntityLevel, strict = false): T[] {
   if (level === "campaign") return rows;
   const map = new Map<string, T>();
   for (const r of rows) {
     const accountId = level === "account" ? r.accountId : null;
     const key = `${r.date}|${"hour" in r ? r.hour : ""}|${r.platform}|${accountId}`;
     const cur = map.get(key);
-    if (cur) addMetrics(cur.metrics, r.metrics);
+    if (cur) {
+      if (strict) for (const m of BASE_METRICS) cur.metrics[m] = cur.metrics[m] === null || r.metrics[m] === null ? null : cur.metrics[m]! + r.metrics[m]!;
+      else addMetrics(cur.metrics, r.metrics);
+    }
     else map.set(key, { ...r, accountId, campaignId: null, metrics: { ...r.metrics } });
   }
   return [...map.values()];
@@ -60,8 +63,8 @@ export class BrandScopedSource implements MonitoringDataSource {
   private scope(): Promise<Scope> {
     this.scopePromise ??= this.inner.getCatalog().then((full) => {
       const accountById = new Map(full.accounts.map((a) => [a.id, a]));
-      const accountBrand = new Map(full.accounts.map((a) => [a.id, brandOfAccount(a.name)]));
-      const campaigns = full.campaigns.filter((c) => brandOfCampaign(accountById.get(c.accountId)?.name, c.name) === this.brand);
+      const accountBrand = new Map(full.accounts.map((a) => [a.id, a.brand ?? brandOfAccount(a.name)]));
+      const campaigns = full.campaigns.filter((c) => (accountById.get(c.accountId)?.brand ?? brandOfCampaign(accountById.get(c.accountId)?.name, c.name)) === this.brand);
       const withCampaigns = new Set(campaigns.map((c) => c.accountId));
       const hasAnyCampaign = new Set(full.campaigns.map((c) => c.accountId));
       const accounts = full.accounts.filter((a) => {
@@ -120,7 +123,7 @@ export class BrandScopedSource implements MonitoringDataSource {
       direct.length ? this.inner.getHourly({ ...q, platforms: direct }) : Promise.resolve([]),
       filtered.length ? this.inner.getHourly({ ...q, level: "campaign", platforms: filtered }) : Promise.resolve([]),
     ]);
-    return [...a, ...aggregate(b.filter((r) => this.keepRow(s, r)), q.level)];
+    return [...a, ...aggregate(b.filter((r) => this.keepRow(s, r)), q.level, this.kind === "unified")];
   }
 
   async getDaily(q: DailyQuery): Promise<DailyRow[]> {
@@ -129,7 +132,7 @@ export class BrandScopedSource implements MonitoringDataSource {
       direct.length ? this.inner.getDaily({ ...q, platforms: direct }) : Promise.resolve([]),
       filtered.length ? this.inner.getDaily({ ...q, level: "campaign", platforms: filtered }) : Promise.resolve([]),
     ]);
-    return [...a, ...aggregate(b.filter((r) => this.keepRow(s, r)), q.level)];
+    return [...a, ...aggregate(b.filter((r) => this.keepRow(s, r)), q.level, this.kind === "unified")];
   }
 
   async getBudgets(month: string): Promise<BudgetRow[]> {

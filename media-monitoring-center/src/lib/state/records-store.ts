@@ -1,9 +1,9 @@
 import "server-only";
 import type { BudgetRow } from "@/lib/types";
-import type { AlertState, AlertStatus, IncidentStatus, NotificationRecord } from "@/lib/alerts/types";
+import type { AlertState, AlertStatus, NotificationRecord } from "@/lib/alerts/types";
 import { emptyAlertState } from "@/lib/alerts/types";
 import { getRecordStore } from "@/lib/records/store";
-import { incidentActions, type RunSummary, type StateStore, type UserOverrides } from "./store";
+import { incidentActions, type IncidentPatch, type RunSummary, type StateStore, type UserOverrides } from "./store";
 
 /**
  * Estado operativo (alertas, incidentes, notificaciones, corridas y cambios de usuarios) en el
@@ -14,6 +14,8 @@ import { incidentActions, type RunSummary, type StateStore, type UserOverrides }
 
 /** Lo resuelto hace más de estos días se descarta para que el estado no crezca sin límite. */
 const KEEP_DAYS = 45;
+// Serializa cambios del equipo en una instancia. Varios servidores requieren transacciones/CAS.
+const updates = new Map<string, Promise<void>>();
 
 function prune(state: AlertState): AlertState {
   const limit = new Date(Date.now() - KEEP_DAYS * 86400000).toISOString();
@@ -77,9 +79,15 @@ export class RecordsStateStore implements StateStore {
   }
 
   private async updateOverrides(fn: (o: UserOverrides) => void): Promise<void> {
-    const o = await this.getOverrides();
-    fn(o);
-    await this.store.set(this.OVERRIDES_KEY, o);
+    const key = this.OVERRIDES_KEY;
+    const previous = updates.get(key) ?? Promise.resolve();
+    const job = previous.catch(() => {}).then(async () => {
+      const o = await this.getOverrides();
+      fn(o);
+      await this.store.set(key, o);
+    });
+    updates.set(key, job);
+    try { await job; } finally { if (updates.get(key) === job) updates.delete(key); }
   }
 
   async setAlertStatus(id: string, status: AlertStatus, by: string): Promise<void> {
@@ -88,11 +96,11 @@ export class RecordsStateStore implements StateStore {
     });
   }
 
-  async updateIncident(id: string, patch: { owner?: string | null; status?: IncidentStatus; note?: string }, by: string): Promise<void> {
+  async updateIncident(id: string, patch: IncidentPatch, by: string): Promise<void> {
     await this.updateOverrides((o) => {
       const cur = o.incidents[id] ?? {};
       const at = new Date().toISOString();
-      if (patch.owner !== undefined) cur.owner = patch.owner;
+      if (patch.owner !== undefined) { cur.owner = patch.owner; cur.ownerId = patch.ownerId ?? null; }
       if (patch.status) cur.status = patch.status;
       if (patch.note) cur.notes = [...(cur.notes ?? []), { at, author: by, text: patch.note }];
       cur.actions = [...(cur.actions ?? []), ...incidentActions(patch, by, at)];

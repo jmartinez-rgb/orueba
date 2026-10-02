@@ -9,8 +9,8 @@ import { ErrorPanel } from "@/components/monitoring/error-panel";
 export const metadata: Metadata = { title: "Incidents" };
 export const dynamic = "force-dynamic";
 
-export default async function IncidentsPage({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
-  const { id } = await searchParams;
+export default async function IncidentsPage({ searchParams }: { searchParams: Promise<{ id?: string; view?: string }> }) {
+  const { id, view } = await searchParams;
   const res = await safeSnapshot();
   if (!res.ok) return <ErrorPanel message={res.message} technical={res.technical} />;
   const snap = res.snap;
@@ -41,6 +41,9 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
             asOf={snap.meta.asOf}
             canWrite={snap.meta.permissions.includes("incidents:write")}
             canNovedad={snap.meta.permissions.includes("novedades:write")}
+            canAssign={snap.meta.permissions.includes("incidents:assign")}
+            currentUserId={snap.meta.userId}
+            initialTab={view === "mine" ? "mine" : "open"}
             initialId={id ?? null}
             attention={snap.settings.thresholds.attention}
           />

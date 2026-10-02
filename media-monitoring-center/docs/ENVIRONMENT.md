@@ -12,12 +12,26 @@ Todo lo demás se lee en `src/lib/config/env.ts` y, lo de acceso, en `src/lib/au
 | Variable | Default | Descripción |
 |---|---|---|
 | `NEXT_PUBLIC_APP_NAME` | izzi Media Monitoring Center | Nombre visible |
-| `DATA_SOURCE` | `mock` | `mock` (simulados), `sheets` (hoja de Google Sheets que llena Dataslayer) o `bigquery`. Si falta la configuración de la fuente elegida, usa datos simulados y lo avisa en Integrations |
+| `DATA_SOURCE` | `mock` | `unified` (APIs directas con histórico privado), `mock`, `sheets` o `bigquery`. unified falla explícitamente si falta su configuración; no vuelve a mock |
 | `USE_MOCK_DATA` | `true` | Compatibilidad: sin `DATA_SOURCE`, `false` elige Sheets o BigQuery según lo configurado |
 | `MOCK_SCENARIO` | `default` | `default`, `normal`, `meta-delayed`, `tiktok-stopped` |
 | `MOCK_REFERENCE_TIME` | — | Hora fija del mock (ISO) para demos reproducibles |
 | `APP_TIMEZONE` | `America/Mexico_City` | Zona horaria de negocio (Settings puede cambiarla) |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+
+## APIs directas
+
+Ver [APIS_DIRECTAS.md](APIS_DIRECTAS.md). La extracción y Next.js comparten el volumen de métricas.
+
+| Variable | Secreta | Descripción |
+| --- | --- | --- |
+| `UNIFIED_ADS_DATA_DIR` | No | Directorio privado persistente de métricas; obligatorio en modo unified |
+| `UNIFIED_ADS_MAPPING_FILE` | No | JSON explícito de cuentas, marcas y monedas; default config/unified.mapping.json |
+| `UNIFIED_ADS_MAPPING` | No | Alternativa JSON al archivo; sin credenciales |
+
+`UNIFIED_ADS_API_URL` y `UNIFIED_ADS_API_KEY` se explican más abajo. La plantilla usa el ejemplo
+de cuatro cuentas TikTok y solo X de izzi. `.data/` es local/ignorado; en producción debe ser un
+volumen durable compartido. El disco efímero de Netlify Functions no conserva este histórico.
 
 ## Google Sheets (Dataslayer)
 
@@ -115,3 +129,13 @@ nunca se guardan aquí (viven en BigQuery).
   solo necesita que existan como variables de entorno.
 - Los logs nunca imprimen secretos: el logger enmascara llaves como `token`, `secret`, `key`,
   `password`, `authorization`, `private`, `service_account`.
+
+## Acceso nominal y atención de alertas
+
+`AUTH_USERS` admite correo, `brands` (`[]` = ambas) y permisos personalizados.
+`AUTH_PRIMARY_ADMIN_ID` identifica al administrador principal con todos los permisos; su cuenta
+no puede eliminarse ni ser modificada por otros administradores.
+`ALERT_RESPONDER_USER_IDS` restringe la escritura operativa de alertas independientemente del rol.
+Omitida conserva la política anterior; vacía restringe a todos salvo al principal.
+El bootstrap valida identidades únicas y guarda contraseñas privadas sin imprimirlas.
+Ver [ACCESOS_NOMINALES.md](ACCESOS_NOMINALES.md).

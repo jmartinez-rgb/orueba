@@ -133,4 +133,4 @@ export function resolvePlatformAlias(raw: string | null | undefined, extra?: Rec
 }
 
 /** Nombre visible de la fuente de datos. */
-export const DATA_MODE_LABEL: Record<"mock" | "sheets" | "bigquery", string> = { mock: "Datos simulados", sheets: "Google Sheets (Dataslayer)", bigquery: "BigQuery" };
+export const DATA_MODE_LABEL: Record<"mock" | "sheets" | "bigquery" | "unified", string> = { mock: "Datos simulados", sheets: "Google Sheets (Dataslayer)", bigquery: "BigQuery", unified: "APIs directas (histórico guardado)" };

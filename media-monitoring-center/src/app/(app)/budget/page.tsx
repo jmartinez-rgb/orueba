@@ -39,6 +39,9 @@ export default async function BudgetPage() {
         title="Budget Control"
         subtitle={`${MONTHS_ES[m - 1]} ${y} · día ${bc.elapsedDays + 1} de ${bc.daysInMonth}. Forecast = gasto del mes + resto de hoy (curva horaria) + días restantes al ritmo reciente del mismo día de la semana. Presupuestos de referencia: la app no modifica nada en las plataformas.`}
       />
+      {snap.meta.mode === "unified" && bc.lines.some(l => l.spend === null || l.forecast === null) && (
+        <p className="rounded-md border border-status-attention/40 bg-status-attention/10 p-3 text-xs text-status-attention-text">Hay días, horas o tasas de cambio pendientes. El gasto incompleto y el pronóstico sin suficiente historial se muestran sin valor.</p>
+      )}
       {total && (
         <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
           <Tile label="Presupuesto mensual" value={fmtCurrency(total.budget)} />
@@ -99,15 +102,19 @@ async function budgetState(snap: Snapshot, bc: Awaited<ReturnType<typeof getBudg
   const demo = snap.meta.mode === "mock";
   const source = demo ? { ok: true as const, budgets: demoBudgets(snap, fxRate), warnings: [] as string[] } : await unifiedBudgets();
   if (!source.ok) return { kind: "unavailable", reason: source.reason, configured: source.configured };
-  const spendToday = new Map<string, number>();
+  const direct = snap.meta.mode === "unified";
+  const directAccounts = direct ? new Map(snap.catalog.accounts.map(a => [a.id, a.brand ?? snap.meta.brand.id])) : undefined;
+  const localId = (platform: string, id: string) => direct && id.startsWith(`${platform}:`) ? id.slice(platform.length + 1) : id;
+  const spendToday = new Map<string, number | null>();
   for (const e of snap.run.entities)
-    if (e.level === "campaign" && e.campaignId) spendToday.set(`${e.platform}:${e.campaignId}`, e.cumulative.spend?.current ?? 0);
+    if (e.level === "campaign" && e.campaignId) spendToday.set(`${e.platform}:${localId(e.platform!, e.campaignId)}`, e.cumulative.spend?.current ?? (direct ? null : 0));
   const overview = buildBudgetOverview({
-    budgets: source.budgets,
+    budgets: direct ? source.budgets.map(b => ({ ...b, campaign_id: `${b.account_id}:${b.campaign_id}`, shared_budget_id: b.shared_budget_id ? `${b.account_id}:${b.shared_budget_id}` : null })) : source.budgets,
+    directAccounts,
     brand: snap.meta.brand.id,
     platforms: snap.run.platforms,
     classifiers: { ...DEFAULT_CLASSIFIERS, ...snap.settings.classifiers },
-    campaigns: new Map(snap.catalog.campaigns.map((c) => [`${c.platform}:${c.id}`, c])),
+    campaigns: new Map(snap.catalog.campaigns.map((c) => [`${c.platform}:${localId(c.platform, c.id)}`, c])),
     spendToday,
     curveShare: Object.fromEntries(snap.run.platforms.map((p) => [p, snap.run.pacing[p]?.curveShare ?? null])),
     fxRate,

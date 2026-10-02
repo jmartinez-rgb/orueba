@@ -8,6 +8,7 @@ import { addDays, daysInMonth, diffDays, monthOf, startOfMonth, weekdayOf } from
 import type { MonitoringSettings } from "@/lib/config/settings";
 import type { AppContext } from "./context";
 import type { Snapshot } from "./snapshot";
+import { windowTotals, type HourlySeries } from "@/lib/monitoring/historical-comparator";
 
 export interface BudgetLine {
   key: string;
@@ -18,13 +19,13 @@ export interface BudgetLine {
   name: string;
   parentName: string | null;
   budget: number | null;
-  spend: number;
-  todaySpend: number;
+  spend: number | null;
+  todaySpend: number | null;
   remaining: number | null;
   usedPct: number | null;
   expectedPct: number | null;
   variance: number | null;
-  forecast: number;
+  forecast: number | null;
   forecastVsBudget: number | null;
   status: Severity;
   dataState: DataState;
@@ -79,11 +80,12 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
   const monthStart = startOfMonth(today);
   const histStart = addDays(today, -28);
   const from = monthStart < histStart ? monthStart : histStart;
-  const [daily, sourceBudgets, overrides] = await Promise.all([
+  const [loadedDaily, sourceBudgets, overrides] = await Promise.all([
     cached(`budget:daily:${ctx.mode}:${ctx.brand}:${ctx.scenario?.id}:${from}:${today}:${snap.meta.cutoffHour}`, 5 * 60 * 1000, () => ctx.source.getDaily({ from, to: today, level: "campaign" })),
     ctx.source.getBudgets(month),
     ctx.store.getOverrides(),
   ]);
+  const daily = [...loadedDaily];
   const budgetMap = new Map<string, BudgetRow>();
   // Capas: hoja → arranque de mes → capturados en la app → ajustes aprobados en novedades.
   for (const b of sourceBudgets) budgetMap.set(keyOf(b), b);
@@ -92,6 +94,22 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
   for (const b of ctx.plan.novedadBudgets.filter((o) => o.month === month)) budgetMap.set(keyOf(b), b);
 
   const catalog = snap.catalog;
+  const strict = ctx.mode === "unified";
+  if (strict) {
+    const hours = await ctx.source.getHourly({ dates: [today], level: "campaign" });
+    const series = new Map<string, HourlySeries>();
+    for (const r of hours) if (r.campaignId) {
+      const s = series.get(r.campaignId) ?? new Map();
+      const h = s.get(today) ?? Array.from({ length: 24 }, () => null);
+      h[r.hour] = r.metrics; s.set(today, h); series.set(r.campaignId, s);
+    }
+    for (const c of catalog.campaigns) {
+      const cutoff = snap.run.entities.find(e => e.key === `platform:${c.platform}`)?.cutoffHour ?? snap.run.cutoffHour;
+      const totals = windowTotals(series.get(c.id) ?? new Map(), today, 0, cutoff, true);
+      // Real closed hours may form today's subtotal; missing hours never become zero.
+      daily.push({ date: today, platform: c.platform, accountId: c.accountId, campaignId: c.id, metrics: totals ?? { spend: null, impressions: null, clicks: null, conversions: null, leads: null, sales: null, whatsapp: null, calls: null, purchases: null, revenue: null } });
+    }
+  }
   const accountName = new Map(catalog.accounts.map((a) => [a.id, a.name]));
   const accountById = new Map(catalog.accounts.map((a) => [a.id, a]));
 
@@ -140,6 +158,9 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
     return a;
   };
   const seenDay = new Map<string, Set<string>>();
+  const monthDays = new Map<string, Set<string>>();
+  const unknownMonth = new Set<string>();
+  const unknownToday = new Set<string>();
   for (const r of daily) {
     const spend = r.metrics.spend ?? 0;
     const camp = r.campaignId ? campaignById.get(r.campaignId) : undefined;
@@ -149,9 +170,14 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
     if (r.campaignId) keys.push(keyOf({ level: "campaign", platform: r.platform, accountId, campaignId: r.campaignId }));
     for (const k of keys) {
       const a = get(k);
+      if (strict && r.date >= monthStart && r.date <= today) {
+        const days = monthDays.get(k) ?? new Set<string>(); days.add(r.date); monthDays.set(k, days);
+        if (r.metrics.spend === null) unknownMonth.add(k);
+        if (r.date === today && r.metrics.spend === null) unknownToday.add(k);
+      }
       if (r.date >= monthStart && r.date <= today) a.mtd += spend;
       if (r.date === today) a.today += spend;
-      else if (r.date >= histStart && r.date < today) {
+      else if (r.date >= histStart && r.date < today && (!strict || r.metrics.spend !== null)) {
         const wd = weekdayOf(r.date);
         a.byWeekday[wd] += spend;
         const seen = seenDay.get(k) ?? new Set<string>();
@@ -183,7 +209,7 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
       b = undefined;
       budgetSource = null;
     }
-    if (!b && agg.mtd === 0) continue;
+    if (!b && agg.mtd === 0 && !(strict && unknownMonth.has(k))) continue;
     const p = (platform || null) as PlatformId | null;
     const share = shareFor(p);
     const weekdayAverages = agg.byWeekday.map((v, i) => (agg.weekdayDays[i] ? v / agg.weekdayDays[i] : 0));
@@ -198,7 +224,10 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
       weekdayAverages,
       remainingWeekdays,
     });
-    const dataState = p ? snap.platformStatus[p].dataState : "OK";
+    const incomplete = strict && (unknownMonth.has(k) || (monthDays.get(k)?.size ?? 0) < elapsedFullDays + 1);
+    const forecastIncomplete = incomplete || (strict && remainingWeekdays.some((n, wd) => n > 0 && agg.weekdayDays[wd] < ctx.settings.history.minSamples));
+    const todayUnknown = strict && (unknownToday.has(k) || !monthDays.get(k)?.has(today));
+    const dataState = incomplete ? "PARTIAL" : p ? snap.platformStatus[p].dataState : "OK";
     const camp = campaignId ? campaignById.get(campaignId) : undefined;
     lines.push({
       key: k,
@@ -209,15 +238,15 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
       name: level === "total" ? `Total ${ctx.brandInfo.name}` : level === "platform" ? PLATFORMS[p!].name : level === "account" ? (accountName.get(accountId) ?? accountId) : (camp?.name ?? campaignId),
       parentName: level === "campaign" ? (accountName.get(accountId) ?? null) : level === "account" && p ? PLATFORMS[p].name : null,
       budget: b?.amount ?? null,
-      spend: agg.mtd,
-      todaySpend: agg.today,
-      remaining: mp.remaining,
-      usedPct: mp.usedPct,
+      spend: incomplete ? null : agg.mtd,
+      todaySpend: todayUnknown ? null : agg.today,
+      remaining: incomplete ? null : mp.remaining,
+      usedPct: incomplete ? null : mp.usedPct,
       expectedPct: mp.expectedPct,
-      variance: mp.variance,
-      forecast: mp.forecast,
-      forecastVsBudget: mp.forecastVsBudget,
-      status: statusFor(mp.forecastVsBudget, ctx.settings.budget),
+      variance: incomplete ? null : mp.variance,
+      forecast: forecastIncomplete ? null : mp.forecast,
+      forecastVsBudget: forecastIncomplete ? null : mp.forecastVsBudget,
+      status: forecastIncomplete ? "ATTENTION" : statusFor(mp.forecastVsBudget, ctx.settings.budget),
       dataState,
       budgetSource,
       needsConfirmation: Boolean(info && info.detected === "mixed" && !info.confirmed && (level === "account" || level === "campaign")),
@@ -225,7 +254,7 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
     });
   }
   const levelRank: Record<BudgetLevel, number> = { total: 0, platform: 1, account: 2, campaign: 3 };
-  lines.sort((a, b) => levelRank[a.level] - levelRank[b.level] || PLATFORM_IDS.indexOf(a.platform ?? "google") - PLATFORM_IDS.indexOf(b.platform ?? "google") || b.spend - a.spend);
+  lines.sort((a, b) => levelRank[a.level] - levelRank[b.level] || PLATFORM_IDS.indexOf(a.platform ?? "google") - PLATFORM_IDS.indexOf(b.platform ?? "google") || (b.spend ?? 0) - (a.spend ?? 0));
   const fx = snap.currency.usdAccounts.length ? (snap.currency.rates.find((r) => r.month === month)?.rate ?? snap.currency.rates.filter((r) => r.month < month).pop()?.rate ?? null) : null;
   return { month, daysInMonth: nDays, elapsedDays: elapsedFullDays, lines, accounts, fxRate: fx };
 }

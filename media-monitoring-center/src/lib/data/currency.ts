@@ -1,6 +1,7 @@
 import type { Account, BudgetRow, Catalog, Currency, DailyRow, EntityLevel, FxRate, HourlyRow, MetricValues, PlatformId } from "@/lib/types";
 import type { DailyQuery, HourlyQuery, MonitoringDataSource } from "./source";
 import { addMetrics } from "@/lib/metrics";
+import { BASE_METRICS } from "@/lib/types";
 
 /**
  * Conversión a la moneda de reporte (MXN). Las cuentas en USD se convierten con la tasa del
@@ -69,6 +70,12 @@ export class CurrencyConvertedSource implements MonitoringDataSource {
     return this.inner.now();
   }
 
+  private add(target: MetricValues, source: MetricValues) {
+    if (this.kind !== "unified") return addMetrics(target, source);
+    for (const m of BASE_METRICS) target[m] = target[m] === null || source[m] === null ? null : target[m]! + source[m]!;
+    return target;
+  }
+
   /** Fuente original (sin conversión ni correcciones de Settings). */
   get original(): MonitoringDataSource {
     return this.inner;
@@ -119,7 +126,7 @@ export class CurrencyConvertedSource implements MonitoringDataSource {
     for (const r of converted) {
       const key = `${r.date}|${r.hour}|${r.platform}`;
       const cur = agg.get(key);
-      if (cur) addMetrics(cur.metrics, r.metrics);
+      if (cur) this.add(cur.metrics, r.metrics);
       else agg.set(key, { ...r, accountId: null, campaignId: null, metrics: { ...r.metrics } });
     }
     return [...agg.values()];
@@ -135,7 +142,7 @@ export class CurrencyConvertedSource implements MonitoringDataSource {
     for (const r of converted) {
       const key = `${r.date}|${r.platform}`;
       const cur = agg.get(key);
-      if (cur) addMetrics(cur.metrics, r.metrics);
+      if (cur) this.add(cur.metrics, r.metrics);
       else agg.set(key, { ...r, accountId: null, campaignId: null, metrics: { ...r.metrics } });
     }
     return [...agg.values()];

@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BellRing, Search, Ticket } from "lucide-react";
@@ -21,6 +21,7 @@ import { AlertStatusBadge, ExplainedChip } from "./alerts-table";
 import { NovedadForm } from "@/components/novedades/novedad-form";
 import { novedadPrefillFromAlert, SpendBreakdownView } from "@/components/novedades/spend-breakdown";
 import { StateMessage } from "./states";
+import { assignedTo, type IncidentAssignee } from "@/lib/alerts/assignment";
 
 const STATUS_LABEL: Record<Incident["status"], string> = { OPEN: "Abierto", ACKNOWLEDGED: "Reconocido", INVESTIGATING: "En revisión", RESOLVED: "Resuelto" };
 const KIND_LABEL: Record<string, string> = {
@@ -133,9 +134,13 @@ export function IncidentsTable({
   attention = 0.15,
   initialTab = "open",
   canNovedad = false,
+  canAssign = false,
+  currentUserId = null,
 }: {
   /** Puede registrar el incidente como novedad aprobada (el monitoreo deja de alertarlo). */
   canNovedad?: boolean;
+  canAssign?: boolean;
+  currentUserId?: string | null;
   incidents: Incident[];
   /** Alertas ligadas a incidentes: el panel muestra las que formaron cada uno. */
   alerts?: Alert[];
@@ -146,13 +151,25 @@ export function IncidentsTable({
   initialId?: string | null;
   compact?: boolean;
   attention?: number;
-  initialTab?: "open" | "resolved" | "all";
+  initialTab?: "open" | "resolved" | "all" | "mine" | "unassigned";
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<"open" | "resolved" | "all">(initialTab);
+  const [tab, setTab] = useState<"open" | "resolved" | "all" | "mine" | "unassigned">(initialTab);
   const [q, setQ] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialId ?? null);
-  const [owner, setOwner] = useState("");
+  const [ownerDraft, setOwnerDraft] = useState<string | null>(null);
+  const [assignees, setAssignees] = useState<IncidentAssignee[]>([]);
+  const [assignmentError, setAssignmentError] = useState(false);
+  useEffect(() => {
+    if (!canAssign || !selectedId) return;
+    let current = true;
+    fetch("/api/incidents/assignees", { cache: "no-store" }).then(async response => {
+      if (!response.ok) throw new Error("UNAVAILABLE");
+      const data = await response.json() as { assignees: IncidentAssignee[] };
+      if (current) { setAssignees(data.assignees); setAssignmentError(false); }
+    }).catch(() => { if (current) { setAssignees([]); setAssignmentError(true); } });
+    return () => { current = false; };
+  }, [canAssign, selectedId]);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const now = Date.parse(asOf);
@@ -162,12 +179,14 @@ export function IncidentsTable({
     let l = [...incidents].sort((a, b) => rank(b) - rank(a) || Date.parse(b.startedAt) - Date.parse(a.startedAt));
     if (compact || tab === "open") l = l.filter((i) => i.resolvedAt === null);
     else if (tab === "resolved") l = l.filter((i) => i.resolvedAt !== null);
+    else if (tab === "mine") l = l.filter(i => i.resolvedAt === null && assignedTo(i, currentUserId));
+    else if (tab === "unassigned") l = l.filter(i => i.resolvedAt === null && !i.ownerId);
     if (q.trim()) {
       const t = q.toLowerCase();
       l = l.filter((i) => [i.id, i.title, i.campaignName, i.accountName, PLATFORMS[i.platform].name, i.owner].some((v) => v?.toLowerCase().includes(t)));
     }
     return l;
-  }, [incidents, tab, q, compact]);
+  }, [incidents, tab, q, compact, currentUserId]);
 
   const selected = incidents.find((i) => i.id === selectedId) ?? null;
   const selNotifications = selected ? notifications.filter((n) => n.incidentId === selected.id) : [];
@@ -185,9 +204,12 @@ export function IncidentsTable({
         sileo.error({ title: "No se pudo guardar", description: d.message });
         return;
       }
-      sileo.success({ title: body.note ? "Nota guardada" : body.owner !== undefined ? "Responsable asignado" : "Estado actualizado", description: selected.id });
+      sileo.success({ title: body.note ? "Nota guardada" : body.ownerId !== undefined ? "Responsable asignado" : "Estado actualizado", description: selected.id });
       setNote("");
+      setOwnerDraft(null);
       router.refresh();
+    } catch {
+      sileo.error({ title: "No se pudo guardar", description: "Revisa la conexión y vuelve a intentarlo." });
     } finally {
       setSaving(false);
     }
@@ -204,6 +226,8 @@ export function IncidentsTable({
               <TabsTrigger value="open">Abiertos ({incidents.filter((i) => i.resolvedAt === null).length})</TabsTrigger>
               <TabsTrigger value="resolved">Resueltos ({incidents.filter((i) => i.resolvedAt !== null).length})</TabsTrigger>
               <TabsTrigger value="all">Todos</TabsTrigger>
+              {currentUserId && <TabsTrigger value="mine">Mis pendientes ({incidents.filter(i => !i.resolvedAt && assignedTo(i, currentUserId)).length})</TabsTrigger>}
+              {canAssign && <TabsTrigger value="unassigned">Sin delegar ({incidents.filter(i => !i.resolvedAt && !i.ownerId).length})</TabsTrigger>}
             </TabsList>
           </Tabs>
           <div className="relative w-full sm:w-64">
@@ -213,7 +237,7 @@ export function IncidentsTable({
         </div>
       )}
       {list.length === 0 ? (
-        <StateMessage kind="no-incidents" title={tab === "resolved" ? "Sin incidentes resueltos" : "Sin incidentes abiertos"} description="Una anomalía persistente o grave se convierte en incidente y se actualiza en cada evaluación." compact />
+        <StateMessage kind="no-incidents" title={tab === "mine" ? "No tienes incidentes pendientes asignados" : tab === "unassigned" ? "No hay incidentes sin delegar" : tab === "resolved" ? "Sin incidentes resueltos" : "Sin incidentes abiertos"} description="Una anomalía persistente o grave se convierte en incidente y se actualiza en cada evaluación." compact />
       ) : (
         <Table>
           <TableHeader>
@@ -229,7 +253,7 @@ export function IncidentsTable({
               <TableHead className="text-right">Desv. máx.</TableHead>
               {!compact && <TableHead className="text-right">Desv. actual</TableHead>}
               {!compact && <TableHead>Estado</TableHead>}
-              {!compact && <TableHead>Owner</TableHead>}
+              {!compact && <TableHead>Responsable</TableHead>}
               {!compact && (
                 <TableHead className="text-center">
                   <BellRing className="inline size-3.5" aria-label="Notificaciones" />
@@ -239,7 +263,7 @@ export function IncidentsTable({
           </TableHeader>
           <TableBody>
             {list.map((i) => (
-              <TableRow key={i.id} className="cursor-pointer" onClick={() => { setSelectedId(i.id); setOwner(i.owner ?? ""); }} tabIndex={0} onKeyDown={(e) => e.key === "Enter" && setSelectedId(i.id)}>
+              <TableRow key={i.id} className="cursor-pointer" onClick={() => { setSelectedId(i.id); setOwnerDraft(null); }} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") { setSelectedId(i.id); setOwnerDraft(null); } }}>
                 <TableCell>
                   <p className="font-mono text-xs">{i.id}</p>
                   <p className={cn("truncate text-[11px] text-muted-foreground", compact ? "max-w-48" : "max-w-56")} title={i.title}>
@@ -286,7 +310,7 @@ export function IncidentsTable({
         </Table>
       )}
 
-      <Sheet open={selected !== null} onOpenChange={(o) => !o && setSelectedId(null)}>
+      <Sheet open={selected !== null} onOpenChange={(o) => { if (!o) { setSelectedId(null); setOwnerDraft(null); } }}>
         <SheetContent>
           {selected && (
             <>
@@ -311,6 +335,7 @@ export function IncidentsTable({
                   <Info label="Desviación máxima" value={fmtDelta(selected.maxDeviation)} />
                   <Info label="Desviación actual" value={selected.resolvedAt ? "—" : fmtDelta(selected.currentDeviation)} />
                   <Info label="Notificaciones" value={String(selected.notification.count)} />
+                  <Info label="Responsable" value={selected.owner ?? "Sin asignar"} />
                 </div>
 
                 {mainAlert?.explained && <ExplainedChip by={mainAlert.explained} />}
@@ -404,7 +429,7 @@ export function IncidentsTable({
                     </Button>
                   </div>
                 )}
-                <div className="flex items-center justify-between gap-3 rounded-xl bg-foreground/[0.03] px-3 py-2.5">
+                {canWrite && <div className="flex items-center justify-between gap-3 rounded-xl bg-foreground/[0.03] px-3 py-2.5">
                   <div className="text-xs">
                     <p className="font-semibold">¿El problema es grave?</p>
                     <p className="text-muted-foreground">Documenta a quién se reportó y el número de caso en un ticket.</p>
@@ -414,21 +439,27 @@ export function IncidentsTable({
                       <Ticket /> Crear ticket
                     </Link>
                   </Button>
-                </div>
+                </div>}
               </div>
               {canWrite ? (
                 <div className="space-y-2 border-t px-5 py-3">
-                  <div className="flex gap-2">
-                    <Input value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="Responsable (p. ej. Paid Media · Meta)" className="h-8 text-xs" aria-label="Responsable" />
-                    <Button size="sm" variant="outline" disabled={saving} onClick={() => patch({ owner: owner || null })}>
-                      Asignar
-                    </Button>
-                  </div>
+                  {canAssign && <div className="space-y-1">
+                    <div className="flex gap-2">
+                      <select value={ownerDraft ?? selected.ownerId ?? ""} onChange={e => setOwnerDraft(e.target.value)} className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs" aria-label="Usuario responsable" disabled={saving || assignmentError}>
+                        <option value="">Sin asignar</option>
+                        {selected.ownerId && !assignees.some(a => a.id === selected.ownerId) && <option value={selected.ownerId}>{selected.owner} (revisar acceso)</option>}
+                        {assignees.map(a => <option key={a.id} value={a.id}>{a.name} · {a.id}</option>)}
+                      </select>
+                      <Button size="sm" variant="outline" disabled={saving || assignmentError || ownerDraft === null} onClick={() => patch({ ownerId: ownerDraft || null })}>Delegar</Button>
+                    </div>
+                    {assignmentError ? <p className="text-xs text-destructive">No se pudo consultar a los usuarios. La asignación no cambió.</p> : <p className="text-xs text-muted-foreground">El responsable lo verá en Mis pendientes. La asignación queda en la bitácora.</p>}
+                  </div>}
                   <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Agregar nota…" className="text-xs" aria-label="Nota" />
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" disabled={saving || !note.trim()} onClick={() => patch({ note })}>
                       Guardar nota
                     </Button>
+                    {selected.resolvedAt === null && <Button size="sm" variant="outline" disabled={saving || !note.trim()} onClick={() => patch({ status: "RESOLVED", note })}>Resolver con nota</Button>}
                     {selected.resolvedAt === null &&
                       (["ACKNOWLEDGED", "INVESTIGATING"] as const).map((s) => (
                         <Button key={s} size="sm" variant="outline" disabled={saving || selected.status === s} onClick={() => patch({ status: s })}>

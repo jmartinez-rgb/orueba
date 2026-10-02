@@ -24,7 +24,9 @@ export interface BudgetInput {
   /** Campañas del catálogo por `plataforma:id`: así la estrategia coincide con el resto de la app. */
   campaigns: Map<string, Campaign>;
   /** Gasto de hoy por `plataforma:id`, en MXN. */
-  spendToday: Map<string, number>;
+  spendToday: Map<string, number | null>;
+  /** Direct source: exact account scopes and missing costs remain unknown. */
+  directAccounts?: Map<string, BrandId>;
   /** Parte del día que suele haberse gastado a esta hora, por plataforma (curva histórica). */
   curveShare: Partial<Record<PlatformId, number | null>>;
   /** Tasa USD → MXN del mes; null si no hay. */
@@ -41,7 +43,7 @@ export interface MonthContext {
   daysInMonth: number;
   /** Días completos ya transcurridos antes de hoy. */
   elapsedDays: number;
-  lines: Partial<Record<PlatformId | "total", { budget: number | null; spend: number }>>;
+  lines: Partial<Record<PlatformId | "total", { budget: number | null; spend: number | null }>>;
 }
 
 /**
@@ -73,7 +75,7 @@ export interface BudgetGroup {
   /** Diario estimado de presupuestos totales (MXN). */
   estimated: number;
   total: number;
-  spend: number;
+  spend: number | null;
   expectedNow: number | null;
   usedPct: number | null;
   pace: number | null;
@@ -92,7 +94,7 @@ export interface BudgetUnitRow {
   level: "campaign" | "ad_set" | "shared";
   type: "daily" | "lifetime" | "mixed";
   budget: number;
-  spend: number;
+  spend: number | null;
   usedPct: number | null;
   limited: boolean;
 }
@@ -140,15 +142,15 @@ function emptyGroup(label: string): BudgetGroup {
 
 function finish(g: BudgetGroup, grand: number, share: number | null, t: BudgetInput["thresholds"], expectedOverride?: number | null): BudgetGroup {
   g.share = grand > 0 ? g.total / grand : 0;
-  g.usedPct = g.total > 0 ? g.spend / g.total : null;
+  g.usedPct = g.total > 0 && g.spend !== null ? g.spend / g.total : null;
   g.expectedNow = expectedOverride !== undefined ? expectedOverride : share !== null && g.total > 0 ? g.total * share : null;
-  g.pace = g.expectedNow && g.expectedNow > 0 ? g.spend / g.expectedNow : null;
+  g.pace = g.expectedNow && g.expectedNow > 0 && g.spend !== null ? g.spend / g.expectedNow : null;
   g.paceLabel = g.pace === null ? "unknown" : g.pace < 1 - t.attention ? "below" : g.pace > 1 + t.attention ? "above" : "on";
   return g;
 }
 
-export function projectMonth(daily: number, spendToday: number, month: MonthContext, line: { budget: number | null; spend: number } | undefined): Projection | null {
-  if (!line) return null;
+export function projectMonth(daily: number, spendToday: number | null, month: MonthContext, line: { budget: number | null; spend: number | null } | undefined): Projection | null {
+  if (!line || line.spend === null || spendToday === null) return null;
   const daysLeft = Math.max(0, month.daysInMonth - month.elapsedDays - 1);
   const restOfToday = Math.max(0, daily - spendToday);
   const projected = line.spend + restOfToday + daily * daysLeft;
@@ -258,14 +260,17 @@ function platformView(platform: PlatformId, rows: UnifiedBudget[], input: Budget
     const strategy = u.strategies.size === 1 ? [...u.strategies][0]! : "Presupuesto compartido";
     const g = groups.get(strategy) ?? emptyGroup(strategy);
     const budget = u.daily + u.estimated;
-    const spend = [...u.campaignIds].reduce((s, id) => s + (input.spendToday.get(`${platform}:${id}`) ?? 0), 0);
+    const spend = [...u.campaignIds].reduce<number | null>((s, id) => {
+      const value = input.spendToday.get(`${platform}:${id}`);
+      return s === null || (value == null && input.directAccounts) ? null : s + (value ?? 0);
+    }, 0);
     for (const x of [g, total]) {
       x.campaigns += u.campaignIds.size;
       x.adSets += u.adSets;
       x.daily += u.daily;
       x.estimated += u.estimated;
       x.total += budget;
-      x.spend += spend;
+      x.spend = x.spend === null || spend === null ? null : x.spend + spend;
       if (spend === 0 && budget > 0) {
         x.idle += u.campaignIds.size;
         x.idleBudget += budget;
@@ -281,7 +286,7 @@ function platformView(platform: PlatformId, rows: UnifiedBudget[], input: Budget
       type: u.types.size > 1 ? "mixed" : [...u.types][0]!,
       budget,
       spend,
-      usedPct: budget > 0 ? spend / budget : null,
+      usedPct: budget > 0 && spend !== null ? spend / budget : null,
       limited: u.limited,
     });
   }
@@ -341,7 +346,7 @@ function paceInsights(groups: BudgetGroup[], t: BudgetInput["thresholds"]): Insi
     tone: "warn",
     text:
       g.paceLabel === "below"
-        ? `${g.label} va al ${pct(g.pace!)} de lo esperado a esta hora (${money(g.spend)} de ${money(g.expectedNow ?? 0)}): revisa entrega.`
+        ? `${g.label} va al ${pct(g.pace!)} de lo esperado a esta hora (${money(g.spend!)} de ${money(g.expectedNow ?? 0)}): revisa entrega.`
         : `${g.label} va al ${pct(g.pace!)} de lo esperado a esta hora: podría agotar su presupuesto antes del cierre.`,
   }));
   const rest = off.filter((g) => !strong.slice(0, 3).includes(g));
@@ -365,7 +370,8 @@ export function buildBudgetOverview(input: BudgetInput): BudgetOverview {
   const byPlatform = new Map<PlatformId, UnifiedBudget[]>();
   for (const b of input.budgets) {
     const platform = b.platform as PlatformId;
-    if (!input.platforms.includes(platform) || brandOfCampaign(b.account_name, b.campaign_name) !== input.brand) continue;
+    const brand = input.directAccounts ? input.directAccounts.get(`${platform}:${b.account_id}`) : brandOfCampaign(b.account_name, b.campaign_name);
+    if (!input.platforms.includes(platform) || brand !== input.brand) continue;
     byPlatform.set(platform, [...(byPlatform.get(platform) ?? []), b]);
   }
   // Una plataforma cuyos presupuestos quedaron todos fuera (sin tasa) no se muestra vacía; el aviso queda en el total.
@@ -381,7 +387,7 @@ export function buildBudgetOverview(input: BudgetInput): BudgetOverview {
     total.daily += p.total.daily;
     total.estimated += p.total.estimated;
     total.total += p.total.total;
-    total.spend += p.total.spend;
+    total.spend = total.spend === null || p.total.spend === null ? null : total.spend + p.total.spend;
     total.idle += p.total.idle;
     total.idleBudget += p.total.idleBudget;
     expected = expected === null || p.total.expectedNow === null ? (p.total.total > 0 ? null : expected) : expected + p.total.expectedNow;
@@ -404,7 +410,7 @@ export function buildBudgetOverview(input: BudgetInput): BudgetOverview {
   // Cierre combinado de las plataformas con presupuesto leído (las demás no entran en el escenario).
   const projections = platforms.map((p) => p.projection).filter((p): p is Projection => p !== null);
   let projection: Projection | null = null;
-  if (projections.length) {
+  if (projections.length && (!input.directAccounts || projections.length === platforms.length)) {
     const budgets = projections.map((p) => p.monthBudget);
     const monthBudget = budgets.every((b) => b !== null) ? budgets.reduce<number>((s, b) => s + b!, 0) : null;
     const projected = projections.reduce((s, p) => s + p.projected, 0);

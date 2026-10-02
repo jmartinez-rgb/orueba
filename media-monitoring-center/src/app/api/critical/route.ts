@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const session = await requireAuth();
   if (!session) return unauthorized();
-  if (!mustAcknowledgeCritical(session.role)) return json({ ok: true, pending: [] });
+  if (!mustAcknowledgeCritical(session.role) || !hasPermission(session, "tickets:write")) return json({ ok: true, pending: [] });
   try {
     return json({ ok: true, pending: await pendingCritical(session) });
   } catch (err) {
@@ -34,7 +34,7 @@ const body = z.object({
 export async function POST(req: Request) {
   const session = await requireAuth();
   if (!session) return unauthorized();
-  if (!mustAcknowledgeCritical(session.role)) return forbidden("El equipo de auditoría observa el proceso; el acuse lo hace quien opera.");
+  if (!mustAcknowledgeCritical(session.role) || !hasPermission(session, "tickets:write")) return forbidden("Tu acceso a alertas es de solo lectura; el acuse corresponde al equipo autorizado.");
   const parsed = body.safeParse(await readJson(req));
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? "Datos inválidos.");
   try {

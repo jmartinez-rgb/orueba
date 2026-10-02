@@ -28,6 +28,9 @@ import { logger } from "@/lib/logging/logger";
 import { BrandScopedSource } from "@/lib/data/brand-source";
 import { BRAND_COOKIE, BRAND_IDS, BRANDS, parseBrand, type BrandId, type BrandInfo } from "@/lib/brands";
 import type { PlatformId } from "@/lib/types";
+import { UnifiedDataSource } from "@/lib/unified/source";
+import { loadUnifiedMapping, UnifiedSnapshotStore } from "@/lib/unified/store";
+import { UnifiedDataError } from "@/lib/unified/schema";
 
 /** Llave de la configuración compartida en el almacén de registros (modo simulado). */
 export const SETTINGS_RECORD_KEY = "settings/patch";
@@ -64,7 +67,10 @@ export interface AppContext {
 
 /** Entrada del motor con lo que el equipo aprobó (novedades, arranque de mes y presupuestos capturados en la app). */
 export async function monitoringInput(ctx: AppContext, asOf: Date) {
-  const overrides = await ctx.store.getOverrides().catch(() => ({ budgets: [] as BudgetRow[] }));
+  const overrides = await ctx.store.getOverrides().catch(error => {
+    if (ctx.mode === "unified") throw error;
+    return { budgets: [] as BudgetRow[] };
+  });
   const month = businessDate(asOf, ctx.settings.timezone).slice(0, 7);
   return {
     settings: ctx.settings,
@@ -182,13 +188,13 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
   const brand = brands.includes(wanted) ? wanted : brands[0];
   const { mapping, errors } = env.bigquery.configured ? parseMapping(mappingSource()) : { mapping: null, errors: [] as string[] };
   const sheets = env.dataSource === "sheets" ? parseSheetsMapping(sheetsMappingSource()) : { mapping: null, errors: [] as string[] };
-  const mode: DataMode = env.dataSource === "sheets" && sheets.mapping ? "sheets" : env.dataSource === "bigquery" && mapping ? "bigquery" : "mock";
+  const mode: DataMode = env.dataSource === "unified" ? "unified" : env.dataSource === "sheets" && sheets.mapping ? "sheets" : env.dataSource === "bigquery" && mapping ? "bigquery" : "mock";
   const useMock = mode === "mock";
   if (env.dataSource === "bigquery" && !mapping) logger.warn("bigquery.mapping_invalid_fallback_mock", { errors });
   if (env.dataSource === "sheets" && !sheets.mapping) logger.warn("sheets.mapping_invalid_fallback_mock", { errors: sheets.errors });
 
   let settings = baseSettings();
-  let store: StateStore = mode === "sheets" ? recordsStores[brand] : memoryStores[brand];
+  let store: StateStore = mode === "sheets" || mode === "unified" ? recordsStores[brand] : memoryStores[brand];
   if (mode === "bigquery" && mapping) {
     store = new BigQueryStateStore(mapping.state, BRANDS[brand].idPrefix, BRAND_IDS.map((b) => BRANDS[b].idPrefix));
     try {
@@ -203,6 +209,7 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
       const patch = await cached("settings:records", 5 * 1000, () => getRecordStore().get<unknown>(SETTINGS_RECORD_KEY));
       settings = mergeSettings(settings, patch);
     } catch (err) {
+      if (mode === "unified") throw err;
       logger.warn("settings.load_failed", { error: err });
     }
   }
@@ -211,7 +218,13 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
   const scenario = useMock ? getScenario(scenarioId) : null;
   if (mode === "sheets") settings = adaptToSheets(settings, sheets.mapping!);
   let inner: MonitoringDataSource;
-  if (mode === "sheets") {
+  if (mode === "unified") {
+    if (!env.unifiedData.directory) throw new UnifiedDataError("DATA_DIRECTORY_MISSING");
+    const direct = await loadUnifiedMapping();
+    inner = new UnifiedDataSource({ store: new UnifiedSnapshotStore(env.unifiedData.directory), accounts: direct.accounts.filter(a => a.brand === brand), timezone: settings.timezone });
+    const platforms = [...new Set(direct.accounts.filter(a => a.brand === brand).map(a => a.platform))];
+    settings = { ...settings, monitoredPlatforms: platforms, ingestion: { ...settings.ingestion, ...Object.fromEntries(platforms.map(p => [p, "api" as const])) } };
+  } else if (mode === "sheets") {
     sheetsReader ??= env.sheets.fixtureFile ? new FixtureSheetsReader(env.sheets.fixtureFile) : new GoogleSheetsReader();
     inner = new SheetsDataSource({
       mapping: sheets.mapping!,
@@ -233,6 +246,7 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
   try {
     brandPlatforms = await scoped.platforms();
   } catch (err) {
+    if (mode === "unified") throw err;
     logger.warn("brand.platforms_failed", { brand, error: err });
   }
   const forBrand = settings.monitoredPlatforms.filter((p) => brandPlatforms.includes(p));
@@ -242,10 +256,11 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
   const month = today.slice(0, 7);
   const [novedades, kickoff] = await Promise.all([
     listNovedades(brand).catch((err) => {
+      if (mode === "unified") throw err;
       logger.warn("novedades.load_failed", { error: err });
       return [];
     }),
-    getKickoff(brand, month).catch(() => null),
+    getKickoff(brand, month).catch(error => { if (mode === "unified") throw error; return null; }),
   ]);
   const plan = planFor(novedades, kickoff, today, settings.timezone);
 

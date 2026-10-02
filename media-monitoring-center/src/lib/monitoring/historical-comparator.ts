@@ -1,6 +1,6 @@
 import type { MetricId, MetricValues } from "@/lib/types";
 import { BASE_METRICS, DERIVED_METRICS } from "@/lib/types";
-import { emptyMetrics, metricValue, addMetrics, type Kpi } from "@/lib/metrics";
+import { emptyMetrics, metricValue, addMetrics, addCompleteMetrics, type Kpi } from "@/lib/metrics";
 import type { MetricComparison, MetricComparisons } from "./types";
 
 /**
@@ -12,7 +12,7 @@ import type { MetricComparison, MetricComparisons } from "./types";
 export type HourlySeries = Map<string, Array<MetricValues | null>>;
 
 /** Suma horas [from, to) respetando NULL. Devuelve null si ninguna hora tiene datos. */
-export function windowTotals(series: HourlySeries, date: string, from: number, to: number): MetricValues | null {
+export function windowTotals(series: HourlySeries, date: string, from: number, to: number, strict = false): MetricValues | null {
   const hours = series.get(date);
   if (!hours) return null;
   const acc = emptyMetrics();
@@ -20,9 +20,11 @@ export function windowTotals(series: HourlySeries, date: string, from: number, t
   for (let h = Math.max(0, from); h < Math.min(24, to); h++) {
     const v = hours[h];
     if (v) {
-      addMetrics(acc, v);
+      if (strict && !has) Object.assign(acc, v);
+      else if (strict) addCompleteMetrics(acc, v);
+      else addMetrics(acc, v);
       has = true;
-    }
+    } else if (strict) return null;
   }
   return has ? acc : null;
 }
@@ -97,10 +99,11 @@ export function compareWindow(params: {
   baseline: "mean" | "median";
   minSamples: number;
   metrics?: MetricId[];
+  strict?: boolean;
 }): MetricComparisons {
   const { series, date, referenceDates, fromHour, toHour, kpi, baseline, minSamples } = params;
-  const current = windowTotals(series, date, fromHour, toHour);
-  const refs = referenceDates.map((d) => ({ date: d, totals: windowTotals(series, d, fromHour, toHour) }));
+  const current = windowTotals(series, date, fromHour, toHour, params.strict);
+  const refs = referenceDates.map((d) => ({ date: d, totals: windowTotals(series, d, fromHour, toHour, params.strict) }));
   const wanted = params.metrics ?? [...BASE_METRICS, ...DERIVED_METRICS];
   const out: MetricComparisons = {};
 
@@ -148,11 +151,12 @@ export function compareWindow(params: {
 }
 
 /** Serie acumulada por hora (fin de hora 1..24) de una métrica para una fecha. */
-export function cumulativeByHour(series: HourlySeries, date: string, metric: MetricId, kpi: Kpi, upTo = 24): Array<number | null> {
+export function cumulativeByHour(series: HourlySeries, date: string, metric: MetricId, kpi: Kpi, upTo = 24, strict = false): Array<number | null> {
   const hours = series.get(date);
   const out: Array<number | null> = [];
   const acc = emptyMetrics();
   let has = false;
+  let complete = true;
   for (let h = 0; h < 24; h++) {
     if (h >= upTo) {
       out.push(null);
@@ -160,10 +164,12 @@ export function cumulativeByHour(series: HourlySeries, date: string, metric: Met
     }
     const v = hours?.[h];
     if (v) {
-      addMetrics(acc, v);
+      if (strict && !has) Object.assign(acc, v);
+      else if (strict) addCompleteMetrics(acc, v);
+      else addMetrics(acc, v);
       has = true;
-    }
-    out.push(has ? metricValue(acc, metric, kpi) : null);
+    } else if (strict) complete = false;
+    out.push(has && complete ? metricValue(acc, metric, kpi) : null);
   }
   return out;
 }

@@ -37,11 +37,11 @@ export function getIntegrations(snap: Snapshot): IntegrationItem[] {
       status,
       lastLabel: "Last data received",
       lastAt: h.lastDataAt,
-      detail: `${snap.meta.mode === "sheets" ? "Dataslayer → Google Sheets" : `${wf?.id ?? "n8n"} → BigQuery`}. ${h.checks.filter((c) => c.status !== "OK").map((c) => c.detail).join(" · ") || "Sin incidencias de datos."}`,
+      detail: `${snap.meta.mode === "unified" ? "API directa → histórico guardado" : snap.meta.mode === "sheets" ? "Dataslayer → Google Sheets" : `${wf?.id ?? "n8n"} → BigQuery`}. ${h.checks.filter((c) => c.status !== "OK").map((c) => c.detail).join(" · ") || "Sin incidencias de datos."}`,
       facts: [
         { label: "Última sync", value: h.lastSyncStatus },
         { label: "Salud del dato", value: `${h.score}/100` },
-        { label: "Origen", value: mock ? "Simulado" : snap.meta.mode === "sheets" ? "Google Sheets" : "BigQuery" },
+        { label: "Origen", value: mock ? "Simulado" : snap.meta.mode === "unified" ? "APIs directas" : snap.meta.mode === "sheets" ? "Google Sheets" : "BigQuery" },
       ],
     });
   }
@@ -79,10 +79,12 @@ export function getIntegrations(snap: Snapshot): IntegrationItem[] {
     id: "bigquery",
     name: "Google BigQuery",
     group: "core",
-    status: sheetsActive && !env.bigquery.configured ? "NOT_CONFIGURED" : mock ? (env.bigquery.configured && snap.meta.mappingErrors.length ? "ERROR" : "MOCK") : bqEvent && !bqEvent.ok ? "ERROR" : "CONNECTED",
+    status: snap.meta.mode === "unified" ? "NOT_CONFIGURED" : sheetsActive && !env.bigquery.configured ? "NOT_CONFIGURED" : mock ? (env.bigquery.configured && snap.meta.mappingErrors.length ? "ERROR" : "MOCK") : bqEvent && !bqEvent.ok ? "ERROR" : "CONNECTED",
     lastLabel: "Last query",
     lastAt: mock ? null : (bqEvent?.at ?? null),
-    detail: sheetsActive
+    detail: snap.meta.mode === "unified"
+      ? "La fuente activa son las APIs directas y su histórico guardado. BigQuery no se consulta para estas métricas."
+      : sheetsActive
       ? "No se usa: los datos se leen directamente de la hoja de Google Sheets (Dataslayer)."
       : mock
       ? snap.meta.mappingErrors.length

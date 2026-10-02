@@ -403,3 +403,9 @@ Son guías de revisión: nada se aplica automáticamente.
 Más detalle técnico: [DATOS.md](DATOS.md) (conexión, hoja de control, monedas, presupuestos),
 [AUTH.md](AUTH.md) (accesos y bitácora), [MONITORING_ENGINE.md](MONITORING_ENGINE.md) y
 [ALERTS.md](ALERTS.md).
+
+## Continuación de acceso nominal y atención
+
+Ver [ACCESOS_NOMINALES.md](ACCESOS_NOMINALES.md): administrador principal protegido,
+lista nominal de cinco responsables, delegación por ID y clientes en modo lectura.
+La configuración local tiene 15 cuentas; no certifica configuración de producción.

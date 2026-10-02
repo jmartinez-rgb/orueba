@@ -1,5 +1,6 @@
 import "server-only";
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, open, readdir, readFile, rename, rm } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { getStore } from "@netlify/blobs";
 import { logger, recordIntegrationEvent } from "@/lib/logging/logger";
@@ -12,10 +13,20 @@ import { logger, recordIntegrationEvent } from "@/lib/logging/logger";
  * - Netlify Blobs cuando corre en Netlify (persistente entre despliegues, sin configurar nada).
  * - Archivos en `.data/records` en desarrollo local (ignorado por git).
  * - Memoria como último recurso (se pierde al reiniciar).
- * Las métricas NUNCA se guardan aquí: su única fuente es BigQuery.
+ * Las métricas de las APIs directas usan un directorio separado de los registros operativos.
  */
 
 export type RecordBackend = "netlify-blobs" | "file" | "memory";
+
+export class RecordStoreError extends Error {
+  readonly code = "RECORDS_UNAVAILABLE";
+  constructor() {
+    super("No se pudo leer o guardar el almacenamiento persistente. El cambio no está confirmado.");
+    this.name = "RecordStoreError";
+  }
+}
+
+const missing = (error: unknown) => error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT";
 
 export interface RecordStore {
   readonly backend: RecordBackend;
@@ -51,27 +62,39 @@ class MemoryRecordStore implements RecordStore {
 }
 
 // ── Archivos (desarrollo local) ─────────────────────────────────────────────
-class FileRecordStore implements RecordStore {
+export class FileRecordStore implements RecordStore {
   readonly backend = "file" as const;
   constructor(private readonly root: string) {}
   private file(key: string) {
-    const parts = key.split("/").map((p) => encodeURIComponent(p));
+    const parts = key.split("/").map((p) => p === "." || p === ".." ? p.replaceAll(".", "%2E") : encodeURIComponent(p));
     return path.join(this.root, ...parts) + ".json";
   }
   async get<T>(key: string) {
     try {
       return JSON.parse(await readFile(this.file(key), "utf8")) as T;
-    } catch {
-      return null;
+    } catch (error) {
+      if (missing(error)) return null;
+      throw new RecordStoreError();
     }
   }
   async set(key: string, value: unknown) {
     const f = this.file(key);
-    await mkdir(path.dirname(f), { recursive: true });
-    await writeFile(f, JSON.stringify(value), "utf8");
+    const temp = `${f}.${randomUUID()}.tmp`;
+    try {
+      await mkdir(path.dirname(f), { recursive: true, mode: 0o700 });
+      const file = await open(temp, "wx", 0o600);
+      try { await file.writeFile(JSON.stringify(value), "utf8"); await file.sync(); }
+      finally { await file.close(); }
+      await rename(temp, f);
+    } catch {
+      throw new RecordStoreError();
+    } finally {
+      await rm(temp, { force: true }).catch(() => undefined);
+    }
   }
   async delete(key: string) {
-    await rm(this.file(key), { force: true });
+    try { await rm(this.file(key), { force: true }); }
+    catch { throw new RecordStoreError(); }
   }
   async list(prefix: string) {
     const out: string[] = [];
@@ -79,8 +102,9 @@ class FileRecordStore implements RecordStore {
       let entries: import("node:fs").Dirent[];
       try {
         entries = await readdir(dir, { withFileTypes: true });
-      } catch {
-        return;
+      } catch (error) {
+        if (missing(error)) return;
+        throw new RecordStoreError();
       }
       for (const e of entries) {
         if (e.isDirectory()) await walk(path.join(dir, e.name), [...rel, decodeURIComponent(e.name)]);
@@ -89,7 +113,8 @@ class FileRecordStore implements RecordStore {
     };
     // Solo se recorre el directorio del primer segmento del prefijo.
     const first = prefix.split("/")[0];
-    await walk(path.join(this.root, encodeURIComponent(first)), [first]);
+    const encoded = first === "." || first === ".." ? first.replaceAll(".", "%2E") : encodeURIComponent(first);
+    await walk(path.join(this.root, encoded), first ? [first] : []);
     return out.filter((k) => k.startsWith(prefix));
   }
 }
@@ -97,48 +122,43 @@ class FileRecordStore implements RecordStore {
 // ── Netlify Blobs ───────────────────────────────────────────────────────────
 class BlobsRecordStore implements RecordStore {
   readonly backend = "netlify-blobs" as const;
-  private readonly fallback = new MemoryRecordStore();
   private store() {
     return getStore({ name: "immc-records", consistency: "strong" });
   }
-  private fail(action: string, err: unknown) {
-    logger.error("records.blobs_failed", { action, error: err });
-    recordIntegrationEvent({ target: "api", action: `records.${action}`, ok: false, durationMs: null, detail: err instanceof Error ? err.message : String(err) });
+  private fail(action: string): never {
+    logger.error("records.blobs_failed", { action, code: "RECORDS_UNAVAILABLE" });
+    recordIntegrationEvent({ target: "api", action: `records.${action}`, ok: false, durationMs: null, detail: "RECORDS_UNAVAILABLE" });
+    throw new RecordStoreError();
   }
   async get<T>(key: string) {
     try {
       const v = (await this.store().get(key, { type: "json" })) as T | null;
-      return v ?? (await this.fallback.get<T>(key));
-    } catch (err) {
-      this.fail("get", err);
-      return this.fallback.get<T>(key);
+      return v;
+    } catch {
+      return this.fail("get");
     }
   }
   async set(key: string, value: unknown) {
     try {
       await this.store().setJSON(key, value);
-    } catch (err) {
-      this.fail("set", err);
-      await this.fallback.set(key, value);
+    } catch {
+      this.fail("set");
     }
   }
   async delete(key: string) {
     try {
       await this.store().delete(key);
-    } catch (err) {
-      this.fail("delete", err);
+    } catch {
+      this.fail("delete");
     }
-    await this.fallback.delete(key);
   }
   async list(prefix: string) {
     try {
       const { blobs } = await this.store().list({ prefix });
       const keys = new Set(blobs.map((b) => b.key));
-      for (const k of await this.fallback.list(prefix)) keys.add(k);
       return [...keys];
-    } catch (err) {
-      this.fail("list", err);
-      return this.fallback.list(prefix);
+    } catch {
+      return this.fail("list");
     }
   }
 }

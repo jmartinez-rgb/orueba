@@ -138,7 +138,7 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
         <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 pt-5 pb-10 sm:px-6 lg:px-7">{children}</main>
       </div>
       <AutoRefresh />
-      {mustAcknowledgeCritical(session.role) && <CriticalAlertGate userName={session.user.name} canTicket={hasPermission(session, "tickets:write")} />}
+      {mustAcknowledgeCritical(session.role) && hasPermission(session, "tickets:write") && <CriticalAlertGate userName={session.user.name} canTicket={hasPermission(session, "tickets:write")} />}
       <MonthGate key={brand} canKickoff={hasPermission(session, "kickoff:write")} userId={session.user.id} />
     </div>
   );

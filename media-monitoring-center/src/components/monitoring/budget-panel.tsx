@@ -219,7 +219,7 @@ function Stats({ group: g, structure }: { group: BudgetGroup; structure?: string
       <Stat label="Presupuesto diario activo" value={fmtCurrency(g.total)} sub={[`${g.campaigns} ${g.campaigns === 1 ? "campaña" : "campañas"}`, structure].filter(Boolean).join(" · ")} />
       <Stat label="Gastado hoy" value={fmtCurrency(g.spend)} sub={g.usedPct === null ? "—" : `${fmtPercent(g.usedPct, 0)} del diario`} />
       <Stat label="Esperado a esta hora" value={g.expectedNow === null ? "—" : fmtCurrency(g.expectedNow)} sub={g.pace === null ? "Sin curva histórica" : <PaceChip pace={g.paceLabel} value={g.pace} />} />
-      <Stat label="Sin gasto hoy" value={`${g.idle}`} sub={g.idle ? `${fmtCurrency(g.idleBudget)} de presupuesto sin entregar` : "Todas las campañas ya gastan"} />
+      <Stat label="Sin gasto hoy" value={g.spend === null ? "—" : `${g.idle}`} sub={g.spend === null ? "Gasto pendiente de comprobar" : g.idle ? `${fmtCurrency(g.idleBudget)} de presupuesto sin entregar` : "Todas las campañas ya gastan"} />
     </div>
   );
 }

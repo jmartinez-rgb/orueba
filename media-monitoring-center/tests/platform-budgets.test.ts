@@ -44,6 +44,15 @@ function input(budgets: UnifiedBudget[], extra: Partial<BudgetInput> = {}): Budg
 }
 
 describe("presupuesto diario por plataforma y estrategia", () => {
+  it("direct source uses explicit accounts and keeps unknown spend out of idle and projections", () => {
+    const view = buildBudgetOverview(input([
+      budget({ platform: "meta", campaign_id: "a1:1", campaign_name: "Sky en el nombre", account_name: "Sky México" }),
+      budget({ platform: "meta", account_id: "other", campaign_id: "other:2", campaign_name: "izzi en nombre" }),
+    ], { directAccounts: new Map([["meta:a1", "izzi"]]), spendToday: new Map([["meta:a1:1", null]]), month: { daysInMonth: 31, elapsedDays: 0, lines: { meta: { budget: 20000, spend: null } } } }));
+    expect(view.total).toMatchObject({ campaigns: 1, total: 1000, spend: null, pace: null, usedPct: null, idle: 0 });
+    expect(view.platforms[0].units[0].spend).toBeNull();
+    expect(view.projection).toBeNull();
+  });
   it("agrupa Meta con su clasificador, convierte USD y compara contra el gasto y la curva", () => {
     const view = buildBudgetOverview(
       input(

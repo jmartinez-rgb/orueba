@@ -73,7 +73,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <h2 className="text-[28px] leading-tight font-semibold tracking-[-0.025em]">Iniciar sesión</h2>
             {cfg.mode === "password" && (
               <p className="text-sm text-muted-foreground">
-                Usa tu <strong className="text-foreground">usuario</strong> si tienes cuenta. Si no, escribe tu <strong className="text-foreground">nombre y apellido</strong> y la contraseña universal del
+                Usa tu <strong className="text-foreground">usuario o correo</strong> si tienes cuenta. Si no, escribe tu <strong className="text-foreground">nombre y apellido</strong> y la contraseña universal del
                 equipo.
               </p>
             )}

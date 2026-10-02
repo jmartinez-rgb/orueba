@@ -30,13 +30,14 @@ function joinUrl(base: string | undefined, pathOrUrl: string | undefined): strin
   return `${base.replace(/\/+$/, "")}/${pathOrUrl.replace(/^\/+/, "")}`;
 }
 
-export type DataSourceKind = "mock" | "sheets" | "bigquery";
+export type DataSourceKind = "mock" | "sheets" | "bigquery" | "unified";
 
 export interface ServerEnv {
+  unifiedData: { directory: string | undefined; mappingJson: string | undefined; mappingFile: string; configured: boolean };
   appName: string;
-  /** Fuente de datos efectiva: simulada, Google Sheets (Dataslayer) o BigQuery. */
+  /** Fuente efectiva: simulada, Sheets, BigQuery o histórico de APIs directas. */
   dataSource: DataSourceKind;
-  /** Lo que se pidió en DATA_SOURCE (si se pidió y falta configuración, se usa mock y se avisa). */
+  /** Fuente solicitada. unified nunca se sustituye silenciosamente por mock. */
   requestedDataSource: DataSourceKind | null;
   useMockData: boolean;
   mockScenario: string | undefined;
@@ -111,16 +112,18 @@ export function getEnv(): ServerEnv {
   const fixtureFile = process.env.NODE_ENV !== "production" ? str("SHEETS_FIXTURE_FILE") : undefined;
   const sheetsConfigured = Boolean(spreadsheetId && (credentials || fixtureFile));
   const requestedRaw = (str("DATA_SOURCE") ?? "").toLowerCase();
-  const requested: DataSourceKind | null = requestedRaw === "sheets" || requestedRaw === "bigquery" || requestedRaw === "mock" ? requestedRaw : null;
+  const requested: DataSourceKind | null = requestedRaw === "sheets" || requestedRaw === "bigquery" || requestedRaw === "mock" || requestedRaw === "unified" ? requestedRaw : null;
   // DATA_SOURCE manda; si no se define, USE_MOCK_DATA=false elige Sheets o BigQuery según lo configurado.
-  // Si falta configuración, se usa el modo simulado para no romper la app (Integrations lo avisa).
+  // Las fuentes heredadas conservan el fallback visible a mock; unified exige su configuración.
   let dataSource: DataSourceKind;
-  if (requested === "sheets") dataSource = sheetsConfigured ? "sheets" : "mock";
+  if (requested === "unified") dataSource = "unified";
+  else if (requested === "sheets") dataSource = sheetsConfigured ? "sheets" : "mock";
   else if (requested === "bigquery") dataSource = bqConfigured ? "bigquery" : "mock";
   else if (requested === "mock" || bool("USE_MOCK_DATA", true)) dataSource = "mock";
   else dataSource = sheetsConfigured ? "sheets" : bqConfigured ? "bigquery" : "mock";
 
   cached = {
+    unifiedData: { directory: str("UNIFIED_ADS_DATA_DIR"), mappingJson: str("UNIFIED_ADS_MAPPING"), mappingFile: str("UNIFIED_ADS_MAPPING_FILE") ?? "config/unified.mapping.json", configured: Boolean(str("UNIFIED_ADS_DATA_DIR") && str("UNIFIED_ADS_API_URL") && str("UNIFIED_ADS_API_KEY")) },
     appName: str("NEXT_PUBLIC_APP_NAME") ?? "izzi Media Monitoring Center",
     dataSource,
     requestedDataSource: requested,

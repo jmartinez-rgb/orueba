@@ -1,4 +1,4 @@
-import type { Incident } from "@/lib/alerts/types";
+import type { Alert, Incident } from "@/lib/alerts/types";
 import type { AnomalyType, DailyPacing, PlatformStatusInfo } from "@/lib/monitoring/types";
 import type { DataState, PlatformId, Severity } from "@/lib/types";
 
@@ -36,6 +36,8 @@ export interface ClientView {
   nextReviewAt: string;
   platforms: ClientPlatform[];
   attending: ClientAttention[];
+  /** Alertas públicas de lectura: sin diagnósticos internos, responsables o notas. */
+  alerts: Array<{ platform: PlatformId; severity: Severity; what: string; since: string }>;
   month: { usedPct: number | null; expectedPct: number | null } | null;
 }
 
@@ -44,6 +46,7 @@ export interface ClientViewInput {
   platformStatus: Record<PlatformId, Pick<PlatformStatusInfo, "severity" | "dataState">>;
   pacing: Partial<Record<PlatformId | "total", Pick<DailyPacing, "pctOfExpected">>>;
   incidents: Incident[];
+  alerts?: Alert[];
   lastDataAt: string | null;
   nextEvaluationAt: string;
   /** Avance mensual por plataforma y total (de Budget Control), si hay presupuesto. */
@@ -139,6 +142,7 @@ export function buildClientView(input: ClientViewInput): ClientView {
     nextReviewAt: input.nextEvaluationAt,
     platforms,
     attending,
+    alerts: (input.alerts ?? []).filter(alert => alert.resolvedAt === null && alert.status !== "FALSE_POSITIVE" && !alert.groupedUnder && input.platforms.includes(alert.platform)).map(alert => ({ platform: alert.platform, severity: alert.severity, what: WHAT[alert.type] ?? "Revisión en curso", since: alert.detectedAt })),
     month: input.month.total ? { usedPct: pct(input.month.total.usedPct), expectedPct: pct(input.month.total.expectedPct) } : null,
   };
 }

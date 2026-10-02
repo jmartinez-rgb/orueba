@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { effectivePermissions, isInternalRole, isRole, type Permission, type Role } from "./roles";
+import { applyAlertResponderPolicy, effectivePermissions, isInternalRole, isRole, type Permission, type Role } from "./roles";
 import { getAuthConfig } from "./config";
 import { effectiveUniversal, findEffectiveAccount } from "./users";
 import type { BrandId } from "@/lib/brands";
@@ -50,7 +50,7 @@ export async function getSession(): Promise<Session> {
       authenticated: true,
       user: { id: `sso:${(h.get("x-immc-email") ?? name).toLowerCase()}`, name, email: h.get("x-immc-email"), kind: "header" },
       role: isRole(role) ? role : "viewer",
-      permissions: effectivePermissions(isRole(role) ? role : "viewer", null),
+      permissions: applyAlertResponderPolicy(effectivePermissions(isRole(role) ? role : "viewer", null), "header", cfg.alertResponders ?? null),
       brands: [],
       mode: "header",
       sid: null,
@@ -64,7 +64,7 @@ export async function getSession(): Promise<Session> {
       authenticated: true,
       user: { id: "open", name: "Acceso abierto", email: null, kind: "open" },
       role: isRole(role) ? role : cfg.openRole,
-      permissions: effectivePermissions(isRole(role) ? role : cfg.openRole, null),
+      permissions: applyAlertResponderPolicy(effectivePermissions(isRole(role) ? role : cfg.openRole, null), "open", cfg.alertResponders ?? null),
       brands: [],
       mode: "open",
       sid: null,
@@ -80,13 +80,14 @@ export async function getSession(): Promise<Session> {
   const denied = { ...ANON, role: "viewer" as Role, mode: "password" as const };
   const base = { authenticated: true, mode: "password" as const, sid: claims.sid, expiresAt: new Date(claims.exp * 1000).toISOString() };
   if (claims.kind === "named") {
-    const account = await findEffectiveAccount(claims.sub);
+    const account = await findEffectiveAccount(claims.sub).catch(() => null);
     if (!account || !account.active || account.version !== (claims.v ?? 0)) return denied;
-    return { ...base, user: { id: claims.sub, name: account.name, email: null, kind: "named" }, role: account.role, permissions: account.permissions, brands: account.brands };
+    return { ...base, user: { id: claims.sub, name: account.name, email: account.email ?? null, kind: "named" }, role: account.role, permissions: account.permissions, brands: account.brands };
   }
-  const universal = await effectiveUniversal();
+  const universal = await effectiveUniversal().catch(() => null);
+  if (!universal) return denied;
   if (!universal.enabled || universal.version !== (claims.v ?? 0)) return denied;
-  return { ...base, user: { id: claims.sub, name: claims.name, email: null, kind: "universal" }, role: universal.role, permissions: effectivePermissions(universal.role, null), brands: universal.brands };
+  return { ...base, user: { id: claims.sub, name: claims.name, email: null, kind: "universal" }, role: universal.role, permissions: applyAlertResponderPolicy(effectivePermissions(universal.role, null), claims.sub, cfg.alertResponders ?? null), brands: universal.brands };
 }
 
 export function auditUser(s: Session): AuditUser {

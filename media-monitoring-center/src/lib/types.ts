@@ -84,12 +84,14 @@ export const CAMPAIGN_OBJECTIVES: CampaignObjective[] = [
   "CONVERSIONS",
 ];
 
-export type CampaignStatus = "ACTIVE" | "PAUSED" | "ENDED";
+export type CampaignStatus = "ACTIVE" | "PAUSED" | "ENDED" | "UNKNOWN";
 
 /** Monedas soportadas. Todo se reporta en MXN; las cuentas en USD se convierten con la tasa del mes. */
 export type Currency = "MXN" | "USD";
 
 export interface Account {
+  /** Asignación explícita de la cuenta cuando la fuente es una API directa. */
+  brand?: "izzi" | "sky";
   id: string;
   platform: PlatformId;
   name: string;
@@ -213,7 +215,7 @@ export interface FxRate {
 }
 
 /** Fuente de datos de la app: simulada, Google Sheets (Dataslayer) o BigQuery. */
-export type DataMode = "mock" | "sheets" | "bigquery";
+export type DataMode = "mock" | "sheets" | "bigquery" | "unified";
 
 /** Cómo llegan los datos de una plataforma a BigQuery. */
 export type IngestionMode = "api" | "sheets";

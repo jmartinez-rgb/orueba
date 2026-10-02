@@ -22,9 +22,11 @@ export interface RunSummary {
   durationMs: number;
 }
 
+export interface IncidentPatch { owner?: string | null; ownerId?: string | null; status?: IncidentStatus; note?: string }
+
 export interface UserOverrides {
   alerts: Record<string, { status: AlertStatus; at: string; by: string }>;
-  incidents: Record<string, { owner?: string | null; status?: IncidentStatus; notes?: Array<{ at: string; author: string; text: string }>; actions?: IncidentAction[] }>;
+  incidents: Record<string, { owner?: string | null; ownerId?: string | null; status?: IncidentStatus; notes?: Array<{ at: string; author: string; text: string }>; actions?: IncidentAction[] }>;
   budgets: BudgetRow[];
 }
 
@@ -37,7 +39,7 @@ export interface StateStore {
   listRuns(date: string): Promise<RunSummary[]>;
   getOverrides(): Promise<UserOverrides>;
   setAlertStatus(id: string, status: AlertStatus, by: string): Promise<void>;
-  updateIncident(id: string, patch: { owner?: string | null; status?: IncidentStatus; note?: string }, by: string): Promise<void>;
+  updateIncident(id: string, patch: IncidentPatch, by: string): Promise<void>;
   setBudget(row: BudgetRow): Promise<void>;
   /** Configuración compartida (solo BigQuery; en mock se guarda en una cookie por navegador). */
   loadSettingsPatch?(): Promise<unknown>;
@@ -95,10 +97,10 @@ export class MemoryStateStore implements StateStore {
   async setAlertStatus(id: string, status: AlertStatus, by: string) {
     memoryOf(this.namespace).overrides.alerts[id] = { status, at: new Date().toISOString(), by };
   }
-  async updateIncident(id: string, patch: { owner?: string | null; status?: IncidentStatus; note?: string }, by: string) {
+  async updateIncident(id: string, patch: IncidentPatch, by: string) {
     const cur = memoryOf(this.namespace).overrides.incidents[id] ?? {};
     const at = new Date().toISOString();
-    if (patch.owner !== undefined) cur.owner = patch.owner;
+    if (patch.owner !== undefined) { cur.owner = patch.owner; cur.ownerId = patch.ownerId ?? null; }
     if (patch.status) cur.status = patch.status;
     if (patch.note) cur.notes = [...(cur.notes ?? []), { at, author: by, text: patch.note }];
     cur.actions = [...(cur.actions ?? []), ...incidentActions(patch, by, at)];
@@ -112,10 +114,10 @@ export class MemoryStateStore implements StateStore {
 }
 
 /** Acciones registradas por un cambio de incidente (estado, responsable y nota). */
-export function incidentActions(patch: { owner?: string | null; status?: IncidentStatus; note?: string }, by: string, at: string): IncidentAction[] {
+export function incidentActions(patch: IncidentPatch, by: string, at: string): IncidentAction[] {
   const out: IncidentAction[] = [];
   if (patch.status) out.push({ at, by, kind: "STATUS", value: patch.status });
-  if (patch.owner !== undefined) out.push({ at, by, kind: "OWNER", value: patch.owner });
+  if (patch.owner !== undefined) out.push({ at, by, kind: "OWNER", value: patch.owner, valueId: patch.ownerId ?? null });
   if (patch.note) out.push({ at, by, kind: "NOTE", value: null });
   return out;
 }

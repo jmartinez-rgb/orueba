@@ -65,6 +65,10 @@ export default async function OverviewPage() {
         />
       </header>
 
+      <Link href="/incidents?view=mine" className="surface rounded-xl px-4 py-3 text-sm font-medium text-primary">
+        Mis pendientes: {openIncidents.filter(i => i.ownerId === meta.userId).length} incidentes asignados · Abrir seguimiento
+      </Link>
+
       <StatusHero overall={snap.overall} cards={cards} openIncidents={openIncidents.length} activeAlerts={activeAlerts.length} />
 
       <div className="order-4 lg:order-none">
@@ -103,7 +107,7 @@ export default async function OverviewPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            <IncidentsTable incidents={snap.state.incidents} alerts={snap.state.alerts.filter((a) => a.incidentId !== null)} notifications={[]} timezone={tz} asOf={meta.asOf} canWrite={canWrite} canNovedad={meta.permissions.includes("novedades:write")} compact attention={attention} />
+            <IncidentsTable incidents={snap.state.incidents} alerts={snap.state.alerts.filter((a) => a.incidentId !== null)} notifications={[]} timezone={tz} asOf={meta.asOf} canWrite={meta.permissions.includes("incidents:write")} canAssign={meta.permissions.includes("incidents:assign")} currentUserId={meta.userId} canNovedad={meta.permissions.includes("novedades:write")} compact attention={attention} />
           </CardContent>
         </Card>
       </div>

@@ -307,6 +307,15 @@ asíncrona real siguen pendientes, además de la conciliación con Ads Manager.
 
 ## Continuación para auditoría de Claude
 
+El monitoreo ahora consume rendimiento/histórico con `DATA_SOURCE=unified` y su comando
+`npm run unified:sync`: [APIs directas](../media-monitoring-center/docs/APIS_DIRECTAS.md).
+Se guardaron 35 días de TikTok (1022 filas diarias/10432 horarias) y tres días de X de izzi
+(3828 filas diarias). X de Sky queda fuera por instrucción del usuario; su muestra diaria
+anterior sigue siendo evidencia de acceso, no una cuenta asignada al monitoreo.
+La extracción horaria de X encontró HTTP 429; Microsoft sigue bloqueado por el proxy.
+Usuarios nominales, volumen/scheduler en producción, mapeos adicionales y conciliación siguen
+pendientes. Las conversiones de negocio no se inventan ni se cambian sus reglas.
+
 El [traspaso actualizado a Claude](docs/TRASPASO_CLAUDE.md) reúne la rama entregada, commits,
 evidencias reales, validación, reglas vigentes y trabajo que puede avanzar sin accesos nuevos.
 
@@ -318,3 +327,8 @@ Microsoft solo descarga de `bingadsappsstorageprod.blob.core.windows.net`: otros
 rechazan hasta revisar una migración del proveedor. No se elude el bloqueo del proxy.
 Los riesgos y pendientes separados por código, permisos, configuración y negocio están en
 [docs/AUDITORIA.md](docs/AUDITORIA.md). La conciliación de plataformas sigue pendiente.
+
+El monitoreo tiene además acceso nominal y delegación por usuario, con administrador principal
+protegido y atención de alertas limitada a los IDs autorizados. Se validaron 15 logins locales;
+no es configuración del despliegue. Ver
+[ACCESOS_NOMINALES.md](../media-monitoring-center/docs/ACCESOS_NOMINALES.md).

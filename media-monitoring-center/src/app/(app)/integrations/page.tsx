@@ -83,7 +83,9 @@ export default async function IntegrationsPage() {
       <PageHeader
         title="Integrations"
         subtitle={
-          snap.meta.mode === "sheets"
+          snap.meta.mode === "unified"
+            ? "Métricas de las APIs directas, con histórico guardado y cuentas separadas por marca. Los datos ausentes y los eventos pendientes de definir se muestran sin valor."
+            : snap.meta.mode === "sheets"
             ? "Los datos se leen de la hoja de Google Sheets que actualiza Dataslayer (solo lectura, con la cuenta de servicio). Alertas: motor → n8n → WhatsApp. Ningún secreto llega al navegador."
             : "Conexión directa con cada plataforma (n8n) o, si no es posible, Google Sheets actualizado por Dataslayer y cargado por Apps Script a BigQuery (fuente única de verdad). Alertas: motor → n8n → WhatsApp. Ningún secreto llega al navegador."
         }
@@ -99,13 +101,13 @@ export default async function IntegrationsPage() {
             <PipelineDiagram mode={snap.meta.mode} />
             {snap.execution.status === "PENDIENTE" && (
               <p className="rounded-md border border-status-attention/40 bg-status-attention/10 px-3 py-2 text-xs text-status-attention-text">
-                Debe ejecutarse: {snap.execution.pending.join(", ")}. Corre el paso pendiente ({snap.meta.mode === "sheets" ? "actualiza la consulta en Dataslayer" : "Dataslayer / Apps Script"}) y luego usa “Actualizar ahora”. Mientras tanto la confianza de datos baja.
+                Debe ejecutarse: {snap.execution.pending.join(", ")}. Corre el paso pendiente ({snap.meta.mode === "unified" ? "extracción de la API directa" : snap.meta.mode === "sheets" ? "actualiza la consulta en Dataslayer" : "Dataslayer / Apps Script"}) y luego usa “Actualizar ahora”. Mientras tanto la confianza de datos baja.
               </p>
             )}
             {snap.execution.status === "ERROR" && (
               <p className="rounded-md border border-status-critical/40 bg-status-critical/10 px-3 py-2 text-xs text-status-critical-text">Con error: {snap.execution.errors.join(", ")}. Revisa el paso en la hoja de control.</p>
             )}
-            <ExecutionTable execution={snap.execution} ingestion={snap.settings.ingestion} timezone={snap.meta.timezone} canEdit={snap.meta.permissions.includes("settings:write")} fixedSource={snap.meta.mode === "sheets"} />
+            <ExecutionTable execution={snap.execution} ingestion={snap.settings.ingestion} timezone={snap.meta.timezone} canEdit={snap.meta.permissions.includes("settings:write")} fixedSource={snap.meta.mode === "sheets" || snap.meta.mode === "unified"} />
           </CardContent>
         </Card>
       </section>
@@ -168,7 +170,7 @@ export default async function IntegrationsPage() {
         {render("platform")}
       </section>
       <p className="text-[11px] text-muted-foreground">
-        Registros de la app (bitácora de accesos, tickets, acuses, mensajes de monitoreo): {RECORD_BACKEND_LABEL[getRecordStore().backend]}. Las métricas nunca se guardan ahí: se leen de {snap.meta.mode === "sheets" ? "la hoja de Google Sheets" : snap.meta.mode === "bigquery" ? "BigQuery" : "la fuente simulada"}.
+        Registros de la app (bitácora de accesos, tickets, acuses, mensajes de monitoreo): {RECORD_BACKEND_LABEL[getRecordStore().backend]}. Las métricas nunca se guardan ahí: se leen de {snap.meta.mode === "unified" ? "el histórico de APIs directas" : snap.meta.mode === "sheets" ? "la hoja de Google Sheets" : snap.meta.mode === "bigquery" ? "BigQuery" : "la fuente simulada"}.
       </p>
     </div>
   );

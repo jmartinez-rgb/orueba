@@ -10,7 +10,7 @@ type Level = "debug" | "info" | "warn" | "error";
 const LEVELS: Record<Level, number> = { debug: 10, info: 20, warn: 30, error: 40 };
 const SECRET_KEY = /(token|secret|password|passwd|credential|authorization|private|api[_-]?key|service[_-]?account|signature)/i;
 
-export type IntegrationTarget = "bigquery" | "sheets" | "n8n" | "whatsapp" | "api";
+export type IntegrationTarget = "bigquery" | "sheets" | "unified" | "n8n" | "whatsapp" | "api";
 
 export interface IntegrationEvent {
   at: string;
@@ -82,6 +82,7 @@ export function lastIntegrationEvent(target: IntegrationTarget, okOnly = false):
 export function friendlyError(target: IntegrationTarget, err: unknown): { message: string; technical: string } {
   const technical = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
   const map: Record<IntegrationTarget, string> = {
+    unified: "No pudimos leer el histórico de las APIs directas.",
     bigquery: "No pudimos consultar BigQuery.",
     sheets: "No pudimos leer la hoja de Google Sheets.",
     n8n: "No pudimos comunicarnos con n8n.",

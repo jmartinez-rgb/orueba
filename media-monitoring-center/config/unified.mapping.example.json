@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "accounts": [
+    { "platform": "tiktok", "accountId": "7338571937913978882", "brand": "sky", "currency": "MXN" },
+    { "platform": "tiktok", "accountId": "7545502925565771792", "brand": "sky", "currency": "MXN" },
+    { "platform": "tiktok", "accountId": "7361545670072909840", "brand": "izzi", "currency": "MXN" },
+    { "platform": "tiktok", "accountId": "7688066712031182866", "brand": "izzi", "currency": "USD" },
+    { "platform": "x", "accountId": "18ce53wx5ui", "brand": "izzi", "currency": "MXN" }
+  ]
+}

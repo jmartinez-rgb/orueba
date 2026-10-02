@@ -50,7 +50,7 @@ export function HistoricalView({ initial }: { initial: HistoricalResult }) {
 
   const def = METRICS[metric];
   const fmt = (v: number | null) => fmtMetric(metric, v, { compact: def.format !== "percent" });
-  const max = Math.max(1, ...data.heatmap.flat());
+  const max = Math.max(1, ...data.heatmap.flat().filter((v): v is number => v !== null));
   const today = data.sameWeekday[data.sameWeekday.length - 1];
   const samples = data.sameWeekday.slice(0, -1).reverse();
   const vals = samples.map((s) => s.value).filter((v): v is number => v !== null);
@@ -168,9 +168,9 @@ export function HistoricalView({ initial }: { initial: HistoricalResult }) {
                           <span
                             key={h}
                             role="cell"
-                            title={`${WEEKDAYS_SHORT_ES[wd]} ${String(h).padStart(2, "0")}:00 · ${fmtCurrency(v)}`}
+                            title={`${WEEKDAYS_SHORT_ES[wd]} ${String(h).padStart(2, "0")}:00 · ${v === null ? "Sin dato" : fmtCurrency(v)}`}
                             className="h-5 rounded-[2px]"
-                            style={{ background: `color-mix(in oklab, var(--series-today) ${Math.round(8 + (v / max) * 88)}%, var(--muted))` }}
+                            style={{ background: v === null ? "var(--muted)" : `color-mix(in oklab, var(--series-today) ${Math.round(8 + (v / max) * 88)}%, var(--muted))` }}
                           />
                         ))}
                       </div>

@@ -8,7 +8,7 @@ import { PLATFORMS } from "@/lib/platforms/registry";
 import { formatDateTimeInTz } from "@/lib/time/tz";
 import type { PlatformId } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { PlatformMark } from "@/components/monitoring/status";
+import { PlatformMark, SeverityBadge } from "@/components/monitoring/status";
 
 export const metadata: Metadata = { title: "Estado de campañas" };
 export const dynamic = "force-dynamic";
@@ -47,6 +47,7 @@ export default async function ClientPage() {
     platformStatus: snap.run.platformStatus,
     pacing: snap.run.pacing,
     incidents: snap.state.incidents,
+    alerts: snap.state.alerts,
     lastDataAt: snap.meta.lastDataAt,
     nextEvaluationAt: snap.meta.nextEvaluationAt,
     month,
@@ -69,6 +70,18 @@ export default async function ClientPage() {
           <dt className="text-muted-foreground">Próxima revisión</dt>
           <dd className="tabular font-medium">{formatDateTimeInTz(view.nextReviewAt, tz)}</dd>
         </dl>
+      </section>
+
+      <section className="surface p-5" aria-label="Alertas de solo lectura">
+        <h2 className="text-[15px] font-semibold">Alertas</h2>
+        <p className="mt-1 text-xs text-muted-foreground">Solo lectura. El equipo autorizado registra la atención y el seguimiento.</p>
+        {view.alerts.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No hay alertas abiertas.</p> : <ul className="mt-3 space-y-2">
+          {view.alerts.map((alert, index) => <li key={index} className="flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+            <PlatformMark platform={alert.platform} className="size-5 text-[9px]" />
+            <SeverityBadge severity={alert.severity} /><span>{alert.what}</span>
+            <span className="ml-auto text-xs text-muted-foreground">{formatDateTimeInTz(alert.since, tz)}</span>
+          </li>)}
+        </ul>}
       </section>
 
       {view.month && view.month.usedPct !== null && (

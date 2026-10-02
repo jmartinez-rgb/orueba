@@ -51,7 +51,7 @@ export function LoginForm({ next, allowUniversal }: { next: string; allowUnivers
         </div>
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="login-user">{allowUniversal ? "Usuario o nombre y apellido" : "Usuario"}</Label>
+        <Label htmlFor="login-user">{allowUniversal ? "Usuario, correo o nombre y apellido" : "Usuario o correo"}</Label>
         <Input id="login-user" autoComplete="username" autoCapitalize="none" spellCheck={false} value={username} onChange={(e) => setUsername(e.target.value)} placeholder={allowUniversal ? "jmartinez · o · Ana López" : "jmartinez"} required maxLength={60} />
       </div>
       <div className="space-y-1.5">

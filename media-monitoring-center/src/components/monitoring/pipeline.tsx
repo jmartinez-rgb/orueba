@@ -20,7 +20,7 @@ const STATUS = {
 } as const;
 
 /** Diagrama del flujo: lectura directa de la hoja de Dataslayer, o API/Sheets → BigQuery. */
-export function PipelineDiagram({ mode = "bigquery" }: { mode?: "mock" | "sheets" | "bigquery" }) {
+export function PipelineDiagram({ mode = "bigquery" }: { mode?: "mock" | "sheets" | "bigquery" | "unified" }) {
   const step = (Icon: typeof Plug, title: string, sub: string, tone = "border-border") => (
     <div className={cn("flex min-w-[130px] flex-1 flex-col gap-1 surface rounded-xl px-4 py-3", tone)}>
       <span className="flex items-center gap-1.5 text-xs font-semibold">
@@ -30,6 +30,7 @@ export function PipelineDiagram({ mode = "bigquery" }: { mode?: "mock" | "sheets
     </div>
   );
   const arrow = <ArrowRight className="hidden size-4 shrink-0 text-muted-foreground md:block" aria-hidden />;
+  if (mode === "unified") return <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center">{step(Radar, "Plataformas", "Cuentas autorizadas de cada marca")}{arrow}{step(Plug, "APIs directas", "Lecturas diarias y horarias")}{arrow}{step(Database, "Histórico guardado", "Conserva la última lectura válida; muestra los fallos de actualización.")}{arrow}{step(ScrollText, "Monitoring Center", "Lee el histórico y evalúa datos recibidos.")}</div>;
   if (mode === "sheets") {
     return (
       <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center">

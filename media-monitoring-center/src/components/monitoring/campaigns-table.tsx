@@ -18,13 +18,14 @@ import { StateMessage } from "./states";
 
 export type CampaignSort = "drop" | "increase" | "spend" | "deviation" | "cpa" | "impact";
 
-const STATUS_LABEL: Record<CampaignRowVM["status"], string> = { ACTIVE: "Activa", PAUSED: "Pausada", ENDED: "Finalizada" };
+const STATUS_LABEL: Record<CampaignRowVM["status"], string> = { ACTIVE: "Activa", PAUSED: "Pausada", ENDED: "Finalizada", UNKNOWN: "Desconocido" };
 
 /** Estado de la campaña: el que reporta la plataforma (con su texto original) o, sin columna de estado, el deducido por gasto. */
 function CampaignStatusCell({ row: r }: { row: CampaignRowVM }) {
   const warn = r.statusIssue || r.statusSilent;
   const hint =
-    r.statusText === null
+    r.status === "UNKNOWN" ? "La API no reportó un estado reconocido."
+    : r.statusText === null
       ? "La hoja no trae el estado de esta campaña: se deduce por gasto (activa si gastó hoy o ayer)."
       : `${PLATFORMS[r.platform].shortName} reporta: ${r.statusText}${r.statusSilent ? ". Sin gasto desde ayer." : ""}`;
   return (
@@ -33,7 +34,7 @@ function CampaignStatusCell({ row: r }: { row: CampaignRowVM }) {
         <span className={cn("size-1.5 shrink-0 rounded-full", warn ? "bg-status-attention" : r.status === "ACTIVE" ? "bg-status-normal" : "bg-muted-foreground/50")} aria-hidden />
         {STATUS_LABEL[r.status]}
       </span>
-      {r.statusText === null ? (
+      {r.statusText === null && r.status !== "UNKNOWN" ? (
         <span className="text-[10px] text-muted-foreground">por gasto</span>
       ) : warn ? (
         <span className="max-w-32 truncate text-[10px] text-status-attention-text">{r.statusSilent && !r.statusIssue ? "sin gasto desde ayer" : r.statusText}</span>

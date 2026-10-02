@@ -1,12 +1,12 @@
 import "server-only";
 import type { BudgetRow } from "@/lib/types";
-import type { Alert, AlertState, AlertStatus, Incident, IncidentStatus, NotificationRecord } from "@/lib/alerts/types";
+import type { Alert, AlertState, AlertStatus, Incident, NotificationRecord } from "@/lib/alerts/types";
 import { applyAlertStatus } from "@/lib/alerts/incident-manager";
 import { getEnv } from "@/lib/config/env";
 import { fullTableName, getBigQuery, runQuery } from "@/lib/bigquery/client";
 import type { BigQueryMapping } from "@/lib/bigquery/mapping";
 import { logger, recordIntegrationEvent } from "@/lib/logging/logger";
-import { incidentActions, type RunSummary, type StateStore, type UserOverrides } from "./store";
+import { incidentActions, type IncidentPatch, type RunSummary, type StateStore, type UserOverrides } from "./store";
 
 /**
  * Estado operativo en BigQuery con tablas propias de la app (append-only).
@@ -139,13 +139,17 @@ export class BigQueryStateStore implements StateStore {
     await this.saveAlertState(next);
   }
 
-  async updateIncident(id: string, patch: { owner?: string | null; status?: IncidentStatus; note?: string }, by: string): Promise<void> {
+  async updateIncident(id: string, patch: IncidentPatch, by: string): Promise<void> {
     const state = await this.loadAlertState();
     const inc = state.incidents.find((i) => i.id === id);
     if (!inc) return;
     const now = new Date().toISOString();
-    if (patch.owner !== undefined) inc.owner = patch.owner;
+    if (patch.owner !== undefined) { inc.owner = patch.owner; inc.ownerId = patch.ownerId ?? null; }
     if (patch.status) inc.status = patch.status;
+    if (patch.status === "RESOLVED" && inc.resolvedAt === null) {
+      inc.resolvedAt = now;
+      inc.timeline.push({ at: now, kind: "STATUS", severity: inc.severity, deviation: inc.currentDeviation, message: `Cierre documentado por ${by}.`, notified: false });
+    }
     if (patch.note) inc.notes.push({ at: now, author: by, text: patch.note });
     inc.actions = [...(inc.actions ?? []), ...incidentActions(patch, by, now)];
     await this.insert(this.tables.incidents, [

@@ -1,9 +1,9 @@
 import "server-only";
-import { getRecordStore } from "@/lib/records/store";
+import { getRecordStore, RecordStoreError } from "@/lib/records/store";
 import { BRAND_IDS, isBrand, type BrandId } from "@/lib/brands";
 import { getAuthConfig, normalizeUsername, type NamedAccount } from "./config";
 import { isPasswordHash } from "./password";
-import { effectivePermissions, isPermission, isRole, permissionsOf, type Permission, type Role } from "./roles";
+import { applyAlertResponderPolicy, effectivePermissions, isPermission, isRole, type Permission, type Role } from "./roles";
 
 /**
  * Cuentas administradas desde la app (sección Usuarios → Cuentas y permisos). Se guardan en el
@@ -15,6 +15,7 @@ import { effectivePermissions, isPermission, isRole, permissionsOf, type Permiss
 
 export interface ManagedUser {
   username: string;
+  email?: string | null;
   name: string;
   role: Role;
   hash: string;
@@ -46,6 +47,7 @@ export interface UniversalConfig {
 /** Cuenta efectiva (Netlify + app) tal como la usa el inicio de sesión. */
 export interface EffectiveAccount {
   username: string;
+  email?: string | null;
   name: string;
   role: Role;
   hash: string;
@@ -92,6 +94,7 @@ function sanitize(raw: unknown): ManagedUser | null {
   if (!u || typeof u.username !== "string" || !USERNAME_RE.test(u.username) || !isRole(u.role) || !isPasswordHash(u.hash)) return null;
   return {
     username: u.username,
+    email: typeof u.email === "string" ? u.email.trim().toLowerCase() : null,
     name: typeof u.name === "string" && u.name.trim() ? u.name.trim() : u.username,
     role: u.role,
     hash: u.hash!,
@@ -110,9 +113,12 @@ function sanitize(raw: unknown): ManagedUser | null {
 export async function listManagedUsers(fresh = false): Promise<ManagedUser[]> {
   if (!fresh && usersCache && Date.now() - usersCache.at < TTL_MS) return usersCache.value;
   const raw = (await getRecordStore().get<unknown[]>(USERS_KEY)) ?? [];
-  const value = (Array.isArray(raw) ? raw : []).map(sanitize).filter((u): u is ManagedUser => u !== null);
-  usersCache = { at: Date.now(), value };
-  return value;
+  if (!Array.isArray(raw)) throw new RecordStoreError();
+  const value = raw.map(sanitize);
+  if (value.some(u => u === null)) throw new RecordStoreError();
+  const valid = value as ManagedUser[];
+  usersCache = { at: Date.now(), value: valid };
+  return valid;
 }
 
 export async function saveManagedUsers(list: ManagedUser[]): Promise<void> {
@@ -123,6 +129,7 @@ export async function saveManagedUsers(list: ManagedUser[]): Promise<void> {
 export async function getUniversalConfig(fresh = false): Promise<UniversalConfig | null> {
   if (!fresh && universalCache && Date.now() - universalCache.at < TTL_MS) return universalCache.value;
   const raw = await getRecordStore().get<Partial<UniversalConfig>>(UNIVERSAL_KEY);
+  if (raw !== null && (typeof raw !== "object" || !isRole(raw.role) || (raw.hash !== null && !isPasswordHash(raw.hash)))) throw new RecordStoreError();
   const value: UniversalConfig | null =
     raw && typeof raw === "object"
       ? {
@@ -148,10 +155,11 @@ function effective(env: NamedAccount | undefined, app: ManagedUser | undefined):
   if (app) {
     return {
       username: app.username,
+      email: app.email ?? null,
       name: app.name,
       role: app.role,
       hash: app.hash,
-      permissions: effectivePermissions(app.role, app.permissions),
+      permissions: applyAlertResponderPolicy(effectivePermissions(app.role, app.permissions), app.username, getAuthConfig().alertResponders ?? null, getAuthConfig().primaryAdminId ?? null),
       customPermissions: app.permissions !== null,
       brands: app.brands,
       active: app.active,
@@ -161,18 +169,13 @@ function effective(env: NamedAccount | undefined, app: ManagedUser | undefined):
     };
   }
   if (!env) return null;
-  return { username: env.username, name: env.name, role: env.role, hash: env.hash, permissions: permissionsOf(env.role), customPermissions: false, brands: [], active: true, version: 0, source: "netlify", managed: null };
+  return { username: env.username, name: env.name, role: env.role, email: env.email ?? null, hash: env.hash, permissions: applyAlertResponderPolicy(effectivePermissions(env.role, env.permissions ?? null), env.username, getAuthConfig().alertResponders ?? null, getAuthConfig().primaryAdminId ?? null), customPermissions: env.permissions != null, brands: env.brands ?? [], active: true, version: 0, source: "netlify", managed: null };
 }
 
-/** Todas las cuentas nominales (Netlify + app). Si la app no responde, quedan las de Netlify. */
+/** Todas las cuentas nominales (Netlify + app). Un fallo del almacén impide confirmar los permisos; nunca restaura credenciales previas. */
 export async function listAccounts(): Promise<EffectiveAccount[]> {
   const env = getAuthConfig().accounts;
-  let managed: ManagedUser[] = [];
-  try {
-    managed = await listManagedUsers();
-  } catch {
-    managed = [];
-  }
+  const managed = await listManagedUsers();
   const names = [...new Set([...env.map((a) => a.username), ...managed.map((u) => u.username)])];
   return names
     .map((u) =>
@@ -186,26 +189,14 @@ export async function listAccounts(): Promise<EffectiveAccount[]> {
 }
 
 export async function findEffectiveAccount(username: string): Promise<EffectiveAccount | null> {
-  const u = normalizeUsername(username);
-  const env = getAuthConfig().accounts.find((a) => a.username === u);
-  let app: ManagedUser | undefined;
-  try {
-    app = (await listManagedUsers()).find((m) => m.username === u);
-  } catch {
-    app = undefined;
-  }
-  return effective(env, app);
+  const identifier = normalizeUsername(username);
+  return (await listAccounts()).find(a => a.username === identifier || a.email === identifier) ?? null;
 }
 
 /** Contraseña universal vigente: la de la app si existe, si no la de Netlify. */
 export async function effectiveUniversal(): Promise<EffectiveUniversal> {
   const cfg = getAuthConfig();
-  let app: UniversalConfig | null = null;
-  try {
-    app = await getUniversalConfig();
-  } catch {
-    app = null;
-  }
+  const app = await getUniversalConfig();
   if (app && (app.hash || !app.enabled)) return { enabled: app.enabled && app.hash !== null, hash: app.hash, role: app.role, brands: app.brands, version: app.version, source: "app" };
   if (cfg.universalHash) return { enabled: true, hash: cfg.universalHash, role: app?.role ?? cfg.universalRole, brands: app?.brands ?? [], version: 0, source: "netlify" };
   return { enabled: false, hash: null, role: "viewer", brands: [], version: 0, source: "none" };

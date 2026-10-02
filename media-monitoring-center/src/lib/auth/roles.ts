@@ -15,6 +15,7 @@ export type Permission =
   | "settings:write"
   | "alerts:write"
   | "incidents:write"
+  | "incidents:assign"
   | "budgets:write"
   | "monitoring:trigger"
   | "technical:view"
@@ -35,6 +36,7 @@ export const PERMISSIONS: Permission[] = [
   "settings:write",
   "alerts:write",
   "incidents:write",
+  "incidents:assign",
   "budgets:write",
   "monitoring:trigger",
   "technical:view",
@@ -56,7 +58,8 @@ export const PERMISSION_LABEL: Record<Permission, { title: string; detail: strin
   "audit:write": { title: "Dictaminar auditorías", detail: "Registrar el dictamen de auditoría de un incidente (cumple, observación o no cumple)." },
   "settings:write": { title: "Configuración", detail: "Settings, métricas monitoreadas y fijas, tipo de cambio, clasificadores y nivel de presupuesto." },
   "alerts:write": { title: "Alertas", detail: "Cambiar el estado de las alertas (en revisión, resuelta, falso positivo)." },
-  "incidents:write": { title: "Incidentes", detail: "Asignar responsable, cambiar estado y agregar notas a incidentes." },
+  "incidents:write": { title: "Incidentes", detail: "Cambiar estado y agregar notas a incidentes." },
+  "incidents:assign": { title: "Delegar incidentes", detail: "Asignar o reasignar incidentes a usuarios activos con acceso operativo a la misma marca." },
   "budgets:write": { title: "Presupuestos de referencia", detail: "Capturar o corregir presupuestos del mes." },
   "monitoring:trigger": { title: "Evaluación manual", detail: "Ejecutar la evaluación en el momento." },
   "technical:view": { title: "Detalle técnico", detail: "Ver consultas, errores técnicos y detalles de integración." },
@@ -127,6 +130,14 @@ export function effectivePermissions(role: Role, assigned: Permission[] | null):
   if (role === "client") return ["client:view"];
   const base = assigned ?? permissionsOf(role);
   return [...new Set<Permission>([...base, "internal:view", "client:view"])];
+}
+
+/** Política nominal opcional: responder alertas es independiente de administrar usuarios/configuración. */
+export function applyAlertResponderPolicy(permissions: Permission[], userId: string, allowed: string[] | null, primaryAdminId: string | null = null): Permission[] {
+  if (primaryAdminId === userId) return permissionsOf("admin");
+  if (allowed === null || allowed.includes(userId)) return permissions;
+  const operational: Permission[] = ["alerts:write", "incidents:write", "incidents:assign", "tickets:write", "tickets:manage", "novedades:write", "reports:write", "monitoring:trigger", "audit:write"];
+  return permissions.filter(permission => !operational.includes(permission));
 }
 
 /**

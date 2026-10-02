@@ -2,7 +2,7 @@ import type { BudgetRow, Campaign, DataState, FreshnessRecord, HourlyRow, Metric
 import { CHART_RESULT_METRICS, PLATFORM_IDS } from "@/lib/types";
 import type { MonitoringSettings } from "@/lib/config/settings";
 import type { MonitoringDataSource } from "@/lib/data/source";
-import { addMetrics, emptyMetrics, OBJECTIVE_KPI, type Kpi } from "@/lib/metrics";
+import { addMetrics, addCompleteMetrics, OBJECTIVE_KPI, type Kpi } from "@/lib/metrics";
 import { PLATFORMS, platformKpi } from "@/lib/platforms/registry";
 import { addDays, businessDate, daysInMonth, hourLabel, monthOf, sameWeekdayDates, zonedParts } from "@/lib/time/tz";
 import { detectAnomalies, platformImpactSeverity } from "@/lib/anomaly-engine/anomaly-engine";
@@ -22,15 +22,15 @@ import type { CurvePoint, DailyPacing, EntityEvaluation, MonitoringRun, Platform
  * las evaluaciones al AnomalyEngine.
  */
 
-function addToSeries(series: HourlySeries, date: string, hour: number, values: MetricValues) {
+function addToSeries(series: HourlySeries, date: string, hour: number, values: MetricValues, strict = false) {
   let day = series.get(date);
   if (!day) {
     day = Array.from({ length: 24 }, () => null);
     series.set(date, day);
   }
   const cur = day[hour];
-  if (cur) addMetrics(cur, values);
-  else day[hour] = addMetrics(emptyMetrics(), values);
+  if (cur) (strict ? addCompleteMetrics : addMetrics)(cur, values);
+  else day[hour] = { ...values };
 }
 
 function getSeries(map: Map<string, HourlySeries>, key: string): HourlySeries {
@@ -58,6 +58,7 @@ export interface MonitoringInput {
 
 export async function runMonitoring(source: MonitoringDataSource, input: MonitoringInput): Promise<MonitoringRun> {
   const { settings, asOf } = input;
+  const strict = source.kind === "unified";
   const tz = settings.timezone;
   let date = businessDate(asOf, tz);
   let cutoff = zonedParts(asOf, tz).hour;
@@ -139,12 +140,12 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
   for (const r of rows as HourlyRow[]) {
     if (!r.campaignId) continue;
     const accountId = r.accountId ?? campaignById.get(r.campaignId)?.accountId ?? "";
-    addToSeries(getSeries(campaignSeries, r.campaignId), r.date, r.hour, r.metrics);
-    addToSeries(getSeries(accountSeriesAll, accountId), r.date, r.hour, r.metrics);
+    addToSeries(getSeries(campaignSeries, r.campaignId), r.date, r.hour, r.metrics, strict);
+    addToSeries(getSeries(accountSeriesAll, accountId), r.date, r.hour, r.metrics, strict);
     if (excluded.has(accountId)) continue;
-    addToSeries(getSeries(accountSeries, accountId), r.date, r.hour, r.metrics);
-    addToSeries(getSeries(platformSeries, r.platform), r.date, r.hour, r.metrics);
-    if (okPlatforms.includes(r.platform)) addToSeries(totalSeries, r.date, r.hour, r.metrics);
+    addToSeries(getSeries(accountSeries, accountId), r.date, r.hour, r.metrics, strict);
+    addToSeries(getSeries(platformSeries, r.platform), r.date, r.hour, r.metrics, strict);
+    if (okPlatforms.includes(r.platform)) addToSeries(totalSeries, r.date, r.hour, r.metrics, strict);
   }
 
   const baseline = settings.history.baseline;
@@ -173,7 +174,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     const byDate = dailySpend.get(key);
     const known = platformDates.get(p);
     if (!byDate || !known) return null;
-    return previousDayRatio({ date, weeks, baseline, minSamples, valueOn: (d) => (known.has(d) ? (byDate.get(d) ?? 0) : null) });
+    return previousDayRatio({ date, weeks, baseline, minSamples, valueOn: (d) => (known.has(d) ? (byDate.get(d) ?? (strict ? null : 0)) : null) });
   };
   const sustainedOf = (key: string, p: PlatformId): SustainedLevel | null => {
     const byDate = dailySpend.get(key);
@@ -187,7 +188,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
       minSamples,
       threshold: settings.thresholds.attention,
       // Sin fila un día con datos de la plataforma = no gastó (Dataslayer no escribe filas vacías).
-      valueOn: (d) => (known.has(d) ? (byDate.get(d) ?? 0) : null),
+      valueOn: (d) => (known.has(d) ? (byDate.get(d) ?? (strict ? null : 0)) : null),
     });
   };
   const laggingFor = (p: PlatformId) => settings.detection.laggingMetrics[p] ?? [];
@@ -198,7 +199,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     previousDayRatio: yesterdayOf(key, p),
   });
   const evaluate = (series: HourlySeries, kpi: Kpi, cut: number) => ({
-    cumulative: compareWindow({ series, date, referenceDates: refDates, fromHour: 0, toHour: cut, kpi, baseline, minSamples }),
+    cumulative: compareWindow({ series, date, referenceDates: refDates, fromHour: 0, toHour: cut, kpi, baseline, minSamples, strict }),
     recent:
       cut > interval
         ? compareWindow({
@@ -210,6 +211,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
             kpi,
             baseline,
             minSamples,
+            strict,
             metrics: ["spend", kpi.result, "cpr"],
           })
         : null,
@@ -221,8 +223,8 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     let part = 0;
     let full = 0;
     for (const d of refDates) {
-      const w = windowTotals(series, d, 0, cut)?.spend;
-      const f = windowTotals(series, d, 0, 24)?.spend;
+      const w = windowTotals(series, d, 0, cut, strict)?.spend;
+      const f = windowTotals(series, d, 0, 24, strict)?.spend;
       if (w !== null && w !== undefined && f !== null && f !== undefined && f > 0) {
         part += w;
         full += f;
@@ -369,9 +371,9 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
 
   const buildCurves = (series: HourlySeries, cut: number, kpi: Kpi, dailyBudget: number | null, cumShare: number[]): ScopeCurves => {
     const make = (metric: Parameters<typeof cumulativeByHour>[2], withBudget: boolean): CurvePoint[] => {
-      const today = cumulativeByHour(series, date, metric, kpi, cut);
-      const prev = cumulativeByHour(series, refDates[0], metric, kpi);
-      const refs = refDates.map((d) => cumulativeByHour(series, d, metric, kpi));
+      const today = cumulativeByHour(series, date, metric, kpi, cut, strict);
+      const prev = cumulativeByHour(series, refDates[0], metric, kpi, 24, strict);
+      const refs = refDates.map((d) => cumulativeByHour(series, d, metric, kpi, 24, strict));
       return Array.from({ length: 24 }, (_, h) => {
         const vals = refs.map((r) => r[h]).filter((v): v is number => v !== null);
         return {
@@ -416,6 +418,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     baseline,
     minSamples,
     metrics: ["spend"],
+    strict,
   }).spend?.current ?? null;
   pacing.total = dailyPacing({ spend: totalSpendNow, cutoffHour: totalCutoff, curve: totalCurve, dailyBudget: totalBudget || null });
   const totalCurves = buildCurves(totalSeries, totalCutoff, OBJECTIVE_KPI.CONVERSIONS, null, totalCurve.cumShare);
@@ -430,7 +433,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     const cut = effCutoff.get(p)!;
     const hasActive = catalog.campaigns.some((c) => c.platform === p && c.status === "ACTIVE");
     const missing: number[] = [];
-    if (hasActive) for (let h = 0; h < cut; h++) if (!todayHours[h]) missing.push(h);
+    if (hasActive || (strict && catalog.accounts.some(a => a.platform === p))) for (let h = 0; h < cut; h++) if (!todayHours[h]) missing.push(h);
     dataHealth[p] = buildPlatformDataHealth({
       platform: p,
       record: recordFor(p, null),

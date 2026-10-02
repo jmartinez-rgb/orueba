@@ -57,11 +57,12 @@ export function v1Configuration(
   env: Pick<
     ServerEnv,
     "dataSource" | "requestedDataSource" | "sheets" | "bigquery" | "unifiedApi"
-  >,
+  > & Pick<Partial<ServerEnv>, "unifiedData">,
   auth: Pick<AuthConfig, "mode" | "accounts" | "issues">,
   backend: RecordBackend,
+  unifiedMappingReady = false,
 ) {
-  const liveData = env.dataSource !== "mock";
+  const liveData = env.dataSource !== "mock" && (env.dataSource !== "unified" || Boolean(env.unifiedData?.configured && unifiedMappingReady));
   const secured =
     auth.mode === "password" &&
     auth.accounts.length > 0 &&
@@ -78,6 +79,8 @@ export function v1Configuration(
           : "DEMO_DATA",
       variables: liveData
         ? []
+        : env.requestedDataSource === "unified"
+          ? ["DATA_SOURCE", "UNIFIED_ADS_DATA_DIR", "UNIFIED_ADS_MAPPING_FILE"]
         : env.requestedDataSource === "bigquery"
           ? ["DATA_SOURCE", "GOOGLE_CLOUD_PROJECT", "BIGQUERY_DATASET"]
           : [

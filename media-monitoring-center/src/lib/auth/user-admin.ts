@@ -39,6 +39,7 @@ const fail = (message: string, status = 400): AdminResult<never> => ({ ok: false
 const roleEnum = z.enum(ROLES as [Role, ...Role[]]);
 const permissionList = z.array(z.enum(PERMISSIONS as [Permission, ...Permission[]])).max(PERMISSIONS.length);
 const brandList = z.array(z.enum(BRAND_IDS as [BrandId, ...BrandId[]])).max(BRAND_IDS.length);
+const email = z.email().max(254).transform(value => value.trim().toLowerCase()).nullable();
 const displayName = z
   .string()
   .transform((v) => v.normalize("NFC").replace(/[\u0000-\u001f<>]/g, "").replace(/\s+/g, " ").trim())
@@ -47,6 +48,7 @@ const displayName = z
 export const createSchema = z.object({
   username: z.string().transform((v) => normalizeUsername(v)),
   name: displayName,
+  email: email.optional(),
   role: roleEnum,
   permissions: permissionList.nullable().default(null),
   brands: brandList.default([]),
@@ -55,6 +57,7 @@ export const createSchema = z.object({
 
 export const updateSchema = z.object({
   name: displayName.optional(),
+  email: email.optional(),
   role: roleEnum.optional(),
   permissions: permissionList.nullable().optional(),
   brands: brandList.optional(),
@@ -72,6 +75,7 @@ export const universalSchema = z.object({
 /** Vista pública de una cuenta (nunca incluye el hash). */
 export interface AccountView {
   username: string;
+  email?: string | null;
   name: string;
   role: Role;
   permissions: Permission[];
@@ -87,6 +91,7 @@ export interface AccountView {
 export function toView(a: EffectiveAccount): AccountView {
   return {
     username: a.username,
+    email: a.email ?? null,
     name: a.name,
     role: a.role,
     permissions: a.permissions,
@@ -121,9 +126,11 @@ export async function createAccount(actor: Actor, input: unknown): Promise<Admin
   if (grantProblem(actor, d.role, d.permissions)) return fail("No puedes dar permisos que tú no tienes.", 403);
   const all = await listAccounts();
   if (all.some((a) => a.username === d.username)) return fail("Ya existe una cuenta con ese usuario.", 409);
+  if (d.email && all.some(a => a.email === d.email)) return fail("Ya existe una cuenta con ese correo.", 409);
   const now = new Date().toISOString();
   const user: ManagedUser = {
     username: d.username,
+    email: d.email ?? null,
     name: d.name,
     role: d.role,
     hash: await hashPassword(d.password),
@@ -147,6 +154,7 @@ export async function updateAccount(actor: Actor, username: string, input: unkno
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Datos inválidos.");
   const d = parsed.data;
   const u = normalizeUsername(username);
+  if (getAuthConfig().primaryAdminId === u && actor.id !== u) return fail("Solo el administrador principal puede modificar su propia cuenta.", 403);
   const current = await findEffectiveAccount(u);
   if (!current) return fail("No existe la cuenta.", 404);
   const self = actor.id === u;
@@ -163,11 +171,12 @@ export async function updateAccount(actor: Actor, username: string, input: unkno
   const now = new Date().toISOString();
   const base: ManagedUser = current.managed ?? {
     username: current.username,
+    email: current.email ?? null,
     name: current.name,
     role: current.role,
     hash: current.hash,
-    permissions: null,
-    brands: [],
+    permissions: current.customPermissions ? current.permissions : null,
+    brands: current.brands,
     active: true,
     // Una cuenta de Netlify que pasa a la app conserva sus sesiones (versión 0).
     version: 0,
@@ -179,6 +188,10 @@ export async function updateAccount(actor: Actor, username: string, input: unkno
   };
   const next: ManagedUser = { ...base, updatedAt: now, updatedBy: actor.name };
   const changes: string[] = [];
+  if (d.email !== undefined && d.email !== (base.email ?? null)) {
+    if (d.email && (await listAccounts()).some(a => a.username !== u && a.email === d.email)) return fail("Ya existe una cuenta con ese correo.", 409);
+    next.email = d.email; changes.push("correo");
+  }
   if (d.name !== undefined && d.name !== base.name) {
     next.name = d.name;
     changes.push("nombre");
@@ -223,6 +236,7 @@ export async function updateAccount(actor: Actor, username: string, input: unkno
 /** Borra la cuenta de la app. Si también existe en Netlify, vuelve a la de Netlify. */
 export async function deleteAccount(actor: Actor, username: string): Promise<AdminResult<{ revertedTo: "netlify" | null }>> {
   const u = normalizeUsername(username);
+  if (getAuthConfig().primaryAdminId === u) return fail("No se puede eliminar al administrador principal.", 403);
   if (actor.id === u) return fail("No puedes eliminar tu propia cuenta.", 403);
   const list = await listManagedUsers(true);
   if (!list.some((m) => m.username === u)) {
@@ -256,6 +270,7 @@ export async function updateUniversal(actor: Actor, input: unknown): Promise<Adm
     updatedBy: actor.name,
   };
   const changes: string[] = [];
+
   if (d.enabled !== undefined && d.enabled !== (cur?.enabled ?? eff.enabled)) changes.push(d.enabled ? "activada" : "desactivada");
   if (d.role !== undefined) changes.push(`rol → ${d.role}`);
   if (d.brands !== undefined) changes.push(next.brands.length ? `marcas: ${next.brands.join(", ")}` : "marcas: todas");
