@@ -16,6 +16,8 @@ import {
   normalizePerformance,
   reportBucket,
   reportMetrics,
+  censoredConversionFields,
+  unavailableRevenue,
 } from "./normalize.js";
 
 /** Read-only Spotify Ads v3. OAuth user authorization, business discovery, JSON aggregate reporting. */
@@ -176,6 +178,30 @@ export class SpotifyProvider extends BaseProvider {
           );
           const at = new Date().toISOString(),
             seen = new Set<string>();
+          if (data.some(unavailableRevenue))
+            options?.onWarning?.(
+              new ApiError(
+                "PROVIDER_ERROR",
+                "Spotify no informó un valor de ingresos utilizable; permanece desconocido.",
+                {
+                  details: { provider: "spotify", account_id: account.account_id, limitation: "revenue_unavailable" },
+                },
+              ),
+            );
+          if (data.some((row) => censoredConversionFields(row).length))
+            options?.onWarning?.(
+              new ApiError(
+                "PROVIDER_ERROR",
+                "Spotify ocultó conteos pequeños por privacidad; permanecen desconocidos.",
+                {
+                  details: {
+                    provider: "spotify",
+                    account_id: account.account_id,
+                    limitation: "privacy_suppressed_conversions",
+                  },
+                },
+              ),
+            );
           if (data.length && !conversions && !primary)
             options?.onWarning?.(
               new ApiError(

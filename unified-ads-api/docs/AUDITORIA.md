@@ -3,6 +3,69 @@
 Fecha: 1 de octubre de 2026. Rama: `codex/entrega-auditoria-claude`. Estado recibido: commit
 `39a65be` (idéntico al ZIP `unified-ads-api-para-auditoria.zip`, comprobado archivo por archivo).
 
+## Correcciones de acceso y preparación de v1 — 1–2 de octubre de 2026
+
+Continuación en `codex/finalizacion-verificador-meta-x` desde su entrega `77b3ce8`.
+El usuario comunicó aprobación de X y Spotify. Solo se actualiza la matriz con lecturas realizadas;
+esa comunicación no certifica permisos sobre cada cuenta, informes o aceptación de la v1.
+
+- **Spotify v3:** DAY/HOUR requieren IDs explícitos de campañas. Se descubren y consultan lotes
+  de 50, sin informe global sin alcance; fixtures cubren continuaciones, múltiples lotes,
+  cuenta vacía y entidades ajenas. Los conteos `-5` documentados como ocultos por privacidad
+  permanecen `null`. La muestra real también devolvió `REVENUE=-5`: se conserva ingreso desconocido
+  y un aviso, sin rechazar gasto válido ni atribuirle el intervalo de los conteos.
+- **Verificador:** acepta UUID de Spotify en `--cuentas`. Para determinar ayer, Spotify y Microsoft
+  usan su día contractual UTC; las demás plataformas conservan la zona de cuenta. Los vacíos y
+  errores no se convierten en ceros. Se sigue esperando escritura atómica de tokens rotados.
+- **Microsoft v13:** diagnóstico `npm run microsoft:red`, sin credenciales ni URL firmadas.
+  Distingue proxy, DNS, TLS, timeout y transporte; los errores de descarga conservan host fijo y
+  categoría segura. El proxy rechaza CONNECT al host de informes incluso con borrador de red sin
+  restricciones. No es un rechazo OAuth y no se eludió el proxy. DNS del host confiado sigue sin
+  quedar fijado al transporte; no se declara cerrado el riesgo residual.
+- **X Ads 12:** el primer rechazo de esta continuación fue `INSUFFICIENT_USER_AUTHORIZED_PERMISSION`, clasificado
+  `permission_denied`/`user_authorization`. El usuario confirmó que la app estaba en Read.
+  Después el usuario confirmó Read and Write y actualización solo del par de usuario; la nueva
+  consulta respondió HTTP 401 `UNAUTHORIZED_ACCESS` (`AUTH_ERROR`, estado `error`). Las cuatro
+  variables están presentes, sin duplicados o caracteres de copia detectados y sin valores X en
+  `.env` que las oculten. Pendiente revisar coherencia del par con la misma app y llegada del nuevo
+  al proceso tras aplicar/reiniciar. No se eligen eventos ni se modifican campañas desde el código.
+- **Monitoreo:** `npm run v1:check` carga configuración de producción mediante `@next/env` y revisa
+  fuente real, acceso nominal, backend de registros y API; comprueba la presencia única de las seis
+  plataformas. No revela valores, URL, usuarios, hashes o mensajes de configuración. Un `/health`
+  sano o discovery conectado no certifica métricas. Alcance y aceptación: [V1.md](../../media-monitoring-center/docs/V1.md).
+
+### Evidencia real nueva
+
+- Spotify: seis cuentas (dos USD/cuatro MXN), **14 campañas legibles**, una cuenta USD con
+  `ACCESS_DENIED` en campañas e informes. El 2026-09-29 en UTC, una cuenta MXN devolvió **tres
+  filas**, gasto **983.084134 MXN**, **18.465 impresiones** y **225 clics**; otra consulta devolvió
+  **36 filas por evento** de conversiones. No se eligió evento principal. Informe Excel privado
+  0600 generado; salida 2 por cobertura parcial/valores desconocidos. Falta conciliar con Ads Manager.
+- Microsoft: OAuth, cuatro cuentas, **43 campañas, 11 filas de presupuesto vigente y dos señales
+  de entrega**. Para 2026-09-30, tres cuentas devolvieron reportes vacíos válidos; la cuenta con
+  actividad quedó bloqueada en descarga ZIP (`proxy_denied`). CSV y zona aún sin conciliación real.
+- X: HTTP 403 de permisos de usuario y, después del ajuste comunicado, HTTP 401 de autorización;
+  ninguna cuenta, campaña ni métrica nueva. El estado actual es `error` con `AUTH_ERROR`, separado
+  del histórico de app sin habilitación y del permiso de usuario insuficiente.
+- Configuración de producción del monitoreo en este checkout: fuente efectiva mock, sin usuarios
+  nominales configurados, registros en memoria y sin URL/llave de API. `v1:check -- --sin-red`
+  devuelve salida 2 y las cuatro carencias. Esto no describe un despliegue externo no consultado.
+
+Fuentes vigentes consultadas: [Spotify v3.0 Aggregate Report](https://developer.spotify.com/documentation/ads-api/reference/v3.0/getAggregateReport),
+[X: acceso tras aprobar la app](https://docs.x.com/x-ads-api/getting-started),
+[X: permisos y reautorización](https://docs.x.com/resources/fundamentals/developer-apps) y
+[X: roles publicitarios](https://docs.x.com/x-ads-api/fundamentals/accessing-ads-accounts).
+Los apartados siguientes conservan las pruebas y bloqueos históricos, fechados; la matriz y los
+pendientes al final reflejan esta continuación. No hubo publicación ni despliegue.
+
+### Validación de estas correcciones
+
+Node **24.19.0**: API `typecheck`, `lint`, `format:check`, **619 pruebas/33 archivos** y build
+aprobados. Monitoreo `npm run check`, **229 pruebas/24 archivos** y build Next.js **16.3.6**
+aprobados. No se saltaron pruebas. Las pruebas de API conservan el bloqueo global de fetch;
+las lecturas reales se ejecutaron separadas. El nuevo comando del monitoreo prueba carga de
+producción en un directorio temporal, sin red, y exclusión de valores privados de la salida.
+
 ## Finalización del verificador, acciones de Meta y selección incremental de X
 
 Fecha: **1 de octubre de 2026**. Base publicada de Claude: `claude/auditoria-tiktok-x`,
@@ -401,19 +464,20 @@ Las líneas se refieren al código recibido (`39a65be`).
 
 ## Matriz de validación por plataforma
 
-Google, Meta, Microsoft y Spotify conservan la evidencia histórica de Codex; la auditoría de
-Claude no tuvo credenciales para repetirla. TikTok sí se verificó el 1 de octubre de 2026;
+Google y Meta conservan la evidencia histórica de Codex; la auditoría de Claude no tuvo
+credenciales para repetirla. Esta continuación sí comprobó nuevas lecturas de Microsoft,
+Spotify y el rechazo actual de X, descritos al inicio. TikTok se verificó el 1 de octubre de 2026;
 detalles y totales en [TIKTOK_PRIMERA_LECTURA.md](TIKTOK_PRIMERA_LECTURA.md). La finalización del
 verificador añadió una lectura de un día y 26 presupuestos actuales, descrita arriba.
 
-| Plataforma | Simulador            | OAuth y credenciales reales                                            | Cuentas reales                     | Campañas reales     | Informes y métricas reales                               | Conciliación con la interfaz |
-| ---------- | -------------------- | ---------------------------------------------------------------------- | ---------------------------------- | ------------------- | -------------------------------------------------------- | ---------------------------- |
-| Google Ads | Sí                   | Sí                                                                     | Sí (33 raíces, 2274 en jerarquías) | Sí (muestra de 150) | Muestras diarias, horarias y de conversiones             | Pendiente                    |
-| Meta       | Sí                   | Sí (token)                                                             | Sí (17 activas)                    | Sí (muestra)        | Muestras diarias, horarias y de conversiones             | Pendiente                    |
-| TikTok     | Sí                   | Sí, OAuth y token real                                                 | Sí (4, monedas y zonas leídas)     | Sí (178)            | Sí: 76 filas diarias y 608 de conversiones; US sin filas | Pendiente                    |
-| Microsoft  | Sí                   | Sí                                                                     | Sí (4)                             | Sí (43)             | No: el proxy bloquea la descarga del ZIP                 | No                           |
-| Spotify    | Sí                   | Sí (refresh token)                                                     | No (403 `ACCESS_REQUIRED`)         | No                  | No                                                       | No                           |
-| X Ads      | Sí, fixtures sin red | Variables aplicadas; HTTP 403; solicitud enviada, aprobación pendiente | No                                 | No                  | No                                                       | Pendiente                    |
+| Plataforma | Simulador            | OAuth y credenciales reales                                                  | Cuentas reales                                 | Campañas reales     | Informes y métricas reales                                            | Conciliación con la interfaz |
+| ---------- | -------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------- | ------------------- | --------------------------------------------------------------------- | ---------------------------- |
+| Google Ads | Sí                   | Sí                                                                           | Sí (33 raíces, 2274 en jerarquías)             | Sí (muestra de 150) | Muestras diarias, horarias y de conversiones                          | Pendiente                    |
+| Meta       | Sí                   | Sí (token)                                                                   | Sí (17 activas)                                | Sí (muestra)        | Muestras diarias, horarias y de conversiones                          | Pendiente                    |
+| TikTok     | Sí                   | Sí, OAuth y token real                                                       | Sí (4, monedas y zonas leídas)                 | Sí (178)            | Sí: 76 filas diarias y 608 de conversiones; US sin filas              | Pendiente                    |
+| Microsoft  | Sí                   | Sí                                                                           | Sí (4)                                         | Sí (43)             | 11 presupuestos y 2 señales; ZIP de cuenta activa bloqueado por proxy | Pendiente                    |
+| Spotify    | Sí                   | Sí (refresh token)                                                           | Sí (6); 1 USD sin permiso de campañas/informes | Sí (14 accesibles)  | 3 filas diarias y 36 por evento; valores desconocidos conservados     | Pendiente                    |
+| X Ads      | Sí, fixtures sin red | Aprobación y Read and Write comunicados; última prueba HTTP 401 `AUTH_ERROR` | No                                             | No                  | No                                                                    | Pendiente                    |
 
 ## Pendientes y orden recomendado
 
@@ -432,29 +496,34 @@ y esta rama conserva esas correcciones.
 
 **Permisos**
 
-- Habilitación de Spotify Ads API (403).
+- Spotify: habilitación global comprobada por lecturas reales. Revisar acceso del usuario a
+  campañas e informes de la cuenta USD `4bf9f073-8f04-4d76-8074-970f364c3e52` (`ACCESS_DENIED`).
 - TikTok: lectura de las cuatro cuentas autorizada y verificada. No queda un bloqueo de permisos
   en la muestra; otros productos o ámbitos de reporting no se dan por validados.
 - X: la app existe (ID mostrado en la consola: `33489379`) y la configuración está aplicada.
-  Primera consulta real `GET /12/accounts`: HTTP 403 `UNAUTHORIZED_CLIENT_APPLICATION`;
-  `stateFromError` produce `access_required`. El usuario envió la solicitud de acceso
-  el 1 de octubre de 2026 y aportó la confirmación «Success!» del formulario oficial.
-  Falta la aprobación de Standard Access (Analytics y Campaign Management); tras ella, renovar el par de tokens del usuario
-  según la guía oficial. [Formulario de Ads API](https://docs.x.com/forms/ads-api-access) y
-  evidencia detallada en [X_ADS.md](X_ADS.md). No se confunde una app activa para X API con
-  aprobación de Ads API ni se afirma validación de cuentas o de Analytics.
+  El usuario confirmó aprobación y después Read and Write con un par nuevo. La última petición
+  `GET /12/accounts` devuelve HTTP 401 `UNAUTHORIZED_ACCESS` (`AUTH_ERROR`, estado `error`): resolver
+  autorización antes de probar cuentas. El anterior HTTP 403 de permisos de usuario y la petición
+  histórica de app sin habilitación se conservan fechados en [X_ADS.md](X_ADS.md). Al autenticar,
+  comprobar identidad, roles de cuentas y alcance Standard Access (Analytics + Campaign Management).
 
 **Configuración y entorno**
 
 - Monitoreo: `UNIFIED_ADS_API_URL` y `UNIFIED_ADS_API_KEY` en el despliegue para el panel de presupuestos
   diarios (sin ellas muestra cómo conectarlo; en modo demo usa datos de ejemplo rotulados).
+- Monitoreo v1: fuente real Sheets/BigQuery, acceso nominal y backend persistente. En este checkout
+  faltan los cuatro grupos; `npm run v1:check` los identifica sin leer hojas ni imprimir valores.
+  La API unificada todavía no es una fuente de rendimiento/histórico del motor.
 - `TOKEN_STORE_FILE` o un gestor de secretos en el despliegue.
 - Acciones principales y mapeos.
 - TikTok: conservar token y lista de cuatro IDs en la configuración privada del entorno destino.
   El token actual está en `.env` privado 0600; el código de retorno ya fue consumido.
-- X: cuatro variables OAuth 1.0a ya inyectadas; actualizar el par de tokens de usuario después
-  de la aprobación de Ads API. Timeout propio apropiado para backfills.
-- Un entorno con salida a `*.blob.core.windows.net` para las descargas de Microsoft.
+- X: cuatro variables OAuth 1.0a presentes. Revisar que el Access Token y su Secret sean del mismo
+  diálogo y app que Consumer Key/Secret; aplicar configuración y reiniciar si el proceso sigue
+  con el par anterior invalidado. No hay valores X en `.env` que oculten variables directas.
+  Timeout propio apropiado para backfills.
+- Microsoft: permitir en la infraestructura HTTPS a `bingadsappsstorageprod.blob.core.windows.net`.
+  `microsoft:red` confirma `proxy_denied`; el borrador de red sin restricciones no levanta ese bloqueo.
 - Despliegue (Cloud Run) con sus secretos.
 
 **Código**
@@ -464,8 +533,8 @@ y esta rama conserva esas correcciones.
   opcional, sin confundir la ventana de cambios con el periodo del reporte; falta comprobarlo
   con la app aprobada. El polling espaciado de Claude se conserva.
 - Salud de entrega de TikTok cuando haya un vocabulario oficial de `secondary_status` verificable.
-- Primera lectura real de `/budgets` y `/delivery-health` en Meta, Google y Microsoft para confirmar
-  campos y seleccionabilidad (los contratos están confirmados con fuentes oficiales, no con datos reales).
+- Primera lectura real de `/budgets` y `/delivery-health` en Meta y Google para confirmar campos y
+  seleccionabilidad; Microsoft ya devolvió 11 presupuestos y dos señales, falta conciliarlos.
 - Presupuestos de Spotify y X cuando haya acceso (sus APIs los exponen en ad sets y line items).
 - X: OAuth multiusuario y conversiones móviles, si se requieren; primera lectura real y conciliación pendientes.
 - TikTok v2.0, si se decide migrar; el intercambio OAuth v1.3 ya existe.
@@ -482,7 +551,8 @@ y esta rama conserva esas correcciones.
 2. Decidir y configurar las acciones principales y los mapeos de conversiones.
 3. Microsoft desde un entorno con salida al almacenamiento de informes; conciliar un día por hora
    (cierra el riesgo de UTC).
-4. Spotify cuando se habilite: cuentas, campañas y un informe de dos días (confirma también la conciliación del final inclusivo documentado).
+4. Spotify: resolver el permiso de una cuenta USD, ampliar la muestra a dos días y conciliar
+   gasto, conversiones y final inclusivo documentado. El acceso global y la muestra diaria ya funcionan.
 5. TikTok: conciliar los 12 totales cuenta/día, comprobar la ausencia de filas de izzi ABCW US y
    la zona de visualización de Sky Sports; verificar unidades de compra con una muestra no nula.
 6. Despliegue con secretos y `TOKEN_STORE_FILE`; después n8n, BigQuery y alertas.

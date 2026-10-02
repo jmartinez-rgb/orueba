@@ -250,7 +250,9 @@ export async function verifyProviders(
         });
       let date: string;
       try {
-        date = options.date ?? yesterdayInZone(now, account.timezone);
+        // These providers document UTC report days, independently of their account metadata timezone.
+        const zone = ["spotify", "microsoft"].includes(provider.slug) ? "UTC" : account.timezone;
+        date = options.date ?? yesterdayInZone(now, zone);
       } catch (error) {
         out.operations.push({
           provider: provider.slug,

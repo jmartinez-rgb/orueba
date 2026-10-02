@@ -27,7 +27,9 @@ npm run verificar
 
 Comprueba las seis plataformas, registra las no configuradas sin llamarlas y, para las que tienen
 acceso, obtiene cuentas, campañas, presupuestos y salud de entrega si están implementados, y
-rendimiento diario de ayer **según la zona de cada cuenta**. Presupuestos y salud son el estado
+rendimiento diario de ayer **según la zona de reporting**: UTC para Spotify y Microsoft, zona
+informada por la cuenta para las demás. La zona comercial no se inventa ni se confunde con la
+zona contractual del informe. Presupuestos y salud son el estado
 actual, no una reconstrucción de ayer. No consulta cuentas administradoras como cuentas de gasto.
 Una zona desconocida bloquea el cálculo de ayer; `--fecha` permite pedir un día explícito.
 
@@ -149,8 +151,9 @@ con un aviso. Autenticación, límites de tasa, timeout y cancelación se propag
 de respaldo. Un filtro explícito de campañas conserva su alcance original.
 
 `verificar` desactiva esa ventana en su copia de configuración para que la primera lectura sea
-completa. La aprobación de la app de X sigue pendiente: fixtures verifican el código, no el acceso
-real ni el contrato de una descarga asíncrona en producción.
+completa. El usuario comunicó la aprobación de la app de X, pero la última prueba responde 401 de
+autorización tras cambiar permisos y par de usuario: ver [X_ADS.md](X_ADS.md). Fixtures verifican el código, no el acceso real
+ni el contrato de una descarga asíncrona en producción.
 
 ## Validación y pendientes
 

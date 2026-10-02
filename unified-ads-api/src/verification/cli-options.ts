@@ -34,7 +34,7 @@ export function verificationArgs(argv: string[]) {
         throw new Error("Límite de cuentas inválido (1–1000).");
       out.maxAccounts = Number(value);
     } else if (arg === "--cuentas") {
-      const match = /^([a-z]+):([A-Za-z0-9_,]+)$/.exec(value);
+      const match = /^([a-z]+):([A-Za-z0-9_,-]+)$/.exec(value);
       if (!match || !PROVIDER_SLUGS.includes(match[1] as ProviderSlug))
         throw new Error("Usa --cuentas plataforma:ID,ID.");
       const provider = match[1]!,

@@ -20,6 +20,7 @@
     "test:watch": "vitest",
     "google:auth": "tsx scripts/google-auth.ts",
     "microsoft:auth": "tsx scripts/microsoft-auth.ts",
+    "microsoft:red": "tsx scripts/microsoft-network.ts",
     "spotify:auth": "tsx scripts/spotify-auth.ts",
     "tiktok:auth": "tsx scripts/tiktok-auth.ts",
     "meta:exclusiones": "tsx scripts/meta-exclusions.ts",

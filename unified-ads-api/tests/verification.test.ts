@@ -91,6 +91,21 @@ describe("verificar: cobertura real, privacidad y límites", () => {
     expect(() => yesterdayInZone(now, null)).toThrow();
     expect(() => yesterdayInZone(now, "Invalid/Zone")).toThrow();
   });
+  it.each(["spotify", "microsoft"] as const)(
+    "%s uses its documented UTC report day even with missing or vendor-specific account timezone",
+    async (slug) => {
+      const p = { ...provider(), slug, id: slug === "spotify" ? Provider.SPOTIFY : Provider.MICROSOFT };
+      p.listAccounts = async () => [
+        { ...account, platform: slug, timezone: slug === "spotify" ? null : "GuadalajaraMexicoCityMonterrey" },
+      ];
+      p.getPerformance = vi.fn(async (q) => [
+        { ...performance, platform: slug, date: q.date_from, source_timezone: "UTC" },
+      ]);
+      const read = await verifyProviders([p], { now });
+      expect(read.performance[0]).toMatchObject({ platform: slug, date: "2026-09-30", source_timezone: "UTC" });
+      expect(read.operations.find((r) => r.section === "performance")?.state).toBe("ok");
+    },
+  );
   it("hace lecturas acotadas por cuenta y distingue funciones no disponibles", async () => {
     const p = provider(),
       read = await verifyProviders([p], { now });
@@ -242,6 +257,10 @@ describe("verificar: cobertura real, privacidad y límites", () => {
     ).toMatchObject({ providers: ["tiktok", "meta"], accounts: { meta: ["111", "222"] } });
     expect(() => verificationArgs(["--salida", ".env"])).toThrow();
     expect(() => verificationArgs(["--proveedores", "unknown"])).toThrow();
+    expect(
+      verificationArgs(["--proveedores", "spotify", "--cuentas", "spotify:f154306e-82ce-4c8b-a772-09140c1a24c6"])
+        .accounts.spotify,
+    ).toEqual(["f154306e-82ce-4c8b-a772-09140c1a24c6"]);
   });
 });
 

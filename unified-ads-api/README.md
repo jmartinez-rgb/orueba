@@ -13,15 +13,15 @@ La continuación `codex/finalizacion-verificador-meta-x` parte de la auditoría 
 incremental opcional de X con respaldo. Consulta [la guía de verificación](docs/VERIFICACION.md).
 La conciliación y los permisos externos siguen pendientes; no se declara listo para producción.
 
-| Fase | Contenido                                | Estado                                                                                                |
-| ---- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| 1    | Infraestructura base (sin integraciones) | **Lista**                                                                                             |
-| 2    | Google Ads                               | **Implementada y verificada con Google real y simulador**                                             |
-| 3    | Meta Marketing API                       | **Implementada y verificada con Meta real y simulador**                                               |
-| 4    | TikTok Ads                               | **OAuth y lectura real de cuatro cuentas verificados; conciliación pendiente**                        |
-| 5    | Microsoft Advertising                    | **Autorización y campañas reales verificadas; descarga de informes bloqueada por el proxy**           |
-| 6    | Spotify Ads                              | **OAuth real validado; Ads API aún responde 403 (`ACCESS_REQUIRED`) tras aceptar términos**           |
-| 7    | X Ads                                    | **API 12 y fixtures listos; credenciales aplicadas, Ads API bloqueada por habilitación de app (403)** |
+| Fase | Contenido                                | Estado                                                                                               |
+| ---- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 1    | Infraestructura base (sin integraciones) | **Lista**                                                                                            |
+| 2    | Google Ads                               | **Implementada y verificada con Google real y simulador**                                            |
+| 3    | Meta Marketing API                       | **Implementada y verificada con Meta real y simulador**                                              |
+| 4    | TikTok Ads                               | **OAuth y lectura real de cuatro cuentas verificados; conciliación pendiente**                       |
+| 5    | Microsoft Advertising                    | **Autorización y campañas reales verificadas; descarga de informes bloqueada por el proxy**          |
+| 6    | Spotify Ads                              | **6 cuentas, 14 campañas y muestra diaria reales; 1 cuenta USD sin permiso; conciliación pendiente** |
+| 7    | X Ads                                    | **API 12 y fixtures listos; aprobación y Read and Write comunicados; última consulta 401 de OAuth**  |
 
 La Fase 1 ya incluye piezas que las integraciones van a usar: fórmulas normalizadas (CTR, CPC, CPM,
 CPA sin NaN ni Infinity), reintentos con espera exponencial y variación (respetan `Retry-After`),
@@ -220,6 +220,11 @@ rechaza con HTTP 403 la descarga desde `bingadsappsstorageprod.blob.core.windows
 API sí genera el informe. Los datos de los ZIP/CSV reales siguen sin validarse; el simulador cubre
 su lectura y normalización.
 
+`npm run microsoft:red` comprueba el transporte al host fijo sin credenciales ni URL firmadas.
+El resultado actual es `proxy_denied`: requiere habilitar el host en la infraestructura; renovar
+OAuth o cambiar un borrador de red ya sin restricciones no resuelve el rechazo. La lectura real
+también devolvió 11 presupuestos vigentes y dos señales de entrega, sin descarga CSV validada.
+
 ## Spotify Ads (Fase 6)
 
 Consulta negocios, cuentas, campañas e informes agregados de **Spotify Ads API v3** en los endpoints
@@ -232,10 +237,12 @@ en bloques de 90 días; los horarios solo admiten las últimas dos semanas. El C
 explícitamente un evento principal. Los cuartiles incluyen audio y video, y los ingresos combinan
 compras y leads: se conservan en `raw_metrics` sin atribuirlos a métricas incompatibles.
 
-Las pruebas usan un simulador que nunca llama a Spotify. OAuth real ya se completó y su refresh
-token está guardado de forma privada. El usuario confirmó haber aceptado los términos, pero la última
-consulta seguía devolviendo HTTP 403 (`ACCESS_REQUIRED`); la habilitación puede tardar. La lectura
-de cuentas, campañas e informes sigue sin validarse con datos reales.
+Las pruebas usan un simulador que nunca llama a Spotify. La lectura real comprobó seis cuentas,
+14 campañas legibles y tres filas diarias para 2026-09-29: 983.084134 MXN, 18.465 impresiones y
+225 clics. Una cuenta USD conserva `ACCESS_DENIED` en campañas/informes; falta conciliar la muestra.
+DAY/HOUR piden IDs explícitos en lotes de 50. Conteos ocultos `-5` y el `REVENUE=-5` observado
+permanecen desconocidos sin perder gasto válido; no se decide el evento principal ni se calcula
+CPA sin él. OAuth puede rotar: su token se conserva mediante los comandos y `TOKEN_STORE_FILE`.
 La fase incluye lecturas;
 los cambios de campañas y los informes asíncronos CSV quedan fuera de su alcance.
 

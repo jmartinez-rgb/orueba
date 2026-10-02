@@ -3,9 +3,10 @@
 Integración de lectura con **Ads API v3**, verificada contra su contrato oficial el 1 de octubre
 de 2026. Usa `https://api-partner.spotify.com/ads/v3`, independiente de la API de música de Spotify.
 La autorización OAuth real se completó y su refresh token está guardado de forma privada.
-El usuario confirmó haber aceptado los términos de Ads API, pero la última consulta seguía
-respondiendo HTTP 403 (`ACCESS_REQUIRED`); aún no se verificaron lecturas reales de cuentas,
-campañas ni informes. `normalized_conversion` usa el vocabulario común en mayúsculas (`LEAD`,
+La lectura del 1–2 de octubre de 2026 comprobó **seis cuentas, 14 campañas accesibles y tres
+filas diarias reales** del 29 de septiembre. Una cuenta USD conserva `ACCESS_DENIED` al leer
+campañas e informes; no se confunde esa denegación con habilitación global de Ads API.
+Falta conciliar contra Ads Manager. `normalized_conversion` usa el vocabulario común en mayúsculas (`LEAD`,
 `PURCHASE`, `REGISTRATION`, `PAGE_VIEW`, `ADD_TO_CART`, `BEGIN_CHECKOUT`, `VIEW_CONTENT`). Spotify
 puede rotar el refresh token: configura `TOKEN_STORE_FILE` para conservarlo. Las pruebas locales usan respuestas simuladas y nunca hacen
 peticiones a Spotify.
@@ -107,6 +108,10 @@ campaña son UUIDs; `client_id` es la asociación interna configurada. Ejemplo d
 
 Las campañas se paginan con `offset` y `limit=50`, ordenadas por ID. Los informes solicitan
 `entity_type=CAMPAIGN`, campos repetidos `fields`, granularidad `DAY` o `HOUR` y fechas UTC.
+DAY/HOUR requieren `entity_ids` explícitos. La consulta sin una campaña seleccionada descubre
+el catálogo y solicita lotes de hasta **50 IDs**, validando cada respuesta contra su lote.
+Una cuenta sin campañas devuelve vacío sin enviar un informe sin alcance; un catálogo que falla
+no se interpreta como vacío.
 Después de recibir `continuation_token`, la siguiente petición lleva **solo ese token**.
 Se rechazan continuaciones, campañas o periodos repetidos, totales inconsistentes, dimensiones
 incorrectas, valores no numéricos y respuestas que exceden los límites establecidos.
@@ -133,6 +138,13 @@ se inventa: `timezone=null`; los informes identifican `source_timezone="UTC"`.
 - `REVENUE` combina ingresos atribuidos a compras y leads. Se conserva en `raw_metrics`, se
   emite `revenue_not_split_by_event` y `conversion_value` queda `null`. No se duplica ese importe
   entre eventos ni se atribuye automáticamente al principal.
+- Spotify documenta el sentinel `-5` para conteos de conversiones entre 1 y 4: se conservan como
+  desconocidos, con `censored_conversion_fields` y `privacy_suppression_source_value`, sin
+  sustituirlos por cero, cinco o el punto medio. Si afecta al evento principal, CPA permanece `null`.
+  La muestra real también devolvió `REVENUE=-5`; ese importe se guarda como desconocido con
+  `unavailable_revenue_source_value` y aviso `revenue_unavailable`. No se atribuye a ese importe
+  el intervalo documentado para conteos. Otros negativos incompatibles, incluido gasto negativo,
+  siguen produciendo error.
 - La respuesta normalizada de cuentas excluye datos de facturación, impuestos y otros metadatos
   que no forman parte del modelo unificado.
 
@@ -173,9 +185,19 @@ tokens no demuestra acceso a Ads API.
 
 ## Confirmación del final inclusivo (1 de octubre de 2026)
 
-La [referencia oficial v3 de Aggregate Report](https://developer.spotify.com/documentation/ads-api/reference/v3/getAggregateReport)
+La [referencia oficial v3 de Aggregate Report](https://developer.spotify.com/documentation/ads-api/reference/v3.0/getAggregateReport)
 indica en `report_end` que DAY/LIFETIME incluyen **el día completo** de la fecha final;
 HOUR incluye la hora final. Se mantiene `T00:00:00Z` del último día en reportes diarios,
 y `T23:00:00Z` en horarios. La prueba de bloques de 90 días en
 `tests/continuation-risks.test.ts` verifica sus límites sin solapamiento.
-Esto cierra la duda contractual; la conciliación real sigue bloqueada por `ACCESS_REQUIRED`.
+Esto cierra la duda contractual; la conciliación con Ads Manager sigue pendiente.
+
+## Muestra real y alcance (1–2 de octubre de 2026)
+
+`npm run verificar -- --proveedores spotify --fecha 2026-09-29` encontró seis cuentas (dos USD,
+cuatro MXN), 14 campañas legibles y tres filas de rendimiento en una cuenta MXN: **983.084134 MXN,
+18.465 impresiones y 225 clics**, periodo UTC. Otras cuentas accesibles no devolvieron filas para
+ese día. La cuenta USD `4bf9f073-8f04-4d76-8074-970f364c3e52` requiere revisar permisos del usuario
+en Ads Manager para campañas e informes. Descubrirla no demuestra permiso sobre esas operaciones.
+Salida 2 por cobertura parcial y valores desconocidos; Excel privado 0600 fuera de Git.
+No se eligió evento principal ni se validó gasto, atribución o conversión contra la interfaz.

@@ -21,6 +21,14 @@ export function xError(status: number, body: unknown, headers = new Headers(), n
   if (status === 429 || codes.includes("TOO_MANY_REQUESTS"))
     return new ApiError("RATE_LIMITED", "X Ads alcanzó su límite de solicitudes.", { retryAfter: hinted, details });
   if (status === 401) return new ApiError("AUTH_ERROR", "X Ads rechazó la autorización OAuth.", { details });
+  if (codes.includes("INSUFFICIENT_USER_AUTHORIZED_PERMISSION"))
+    return new ApiError(
+      "ACCESS_DENIED",
+      "X Ads rechazó los permisos del token. Revisa Read and Write y el acceso de la identidad a la cuenta; regenera el par OAuth después de guardar permisos.",
+      {
+        details: { ...details, limitation: "user_authorization" },
+      },
+    );
   if (codes.includes("READONLY_CLIENT_APPLICATION") || codes.includes("UNAUTHORIZED_CLIENT_APPLICATION"))
     return new ApiError("ACCESS_REQUIRED", "X Ads requiere habilitación o permisos adicionales de la aplicación.", {
       details,

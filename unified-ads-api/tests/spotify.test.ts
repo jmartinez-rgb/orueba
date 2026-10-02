@@ -281,6 +281,91 @@ describe("Spotify accounts and campaigns", () => {
 });
 
 describe("Spotify aggregate reports and conversion semantics", () => {
+  it("requests explicit campaign IDs in batches of at most 50 for DAY reports", async () => {
+    const { provider, sim } = setup();
+    const ids = Array.from({ length: 51 }, (_, i) => `00000000-0000-4000-8000-${String(i + 100).padStart(12, "0")}`);
+    sim.handler = (url) => {
+      if (url.pathname.endsWith("/campaigns")) {
+        const offset = Number(url.searchParams.get("offset"));
+        return json({
+          campaigns: ids.slice(offset, offset + 50).map((id) => ({ ...sim.campaign, id })),
+          paging: { offset, total_results: ids.length },
+        });
+      }
+      if (url.pathname.endsWith("/aggregate_reports")) {
+        const body = sim.report();
+        body.rows[0]!.entity_id = url.searchParams.getAll("entity_ids")[0]!;
+        return json(body);
+      }
+      return undefined;
+    };
+    expect(await provider.getPerformance(query)).toHaveLength(2);
+    expect(reportCalls(sim).map((c) => c.params.getAll("entity_ids").length)).toEqual([50, 1]);
+    expect(reportCalls(sim).every((c) => c.params.get("entity_ids_type") === "CAMPAIGN")).toBe(true);
+    expect(reportCalls(sim).flatMap((c) => c.params.getAll("entity_ids"))).toEqual(ids);
+  });
+  it("an empty campaign catalog remains empty and does not request an unscoped report", async () => {
+    const { provider, sim } = setup();
+    sim.handler = (u) =>
+      u.pathname.endsWith("/campaigns") ? json({ campaigns: [], paging: { offset: 0, total_results: 0 } }) : undefined;
+    expect(await provider.getPerformance(query)).toEqual([]);
+    expect(reportCalls(sim)).toHaveLength(0);
+  });
+  it("rejects an entity outside the requested batch even if its ID is a valid UUID", async () => {
+    const { provider, sim } = setup();
+    sim.handler = (u) => {
+      if (!u.pathname.endsWith("/aggregate_reports")) return undefined;
+      const body = sim.report();
+      body.rows[0]!.entity_id = SECOND;
+      return json(body);
+    };
+    await expect(provider.getPerformance(query)).rejects.toMatchObject({ code: "PROVIDER_ERROR" });
+  });
+  it("privacy-suppressed -5 conversion counts remain unknown, preserve the marker and do not produce CPA", async () => {
+    const { provider, sim } = setup({ SPOTIFY_ADS_PRIMARY_CONVERSION_METRIC: "PURCHASES" });
+    const warnings: ApiError[] = [];
+    sim.handler = (u) =>
+      u.pathname.endsWith("/aggregate_reports") ? json(sim.report("DAY", "2026-09-29", { PURCHASES: -5 })) : undefined;
+    const rows = await provider.getPerformance(query, { onWarning: (e) => warnings.push(e) });
+    expect(rows[0]).toMatchObject({
+      conversions: null,
+      cpa: null,
+      raw_metrics: { PURCHASES: null, censored_conversion_fields: ["PURCHASES"], privacy_suppression_source_value: -5 },
+    });
+    expect(warnings.map((e) => e.details)).toContainEqual(
+      expect.objectContaining({ limitation: "privacy_suppressed_conversions" }),
+    );
+    const conversions = await provider.getConversions(query);
+    expect(conversions.find((r) => r.source_conversion === "PURCHASES")).toMatchObject({
+      conversions: null,
+      raw_metrics: { privacy_suppression_source_value: -5 },
+    });
+  });
+  it("negative non-conversion metrics are still rejected", async () => {
+    const { provider, sim } = setup();
+    sim.handler = (u) =>
+      u.pathname.endsWith("/aggregate_reports") ? json(sim.report("DAY", "2026-09-29", { SPEND: -5 })) : undefined;
+    await expect(provider.getPerformance(query)).rejects.toMatchObject({ code: "PROVIDER_ERROR" });
+  });
+  it("real unavailable REVENUE=-5 preserves usable spend without inventing income or a primary event", async () => {
+    const { provider, sim } = setup();
+    const warnings: ApiError[] = [];
+    sim.handler = (u) =>
+      u.pathname.endsWith("/aggregate_reports") ? json(sim.report("DAY", "2026-09-29", { REVENUE: -5 })) : undefined;
+    const rows = await provider.getPerformance(query, { onWarning: (e) => warnings.push(e) });
+    expect(rows[0]?.spend).toBeGreaterThan(0);
+    expect(rows[0]).toMatchObject({
+      conversion_value: null,
+      conversions: null,
+      cpa: null,
+      raw_metrics: { REVENUE: null, unavailable_revenue_source_value: -5, censored_conversion_fields: [] },
+    });
+    expect(warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ details: expect.objectContaining({ limitation: "revenue_unavailable" }) }),
+      ]),
+    );
+  });
   it("uses native currency units, UTC, current campaign dimension and source metrics", async () => {
     const { provider, sim } = setup({ SPOTIFY_ADS_PRIMARY_CONVERSION_METRIC: "PURCHASES" });
     const rows = await provider.getPerformance(query);
@@ -365,6 +450,11 @@ describe("Spotify aggregate reports and conversion semantics", () => {
     const { provider, sim } = setup();
     let page = 0;
     sim.handler = (u) => {
+      if (u.pathname.endsWith("/campaigns"))
+        return json({
+          campaigns: [sim.campaign, { ...sim.campaign, id: SECOND }],
+          paging: { offset: 0, total_results: 2 },
+        });
       if (!u.pathname.endsWith("aggregate_reports")) return;
       const body = sim.report();
       if (page++ === 0) return json({ ...body, continuation_token: "opaque/+=token" });

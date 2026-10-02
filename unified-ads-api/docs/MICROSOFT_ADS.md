@@ -61,6 +61,29 @@ token mediante su configuración privada. Si `MICROSOFT_ADS_REFRESH_TOKEN` ya ti
 proceso, este prevalece sobre `.env`; no mantengas una variable vacía/antigua que oculte el token nuevo.
 Guardar el borrador del entorno no aplica sus variables ni reinicia el proceso.
 
+## Comprobar el bloqueo de informes
+
+```bash
+npm run microsoft:red
+```
+
+Consulta únicamente DNS y HEAD HTTPS al host fijo
+`bingadsappsstorageprod.blob.core.windows.net`, respetando TLS y el proxy. No requiere secretos,
+genera trabajos ni registra URL firmadas. Distingue rechazo de proxy, DNS, TLS, timeout y fallo
+de conexión. Un HTTP completado en la raíz prueba transporte, incluso si responde 403/404;
+no valida permiso de descarga ni contenido del CSV. Salida 0: alcanzable; 2: bloqueo; 1: fallo de opciones.
+
+La comprobación del 1–2 de octubre de 2026 produjo `proxy_denied`. El borrador del entorno ya
+tiene red sin restricciones; el proxy de infraestructura rechaza CONNECT a ese host. Cambiar
+el borrador o renovar OAuth no corrige ese rechazo. Debe habilitarse **ese host fijo** en la
+infraestructura, o ejecutar la API en un entorno autorizado que permita la salida; no se elude
+el proxy ni se desactiva TLS. Después ejecutar una lectura acotada y conciliar el CSV con la interfaz.
+
+La autorización, cuatro cuentas y 43 campañas siguen comprobadas; la lectura añadió **11 filas
+de presupuestos actuales y dos señales de entrega**. Tres cuentas devolvieron informes vacíos
+válidos para 2026-09-30; la cuenta con actividad sigue bloqueada al descargar el ZIP. Una conexión
+`connected` solo prueba discovery: no demuestra disponibilidad de métricas.
+
 ## Variables
 
 | Variable                                  | Uso                                                                          |

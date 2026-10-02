@@ -80,6 +80,15 @@ describe("X OAuth and configuration", () => {
   });
 });
 describe("X safe HTTP and rate limits", () => {
+  it("explains the post-approval user token renewal without exposing vendor messages", () => {
+    const error = xError(403, {
+      errors: [{ code: "INSUFFICIENT_USER_AUTHORIZED_PERMISSION", message: "PRIVATE_VENDOR_MESSAGE" }],
+    });
+    expect(error).toMatchObject({ code: "ACCESS_DENIED", details: { limitation: "user_authorization" } });
+    expect(error.message).toContain("permisos");
+    expect(error.message).toContain("Read and Write");
+    expect(JSON.stringify(error)).not.toContain("PRIVATE_VENDOR_MESSAGE");
+  });
   it("interprets reset headers as epoch seconds with account precedence", () => {
     expect(
       xError(429, {}, new Headers({ "x-rate-limit-reset": "110", "x-account-rate-limit-reset": "115" }), 100000)

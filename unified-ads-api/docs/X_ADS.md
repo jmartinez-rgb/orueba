@@ -87,7 +87,10 @@ habilitación de Ads API, como se detalla abajo. Una app marcada `active` no dem
    y Campaign Management. El nivel Conversion Only cubre envío de conversiones y no habilita
    nuestro contrato de cuentas/campañas/reportes. La aprobación de Ads API es adicional al registro
    de desarrollador y a la creación de la app; no se presume aprobada por disponer de API keys.
-4. Tras la aprobación, la guía exige **regenerar los tokens de usuario emitidos antes de aprobarse
+4. Revisa los permisos OAuth 1.0a de la app y guarda **Read and Write** para este acceso a Ads API.
+   No selecciones permisos de mensajes privados. Un cambio de permisos exige reautorizar:
+   [configuración oficial de aplicaciones](https://docs.x.com/resources/fundamentals/developer-apps).
+   Tras la aprobación, la guía exige **regenerar los tokens de usuario emitidos antes de aprobarse
    Ads API**. En una app nueva destinada a este proyecto, genera ese par después de la aprobación;
    no regeneres credenciales de una app compartida con otras integraciones sin coordinarlo.
 5. Guarda API Key, API Key Secret, Access Token y Access Token Secret en las cuatro variables
@@ -96,9 +99,9 @@ habilitación de Ads API, como se detalla abajo. Una app marcada `active` no dem
 
 Una vez guardadas y aplicadas las variables, verificar primero `GET /api/v1/providers/x/status`
 y `GET /api/v1/accounts?provider=x`; después campañas y un rango diario de tres días por cuenta.
-La primera lectura permanece bloqueada por **habilitación de la app**, con credenciales ya
-aplicadas. No se solicita volver a cargar los cuatro valores ni se repite la consulta denegada
-sin un cambio de permisos o de configuración que justifique el intento.
+El estado histórico de habilitación de la app se conserva abajo. En la consulta posterior a la
+aprobación comunicada por el usuario, el bloqueo cambió a **permisos del token**. No se repite
+una consulta denegada sin un cambio de permisos o de configuración que justifique el intento.
 
 ## Informes y semántica
 
@@ -172,6 +175,22 @@ del entorno se mantienen. No se registran cabeceras, tokens, respuestas OAuth, m
 de errores ni URLs de descarga.
 
 ## Validación y pendientes
+
+### Actualización tras la aprobación comunicada (1–2 de octubre de 2026)
+
+El usuario confirmó el correo de aprobación y la regeneración del par OAuth. La nueva petición
+`GET /12/accounts` respondió HTTP 403 **`INSUFFICIENT_USER_AUTHORIZED_PERMISSION`**:
+`ACCESS_DENIED`, estado `permission_denied`, limitación `user_authorization`. No se obtuvieron
+cuentas ni métricas; no se afirma autenticación completa o acceso Standard solo por el correo.
+El usuario confirmó después que la app estaba en **Read**. Después confirmó Read and Write y
+actualización solo de Access Token y Access Token Secret. La consulta posterior devolvió **HTTP 401
+`UNAUTHORIZED_ACCESS`**: `AUTH_ERROR`, estado `error`. Las cuatro variables llegaron al proceso,
+sin duplicados, comillas o caracteres de copia detectados y sin valores X en `.env`. No se afirma
+que correspondan al nuevo par guardado en el panel: tras regenerar, el anterior queda invalidado.
+Aplicar configuración/reiniciar y revisar que el par pertenezca al mismo diálogo y app; conservar
+Consumer Key/Secret de esa app. La identidad debe tener acceso a todas las cuentas
+solicitadas. Si persiste el rechazo, revisar identidad, roles y que la aprobación sea Standard
+Access (Analytics + Campaign Management). El proveedor sigue usando operaciones de lectura.
 
 Pruebas con fixtures y transporte inyectado, con `fetch` global bloqueado por `tests/setup.ts`.
 Incluyen RFC OAuth, estados compartidos, moneda, fechas no UTC, medianoche, ubicaciones, CPA,

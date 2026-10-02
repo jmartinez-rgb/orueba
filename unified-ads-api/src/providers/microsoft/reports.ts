@@ -6,6 +6,7 @@ import type { NormalizedAccount, PerformanceQuery } from "../../types/normalized
 import { ApiError } from "../../utils/errors.js";
 import { microsoftId, object } from "./config.js";
 import { responseBytes, type MicrosoftClient } from "./client.js";
+import { microsoftNetworkReason } from "./network.js";
 
 export const PERFORMANCE_COLUMNS = [
   "TimePeriod",
@@ -91,7 +92,9 @@ export async function safeDownloadUrl(
   try {
     addresses = await resolve(url.hostname);
   } catch {
-    throw new ApiError("PROVIDER_ERROR", "No se pudo resolver el servidor de informes de Microsoft.");
+    throw new ApiError("PROVIDER_ERROR", "No se pudo resolver el servidor de informes de Microsoft.", {
+      details: { provider: "microsoft", limitation: "report_download_dns" },
+    });
   }
   if (
     !addresses.length ||
@@ -213,15 +216,25 @@ export async function microsoftReport(
     try {
       // Fixed trusted Microsoft host; preserve the configured proxy and TLS verification.
       response = await client.request(url, { method: "GET", signal, redirect: "error" });
-    } catch {
+    } catch (error) {
       throw new ApiError(
         signal.aborted ? "PROVIDER_TIMEOUT" : "PROVIDER_ERROR",
-        "No se pudo descargar el informe de Microsoft.",
+        "No se pudo descargar el informe de Microsoft; comprueba la salida de red al servidor de informes con npm run microsoft:red.",
+        {
+          details: {
+            provider: "microsoft",
+            limitation: "report_download_network",
+            report_host: MICROSOFT_REPORT_HOST,
+            network_reason: microsoftNetworkReason(error, signal),
+          },
+        },
       );
     }
     if (!response.ok) {
       await response.body?.cancel();
-      throw new ApiError("PROVIDER_ERROR", "Microsoft no permitió descargar el informe.");
+      throw new ApiError("PROVIDER_ERROR", "Microsoft no permitió descargar el informe.", {
+        details: { provider: "microsoft", limitation: "report_download_rejected", http_status: response.status },
+      });
     }
     const data = parseReport(await responseBytes(response, 10 * 1024 * 1024, signal), request.Columns);
     if (!client.config.completeData)

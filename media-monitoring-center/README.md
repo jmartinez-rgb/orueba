@@ -25,6 +25,11 @@ Plataformas → Dataslayer (cada 2 h) → Google Sheets ─┐
 **Instalación paso a paso:** [docs/INSTALACION.md](docs/INSTALACION.md) (hoja de Dataslayer,
 cuenta de servicio, computadora, Netlify).
 
+**Preparación de v1:** [docs/V1.md](docs/V1.md), con configuración, conexiones comprobadas y
+aceptación pendiente. `npm run v1:check` distingue una demo funcional de configuración real y
+consulta los estados de las seis plataformas sin imprimir valores privados. La API unificada
+aporta estado, presupuestos y entrega; el motor aún obtiene métricas de Sheets/BigQuery/mock.
+
 ## Arranque rápido
 
 Requisitos: Node.js 22+.
@@ -75,6 +80,7 @@ gastar** (datos al día, gasto en cero las últimas 3 horas).
 | `npm run lint` | ESLint (config de Next.js) |
 | `npm test` | Pruebas de motores (comparación, anomalías, incidentes, pacing, data health, BigQuery, escenarios), acceso, clasificadores, monedas, confianza y mensaje de monitoreo |
 | `npm run check` | typecheck + lint + tests |
+| `npm run v1:check` | Configuración de producción y estados de API; `-- --sin-red` evita red. No certifica conciliación ni publica |
 | `npm run auth:setup` | Genera contraseñas nuevas, sus hashes y `AUTH_SECRET` (`-- --write` los guarda en `.env.local`) |
 | `npm run auth:hash -- "contraseña"` | Hash scrypt de una contraseña elegida |
 | `npm run sheets:setup -- "URL de la hoja"` | Conecta la hoja de Dataslayer: busca la llave JSON en Descargas/Escritorio, la prueba contra Google (se salta las borradas), guarda en `.env.local` el ID y la cuenta de servicio (no muestra la llave) y revisa la hoja |

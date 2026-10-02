@@ -72,6 +72,16 @@ export function reportMetrics(row: Record<string, unknown>) {
     )
       throw new ApiError("PROVIDER_ERROR", "Spotify devolvió métricas inválidas o repetidas.");
     const value = stat.field_value;
+    // Ads v3 documents -5 for suppressed conversion counts (actual count 1–4).
+    // A real response also returned REVENUE=-5: preserve it as unavailable, never negative revenue
+    // or a guessed conversion count. Other negative metrics remain invalid.
+    if (
+      value === -5 &&
+      ((CONVERSION_FIELDS as readonly string[]).includes(stat.field_type) || stat.field_type === "REVENUE")
+    ) {
+      out[stat.field_type] = null;
+      continue;
+    }
     if (
       value !== null &&
       (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > Number.MAX_SAFE_INTEGER)
@@ -80,6 +90,24 @@ export function reportMetrics(row: Record<string, unknown>) {
     out[stat.field_type] = value as number | null;
   }
   return out;
+}
+export function censoredConversionFields(row: Record<string, unknown>): string[] {
+  return Array.isArray(row.stats)
+    ? row.stats.flatMap((stat) =>
+        object(stat) &&
+        stat.field_value === -5 &&
+        typeof stat.field_type === "string" &&
+        (CONVERSION_FIELDS as readonly string[]).includes(stat.field_type)
+          ? [stat.field_type]
+          : [],
+      )
+    : [];
+}
+export function unavailableRevenue(row: Record<string, unknown>): boolean {
+  return (
+    Array.isArray(row.stats) &&
+    row.stats.some((stat) => object(stat) && stat.field_type === "REVENUE" && stat.field_value === -5)
+  );
 }
 export function normalizePerformance(
   row: Record<string, unknown>,
@@ -95,6 +123,7 @@ export function normalizePerformance(
     impressions = metrics.IMPRESSIONS ?? null,
     clicks = metrics.CLICKS ?? null;
   const conversions = primary ? (metrics[primary] ?? null) : null;
+  const censored = censoredConversionFields(row);
   return {
     platform: "spotify",
     client_id: account.client_id,
@@ -125,7 +154,14 @@ export function normalizePerformance(
     video_100: null,
     source_timezone: "UTC",
     extracted_at: at,
-    raw_metrics: { ...metrics, primary_conversion_metric: primary, source_timezone: "UTC" },
+    raw_metrics: {
+      ...metrics,
+      primary_conversion_metric: primary,
+      source_timezone: "UTC",
+      censored_conversion_fields: censored,
+      privacy_suppression_source_value: censored.length ? -5 : null,
+      unavailable_revenue_source_value: unavailableRevenue(row) ? -5 : null,
+    },
   };
 }
 // Mismo vocabulario en mayúsculas que las demás plataformas (normalization/conversions.ts).
@@ -159,6 +195,14 @@ export function normalizeConversions(
     conversions: metrics[field] ?? null,
     conversion_value: null,
     extracted_at: at,
-    raw_metrics: { ...metrics, source_timezone: "UTC", currency: account.currency, count_metric: field },
+    raw_metrics: {
+      ...metrics,
+      source_timezone: "UTC",
+      currency: account.currency,
+      count_metric: field,
+      censored_conversion_fields: censoredConversionFields(row),
+      privacy_suppression_source_value: censoredConversionFields(row).includes(field) ? -5 : null,
+      unavailable_revenue_source_value: unavailableRevenue(row) ? -5 : null,
+    },
   }));
 }
