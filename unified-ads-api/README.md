@@ -1,5 +1,10 @@
 # Unified Ads API
 
+**Entrega vigente para Claude:** [guía completa](../media-monitoring-center/docs/ENTREGA_CLAUDE_V1.md)
+y [texto listo para pegar](../media-monitoring-center/docs/PROMPT_PARA_CLAUDE.md).
+Los informes anteriores conservan sus fechas; los conteos y bloqueos históricos no sustituyen
+el estado actual. Extracción y aceptación de cifras de esta ronda: **solo izzi**.
+
 API intermedia entre las plataformas publicitarias (Google Ads, Meta, TikTok, Microsoft Advertising,
 Spotify y X) y los sistemas internos (n8n, BigQuery, dashboard, alertas y WhatsApp). Cada plataforma
 se traduce a un **modelo normalizado** y el resto de los sistemas nunca necesita conocer cómo funciona
@@ -11,7 +16,8 @@ La continuación `codex/finalizacion-verificador-meta-x` parte de la auditoría 
 `c79b17f`. Añade `npm run verificar` (Excel de lectura real), `npm run meta:acciones`
 (inventario separado por CAPI WhatsApp y resto), reglas de Meta por campaña y selección
 incremental opcional de X con respaldo. Consulta [la guía de verificación](docs/VERIFICACION.md).
-La conciliación y los permisos externos siguen pendientes; no se declara listo para producción.
+La conciliación independiente y la aceptación del alojamiento siguen pendientes. X/Spotify
+ya tienen aprobación y lecturas reales; comprobar el acceso efectivo por cuenta/reporte en destino.
 
 La preparación de [producción del monitoreo](../media-monitoring-center/docs/PRODUCCION.md)
 incorpora imágenes Node 22 sin secretos/histórico en el contexto y volumen privado para tokens.
@@ -25,9 +31,11 @@ distingue esa conexión del resultado de reportes: Microsoft izzi respondió HTT
 actual aunque cuentas/campañas y la salida al host de informes funcionen. El histórico se conserva.
 El monitoreo incorpora `produccion:smoke` para comprobar siete endpoints públicos sin llaves
 cuando existan ambas URL; no despliega ni certifica la v1.
-Microsoft/Spotify esperan ahora a que se conserve el token rotado; un fallo de disco bloquea la
-operación y permite reintentar el mismo guardado sin renovar OAuth otra vez. El cierre espera las
-escrituras registradas; no sustituye un volumen durable ni coordinación entre procesos.
+En el servidor con `TOKEN_STORE_FILE` configurado, Microsoft/Spotify esperan a que se conserve
+el token rotado; un fallo de disco bloquea la operación y permite reintentar el mismo guardado
+sin renovar OAuth otra vez. El cierre espera las escrituras registradas; los CLI esperan `flush`
+al finalizar. Sin almacén configurado el servidor advierte y continúa, sin garantizar persistencia.
+Estas correcciones no sustituyen un volumen durable ni coordinación entre procesos.
 La [preauditoría de v1](docs/PREAUDITORIA_V1.md) avanza en acceso, formularios antiguos y
 registros concurrentes del monitoreo: CAS por clave para configuración/dictámenes en Blobs y
 correcciones de usuarios dentro del proceso. Validación: API 626 pruebas; monitoreo 367 y build.
@@ -365,7 +373,9 @@ Meta divide reportes diarios en bloques de 30 días y horarios en un día. Googl
 cuatro cuentas a la vez y decodifica ceros escalares seleccionados sin fabricar filas.
 Spotify mantiene el día final inclusivo, confirmado contra la referencia oficial v3.
 Microsoft solo descarga de `bingadsappsstorageprod.blob.core.windows.net`: otros destinos se
-rechazan hasta revisar una migración del proveedor. No se elude el bloqueo del proxy.
+rechazan hasta revisar una migración del proveedor. El bloqueo anterior del proxy es histórico;
+la última ronda de reportes dio 502 con transporte disponible. No se elude el proxy ni se
+atribuye la causa sin evidencia.
 Los riesgos y pendientes separados por código, permisos, configuración y negocio están en
 [docs/AUDITORIA.md](docs/AUDITORIA.md). La conciliación de plataformas sigue pendiente.
 

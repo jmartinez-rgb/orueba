@@ -203,4 +203,10 @@ de actualizar la lista; no basta ampliar a `*.blob.core.windows.net`.
 
 La IP no queda fijada al socket del proxy: el riesgo residual de otra resolución del host
 Microsoft confiado permanece documentado. No se declara resuelto por la comprobación DNS.
-La descarga real continúa bloqueada por la red; no se elude el proxy para validarla.
+El rechazo anterior del proxy queda como evidencia histórica: posteriormente se descargó un
+ZIP real y se conservaron 266 filas horarias. La última ronda izzi del 2 de octubre devolvió
+502 en reportes con catálogo/campañas disponibles; DNS y HEAD de la raíz del host fijo llegaron
+por TLS/proxy normales (HTTP 400). Eso comprueba transporte, no descarga firmada ni causa del 502.
+Ver [la continuación fechada](../../media-monitoring-center/docs/CONTINUACION_ENTORNO_PUBLICADO_2026-10-02.md)
+y [la entrega vigente](../../media-monitoring-center/docs/ENTREGA_CLAUDE_V1.md). No eludir el proxy,
+forzar reintentos durante backoff ni atribuir el fallo a credenciales sin evidencia.

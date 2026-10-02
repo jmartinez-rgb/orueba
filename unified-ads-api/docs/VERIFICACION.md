@@ -169,6 +169,9 @@ npm run build
 ```
 
 La matriz y los pendientes por código, permisos, configuración y negocio están en
-[AUDITORIA.md](AUDITORIA.md). Siguen pendientes la conciliación contra interfaces, las unidades no
-nulas de compras en TikTok, el permiso de Spotify, la aprobación de X y la descarga de Microsoft
-bloqueada por el proxy. Las herramientas no resuelven esos accesos ni deciden eventos comerciales.
+[AUDITORIA.md](AUDITORIA.md); la [entrega vigente](../../media-monitoring-center/docs/ENTREGA_CLAUDE_V1.md)
+reúne el estado actual. X y Spotify ya tienen aprobación y lecturas reales; Microsoft ya descargó
+un ZIP, pero su última ronda izzi devolvió 502 con transporte disponible. Siguen pendientes la
+conciliación independiente, cobertura, unidades no nulas de compras TikTok y decisiones de eventos.
+Los resultados de las muestras de esta guía conservan su fecha; no prueban todos los accesos
+actuales ni aceptación de producción. Las herramientas no deciden eventos comerciales.

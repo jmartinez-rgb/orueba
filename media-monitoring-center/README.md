@@ -1,5 +1,10 @@
 # Media Monitoring Center (izzi · Sky)
 
+**Entrega vigente para Claude:** [guía de auditoría y continuación](docs/ENTREGA_CLAUDE_V1.md)
+y [texto listo para pegar](docs/PROMPT_PARA_CLAUDE.md). Incluye evidencia fechada, revisión de
+diseño/UX, permisos nominales, pendientes y tareas manuales del equipo. La publicación confirmada
+es del entorno de Codex; no hay URLs públicas confirmadas ni aceptación de producción.
+
 Plataforma interna de monitoreo de Paid Media para **izzi y Sky**, cada una como un monitoreo
 aparte que se cambia con un botón (izzi | Sky). Responde en segundos a la pregunta **¿está todo
 funcionando correctamente en este momento?** para Google Ads, Meta Ads, TikTok Ads, Microsoft
@@ -188,6 +193,8 @@ media-monitoring-center/
 
 ## Documentación
 
+- [docs/ENTREGA_CLAUDE_V1.md](docs/ENTREGA_CLAUDE_V1.md): punto de entrada vigente para auditoría funcional, visual y operativa.
+- [docs/PROMPT_PARA_CLAUDE.md](docs/PROMPT_PARA_CLAUDE.md): instrucciones listas para copiar, sin ZIP ni secretos.
 - [docs/APIS_DIRECTAS.md](docs/APIS_DIRECTAS.md): configuración, cuentas, histórico, extracción y límites comprobados.
 - [docs/INSTALACION.md](docs/INSTALACION.md): instalación paso a paso con la hoja de Dataslayer.
 - [docs/GUIA.md](docs/GUIA.md): qué hay en cada sección, cómo leer el semáforo, mensaje de Monitoreos y clasificadores.

@@ -1,5 +1,11 @@
 # Auditoría de la entrega de Codex — Unified Ads API
 
+**Punto de entrada vigente (2 de octubre de 2026 UTC):**
+[entrega para Claude](../../media-monitoring-center/docs/ENTREGA_CLAUDE_V1.md).
+Rama actual `codex/finalizacion-verificador-meta-x`, base funcional `f7431b2`.
+Los encabezados y resultados siguientes son evidencia fechada; no repetir como actuales los
+bloqueos superados de OAuth/aprobación. La aceptación de cifras de esta ronda es **solo izzi**.
+
 Fecha: 1 de octubre de 2026. Rama: `codex/entrega-auditoria-claude`. Estado recibido: commit
 `39a65be` (idéntico al ZIP `unified-ads-api-para-auditoria.zip`, comprobado archivo por archivo).
 
@@ -735,8 +741,10 @@ Informe, evidencia y límites: [preparación de producción](../../media-monitor
 
 ## Pendientes y orden recomendado
 
-La guía actual es [VERIFICACION.md](VERIFICACION.md); [TRASPASO_CLAUDE.md](TRASPASO_CLAUDE.md)
-conserva la entrega histórica. La persistencia atómica del asistente Google y el tratamiento de
+La guía actual es [ENTREGA_CLAUDE_V1.md](../../media-monitoring-center/docs/ENTREGA_CLAUDE_V1.md);
+[VERIFICACION.md](VERIFICACION.md) documenta los comandos y muestras fechadas.
+[TRASPASO_CLAUDE.md](TRASPASO_CLAUDE.md) enlaza la entrega y el archivo histórico.
+La persistencia atómica del asistente Google y el tratamiento de
 fallos de lectura del almacén de tokens ya fueron corregidos y probados por Claude (C2 y C3),
 y esta rama conserva esas correcciones.
 
@@ -746,17 +754,20 @@ y esta rama conserva esas correcciones.
   CAPI WhatsApp se miden con _On-Facebook Purchase_ y las demás con _Compras Offline Web (Inbound)_.
 - Evento principal de Spotify y métrica principal de TikTok.
 - Mapeo de los eventos offline de Google (`MCC_Offline_Lead_Contact`, `MCC_Offline_Purchase`).
-- Modelo de acceso por cliente.
+- Tasas mensuales USD→MXN que captura el equipo en su sección, sin inventar valores.
+- Cualquier modelo adicional de aislamiento por cliente; conservar las 15 identidades y
+  política nominal vigentes mientras el usuario no decida una ampliación.
 
 **Permisos**
 
-- Spotify: habilitación global comprobada por lecturas reales. Revisar acceso del usuario a
-  campañas e informes de la cuenta USD `4bf9f073-8f04-4d76-8074-970f364c3e52` (`ACCESS_DENIED`).
+- Spotify: habilitación global comprobada por lecturas reales. La cuenta USD
+  `4bf9f073-8f04-4d76-8074-970f364c3e52` devuelve `ACCESS_DENIED`, pero está fuera del mapeo
+  autorizado: no incorporarla ni solicitar acceso salvo nueva instrucción del usuario.
 - TikTok: lectura de las cuatro cuentas autorizada y verificada. No queda un bloqueo de permisos
   en la muestra; otros productos o ámbitos de reporting no se dan por validados.
 - X: app `33489379`, OAuth y lectura síncrona de tres cuentas comprobados. No queda un bloqueo
-  OAuth en esta muestra. Confirmar si las tres cuentas descubiertas cubren todas las requeridas;
-  no se afirma acceso a otras identidades, ubicaciones o productos. Los rechazos previos se
+  OAuth en esta muestra. La aceptación actual usa únicamente la cuenta izzi mapeada; descubrir
+  otras no amplía el alcance ni demuestra otros productos. Los rechazos previos se
   conservan como históricos en [X_ADS.md](X_ADS.md).
 
 **Configuración y entorno**
@@ -775,18 +786,22 @@ y esta rama conserva esas correcciones.
 - X: conservar en el entorno destino las cuatro variables OAuth 1.0a comprobadas; no volver
   a regenerarlas por los errores históricos ya resueltos. Configurar evento principal por cuenta
   y timeout apropiado para backfills. La primera lectura usó un plazo de 120 segundos.
-- Microsoft: la descarga al host permitido se comprobó en esta continuación. Conservar salida
-  HTTPS al mismo host y `MICROSOFT_ADS_RETURN_ONLY_COMPLETE_DATA=true`; volver a validar
-  desde el entorno destino. El rechazo previo del proxy queda como evidencia histórica.
+- Microsoft: ZIP real histórico descargado. La última ronda izzi devolvió 502 en reportes,
+  con transporte al host fijo disponible y causa sin confirmar. Respetar el checkpoint/backoff
+  antes de diagnosticar; conservar HTTPS/proxy y `MICROSOFT_ADS_RETURN_ONLY_COMPLETE_DATA=true`.
+  Validar desde el entorno destino. El rechazo previo del proxy es evidencia histórica.
 - Elegir alojamiento, configurar HTTPS y volúmenes/shared storage y aceptar reinicio/reemplazo.
   Preparación portable Node/Docker: [PRODUCCION.md](../../media-monitoring-center/docs/PRODUCCION.md).
   Cloud Run/Netlify con disco efímero no cumplen la persistencia actual solo añadiendo secretos.
 
 **Código**
 
-- Preauditoría: transacciones entre instancias para Settings/usuarios/incidentes, control de edición
-  sobre formularios antiguos y bitácora financiera durable. La cola local de Settings no cubre
-  estos casos; ver [PREAUDITORIA_V1.md](PREAUDITORIA_V1.md).
+- Settings ya tiene revisión de formularios y CAS por clave en Blobs. Pendientes: transacciones
+  multiclave, usuarios/archivos entre procesos, Blobs real y bitácora financiera durable.
+  Plan mensual: revisión de edición obsoleta y recuperación del crash entre inicio/novedad.
+  Los recibos de replay son acotados, sin garantía de exactamente una vez. Ver
+  [última continuación](../../media-monitoring-center/docs/CONTINUACION_ENTORNO_PUBLICADO_2026-10-02.md)
+  y [PREAUDITORIA_V1.md](PREAUDITORIA_V1.md) para las correcciones anteriores.
 
 - X (auditoría de Claude): confirmar `PUBLISHER_NETWORK` en v12 (se activa con `X_ADS_PLACEMENTS`).
   `active_entities` ya está implementado y probado con fixtures como selección incremental
@@ -813,19 +828,24 @@ y esta rama conserva esas correcciones.
 
 **Orden**
 
-1. Conciliar Google y Meta contra sus interfaces: un día, una cuenta, mismo criterio de atribución
-   (comprueba ceros reales y cierra atribución).
-2. Decidir y configurar las acciones principales y los mapeos de conversiones.
-3. Microsoft: conciliar las 266 filas horarias reales, completar las horas adyacentes del día
-   mexicano y comprobar nuevamente el host de descarga desde producción.
-4. Spotify: diagnosticar el horario de izzi (502/PROVIDER_ERROR), ampliar la muestra y conciliar
-   gasto, conversiones y final inclusivo documentado. El permiso USD solo aplica si el usuario
-   incorpora esa cuenta adicional; hoy queda fuera del mapeo autorizado.
-5. TikTok: conciliar los nuevos 35 días diarios/horarios y sus vacíos, el gasto US ahora presente
-   y la zona de visualización de Sky Sports; verificar unidades de compra con una muestra no nula.
-6. Despliegue con secretos y `TOKEN_STORE_FILE`; después n8n, BigQuery y alertas.
-7. Modelo de acceso multicliente.
-8. X Ads: conciliar los nueve agregados cuenta/día, clics/interacciones y cobertura de cuentas;
-   probar horas, conversiones configuradas e informes asíncronos. Conexión diaria real ya comprobada.
+1. Auditar permisos nominales, integridad y UX con la línea base vigente y fixtures aislados;
+   corregir defectos demostrados sin cambiar negocio ni ampliar acceso.
+2. Inventariar cobertura de las cuentas **izzi**; obtener referencias independientes de Ads
+   Manager y usar la conciliación existente para costo/impresiones/clics por día cerrado,
+   moneda y reloj. Los reportes de la propia API no son referencias independientes.
+3. Microsoft: diagnosticar el 502 actual tras el backoff, sin inferir causas por el HEAD 400;
+   conservar histórico, completar horas adyacentes UTC/México y conciliar.
+4. Spotify: el horario izzi se recuperó sin REVENUE y el final inclusivo ya está confirmado.
+   Revisar cobertura y conciliar costo/impresiones/clics; ingresos siguen desconocidos.
+5. TikTok: conciliar las cuentas izzi y sus vacíos, validar timezone y unidades de compras con
+   muestra no nula. Conservar Sky sin ampliar esta aceptación a sus cuentas.
+6. X: conciliar izzi según su definición de clics/interacciones, verificar cuotas/horas,
+   selección incremental y descarga asíncrona real si hay acceso. No asumir éxito por `connected`.
+7. El equipo decide acciones/eventos/mapeos y tasas; después validar conversiones/atribución,
+   manteniendo los dos universos Meta y CPA agregado. No decidirlos para cerrar una prueba.
+8. Preparar alojamiento, volúmenes, rotación, backup y scheduler izzi supervisado. Faltan URLs
+   públicas; no contratar, publicar, desplegar ni activar cron/notificaciones en esta entrega.
+   El smoke HTTP no certifica por sí solo producción, identidades, datos o persistencia.
 
-El proyecto **no está listo para producción** mientras los puntos 1 a 4 sigan sin comprobarse.
+El proyecto sigue pendiente de conciliación y aceptación de producción. La publicación confirmada
+del entorno Codex no equivale a publicación del monitoreo ni de la API.

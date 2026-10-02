@@ -1,8 +1,12 @@
 # ABCW · Paid Media OS y motor de plan masivo
 
+**Continuación y auditoría del monitoreo v1:** [ENTREGA_CLAUDE.md](ENTREGA_CLAUDE.md).
+Incluye la guía vigente, un texto listo para pegar en Claude y la revisión manual del equipo.
+Rama `codex/finalizacion-verificador-meta-x`; conciliación y producción aún pendientes.
+
 | Carpeta | Qué es |
 |---|---|
-| `media-monitoring-center/` | **izzi Media Monitoring Center**: plataforma de monitoreo de Paid Media (Next.js en Netlify, BigQuery, n8n, alertas por WhatsApp). Funciona completa en modo simulado. Ver `media-monitoring-center/README.md`; en Netlify se publica como sitio aparte con *Base directory* = `media-monitoring-center`. |
+| `media-monitoring-center/` | **Media Monitoring Center izzi/Sky**: Next.js, alertas y acceso nominal. V1 usa APIs directas con histórico privado; aceptación de cifras solo izzi. Demo y preparación de alojamiento separadas; ver su README y la entrega vigente antes de publicar. |
 | `unified-ads-api/` | API de consulta de las seis plataformas y herramientas de extracción y conciliación. Ver `unified-ads-api/README.md`. |
 | `paid-media-os/` | Paquete listo para Netlify: `sitio/` (plataforma React compilada + plan masivo), `functions/` (API y sincronización horaria), `netlify.toml`. Cómo publicar: `paid-media-os/LEEME-PUBLICAR.md`. |
 | `n8n/` | Motor del plan masivo. `meta_bulk_motor.json` es el workflow que se importa; se genera desde `n8n/src/` con `python3 n8n/build.py`. |
