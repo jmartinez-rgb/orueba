@@ -44,16 +44,31 @@ export const MIN_SECRET_LENGTH = 32;
  * - Sin configuración: abierto en desarrollo local; bloqueado en producción.
  * El valor antiguo AUTH_MODE=dev (de la primera versión) cuenta como automático: nunca apaga
  * las contraseñas ya configuradas ni abre un despliegue de producción.
+ * AUTH_MODE=open en producción solo se respeta en una demo aislada (ver isolatedOpenDemo); en
+ * cualquier otro despliegue queda bloqueado en lugar de abrirse sin contraseña.
  */
 export function resolveAuthMode(env: EnvLike): AuthMode {
   const mode = (env.AUTH_MODE ?? "").trim().toLowerCase();
   if (mode === "header") return "header";
-  if (mode === "open") return "open";
   const secret = (env.AUTH_SECRET ?? "").trim();
   const hasCredentials = Boolean((env.AUTH_USERS ?? "").trim() || (env.AUTH_UNIVERSAL_PASSWORD_HASH ?? "").trim());
+  if (mode === "open") return env.NODE_ENV !== "production" || isolatedOpenDemo(env, hasCredentials) ? "open" : "locked";
   if (secret.length >= MIN_SECRET_LENGTH && hasCredentials) return "password";
   if (mode === "password") return "locked";
   return env.NODE_ENV === "production" ? "locked" : "open";
+}
+
+const truthy = (v: string | undefined) => ["1", "true", "yes", "si", "sí", "on"].includes((v ?? "").trim().toLowerCase());
+
+/**
+ * Demo local compilada (`next start` fija NODE_ENV=production): datos simulados, registros en
+ * memoria, sin credenciales y fuera de Netlify. Un despliegue con datos reales, registros
+ * durables o cuentas configuradas nunca se abre sin contraseña.
+ */
+function isolatedOpenDemo(env: EnvLike, hasCredentials: boolean): boolean {
+  const source = (env.DATA_SOURCE ?? "").trim().toLowerCase();
+  const mockData = source === "mock" || (source === "" && truthy(env.USE_MOCK_DATA));
+  return mockData && (env.RECORDS_BACKEND ?? "").trim().toLowerCase() === "memory" && !hasCredentials && !truthy(env.NETLIFY);
 }
 
 const encoder = new TextEncoder();

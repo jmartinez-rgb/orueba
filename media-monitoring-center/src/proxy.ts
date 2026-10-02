@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { resolveAuthMode, SESSION_COOKIE, verifySessionToken } from "@/lib/auth/token";
+import { isCrossOriginMutation } from "@/lib/auth/origin";
 
 /**
  * Puerta de acceso: sin sesión válida, las páginas redirigen a /login y las API responden 401.
@@ -10,6 +11,9 @@ const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout", "/api/hea
 
 export async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
+  if (isCrossOriginMutation({ method: req.method, pathname, headers: req.headers, host: req.nextUrl.host })) {
+    return NextResponse.json({ ok: false, message: "Solicitud rechazada: proviene de otro origen." }, { status: 403, headers: { "Cache-Control": "private, no-store" } });
+  }
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return NextResponse.next();
 
   const mode = resolveAuthMode(process.env);
