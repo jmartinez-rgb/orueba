@@ -45,7 +45,7 @@ function writeFlag(key: string) {
  *   puede cerrar los lleva a capturarlo (presupuestos + activo / pendiente por iniciar).
  * - Todos: una vez al día, lo que sigue pendiente por iniciar (y avisa cuando algo inicia).
  */
-export function MonthGate({ canKickoff, userId }: { canKickoff: boolean; userId: string }) {
+export function MonthGate({ canKickoff, userId, suspended = false }: { canKickoff: boolean; userId: string; suspended?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const [status, setStatus] = useState<Status | null>(null);
@@ -93,8 +93,8 @@ export function MonthGate({ canKickoff, userId }: { canKickoff: boolean; userId:
 
   return (
     <>
-      <Dialog open={blocking}>
-        <DialogContent hideClose onEscapeKeyDown={(e) => e.preventDefault()} onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-lg">
+      <Dialog open={!suspended && blocking}>
+        <DialogContent hideClose onCloseAutoFocus={(e) => suspended && e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()} onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-lg">
           <DialogHeader>
             <span className="mb-1 grid size-11 place-items-center rounded-full bg-primary/12" aria-hidden>
               <CalendarPlus className="size-5 text-primary" />
@@ -113,8 +113,8 @@ export function MonthGate({ canKickoff, userId }: { canKickoff: boolean; userId:
         </DialogContent>
       </Dialog>
 
-      <Dialog open={reminderOpen && !blocking} onOpenChange={(o) => !o && closeReminder()}>
-        <DialogContent className="sm:max-w-lg">
+      <Dialog open={!suspended && reminderOpen && !blocking} onOpenChange={(o) => !o && !suspended && closeReminder()}>
+        <DialogContent onCloseAutoFocus={(e) => suspended && e.preventDefault()} className="sm:max-w-lg">
           <DialogHeader>
             <span className="mb-1 grid size-11 place-items-center rounded-full bg-status-attention/14" aria-hidden>
               <CalendarClock className="size-5 text-status-attention-text" />

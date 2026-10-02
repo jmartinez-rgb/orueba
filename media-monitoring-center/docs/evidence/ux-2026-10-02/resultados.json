@@ -1,0 +1,1272 @@
+{
+  "date": "2026-10-02 UTC",
+  "baseCommit": "36bc07c4e32a87ecc15e653f55bf200c01d3e7dc",
+  "environment": {
+    "node": "24.19.0",
+    "server": "next start",
+    "browser": "Chromium",
+    "source": "mock",
+    "records": "memory",
+    "webhooks": "empty",
+    "whatsapp": false,
+    "localOnly": true,
+    "humanUserStudy": false
+  },
+  "summary": {
+    "primaryViews": 15,
+    "additionalRoutes": 20,
+    "roleRouteChecks": 24,
+    "viewports": [
+      1440,
+      390,
+      320
+    ],
+    "pageErrors": 0,
+    "documentOverflow": 0,
+    "minimumMeasuredBadgeContrast": 4.82,
+    "accessibilityCertification": false
+  },
+  "views": [
+    {
+      "size": "desktop",
+      "route": "/",
+      "status": 200,
+      "title": "Resumen · Media Monitoring Center",
+      "h1": [
+        "izzi · Centro de monitoreo"
+      ],
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "pageErrors": []
+    },
+    {
+      "size": "desktop",
+      "route": "/alerts",
+      "status": 200,
+      "title": "Alertas · Media Monitoring Center",
+      "h1": [
+        "Centro de alertas"
+      ],
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "pageErrors": []
+    },
+    {
+      "size": "desktop",
+      "route": "/incidents",
+      "status": 200,
+      "title": "Incidentes · Media Monitoring Center",
+      "h1": [
+        "Gestión de incidentes"
+      ],
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "pageErrors": []
+    },
+    {
+      "size": "desktop",
+      "route": "/tipo-de-cambio",
+      "status": 200,
+      "title": "Tipo de cambio · Media Monitoring Center",
+      "h1": [
+        "Tipo de cambio"
+      ],
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "pageErrors": []
+    },
+    {
+      "size": "desktop",
+      "route": "/campaigns",
+      "status": 200,
+      "title": "Campañas · Media Monitoring Center",
+      "h1": [
+        "Campañas"
+      ],
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "pageErrors": []
+    },
+    {
+      "size": "mobile",
+      "route": "/",
+      "status": 200,
+      "title": "Resumen · Media Monitoring Center",
+      "h1": [
+        "izzi · Centro de monitoreo"
+      ],
+      "viewport": 390,
+      "documentWidth": 390,
+      "pageErrors": []
+    },
+    {
+      "size": "mobile",
+      "route": "/alerts",
+      "status": 200,
+      "title": "Alertas · Media Monitoring Center",
+      "h1": [
+        "Centro de alertas"
+      ],
+      "viewport": 390,
+      "documentWidth": 390,
+      "pageErrors": []
+    },
+    {
+      "size": "mobile",
+      "route": "/incidents",
+      "status": 200,
+      "title": "Incidentes · Media Monitoring Center",
+      "h1": [
+        "Gestión de incidentes"
+      ],
+      "viewport": 390,
+      "documentWidth": 390,
+      "pageErrors": []
+    },
+    {
+      "size": "mobile",
+      "route": "/tipo-de-cambio",
+      "status": 200,
+      "title": "Tipo de cambio · Media Monitoring Center",
+      "h1": [
+        "Tipo de cambio"
+      ],
+      "viewport": 390,
+      "documentWidth": 390,
+      "pageErrors": []
+    },
+    {
+      "size": "mobile",
+      "route": "/campaigns",
+      "status": 200,
+      "title": "Campañas · Media Monitoring Center",
+      "h1": [
+        "Campañas"
+      ],
+      "viewport": 390,
+      "documentWidth": 390,
+      "pageErrors": []
+    },
+    {
+      "size": "narrow",
+      "route": "/",
+      "status": 200,
+      "title": "Resumen · Media Monitoring Center",
+      "h1": [
+        "izzi · Centro de monitoreo"
+      ],
+      "viewport": 320,
+      "documentWidth": 320,
+      "pageErrors": []
+    },
+    {
+      "size": "narrow",
+      "route": "/alerts",
+      "status": 200,
+      "title": "Alertas · Media Monitoring Center",
+      "h1": [
+        "Centro de alertas"
+      ],
+      "viewport": 320,
+      "documentWidth": 320,
+      "pageErrors": []
+    },
+    {
+      "size": "narrow",
+      "route": "/incidents",
+      "status": 200,
+      "title": "Incidentes · Media Monitoring Center",
+      "h1": [
+        "Gestión de incidentes"
+      ],
+      "viewport": 320,
+      "documentWidth": 320,
+      "pageErrors": []
+    },
+    {
+      "size": "narrow",
+      "route": "/tipo-de-cambio",
+      "status": 200,
+      "title": "Tipo de cambio · Media Monitoring Center",
+      "h1": [
+        "Tipo de cambio"
+      ],
+      "viewport": 320,
+      "documentWidth": 320,
+      "pageErrors": []
+    },
+    {
+      "size": "narrow",
+      "route": "/campaigns",
+      "status": 200,
+      "title": "Campañas · Media Monitoring Center",
+      "h1": [
+        "Campañas"
+      ],
+      "viewport": 320,
+      "documentWidth": 320,
+      "pageErrors": []
+    }
+  ],
+  "navigation": {
+    "route": "navigation-keyboard",
+    "size": "mobile",
+    "dialogWidth": 288,
+    "dialogRight": 288,
+    "animationDuration": "1e-05s",
+    "animationName": "enter",
+    "focusedInside": true,
+    "focusedLabel": "Cerrar",
+    "dialogLabelled": "radix-_R_59pfdbH1_",
+    "trapped": true,
+    "focusRestored": true
+  },
+  "themes": [
+    {
+      "size": "desktop",
+      "route": "dark-theme",
+      "class": "dark"
+    },
+    {
+      "size": "mobile",
+      "route": "dark-theme",
+      "class": "dark"
+    },
+    {
+      "size": "narrow",
+      "route": "dark-theme",
+      "class": "dark"
+    }
+  ],
+  "routes": [
+    {
+      "route": "/live",
+      "status": 200,
+      "url": "/live",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Monitoreo en vivo"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/platforms",
+      "status": 200,
+      "url": "/platforms",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Plataformas"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/platforms/google",
+      "status": 200,
+      "url": "/platforms/google",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "GGoogle AdsNormal"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/tickets",
+      "status": 200,
+      "url": "/tickets",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Tickets de reporte"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/novedades",
+      "status": 200,
+      "url": "/novedades",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Novedades"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/novedades/arranque",
+      "status": 200,
+      "url": "/novedades/arranque",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Arranque de octubre"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/budget",
+      "status": 200,
+      "url": "/budget",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Presupuestos"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/compare",
+      "status": 200,
+      "url": "/compare",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Comparativas"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/historical",
+      "status": 200,
+      "url": "/historical",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Histórico"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/metricas",
+      "status": 200,
+      "url": "/metricas",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Métricas"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/optimizaciones",
+      "status": 200,
+      "url": "/optimizaciones",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Optimizaciones"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/integrations",
+      "status": 200,
+      "url": "/integrations",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Integraciones"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/automation",
+      "status": 200,
+      "url": "/automation",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Automatización"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/usuarios",
+      "status": 200,
+      "url": "/usuarios",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Usuarios y accesos"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/settings",
+      "status": 200,
+      "url": "/settings",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Configuración"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/guia",
+      "status": 200,
+      "url": "/guia",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Guía"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/sugerencias",
+      "status": 200,
+      "url": "/sugerencias",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Bugs y sugerencias"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/auditoria",
+      "status": 200,
+      "url": "/auditoria",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Auditoría de incidencias"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/cliente",
+      "status": 200,
+      "url": "/cliente",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Estamos atendiendo 3 situaciones"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "route": "/monitoreos",
+      "status": 200,
+      "url": "/monitoreos",
+      "width": 390,
+      "documentWidth": 390,
+      "h1": [
+        "Monitoreos"
+      ],
+      "errorPanel": [],
+      "pageErrors": []
+    },
+    {
+      "role": "admin",
+      "changed": 200,
+      "route": "/",
+      "url": "/",
+      "buttons": 16,
+      "writableInputs": 0,
+      "readonlyText": 0
+    },
+    {
+      "role": "admin",
+      "changed": 200,
+      "route": "/settings",
+      "url": "/settings",
+      "buttons": 239,
+      "writableInputs": 79,
+      "readonlyText": 0
+    },
+    {
+      "role": "admin",
+      "changed": 200,
+      "route": "/alerts",
+      "url": "/alerts",
+      "buttons": 5,
+      "writableInputs": 1,
+      "readonlyText": 0
+    },
+    {
+      "role": "admin",
+      "changed": 200,
+      "route": "/cliente",
+      "url": "/cliente",
+      "buttons": 0,
+      "writableInputs": 0,
+      "readonlyText": 0
+    },
+    {
+      "role": "coadmin",
+      "changed": 200,
+      "route": "/",
+      "url": "/",
+      "buttons": 16,
+      "writableInputs": 0,
+      "readonlyText": 0
+    },
+    {
+      "role": "coadmin",
+      "changed": 200,
+      "route": "/settings",
+      "url": "/settings",
+      "buttons": 239,
+      "writableInputs": 79,
+      "readonlyText": 0
+    },
+    {
+      "role": "coadmin",
+      "changed": 200,
+      "route": "/alerts",
+      "url": "/alerts",
+      "buttons": 5,
+      "writableInputs": 1,
+      "readonlyText": 0
+    },
+    {
+      "role": "coadmin",
+      "changed": 200,
+      "route": "/cliente",
+      "url": "/cliente",
+      "buttons": 0,
+      "writableInputs": 0,
+      "readonlyText": 0
+    },
+    {
+      "role": "manager",
+      "changed": 200,
+      "route": "/",
+      "url": "/",
+      "buttons": 10,
+      "writableInputs": 0,
+      "readonlyText": 0
+    },
+    {
+      "role": "manager",
+      "changed": 200,
+      "route": "/settings",
+      "url": "/settings",
+      "buttons": 162,
+      "writableInputs": 3,
+      "readonlyText": 0
+    },
+    {
+      "role": "manager",
+      "changed": 200,
+      "route": "/alerts",
+      "url": "/alerts",
+      "buttons": 5,
+      "writableInputs": 1,
+      "readonlyText": 0
+    },
+    {
+      "role": "manager",
+      "changed": 200,
+      "route": "/cliente",
+      "url": "/cliente",
+      "buttons": 0,
+      "writableInputs": 0,
+      "readonlyText": 0
+    },
+    {
+      "role": "viewer",
+      "changed": 200,
+      "route": "/",
+      "url": "/",
+      "buttons": 10,
+      "writableInputs": 0,
+      "readonlyText": 0
+    },
+    {
+      "role": "viewer",
+      "changed": 200,
+      "route": "/settings",
+      "url": "/settings",
+      "buttons": 162,
+      "writableInputs": 3,
+      "readonlyText": 0
+    },
+    {
+      "role": "viewer",
+      "changed": 200,
+      "route": "/alerts",
+      "url": "/alerts",
+      "buttons": 5,
+      "writableInputs": 1,
+      "readonlyText": 0
+    },
+    {
+      "role": "viewer",
+      "changed": 200,
+      "route": "/cliente",
+      "url": "/cliente",
+      "buttons": 0,
+      "writableInputs": 0,
+      "readonlyText": 0
+    },
+    {
+      "role": "auditor",
+      "changed": 200,
+      "route": "/",
+      "url": "/",
+      "buttons": 10,
+      "writableInputs": 0,
+      "readonlyText": 0
+    },
+    {
+      "role": "auditor",
+      "changed": 200,
+      "route": "/settings",
+      "url": "/settings",
+      "buttons": 162,
+      "writableInputs": 3,
+      "readonlyText": 0
+    },
+    {
+      "role": "auditor",
+      "changed": 200,
+      "route": "/alerts",
+      "url": "/alerts",
+      "buttons": 5,
+      "writableInputs": 1,
+      "readonlyText": 0
+    },
+    {
+      "role": "auditor",
+      "changed": 200,
+      "route": "/cliente",
+      "url": "/cliente",
+      "buttons": 0,
+      "writableInputs": 0,
+      "readonlyText": 0
+    },
+    {
+      "role": "client",
+      "changed": 200,
+      "route": "/",
+      "url": "/cliente",
+      "buttons": 0,
+      "writableInputs": 0,
+      "readonlyText": 0
+    },
+    {
+      "role": "client",
+      "changed": 200,
+      "route": "/settings",
+      "url": "/cliente",
+      "buttons": 0,
+      "writableInputs": 0,
+      "readonlyText": 0
+    },
+    {
+      "role": "client",
+      "changed": 200,
+      "route": "/alerts",
+      "url": "/cliente",
+      "buttons": 0,
+      "writableInputs": 0,
+      "readonlyText": 0
+    },
+    {
+      "role": "client",
+      "changed": 200,
+      "route": "/cliente",
+      "url": "/cliente",
+      "buttons": 0,
+      "writableInputs": 0,
+      "readonlyText": 0
+    }
+  ],
+  "alertFlows": [
+    {
+      "flow": "alerts-empty-filter",
+      "emptyVisible": 1
+    },
+    {
+      "flow": "alerts-reset",
+      "searchValue": ""
+    },
+    {
+      "flow": "alert-click-detail",
+      "title": "8 campañas con caída simultánea de delivery",
+      "focusInside": true
+    },
+    {
+      "flow": "alert-offline-write",
+      "pageErrors": [],
+      "errorVisible": 1
+    },
+    {
+      "flow": "alert-focus-restored",
+      "restored": true
+    },
+    {
+      "flow": "critical-focus-trap",
+      "steps": [
+        {
+          "inside": true,
+          "name": "INPUT"
+        },
+        {
+          "inside": true,
+          "name": "WhatsApp"
+        },
+        {
+          "inside": true,
+          "name": "INPUT"
+        },
+        {
+          "inside": true,
+          "name": "INPUT"
+        },
+        {
+          "inside": true,
+          "name": "Cerrar sesión"
+        },
+        {
+          "inside": true,
+          "name": "TEXTAREA"
+        },
+        {
+          "inside": true,
+          "name": "INPUT"
+        },
+        {
+          "inside": true,
+          "name": "WhatsApp"
+        },
+        {
+          "inside": true,
+          "name": "INPUT"
+        },
+        {
+          "inside": true,
+          "name": "INPUT"
+        },
+        {
+          "inside": true,
+          "name": "Cerrar sesión"
+        },
+        {
+          "inside": true,
+          "name": "TEXTAREA"
+        },
+        {
+          "inside": true,
+          "name": "INPUT"
+        },
+        {
+          "inside": true,
+          "name": "WhatsApp"
+        },
+        {
+          "inside": true,
+          "name": "INPUT"
+        },
+        {
+          "inside": true,
+          "name": "INPUT"
+        },
+        {
+          "inside": true,
+          "name": "Cerrar sesión"
+        },
+        {
+          "inside": true,
+          "name": "TEXTAREA"
+        },
+        {
+          "inside": true,
+          "name": "INPUT"
+        },
+        {
+          "inside": true,
+          "name": "WhatsApp"
+        },
+        {
+          "inside": true,
+          "name": "INPUT"
+        },
+        {
+          "inside": true,
+          "name": "INPUT"
+        },
+        {
+          "inside": true,
+          "name": "Cerrar sesión"
+        },
+        {
+          "inside": true,
+          "name": "TEXTAREA"
+        },
+        {
+          "inside": true,
+          "name": "INPUT"
+        }
+      ],
+      "escaped": false
+    }
+  ],
+  "nexusFlows": [
+    {
+      "flow": "open",
+      "inputFocused": true,
+      "dialogWidth": 320
+    },
+    {
+      "flow": "question",
+      "question": "¿Cómo se delega un incidente?",
+      "status": 200,
+      "kind": "guide",
+      "title": "Delegar y atender incidentes",
+      "error": false
+    },
+    {
+      "flow": "question",
+      "question": "¿Cómo está la campaña Performance 2025?",
+      "status": 200,
+      "kind": "clarify",
+      "title": "Hay varias coincidencias",
+      "error": false
+    },
+    {
+      "flow": "question",
+      "question": "¿Cuánto gastó Google?",
+      "status": 200,
+      "kind": "metrics",
+      "title": "Métricas de Google",
+      "error": false
+    },
+    {
+      "flow": "source-navigation",
+      "url": "/incidents",
+      "dialogStillOpen": 0
+    },
+    {
+      "flow": "shift-enter",
+      "value": "primera línea\n"
+    },
+    {
+      "flow": "long-message-and-error",
+      "docWidth": 320,
+      "dialogScrollWidth": 320,
+      "viewport": 320,
+      "retryPresent": 1
+    },
+    {
+      "flow": "retry",
+      "loading": 0
+    },
+    {
+      "flow": "focus-trap",
+      "inside": true
+    },
+    {
+      "flow": "escape",
+      "dialogClosed": true,
+      "focusRestored": true
+    },
+    {
+      "flow": "console-and-posts",
+      "errors": []
+    }
+  ],
+  "nexusExtra": [
+    {
+      "flow": "deep-link",
+      "url": "/campaigns?search=m-2001&platform=meta",
+      "filter": "m-2001",
+      "rows": 1,
+      "targetPresent": 1,
+      "dialogClosed": true
+    },
+    {
+      "flow": "before-brand-switch",
+      "conversationHasOldBrand": 1
+    },
+    {
+      "flow": "brand-reset",
+      "brand": "Nexus\nSky",
+      "oldResponseCount": 0,
+      "welcome": 1
+    },
+    {
+      "flow": "cancel",
+      "loading": 0,
+      "cancelled": 1
+    },
+    {
+      "flow": "client",
+      "url": "/cliente",
+      "nexusTriggerCount": 0,
+      "apiDeniedStatus": 403
+    }
+  ],
+  "gatePriority": [
+    {
+      "delays": {
+        "critical": 50,
+        "kickoff": 500
+      },
+      "state": {
+        "criticalCount": 1,
+        "criticalAriaHidden": null,
+        "dialogs": [
+          {
+            "role": "alertdialog",
+            "hidden": null,
+            "name": "Google Ads: Prueba UX de prioridad crítica"
+          }
+        ]
+      },
+      "allFocusedCritical": true
+    },
+    {
+      "delays": {
+        "critical": 500,
+        "kickoff": 50
+      },
+      "state": {
+        "criticalCount": 1,
+        "criticalAriaHidden": null,
+        "dialogs": [
+          {
+            "role": "alertdialog",
+            "hidden": null,
+            "name": "Google Ads: Prueba UX de prioridad crítica"
+          }
+        ]
+      },
+      "allFocusedCritical": true
+    },
+    {
+      "delays": {
+        "critical": 50,
+        "kickoff": 50
+      },
+      "state": {
+        "criticalCount": 1,
+        "criticalAriaHidden": null,
+        "dialogs": [
+          {
+            "role": "alertdialog",
+            "hidden": null,
+            "name": "Google Ads: Prueba UX de prioridad crítica"
+          }
+        ]
+      },
+      "allFocusedCritical": true
+    }
+  ],
+  "gateResumption": [
+    {
+      "blocking": true,
+      "criticalDelay": 50,
+      "monthDelay": 500,
+      "singleCritical": true,
+      "criticalFocus": true,
+      "monthResumed": true,
+      "monthFocus": true
+    },
+    {
+      "blocking": true,
+      "criticalDelay": 500,
+      "monthDelay": 50,
+      "singleCritical": true,
+      "criticalFocus": true,
+      "monthResumed": true,
+      "monthFocus": true
+    },
+    {
+      "blocking": false,
+      "criticalDelay": 50,
+      "monthDelay": 500,
+      "singleCritical": true,
+      "criticalFocus": true,
+      "monthResumed": true,
+      "monthFocus": true
+    },
+    {
+      "blocking": false,
+      "criticalDelay": 500,
+      "monthDelay": 50,
+      "singleCritical": true,
+      "criticalFocus": true,
+      "monthResumed": true,
+      "monthFocus": true
+    }
+  ],
+  "contrast": [
+    {
+      "flow": "delivery-warning-enter",
+      "expanded": true
+    },
+    {
+      "flow": "delivery-warning-space",
+      "collapsed": true
+    },
+    {
+      "theme": "light",
+      "samples": [
+        {
+          "label": "Alerta",
+          "color": "rgb(191, 48, 0)",
+          "bg": [
+            255,
+            240,
+            219
+          ],
+          "ratio": 5.15
+        },
+        {
+          "label": "Alerta",
+          "color": "rgb(191, 48, 0)",
+          "bg": [
+            249,
+            234,
+            213
+          ],
+          "ratio": 4.88
+        },
+        {
+          "label": "Atención",
+          "color": "rgb(138, 82, 0)",
+          "bg": [
+            249,
+            241,
+            208
+          ],
+          "ratio": 5.64
+        },
+        {
+          "label": "Normal",
+          "color": "rgb(30, 123, 52)",
+          "bg": [
+            230,
+            248,
+            235
+          ],
+          "ratio": 4.82
+        },
+        {
+          "label": "Alerta",
+          "color": "rgb(191, 48, 0)",
+          "bg": [
+            255,
+            240,
+            219
+          ],
+          "ratio": 5.15
+        },
+        {
+          "label": "Normal",
+          "color": "rgb(30, 123, 52)",
+          "bg": [
+            230,
+            248,
+            235
+          ],
+          "ratio": 4.82
+        },
+        {
+          "label": "Atención",
+          "color": "rgb(138, 82, 0)",
+          "bg": [
+            255,
+            247,
+            214
+          ],
+          "ratio": 5.94
+        },
+        {
+          "label": "Normal",
+          "color": "rgb(30, 123, 52)",
+          "bg": [
+            230,
+            248,
+            235
+          ],
+          "ratio": 4.82
+        },
+        {
+          "label": "Normal",
+          "color": "rgb(30, 123, 52)",
+          "bg": [
+            230,
+            248,
+            235
+          ],
+          "ratio": 4.82
+        },
+        {
+          "label": "Alerta",
+          "color": "rgb(191, 48, 0)",
+          "bg": [
+            255,
+            240,
+            219
+          ],
+          "ratio": 5.15
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "samples": [
+        {
+          "label": "Alerta",
+          "color": "rgb(255, 159, 10)",
+          "bg": [
+            55,
+            41,
+            22
+          ],
+          "ratio": 6.86
+        },
+        {
+          "label": "Alerta",
+          "color": "rgb(255, 159, 10)",
+          "bg": [
+            61,
+            47,
+            28
+          ],
+          "ratio": 6.28
+        },
+        {
+          "label": "Atención",
+          "color": "rgb(255, 214, 10)",
+          "bg": [
+            66,
+            59,
+            28
+          ],
+          "ratio": 7.99
+        },
+        {
+          "label": "Normal",
+          "color": "rgb(48, 209, 88)",
+          "bg": [
+            25,
+            44,
+            32
+          ],
+          "ratio": 7.27
+        },
+        {
+          "label": "Alerta",
+          "color": "rgb(255, 159, 10)",
+          "bg": [
+            55,
+            41,
+            22
+          ],
+          "ratio": 6.86
+        },
+        {
+          "label": "Normal",
+          "color": "rgb(48, 209, 88)",
+          "bg": [
+            25,
+            44,
+            32
+          ],
+          "ratio": 7.27
+        },
+        {
+          "label": "Atención",
+          "color": "rgb(255, 214, 10)",
+          "bg": [
+            59,
+            52,
+            22
+          ],
+          "ratio": 8.76
+        },
+        {
+          "label": "Normal",
+          "color": "rgb(48, 209, 88)",
+          "bg": [
+            25,
+            44,
+            32
+          ],
+          "ratio": 7.27
+        },
+        {
+          "label": "Normal",
+          "color": "rgb(48, 209, 88)",
+          "bg": [
+            25,
+            44,
+            32
+          ],
+          "ratio": 7.27
+        },
+        {
+          "label": "Alerta",
+          "color": "rgb(255, 159, 10)",
+          "bg": [
+            55,
+            41,
+            22
+          ],
+          "ratio": 6.86
+        }
+      ]
+    },
+    {
+      "flow": "input-placeholder",
+      "style": {
+        "color": "rgb(110, 110, 115)",
+        "opacity": "1",
+        "background": "rgb(245, 245, 247)"
+      }
+    }
+  ],
+  "limits": [
+    "Datos y respuestas de puertas operativas simulados; no verifica proveedores ni envío real.",
+    "La cobertura de roles en navegador corresponde al modo demo; la comprobación HTTP nominal se describe por separado en el informe.",
+    "La medición de contraste corresponde a las insignias muestreadas, no a todos los componentes.",
+    "Tras el saneamiento final n8n se repitieron check/build, comprobaciones HTTP nominales y las 15 vistas principales con teclado/temas sobre la compilación final."
+  ],
+  "validation": {
+    "monitoring": {
+      "command": "npm run check && npm run build",
+      "tests": 485,
+      "testFiles": 49,
+      "result": "passed"
+    },
+    "unifiedApi": {
+      "command": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run build",
+      "tests": 626,
+      "testFiles": 33,
+      "result": "passed"
+    },
+    "finalProductionSmoke": {
+      "date": "2026-10-02T13:42:24.836Z",
+      "views": 15,
+      "result": "passed",
+      "includesFinalN8nRedaction": true
+    }
+  }
+}

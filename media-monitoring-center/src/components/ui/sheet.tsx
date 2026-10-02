@@ -16,10 +16,10 @@ function SheetContent({
 }: React.ComponentProps<typeof SheetPrimitive.Content> & { side?: "right" | "left" }) {
   return (
     <SheetPrimitive.Portal>
-      <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-black/35 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
+      <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-black/35 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 motion-reduce:animate-none" />
       <SheetPrimitive.Content
         className={cn(
-          "fixed inset-y-0 z-50 flex h-full flex-col gap-0 bg-popover text-popover-foreground shadow-(--shadow-pop) ease-[cubic-bezier(0.32,0.72,0,1)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:duration-300 data-[state=closed]:duration-200",
+          "fixed inset-y-0 z-50 flex h-full flex-col gap-0 bg-popover text-popover-foreground shadow-(--shadow-pop) ease-[cubic-bezier(0.32,0.72,0,1)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:duration-300 data-[state=closed]:duration-200 motion-reduce:animate-none",
           side === "right"
             ? "right-0 w-full sm:max-w-xl data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right"
             : "left-0 w-72 data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left",
@@ -28,8 +28,8 @@ function SheetContent({
         {...props}
       >
         {children}
-        <SheetPrimitive.Close className="pressable absolute top-3.5 right-3.5 rounded-full p-1.5 text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 outline-none">
-          <X className="size-4" />
+        <SheetPrimitive.Close className="pressable absolute top-2.5 right-2.5 flex size-11 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring outline-none sm:size-9">
+          <X aria-hidden className="size-4" />
           <span className="sr-only">Cerrar</span>
         </SheetPrimitive.Close>
       </SheetPrimitive.Content>

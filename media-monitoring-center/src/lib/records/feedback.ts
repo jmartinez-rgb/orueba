@@ -1,5 +1,6 @@
 import "server-only";
 import { getRecordStore, mapLimit } from "./store";
+import { nextRecordId } from "./counter";
 import { FEEDBACK_STATUS_LABEL, OPEN_FEEDBACK_STATUSES, type Feedback, type FeedbackStatus, type NewFeedback } from "./feedback-model";
 
 export * from "./feedback-model";
@@ -9,17 +10,8 @@ export * from "./feedback-model";
  * administrador los ve, les da seguimiento y responde. Registro interno (Netlify Blobs).
  */
 
-async function nextId(): Promise<string> {
-  const store = getRecordStore();
-  const cur = (await store.get<{ n: number }>("counters/feedback"))?.n ?? 0;
-  let n = cur + 1;
-  while (await store.get(`feedback/FB-${String(n).padStart(4, "0")}`)) n++;
-  await store.set("counters/feedback", { n });
-  return `FB-${String(n).padStart(4, "0")}`;
-}
-
 export async function createFeedback(input: NewFeedback, author: Feedback["author"], agent: string | null): Promise<Feedback> {
-  const id = await nextId();
+  const id = await nextRecordId(getRecordStore(), "feedback", "FB");
   const now = new Date().toISOString();
   const fb: Feedback = {
     id,

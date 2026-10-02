@@ -17,6 +17,11 @@ registros concurrentes del monitoreo: CAS por clave para configuración/dictáme
 correcciones de usuarios dentro del proceso. Validación: API 626 pruebas; monitoreo 367 y build.
 Concurrencia general entre instancias y aceptación de producción siguen pendientes.
 
+La [auditoría funcional, UX y Nexus](../media-monitoring-center/docs/AUDITORIA_UX_NEXUS_2026-10-02.md)
+continúa desde `36bc07c`: corrige simulación de webhooks, contadores, totales incompletos,
+alcance de entrega y diagnóstico seguro en el monitoreo, y añade un chat interno de consulta.
+Esta ronda no vuelve a verificar proveedores ni cambia las decisiones de negocio pendientes.
+
 | Fase | Contenido                                | Estado                                                                                                         |
 | ---- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | 1    | Infraestructura base (sin integraciones) | **Lista**                                                                                                      |

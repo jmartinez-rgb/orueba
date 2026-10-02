@@ -147,7 +147,7 @@ export function PlatformCard({ vm, timezone, weeks, attention, canEdit = false }
             Último dato <span className="tabular font-medium text-foreground">{formatTimeInTz(vm.lastDataAt, timezone)}</span>
             {!bad && vm.lagMinutes !== null && ` · hace ${ago(vm.lagMinutes)}`}
           </span>
-          <Link href={`/platforms/${vm.platform}`} className="inline-flex items-center gap-1.5 rounded-full px-1.5 py-0.5 hover:bg-foreground/[0.05] hover:text-foreground" aria-label={`Ver ${vm.name}`}>
+          <Link href={`/platforms/${vm.platform}`} className="inline-flex min-h-8 min-w-8 items-center justify-center gap-1.5 rounded-full px-1.5 py-0.5 outline-none hover:bg-foreground/[0.05] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60" aria-label={`Ver ${vm.name}`}>
             {vm.alertsCount > 0 && (
               <span className="inline-flex items-center gap-1">
                 <BellRing className="size-3" /> {vm.alertsCount}

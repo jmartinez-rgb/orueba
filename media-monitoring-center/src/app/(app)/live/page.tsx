@@ -20,7 +20,7 @@ import { Countdown } from "@/components/layout/live-clock";
 import { RefreshButton } from "@/components/layout/refresh-button";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Live Monitoring" };
+export const metadata: Metadata = { title: "Monitoreo en vivo" };
 export const dynamic = "force-dynamic";
 
 export default async function LivePage() {
@@ -40,7 +40,7 @@ export default async function LivePage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="Live Monitoring"
+        title="Monitoreo en vivo"
         subtitle={`Evaluación cada ${meta.intervalHours} h (${meta.slots.map((s) => hourLabel(s)).join(" · ")}) · ventana 00:00–${hourLabel(meta.cutoffHour)} vs mismo día de las últimas ${meta.historyWeeks} semanas`}
         actions={
           <>

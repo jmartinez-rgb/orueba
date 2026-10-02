@@ -1,5 +1,9 @@
 # Preauditoría de v1 — 2 de octubre de 2026 UTC
 
+La ronda más reciente parte de `36bc07c` e incluye diseño, UX, Nexus y nuevas correcciones
+funcionales: [informe completo](../../media-monitoring-center/docs/AUDITORIA_UX_NEXUS_2026-10-02.md).
+Esa ronda prevalece sobre los pendientes resueltos y conteos históricos de esta página.
+
 ## Continuación de la preauditoría — 2 de octubre de 2026 UTC
 
 Base: `fe7a62e`, misma rama `codex/finalizacion-verificador-meta-x`. Esta sección prevalece

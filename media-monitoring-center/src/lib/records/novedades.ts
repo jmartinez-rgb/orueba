@@ -2,6 +2,7 @@ import "server-only";
 import { DEFAULT_BRAND, type BrandId } from "@/lib/brands";
 import { cached, invalidate } from "@/lib/data/cache";
 import { getRecordStore, mapLimit } from "./store";
+import { nextRecordId } from "./counter";
 import { NOVEDAD_KIND_LABEL, type KickoffItem, type MonthKickoff, type NewNovedad, type Novedad } from "./novedad-model";
 
 export * from "./novedad-model";
@@ -13,15 +14,6 @@ export * from "./novedad-model";
 
 const LIST_TTL = 15 * 1000;
 
-async function nextId(): Promise<string> {
-  const store = getRecordStore();
-  const cur = (await store.get<{ n: number }>("counters/novedades"))?.n ?? 0;
-  let n = cur + 1;
-  while (await store.get(`novedades/NOV-${String(n).padStart(4, "0")}`)) n++;
-  await store.set("counters/novedades", { n });
-  return `NOV-${String(n).padStart(4, "0")}`;
-}
-
 function changed() {
   invalidate("novedades:");
   invalidate("kickoff:");
@@ -32,7 +24,7 @@ function changed() {
 }
 
 export async function createNovedad(input: NewNovedad, by: string, brand: BrandId = DEFAULT_BRAND): Promise<Novedad> {
-  const id = await nextId();
+  const id = await nextRecordId(getRecordStore(), "novedades", "NOV");
   const now = new Date().toISOString();
   const n: Novedad = {
     id,

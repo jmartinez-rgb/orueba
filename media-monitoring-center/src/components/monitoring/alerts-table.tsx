@@ -1,9 +1,9 @@
 "use client";
 import { sileo } from "sileo";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import { RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import type { PlatformId, Severity } from "@/lib/types";
 import { PLATFORM_IDS } from "@/lib/types";
 import type { AlertRowVM } from "@/lib/services/view-models";
@@ -97,6 +97,7 @@ export function AlertsTable({
   const [type, setType] = useState<string>("all");
   const [showGrouped, setShowGrouped] = useState(false);
   const [selected, setSelected] = useState<AlertRowVM | null>(null);
+  const selectedTrigger = useRef<HTMLTableRowElement | null>(null);
   const [novedadFor, setNovedadFor] = useState<AlertRowVM | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -130,27 +131,46 @@ export function AlertsTable({
         setError(d.message ?? "No se pudo actualizar la alerta.");
         sileo.error({ title: "No se pudo actualizar la alerta", description: d.message });
       } else {
-        setSelected((s) => (s ? { ...s, status: next } : s));
+        setSelected((s) => (s?.id === id ? { ...s, status: next } : s));
         sileo.success({ title: `Alerta ${id}: ${next}` });
         router.refresh();
       }
+    } catch {
+      const message = "No se pudo confirmar el cambio. Revisa la conexión y vuelve a consultar la alerta.";
+      setError(message);
+      sileo.error({ title: "No se pudo actualizar la alerta", description: message });
     } finally {
       setSaving(false);
     }
   }
 
   const grouped = selected ? rows.filter((r) => r.groupedUnder === selected.fingerprint && r.resolvedAt === null) : [];
+  const hasFilters = Boolean(q.trim()) || sev !== "all" || platform !== "all" || type !== "all" || status !== "active";
+
+  function resetFilters() {
+    setQ("");
+    setSev("all");
+    setPlatform("all");
+    setStatus("active");
+    setType("all");
+    setShowGrouped(false);
+  }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {!compact && (
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-full sm:w-64">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar alerta, campaña, cuenta…" className="h-8 pl-8 text-xs" aria-label="Buscar" />
+        <div className="space-y-3 rounded-xl bg-foreground/[0.025] p-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground"><SlidersHorizontal className="size-3.5" aria-hidden /> Filtrar alertas</span>
+            {hasFilters && <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={resetFilters}><RotateCcw className="size-3" aria-hidden /> Restablecer</Button>}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-full xl:w-64">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar alerta, campaña, cuenta…" className="h-9 bg-background pl-9 text-xs" aria-label="Buscar alerta, campaña o cuenta" />
           </div>
           <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
-            <SelectTrigger size="sm" className="w-40" aria-label="Estado">
+            <SelectTrigger size="sm" className="h-9 w-[calc(50%-0.25rem)] bg-background sm:w-40" aria-label="Estado">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -164,7 +184,7 @@ export function AlertsTable({
             </SelectContent>
           </Select>
           <Select value={sev} onValueChange={(v) => setSev(v as typeof sev)}>
-            <SelectTrigger size="sm" className="w-36" aria-label="Severidad">
+            <SelectTrigger size="sm" className="h-9 w-[calc(50%-0.25rem)] bg-background sm:w-36" aria-label="Severidad">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -177,7 +197,7 @@ export function AlertsTable({
             </SelectContent>
           </Select>
           <Select value={platform} onValueChange={(v) => setPlatform(v as typeof platform)}>
-            <SelectTrigger size="sm" className="w-40" aria-label="Plataforma">
+            <SelectTrigger size="sm" className="h-9 w-[calc(50%-0.25rem)] bg-background sm:w-44" aria-label="Plataforma">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -190,7 +210,7 @@ export function AlertsTable({
             </SelectContent>
           </Select>
           <Select value={type} onValueChange={setType}>
-            <SelectTrigger size="sm" className="w-40" aria-label="Tipo">
+            <SelectTrigger size="sm" className="h-9 w-[calc(50%-0.25rem)] bg-background sm:w-40" aria-label="Tipo">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -202,18 +222,23 @@ export function AlertsTable({
               ))}
             </SelectContent>
           </Select>
-          <div className="flex items-center gap-2 pl-1">
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-(--hairline) pt-3">
+          <div className="flex items-center gap-2">
             <Switch id="grouped" checked={showGrouped} onCheckedChange={setShowGrouped} />
             <Label htmlFor="grouped" className="text-xs font-normal text-muted-foreground">
               Mostrar agrupadas
             </Label>
           </div>
-          <span className="ml-auto text-xs text-muted-foreground">{filtered.length} alertas</span>
+          <span className="text-xs text-muted-foreground" aria-live="polite"><strong className="tabular font-semibold text-foreground">{filtered.length}</strong> {filtered.length === 1 ? "alerta visible" : "alertas visibles"}</span>
+          </div>
         </div>
       )}
 
       {filtered.length === 0 ? (
-        <StateMessage kind="no-alerts" title="Sin alertas activas" description="Todas las métricas están dentro de los parámetros configurados." compact />
+        <div className="rounded-xl border border-dashed border-(--hairline) bg-foreground/[0.015] px-4 py-4">
+          <StateMessage kind={!compact && hasFilters ? "empty" : "no-alerts"} title={!compact && hasFilters ? "No hay alertas con estos filtros" : "Sin alertas activas"} description={!compact && hasFilters ? "Prueba otra búsqueda o restablece los filtros para revisar las alertas activas." : "No hay alertas activas en el registro disponible. La siguiente evaluación actualizará esta vista."} compact />
+        </div>
       ) : (
         <Table>
           <TableHeader>
@@ -234,8 +259,8 @@ export function AlertsTable({
           </TableHeader>
           <TableBody>
             {filtered.map((r) => (
-              <TableRow key={r.id} className={cn("cursor-pointer", r.resolvedAt && "opacity-70")} onClick={() => setSelected(r)} tabIndex={0} onKeyDown={(e) => e.key === "Enter" && setSelected(r)}>
-                <TableCell className="font-mono text-xs">{r.id}</TableCell>
+              <TableRow key={r.id} className={cn("cursor-pointer focus-visible:bg-primary/[0.04] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring", r.resolvedAt && "opacity-70")} onClick={(e) => { selectedTrigger.current = e.currentTarget; setSelected(r); }} tabIndex={0} aria-label={`Abrir alerta ${r.id}: ${r.title}`} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectedTrigger.current = e.currentTarget; setSelected(r); } }}>
+                <TableCell className="font-mono text-[11px] text-muted-foreground">{r.id}</TableCell>
                 <TableCell>
                   <SeverityBadge severity={r.severity} />
                 </TableCell>
@@ -279,7 +304,7 @@ export function AlertsTable({
       )}
 
       <Sheet open={selected !== null} onOpenChange={(o) => !o && setSelected(null)}>
-        <SheetContent>
+        <SheetContent onCloseAutoFocus={(event) => { if (selectedTrigger.current?.isConnected) { event.preventDefault(); selectedTrigger.current.focus(); } }}>
           {selected && (
             <>
               <SheetHeader>

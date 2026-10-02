@@ -34,7 +34,13 @@ export async function evaluateNow(ctx: AppContext, opts: { dryRun: boolean; trig
   const base = mock ? (await baseAlertState(ctx, asOf, run.businessDate)).state : await ctx.store.loadAlertState();
   const result = reconcile(applyOverrides(base, await ctx.store.getOverrides()), run, { settings: ctx.settings, notify: opts.notify !== false, whatsapp: env.whatsapp, brand: ctx.brandInfo });
   const persist = !mock && !opts.dryRun;
-  const dispatched = opts.dryRun ? result.notifications.map((n) => ({ ...n, status: "SKIPPED" as const, detail: "dryRun: no se envió." })) : await dispatchNotifications(result.notifications, ctx.settings);
+  // El contexto también puede caer a mock por un mapeo inválido aunque la
+  // configuración de entorno solicite una fuente real. Nunca despachar ese ensayo.
+  const dispatched = opts.dryRun
+    ? result.notifications.map((n) => ({ ...n, status: "SKIPPED" as const, detail: "dryRun: no se envió." }))
+    : mock
+      ? result.notifications.map((n) => ({ ...n, status: "SIMULATED" as const, detail: "MOCK MODE: mensaje generado, no enviado." }))
+      : await dispatchNotifications(result.notifications, ctx.settings);
   const summary = summarizeRun(run, result.state, dispatched.length, Date.now() - started, opts.trigger, ctx.brandInfo.idPrefix);
   if (persist) {
     await ctx.store.saveAlertState(result.state);

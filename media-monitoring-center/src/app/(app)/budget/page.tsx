@@ -20,7 +20,7 @@ import { demoPreviousSnapshot, detectBudgetChanges, snapshotFrom, type BudgetCha
 import { latestSnapshotBefore, saveBudgetSnapshot } from "@/lib/records/budget-snapshots";
 import { addDays } from "@/lib/time/tz";
 
-export const metadata: Metadata = { title: "Budget Control" };
+export const metadata: Metadata = { title: "Presupuestos" };
 export const dynamic = "force-dynamic";
 
 export default async function BudgetPage() {
@@ -36,8 +36,8 @@ export default async function BudgetPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="Budget Control"
-        subtitle={`${MONTHS_ES[m - 1]} ${y} · día ${bc.elapsedDays + 1} de ${bc.daysInMonth}. Forecast = gasto del mes + resto de hoy (curva horaria) + días restantes al ritmo reciente del mismo día de la semana. Presupuestos de referencia: la app no modifica nada en las plataformas.`}
+        title="Presupuestos"
+        subtitle={`${MONTHS_ES[m - 1]} ${y} · día ${bc.elapsedDays + 1} de ${bc.daysInMonth}. Proyección = gasto del mes + resto de hoy (curva horaria) + días restantes al ritmo reciente del mismo día de la semana. Presupuestos de referencia: la app no modifica nada en las plataformas.`}
       />
       {snap.meta.mode === "unified" && bc.lines.some(l => l.spend === null || l.forecast === null) && (
         <p className="rounded-md border border-status-attention/40 bg-status-attention/10 p-3 text-xs text-status-attention-text">Hay días, horas o tasas de cambio pendientes. El gasto incompleto y el pronóstico sin suficiente historial se muestran sin valor.</p>
@@ -84,7 +84,7 @@ export default async function BudgetPage() {
             <CardTitle>Presupuesto por plataforma, cuenta y campaña</CardTitle>
             <CardDescription>
               Estado por forecast: sobreejercicio ≥ {Math.round(b.overspendAttention * 100)}% atención, ≥ {Math.round(b.overspendAlert * 100)}% alerta, ≥ {Math.round(b.overspendCritical * 100)}% crítico; subejercicio ≥{" "}
-              {Math.round(b.underspendAttention * 100)}% atención. Configurable en Settings.
+              {Math.round(b.underspendAttention * 100)}% atención. Configurable en Configuración.
             </CardDescription>
           </div>
         </CardHeader>

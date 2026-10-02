@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { CircleCheck, CloudOff, Hourglass, Inbox, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +31,7 @@ export function StateMessage({
   compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const detailsId = useId();
   const Icon = ICONS[kind];
   const tone =
     kind === "error" ? "text-status-critical-text" : kind === "no-alerts" || kind === "no-incidents" ? "text-status-normal-text" : kind === "delayed" || kind === "disconnected" ? "text-status-data-text" : "text-muted-foreground";
@@ -41,10 +42,10 @@ export function StateMessage({
       {description && <p className="max-w-md text-xs text-muted-foreground">{description}</p>}
       {technical && (
         <div className="mt-1 w-full max-w-lg">
-          <button type="button" onClick={() => setOpen((v) => !v)} className="text-xs text-primary underline-offset-4 hover:underline">
+          <button type="button" aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen((v) => !v)} className="min-h-8 rounded px-2 text-xs text-primary outline-none underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring/60">
             {open ? "Ocultar detalles técnicos" : "Ver detalles técnicos"}
           </button>
-          {open && <pre className="mt-2 max-h-40 overflow-auto rounded-md border bg-muted p-2 text-left font-mono text-[11px] whitespace-pre-wrap text-muted-foreground">{technical}</pre>}
+          <pre id={detailsId} hidden={!open} className="mt-2 max-h-40 overflow-auto rounded-md border bg-muted p-2 text-left font-mono text-[11px] whitespace-pre-wrap text-muted-foreground">{technical}</pre>
         </div>
       )}
     </div>

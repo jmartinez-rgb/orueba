@@ -10,7 +10,7 @@ import { safeSnapshot } from "@/lib/services/safe";
 import { PLATFORMS } from "@/lib/platforms/registry";
 import { PLATFORM_IDS } from "@/lib/types";
 
-export const metadata: Metadata = { title: "Compare" };
+export const metadata: Metadata = { title: "Comparativas" };
 export const dynamic = "force-dynamic";
 
 export default async function ComparePage({ searchParams }: { searchParams: Promise<{ dimension?: string; platform?: string }> }) {
@@ -46,7 +46,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="Compare"
+        title="Comparativas"
         subtitle="Compara cualquier fecha contra el mismo día de semanas anteriores (o una fecha personalizada) en la misma franja horaria, por plataforma, cuenta, estrategia, objetivo o campaña."
       />
       <CompareView initial={initial} attention={ctx.settings.thresholds.attention} delayed={delayed} />

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { UnifiedBudget, UnifiedDeliverySignal } from "@/lib/integrations/unified-api";
 import { buildDeliveryView } from "@/lib/services/delivery-health";
+import type { BrandId } from "@/lib/brands";
 
 const at = "2026-10-01T18:00:00.000Z";
 function signal(p: Partial<UnifiedDeliverySignal> & Pick<UnifiedDeliverySignal, "platform" | "kind" | "severity">): UnifiedDeliverySignal {
@@ -80,5 +81,48 @@ describe("salud de entrega en el monitoreo", () => {
     const plenty = buildDeliveryView({ ...base, platforms: ["meta"], budgets: [metaBudget(1000)], signals: [cap(10000)] });
     expect(plenty.items).toEqual([]);
     expect(plenty.insights[0]).toMatchObject({ tone: "good" });
+  });
+});
+
+describe("salud de entrega con cuentas directas autorizadas", () => {
+  const directBase = { ...base, platforms: [...base.platforms] };
+  const directAccounts = () => new Map<string, BrandId>([["meta:a1", "izzi"], ["google:a1", "sky"]]);
+  const issue = (extra: Partial<UnifiedDeliverySignal> = {}) => signal({ platform: "meta", kind: "account_status", severity: "critical", code: "DISABLED", ...extra });
+
+  it("excluye una cuenta ajena aunque su nombre neutro se clasifique como izzi", () => {
+    const view = buildDeliveryView({ ...directBase, directAccounts: directAccounts(), signals: [issue({ account_id: "outside", account_name: "Another Company" })] });
+    expect(view.items).toEqual([]);
+    expect(view.counts.critical).toBe(0);
+    expect(view.extractedAt).toBeNull();
+  });
+
+  it("el mapeo explícito prevalece sobre un nombre que diga Sky", () => {
+    const view = buildDeliveryView({ ...directBase, directAccounts: directAccounts(), signals: [issue({ account_name: "Sky - Nombre anterior" })] });
+    expect(view.items).toHaveLength(1);
+  });
+
+  it("una cuenta mixta conserva la marca asignada aunque la campaña mencione la otra", () => {
+    const view = buildDeliveryView({ ...directBase, directAccounts: directAccounts(), signals: [issue({ account_name: "izzi - Sky Social", campaign_name: "Sky Sports" })] });
+    expect(view.items).toHaveLength(1);
+  });
+
+  it("la autorización incluye la plataforma y no se hereda por compartir el ID", () => {
+    const view = buildDeliveryView({ ...directBase, directAccounts: directAccounts(), signals: [issue({ platform: "google", account_name: "izzi" })] });
+    expect(view.items).toEqual([]);
+  });
+
+  it("un mapa vacío no se sustituye por la heurística de nombres", () => {
+    expect(buildDeliveryView({ ...directBase, directAccounts: new Map(), signals: [issue()] }).items).toEqual([]);
+  });
+
+  it("una extracción ajena más reciente no cambia la hora de esta marca", () => {
+    const view = buildDeliveryView({ ...directBase, directAccounts: directAccounts(), signals: [issue(), issue({ account_id: "outside", extracted_at: "2026-10-02T12:00:00Z" })] });
+    expect(view.extractedAt).toBe(at);
+    expect(view.items).toHaveLength(1);
+  });
+
+  it("las fuentes heredadas conservan la selección por nombre", () => {
+    const view = buildDeliveryView({ ...directBase, signals: [issue({ account_id: "legacy", account_name: "Another Company" })] });
+    expect(view.items).toHaveLength(1);
   });
 });

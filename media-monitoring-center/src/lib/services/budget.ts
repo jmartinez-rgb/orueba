@@ -161,6 +161,25 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
   const monthDays = new Map<string, Set<string>>();
   const unknownMonth = new Set<string>();
   const unknownToday = new Set<string>();
+  // A date with any row is not complete coverage of an account/platform/brand.
+  // Each catalog member must be covered, including members with no rows at all.
+  const requiredMembers = new Map<string, string[]>();
+  if (strict) {
+    const totalKey = keyOf({ level: "total", platform: null, accountId: null, campaignId: null });
+    const requireAccount = (platform: PlatformId, accountId: string) => {
+      const platformKey = keyOf({ level: "platform", platform, accountId: null, campaignId: null });
+      const accountKey = keyOf({ level: "account", platform, accountId, campaignId: null });
+      requiredMembers.set(totalKey, []);
+      requiredMembers.set(platformKey, [totalKey]);
+      requiredMembers.set(accountKey, [platformKey, totalKey]);
+      return [accountKey, platformKey, totalKey];
+    };
+    for (const account of catalog.accounts) requireAccount(account.platform, account.id);
+    for (const campaign of catalog.campaigns) {
+      const parents = requireAccount(campaign.platform, campaign.accountId);
+      requiredMembers.set(keyOf({ level: "campaign", platform: campaign.platform, accountId: campaign.accountId, campaignId: campaign.id }), parents);
+    }
+  }
   for (const r of daily) {
     const spend = r.metrics.spend ?? 0;
     const camp = r.campaignId ? campaignById.get(r.campaignId) : undefined;
@@ -189,10 +208,20 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
       }
     }
   }
+  for (const [member, parents] of requiredMembers) {
+    if (unknownMonth.has(member) || (monthDays.get(member)?.size ?? 0) < elapsedFullDays + 1) {
+      unknownMonth.add(member);
+      for (const parent of parents) unknownMonth.add(parent);
+    }
+    if (unknownToday.has(member) || !monthDays.get(member)?.has(today)) {
+      unknownToday.add(member);
+      for (const parent of parents) unknownToday.add(parent);
+    }
+  }
 
   const shareFor = (p: PlatformId | null) => (p ? snap.run.pacing[p].curveShare : snap.run.pacing.total.curveShare);
   const lines: BudgetLine[] = [];
-  const keys = new Set<string>([...budgetMap.keys(), ...aggs.keys()]);
+  const keys = new Set<string>([...budgetMap.keys(), ...aggs.keys(), ...requiredMembers.keys()]);
   for (const k of keys) {
     const [level, platform, accountId, campaignId] = k.split("|") as [BudgetLevel, string, string, string];
     const agg = aggs.get(k) ?? { mtd: 0, today: 0, byWeekday: [0, 0, 0, 0, 0, 0, 0], weekdayDays: [0, 0, 0, 0, 0, 0, 0] };
@@ -209,7 +238,7 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
       b = undefined;
       budgetSource = null;
     }
-    if (!b && agg.mtd === 0 && !(strict && unknownMonth.has(k))) continue;
+    if (!b && agg.mtd === 0 && !(strict && (unknownMonth.has(k) || requiredMembers.has(k)))) continue;
     const p = (platform || null) as PlatformId | null;
     const share = shareFor(p);
     const weekdayAverages = agg.byWeekday.map((v, i) => (agg.weekdayDays[i] ? v / agg.weekdayDays[i] : 0));
@@ -225,7 +254,7 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
       remainingWeekdays,
     });
     const incomplete = strict && (unknownMonth.has(k) || (monthDays.get(k)?.size ?? 0) < elapsedFullDays + 1);
-    const forecastIncomplete = incomplete || (strict && remainingWeekdays.some((n, wd) => n > 0 && agg.weekdayDays[wd] < ctx.settings.history.minSamples));
+    const forecastIncomplete = incomplete || (strict && remainingWeekdays.some((weekday) => agg.weekdayDays[weekday] < ctx.settings.history.minSamples));
     const todayUnknown = strict && (unknownToday.has(k) || !monthDays.get(k)?.has(today));
     const dataState = incomplete ? "PARTIAL" : p ? snap.platformStatus[p].dataState : "OK";
     const camp = campaignId ? campaignById.get(campaignId) : undefined;

@@ -42,6 +42,15 @@ y Settings/dictámenes con CAS en Blobs. Corrige carreras de usuarios dentro del
 cambio propio de contraseña del principal. Validación: 367 pruebas, tipos/lint/build y conflictos
 por HTTP. Usuarios entre instancias, notificaciones y validación de Blobs real siguen pendientes.
 
+La [auditoría de diseño, UX y Nexus](docs/AUDITORIA_UX_NEXUS_2026-10-02.md) continúa desde esa
+base: navegación en español, seguimiento visual, correcciones de teclado/móvil y cobertura
+de totales, reserva concurrente de IDs y barrera de simulación de webhooks. Incluye
+[Nexus](docs/NEXUS.md), chat de consulta local sobre campañas y uso, limitado a la marca y
+acceso interno. No utiliza un modelo generativo ni ejecuta acciones. Los pendientes de datos,
+producción y decisiones de negocio siguen separados de las comprobaciones locales. Esta ronda
+valida **485 pruebas**, tipos/lint/build y recorridos de navegador en escritorio/móvil; el informe
+incluye evidencia visual con datos simulados y resultados por escenario.
+
 ## Arranque rápido
 
 Requisitos: Node.js 22+.
@@ -104,11 +113,11 @@ gastar** (datos al día, gasto en cero las últimas 3 horas).
 
 | Grupo | Páginas |
 |---|---|
-| Monitoreo | Overview · Live Monitoring · Platforms (y `/platforms/{google\|meta\|tiktok\|microsoft\|spotify\|x}`) · Campaigns · **Monitoreos** (mensaje de WhatsApp manual) |
-| Alertas | Alerts · Incidents · **Tickets** |
-| Análisis | Budget Control · Compare (por plataforma, cuenta, estrategia, objetivo o campaña) · Historical · **Métricas** · **Optimizaciones** |
-| Operación | Integrations · Automation · **Usuarios** (administradores) · Settings |
-| Ayuda | **Guía** · **Bugs y sugerencias** (cualquiera envía; solo el administrador recibe) |
+| Monitoreo | Resumen · En vivo · Plataformas (y `/platforms/{google\|meta\|tiktok\|microsoft\|spotify\|x}`) · Campañas · **Monitoreos** (mensaje de WhatsApp manual) |
+| Alertas | Alertas · Incidentes · **Tickets** |
+| Análisis | Presupuestos · Comparar (por plataforma, cuenta, estrategia, objetivo o campaña) · Histórico · **Métricas** · **Optimizaciones** |
+| Operación | Integraciones · Automatización · **Usuarios** (administradores) · Configuración |
+| Ayuda | **Guía** · **Nexus** (consulta interna) · **Bugs y sugerencias** (cualquiera envía; solo el administrador recibe) |
 
 Además: `/login`, alerta crítica a pantalla completa con acuse obligatorio, confianza de datos
 (0–100%) por plataforma, métrica monitoreada por plataforma, conversión USD→MXN con tasa mensual y

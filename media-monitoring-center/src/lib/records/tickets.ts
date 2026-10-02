@@ -2,6 +2,7 @@ import "server-only";
 import type { Severity } from "@/lib/types";
 import { DEFAULT_BRAND, type BrandId } from "@/lib/brands";
 import { getRecordStore, mapLimit } from "./store";
+import { nextRecordId } from "./counter";
 import { OPEN_TICKET_STATUSES, TICKET_CHANNEL_LABEL, TICKET_STATUS_LABEL, type NewTicket, type Ticket, type TicketChannel, type TicketStatus } from "./ticket-model";
 
 export * from "./ticket-model";
@@ -12,18 +13,8 @@ export * from "./ticket-model";
  * (Registro interno: la app no abre casos en las plataformas ni cambia nada en ellas.)
  */
 
-async function nextId(): Promise<string> {
-  const store = getRecordStore();
-  const cur = (await store.get<{ n: number }>("counters/tickets"))?.n ?? 0;
-  // Si otro proceso tomó el mismo número, se avanza hasta uno libre.
-  let n = cur + 1;
-  while (await store.get(`tickets/TKT-${String(n).padStart(4, "0")}`)) n++;
-  await store.set("counters/tickets", { n });
-  return `TKT-${String(n).padStart(4, "0")}`;
-}
-
 export async function createTicket(input: NewTicket, by: string, brand: BrandId = DEFAULT_BRAND): Promise<Ticket> {
-  const id = await nextId();
+  const id = await nextRecordId(getRecordStore(), "tickets", "TKT");
   const now = new Date().toISOString();
   const status: TicketStatus = input.reportedTo.trim() ? "REPORTADO" : "ABIERTO";
   const t: Ticket = {

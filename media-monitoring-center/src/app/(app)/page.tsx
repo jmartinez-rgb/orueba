@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Siren, UserRoundCheck, UsersRound } from "lucide-react";
 import { PLATFORM_IDS } from "@/lib/types";
 import { safeSnapshot } from "@/lib/services/safe";
 import { alertRows, chartProps, onlyMonitored, platformCard, totalKpis } from "@/lib/services/view-models";
@@ -25,7 +25,7 @@ import { demoBudgets } from "@/lib/mock/platform-budgets";
 import { buildDeliveryView } from "@/lib/services/delivery-health";
 import type { Snapshot } from "@/lib/services/snapshot";
 
-export const metadata: Metadata = { title: "Overview" };
+export const metadata: Metadata = { title: "Resumen" };
 export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
@@ -39,6 +39,9 @@ export default async function OverviewPage() {
   const alerts = alertRows(snap);
   const activeAlerts = alerts.filter((a) => a.resolvedAt === null && !a.groupedUnder && a.status !== "FALSE_POSITIVE");
   const openIncidents = snap.state.incidents.filter((i) => i.resolvedAt === null);
+  const assigned = openIncidents.filter((i) => i.ownerId === meta.userId).length;
+  const unassigned = openIncidents.filter((i) => !i.ownerId).length;
+  const critical = openIncidents.filter((i) => i.severity === "CRITICAL").length;
   const charts = chartProps(snap);
   const canWrite = meta.permissions.includes("alerts:write");
 
@@ -47,7 +50,7 @@ export default async function OverviewPage() {
       <header className="flex flex-col gap-4">
         <div className="min-w-0">
           <h1 className="text-[28px] leading-[1.1] font-semibold tracking-[-0.028em] sm:text-[34px]">
-            <span className="text-primary">{meta.brand.name}</span> Media Monitoring Center
+            <span className="text-primary">{meta.brand.name}</span> · Centro de monitoreo
           </h1>
           <p className="mt-1.5 text-[13px] text-muted-foreground first-letter:uppercase">
             {meta.dateLabel} · <LiveClock timezone={tz} className="tabular font-medium text-foreground" /> · comparado con el mismo día y franja horaria de las últimas {meta.historyWeeks} semanas
@@ -65,11 +68,21 @@ export default async function OverviewPage() {
         />
       </header>
 
-      <Link href="/incidents?view=mine" className="surface rounded-xl px-4 py-3 text-sm font-medium text-primary">
-        Mis pendientes: {openIncidents.filter(i => i.ownerId === meta.userId).length} incidentes asignados · Abrir seguimiento
-      </Link>
-
       <StatusHero overall={snap.overall} cards={cards} openIncidents={openIncidents.length} activeAlerts={activeAlerts.length} />
+
+      <nav aria-label="Seguimiento de incidentes" className="grid gap-3 sm:grid-cols-3">
+        {[
+          { href: "/incidents?view=mine", label: "Asignados a ti", value: assigned, detail: "Abre tus pendientes", Icon: UserRoundCheck },
+          { href: meta.permissions.includes("incidents:assign") ? "/incidents?view=unassigned" : "/incidents", label: "Sin responsable", value: unassigned, detail: "Revisa los incidentes por delegar", Icon: UsersRound },
+          { href: "/incidents", label: "Críticos abiertos", value: critical, detail: "Revisa el seguimiento del equipo", Icon: Siren },
+        ].map(({ href, label, value, detail, Icon }) => (
+          <Link key={label} href={href} className="surface flex min-w-0 items-center gap-3 rounded-xl px-4 py-3 outline-none transition-colors hover:bg-primary/[0.04] focus-visible:ring-2 focus-visible:ring-ring/60">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><Icon className="size-5" aria-hidden /></span>
+            <span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">{label}</span><span className="tabular text-xl font-semibold">{value}</span><span className="ml-2 text-xs text-muted-foreground">{detail}</span></span>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
+        ))}
+      </nav>
 
       <div className="order-4 lg:order-none">
         <KpiTiles kpis={totalKpis(snap)} attention={attention} />
@@ -88,7 +101,7 @@ export default async function OverviewPage() {
               <CardTitle>Alertas activas</CardTitle>
               <CardDescription>Una alerta por anomalía; las campañas con la misma causa se agrupan.</CardDescription>
             </div>
-            <Link href="/alerts" className="inline-flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1 text-[13px] font-medium text-primary transition-colors hover:bg-primary/10">
+            <Link href="/alerts" className="inline-flex min-h-9 shrink-0 items-center gap-0.5 rounded-full px-2 py-1 text-[13px] font-medium text-primary outline-none transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring/60">
               Ver todas <ChevronRight className="size-4" />
             </Link>
           </CardHeader>
@@ -102,7 +115,7 @@ export default async function OverviewPage() {
               <CardTitle>Incidentes abiertos</CardTitle>
               <CardDescription>Anomalías persistentes o graves. Se actualizan, no se duplican.</CardDescription>
             </div>
-            <Link href="/incidents" className="inline-flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1 text-[13px] font-medium text-primary transition-colors hover:bg-primary/10">
+            <Link href="/incidents" className="inline-flex min-h-9 shrink-0 items-center gap-0.5 rounded-full px-2 py-1 text-[13px] font-medium text-primary outline-none transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring/60">
               Ver todos <ChevronRight className="size-4" />
             </Link>
           </CardHeader>
@@ -145,7 +158,10 @@ async function deliveryState(snap: Snapshot): Promise<DeliveryPanelState> {
   if (!delivery.ok) return { kind: "unavailable", reason: delivery.reason, configured: delivery.configured };
   const [y, m, d] = snap.meta.businessDate.split("-").map(Number);
   const daysLeft = new Date(Date.UTC(y!, m!, 0)).getUTCDate() - d!;
-  const view = buildDeliveryView({ signals: delivery.signals, brand: snap.meta.brand.id, platforms: snap.run.platforms, budgets: budgets.ok ? budgets.budgets : [], daysLeft });
+  const directAccounts = snap.meta.mode === "unified"
+    ? new Map(snap.catalog.accounts.map((account) => [account.id, account.brand ?? snap.meta.brand.id]))
+    : undefined;
+  const view = buildDeliveryView({ signals: delivery.signals, brand: snap.meta.brand.id, platforms: snap.run.platforms, budgets: budgets.ok ? budgets.budgets : [], daysLeft, directAccounts });
   if (delivery.warnings.length) view.insights.push({ tone: "warn", text: `Lectura incompleta: ${delivery.warnings[0]}` });
   return { kind: "ready", view, demo };
 }

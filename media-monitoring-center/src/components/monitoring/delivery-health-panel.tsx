@@ -50,7 +50,8 @@ export function DeliveryHealthPanel({ state }: { state: DeliveryPanelState }) {
 }
 
 function Ready({ view }: { view: DeliveryView }) {
-  const urgent = view.items.filter((i) => i.severity !== "info");
+  const critical = view.items.filter((i) => i.severity === "critical");
+  const warnings = view.items.filter((i) => i.severity === "warning");
   const context = view.items.filter((i) => i.severity === "info");
   return (
     <div className="flex flex-col gap-4">
@@ -81,10 +82,18 @@ function Ready({ view }: { view: DeliveryView }) {
         })}
       </ul>
 
-      {urgent.length > 0 && <Items items={urgent} />}
+      {critical.length > 0 && <Items items={critical} />}
+      {warnings.length > 0 && (
+        <details className="rounded-xl border border-status-attention/20 bg-status-attention/[0.04] px-4 py-2">
+          <summary className="min-h-9 cursor-pointer rounded py-2 text-[13px] font-medium text-status-attention-text outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
+            Ver {warnings.length} {warnings.length === 1 ? "advertencia de entrega" : "advertencias de entrega"}
+          </summary>
+          <div className="mt-2"><Items items={warnings} /></div>
+        </details>
+      )}
       {context.length > 0 && (
         <details className="group rounded-xl bg-foreground/[0.03] px-4 py-2.5">
-          <summary className="cursor-pointer text-[13px] font-medium text-muted-foreground marker:text-muted-foreground">
+          <summary className="min-h-9 cursor-pointer rounded py-2 text-[13px] font-medium text-muted-foreground outline-none marker:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/60">
             {context.length} {context.length === 1 ? "señal de contexto" : "señales de contexto"} (aprendizaje, pendientes, topes con margen)
           </summary>
           <div className="mt-2">

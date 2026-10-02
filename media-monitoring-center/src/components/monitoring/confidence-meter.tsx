@@ -27,7 +27,7 @@ export function ConfidenceMeter({ confidence, compact, className }: { confidence
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button type="button" className="rounded outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
+        <button type="button" className="min-h-8 rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
           {body}
         </button>
       </TooltipTrigger>

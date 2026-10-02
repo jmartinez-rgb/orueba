@@ -3,6 +3,20 @@
 Fecha: 1 de octubre de 2026. Rama: `codex/entrega-auditoria-claude`. Estado recibido: commit
 `39a65be` (idéntico al ZIP `unified-ads-api-para-auditoria.zip`, comprobado archivo por archivo).
 
+## Diseño, auditoría funcional y Nexus — 2 de octubre de 2026 UTC
+
+Continuación desde `36bc07c` en `codex/finalizacion-verificador-meta-x`. La
+[nueva auditoría](../../media-monitoring-center/docs/AUDITORIA_UX_NEXUS_2026-10-02.md)
+documenta fallos reproducidos y corregidos de simulación, contadores, cobertura de presupuestos
+y campañas, aislamiento de salud de entrega, diagnóstico seguro y teclado/móvil. Incluye Nexus,
+chat interno de búsqueda y guía local por marca, sin acciones ni modelo generativo.
+La matriz de lecturas reales más abajo conserva su evidencia: esta ronda no consultó proveedores
+ni declara conciliación o aceptación de v1. Los pendientes se separan en código, permisos,
+configuración y negocio en el informe enlazado.
+Validación local de esta ronda: API **626/33** y tipos/lint/formato/build; monitoreo **485/49**
+y check/build, con evidencia de navegador en escritorio/móvil. Los conteos históricos siguientes
+se conservan para identificar qué se verificó en cada checkpoint.
+
 ## Continuación: configuración y registros — 2 de octubre de 2026 UTC
 
 Desde `fe7a62e`, en `codex/finalizacion-verificador-meta-x`: revisión obligatoria para formularios

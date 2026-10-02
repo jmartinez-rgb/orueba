@@ -11,7 +11,7 @@ import { ClassifierEditor } from "@/components/settings/classifier-editor";
 import { businessDate } from "@/lib/time/tz";
 import { fxMonths } from "@/lib/data/fx-months";
 
-export const metadata: Metadata = { title: "Settings" };
+export const metadata: Metadata = { title: "Configuración" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
@@ -25,7 +25,7 @@ export default async function SettingsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="Settings"
+        title="Configuración"
         subtitle={`Los cambios se guardan en el almacén configurado y aplican para todo el equipo. Solo cambian el monitoreo: nada se modifica en las plataformas. Rol actual: ${ROLE_LABEL[ctx.session.role]}${ctx.session.mode === "open" ? " (acceso abierto: cámbialo desde el menú de usuario)" : ""}.`}
       />
       <SettingsForm revision={ctx.settingsRevision} initial={settings} canEdit={canEdit} mode={ctx.mode} campaigns={catalog.campaigns.map((c) => ({ id: c.id, name: c.name, platform: c.platform, objective: c.objective }))} />
@@ -51,7 +51,7 @@ export default async function SettingsPage() {
         <CardHeader>
           <div>
             <CardTitle>Clasificación de estrategias</CardTitle>
-            <CardDescription>Réplica editable de las fórmulas de la hoja (Meta por nombre de campaña y objetivo; Google por nombre y tipo de campaña). Se usa en Compare y en cada plataforma.</CardDescription>
+            <CardDescription>Réplica editable de las fórmulas de la hoja (Meta por nombre de campaña y objetivo; Google por nombre y tipo de campaña). Se usa en Comparativas y en cada plataforma.</CardDescription>
           </div>
         </CardHeader>
         <CardContent>

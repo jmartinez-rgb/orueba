@@ -39,6 +39,8 @@ export interface DeliveryInput {
   budgets: UnifiedBudget[];
   /** Días que faltan del mes después de hoy. */
   daysLeft: number;
+  /** Direct source: keys are platform:account_id; this map is authoritative. */
+  directAccounts?: Map<string, BrandId>;
 }
 
 const KIND_TITLE: Record<string, string> = {
@@ -88,16 +90,18 @@ function brandOf(s: UnifiedDeliverySignal): BrandId {
 }
 
 export function buildDeliveryView(input: DeliveryInput): DeliveryView {
+  const scopedSignals = input.signals.filter(s => input.platforms.includes(s.platform as PlatformId) &&
+    (input.directAccounts ? input.directAccounts.get(`${s.platform}:${s.account_id}`) : brandOf(s)) === input.brand);
   const dailyByAccount = new Map<string, number>();
   for (const b of input.budgets) {
     if (b.platform !== "meta") continue;
+    if (input.directAccounts && input.directAccounts.get(`${b.platform}:${b.account_id}`) !== input.brand) continue;
     const daily = b.daily_budget ?? b.daily_estimate ?? 0;
     dailyByAccount.set(b.account_id, (dailyByAccount.get(b.account_id) ?? 0) + daily);
   }
   const items: HealthItem[] = [];
-  for (const s of input.signals) {
+  for (const s of scopedSignals) {
     const platform = s.platform as PlatformId;
-    if (!input.platforms.includes(platform) || brandOf(s) !== input.brand) continue;
     let severity: HealthSeverity = s.severity;
     let detail = s.detail ?? (s.code && CODE_LABEL[s.code] ? CODE_LABEL[s.code]! : null);
     if (s.kind === "spend_cap" && s.spend_cap !== null && s.amount_spent !== null) {
@@ -151,6 +155,6 @@ export function buildDeliveryView(input: DeliveryInput): DeliveryView {
   if (learning) insights.push({ tone: "info", text: `${plural(learning, "elemento está", "elementos están")} en aprendizaje: sus variaciones de entrega son esperadas.` });
   if (!items.length) insights.push({ tone: "good", text: "Ninguna plataforma reporta problemas de entrega para esta marca." });
 
-  const extractedAt = input.signals.reduce<string | null>((max, s) => (max === null || s.extracted_at > max ? s.extracted_at : max), null);
+  const extractedAt = scopedSignals.reduce<string | null>((max, s) => (max === null || s.extracted_at > max ? s.extracted_at : max), null);
   return { counts, byPlatform, items, insights, extractedAt };
 }

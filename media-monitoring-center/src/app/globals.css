@@ -66,14 +66,14 @@
   --status-critical: #ff3b30;
   --status-normal-text: #1e7b34;
   --status-attention-text: #8a5200;
-  --status-alert-text: #c93400;
+  --status-alert-text: #bf3000;
   --status-critical-text: #d70015;
   --status-data: #8e8e93;
   --status-data-text: #6b6b70;
 
   /* Gráficas */
   --chart-grid: #ececf0;
-  --chart-axis: #8e8e93;
+  --chart-axis: #6e6e73;
   --series-today: #007a73;
   --series-prev: #aeaeb2;
   --series-avg: #3a3a3c;
@@ -137,7 +137,7 @@
   --status-data-text: #a1a1a8;
 
   --chart-grid: #232326;
-  --chart-axis: #8e8e93;
+  --chart-axis: #a1a1a8;
   --series-today: #00c1b5;
   --series-prev: #636366;
   --series-avg: #d1d1d6;
@@ -371,6 +371,14 @@
 }
 
 /* Alerta crítica a pantalla completa: pulso del borde. */
+@keyframes immc-feature-glint {
+  0%, 40% { left: -100%; }
+  100% { left: 200%; }
+}
+.immc-feature-glint {
+  animation: immc-feature-glint 5s linear infinite;
+}
+
 @keyframes immc-critical-pulse {
   0%,
   100% {
@@ -385,6 +393,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
   .immc-shimmer,
   .immc-critical-pulse {
     animation: none;

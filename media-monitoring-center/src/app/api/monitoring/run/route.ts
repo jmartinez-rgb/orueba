@@ -1,7 +1,7 @@
 import { logActivity } from "@/lib/services/activity";
 import { requirePermission } from "@/lib/auth/session";
 import { invalidate, invalidateMatching } from "@/lib/data/cache";
-import { baseSettings } from "@/lib/services/context";
+import { getAppContext } from "@/lib/services/context";
 import { evaluateAllBrands } from "@/lib/services/evaluate";
 import { BRANDS } from "@/lib/brands";
 import { businessDate } from "@/lib/time/tz";
@@ -19,6 +19,9 @@ export async function POST() {
   const session = await requirePermission("monitoring:trigger");
   if (!session) return forbidden();
   try {
+    // El modo efectivo puede ser mock por un mapeo inválido de Sheets/BigQuery.
+    // Consultarlo antes de cualquier efecto evita ejecutar n8n con un ensayo.
+    const ctx = await getAppContext();
     invalidate("live:");
     invalidate("sheets:dataset");
     invalidate("bq:freshness");
@@ -27,24 +30,24 @@ export async function POST() {
     invalidate("runs:");
     // El histórico cerrado se conserva en caché; solo se refresca el día en curso.
     const env = getEnv();
-    const today = businessDate(new Date(), baseSettings().timezone);
+    const today = businessDate(new Date(), ctx.settings.timezone);
     invalidateMatching((k) => k.startsWith("bq:hourly") && k.endsWith(today));
     invalidateMatching((k) => k.startsWith("bq:daily") && k.endsWith(today));
     // Con Google Sheets y sin n8n: se vuelve a leer la hoja y se guarda la evaluación (alertas e incidentes).
-    if (env.dataSource === "sheets" && !env.n8n.manualSyncWebhook) {
+    if (ctx.mode === "sheets" && !env.n8n.manualSyncWebhook) {
       const results = await evaluateAllBrands({ dryRun: false, trigger: "manual" });
       await logActivity(session, "EVALUATION_TRIGGERED", `Actualizar ahora (hoja de Google Sheets · ${results.map((r) => r.brand).join(", ")})`);
       const cutoff = results[0] ? ` (corte ${String(results[0].cutoffHour).padStart(2, "0")}:00)` : "";
       return json({ ok: true, message: `Hoja leída de nuevo y evaluación guardada para ${results.map((r) => BRANDS[r.brand].name).join(" y ")}${cutoff}.`, webhook: { mode: "simulated", ok: true, status: null } });
     }
-    const hook = await triggerWebhook("manualSync", { requestedBy: session.user.name, role: session.role, requestedAt: new Date().toISOString() });
+    const hook = await triggerWebhook("manualSync", { requestedBy: session.user.name, role: session.role, requestedAt: new Date().toISOString() }, { simulate: ctx.mode === "mock" });
     await logActivity(session, "EVALUATION_TRIGGERED", `Actualizar ahora (${hook.mode === "live" ? (hook.ok ? "n8n OK" : "n8n con error") : "simulado"})`);
     const message =
       hook.mode === "live"
         ? hook.ok
           ? "Sincronización solicitada a n8n y evaluación recalculada con los datos disponibles."
           : `Evaluación recalculada. ${hook.message}`
-        : env.useMockData
+        : ctx.mode === "mock"
           ? "Evaluación recalculada (MOCK MODE: el webhook de n8n se simula)."
           : "Evaluación recalculada. Configura N8N_MANUAL_SYNC_WEBHOOK para disparar la sincronización.";
     return json({ ok: true, message, webhook: { mode: hook.mode, ok: hook.ok, status: hook.status } });

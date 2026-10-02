@@ -24,16 +24,29 @@ export interface IntegrationEvent {
 const events: IntegrationEvent[] = [];
 const MAX_EVENTS = 200;
 
+/** Conserva códigos y host, pero ninguna ruta firmada, callback o credencial. */
+export function sanitizeDiagnostic(value: string): string {
+  if (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(value)) return "[redactado]";
+  const safe = value
+    .replace(/https?:\/\/[^\s<>"']+/gi, raw => {
+      try { return `[URL ${new URL(raw).hostname}]`; }
+      catch { return "[URL redactada]"; }
+    })
+    .replace(/\bAuthorization\s*:\s*[^\r\n]*/gi, "Authorization: [redactado]")
+    .replace(/\bBearer\s+[a-z0-9._~+\/-]+=*/gi, "Bearer [redactado]")
+    .replace(/\bOAuth\s+(?:oauth_|realm=)[^\r\n]*/gi, "OAuth [redactado]")
+    .replace(/(["']?[\w.-]*(?:token|secret|password|passwd|credential|authorization|private[_-]?key|api[_-]?key|signature)[\w.-]*["']?\s*[:=]\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,;&}\]]+)/gi, "$1[redactado]");
+  return safe.length > 2000 ? `${safe.slice(0, 2000)}…` : safe;
+}
+
 function redact(value: unknown, depth = 0): unknown {
   if (depth > 5) return "[profundidad]";
   if (value === null || value === undefined) return value;
   if (typeof value === "string") {
-    // Oculta cosas que parecen tokens largos o llaves privadas.
-    if (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(value)) return "[redactado]";
-    return value.length > 2000 ? `${value.slice(0, 2000)}…` : value;
+    return sanitizeDiagnostic(value);
   }
   if (Array.isArray(value)) return value.slice(0, 50).map((v) => redact(v, depth + 1));
-  if (value instanceof Error) return { name: value.name, message: value.message };
+  if (value instanceof Error) return { name: sanitizeDiagnostic(value.name), message: sanitizeDiagnostic(value.message) };
   if (typeof value === "object") {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {

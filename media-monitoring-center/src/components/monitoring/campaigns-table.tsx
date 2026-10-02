@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataStateBadge, DeltaText, isBadDataState, PlatformMark, SeverityBadge } from "./status";
 import { StateMessage } from "./states";
+import { campaignQuery } from "@/lib/nexus/campaign-query";
 
 export type CampaignSort = "drop" | "increase" | "spend" | "deviation" | "cpa" | "impact";
 
@@ -73,23 +74,40 @@ function sortRows(rows: CampaignRowVM[], sort: CampaignSort): CampaignRowVM[] {
 
 const PAGE = 25;
 
+/** A total is complete only when every displayed campaign has known values at a healthy cut. */
+export function campaignTableTotals(rows: Pick<CampaignRowVM, "spend" | "expected" | "dataState">[]) {
+  const missingSpend = rows.filter(row => row.dataState !== "OK" || row.spend === null || !Number.isFinite(row.spend)).length;
+  const knownExpected = rows.length > 0 && rows.every(row => row.expected !== null && Number.isFinite(row.expected));
+  const sumSpend = rows.reduce((total, row) => total + (row.spend ?? 0), 0);
+  const sumExpected = rows.reduce((total, row) => total + (row.expected ?? 0), 0);
+  const spend = rows.length > 0 && !missingSpend && Number.isFinite(sumSpend) ? sumSpend : null;
+  const expected = knownExpected && Number.isFinite(sumExpected) ? sumExpected : null;
+  return { spend, expected, deviation: spend !== null && expected !== null && expected > 0 ? (spend - expected) / expected : null, missingSpend };
+}
+
 export function CampaignsTable({
   rows,
   attention = 0.15,
   fixedPlatform,
   initialSort = "impact",
+  initialSearch = "",
+  initialPlatform,
   weeks,
 }: {
   rows: CampaignRowVM[];
   attention?: number;
   fixedPlatform?: PlatformId;
   initialSort?: CampaignSort;
+  initialSearch?: string;
+  initialPlatform?: PlatformId;
   weeks: number;
 }) {
-  const [q, setQ] = useState("");
-  const [platform, setPlatform] = useState<"all" | PlatformId>(fixedPlatform ?? "all");
+  const initial = campaignQuery({ search: initialSearch, platform: initialPlatform });
+  const [q, setQ] = useState(initial.initialSearch);
+  const [platform, setPlatform] = useState<"all" | PlatformId>(fixedPlatform ?? initial.initialPlatform ?? "all");
   const [objective, setObjective] = useState<"all" | CampaignObjective>("all");
-  const [status, setStatus] = useState<"ACTIVE" | "all" | "PAUSED">("ACTIVE");
+  // A link to a paused or ended campaign must not hide it behind the default active filter.
+  const [status, setStatus] = useState<"ACTIVE" | "all" | "PAUSED">(initial.initialSearch ? "all" : "ACTIVE");
   const [alert, setAlert] = useState<"all" | "with" | "without">("all");
   const [sort, setSort] = useState<CampaignSort>(initialSort);
   // Se muestran por páginas: dibujar cientos de filas de golpe hace lenta la página. Al cambiar un filtro vuelve a la primera.
@@ -106,17 +124,13 @@ export function CampaignsTable({
     if (alert === "with") l = l.filter((r) => r.alertSeverity !== null);
     else if (alert === "without") l = l.filter((r) => r.alertSeverity === null);
     if (q.trim()) {
-      const t = q.toLowerCase();
+      const t = q.trim().toLowerCase();
       l = l.filter((r) => [r.name, r.accountName, r.id].some((x) => x.toLowerCase().includes(t)));
     }
     return sortRows(l, sort);
   }, [rows, platform, objective, status, alert, q, sort]);
 
-  const totals = useMemo(() => {
-    const spend = filtered.reduce((a, r) => a + (r.spend ?? 0), 0);
-    const expected = filtered.reduce((a, r) => a + (r.expected ?? 0), 0);
-    return { spend, expected, deviation: expected > 0 ? (spend - expected) / expected : null };
-  }, [filtered]);
+  const totals = useMemo(() => campaignTableTotals(filtered), [filtered]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -197,6 +211,7 @@ export function CampaignsTable({
           Gasto <span className="tabular font-semibold text-foreground">{fmtCurrency(totals.spend)}</span> vs esperado{" "}
           <span className="tabular font-semibold text-foreground">{fmtCurrency(totals.expected)}</span> <DeltaText value={totals.deviation} attention={attention} />
         </span>
+        {totals.missingSpend > 0 && <span className="text-status-attention-text">Sin total de gasto consolidado: {totals.missingSpend} campaña(s) con datos incompletos.</span>}
       </div>
       {filtered.length === 0 ? (
         <StateMessage kind="empty" title="Sin campañas con estos filtros" compact />

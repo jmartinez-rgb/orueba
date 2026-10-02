@@ -1,5 +1,6 @@
 import "server-only";
 import { getSnapshot, SnapshotError, type Snapshot } from "./snapshot";
+import { sanitizeDiagnostic } from "@/lib/logging/logger";
 
 export type SafeSnapshot = { ok: true; snap: Snapshot } | { ok: false; message: string; technical: string };
 
@@ -8,7 +9,7 @@ export async function safeSnapshot(): Promise<SafeSnapshot> {
   try {
     return { ok: true, snap: await getSnapshot() };
   } catch (err) {
-    if (err instanceof SnapshotError) return { ok: false, message: err.friendly, technical: err.technical };
-    return { ok: false, message: "No pudimos cargar el monitoreo.", technical: err instanceof Error ? err.message : String(err) };
+    if (err instanceof SnapshotError) return { ok: false, message: err.friendly, technical: sanitizeDiagnostic(err.technical) };
+    return { ok: false, message: "No pudimos cargar el monitoreo.", technical: sanitizeDiagnostic(err instanceof Error ? err.message : String(err)) };
   }
 }

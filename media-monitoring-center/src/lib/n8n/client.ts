@@ -1,7 +1,7 @@
 import "server-only";
 import { createHmac } from "node:crypto";
 import { getEnv } from "@/lib/config/env";
-import { recordIntegrationEvent } from "@/lib/logging/logger";
+import { recordIntegrationEvent, sanitizeDiagnostic } from "@/lib/logging/logger";
 
 /**
  * Integración desacoplada con n8n. La app solo dispara webhooks firmados; n8n orquesta
@@ -36,19 +36,21 @@ export function signPayload(secret: string, timestamp: string, body: string): st
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function triggerWebhook(kind: WebhookKind, payload: Record<string, unknown>, opts?: { retries?: number }): Promise<WebhookResult> {
+export async function triggerWebhook(kind: WebhookKind, payload: Record<string, unknown>, opts?: { retries?: number; simulate?: boolean }): Promise<WebhookResult> {
   const env = getEnv();
   const url = urlFor(kind);
   const started = Date.now();
-  if (!url) {
-    const simulated = env.useMockData;
+  // La simulación es una barrera de efectos, incluso si quedaron URLs reales
+  // configuradas. También protege los callers manualSync y monitoring.
+  const simulated = env.useMockData || opts?.simulate === true;
+  if (simulated || !url) {
     const result: WebhookResult = {
       ok: simulated,
       mode: simulated ? "simulated" : "not_configured",
       status: null,
       durationMs: 0,
       attempts: 0,
-      message: simulated ? "MOCK MODE: webhook simulado (configura la URL de n8n para enviarlo de verdad)." : `Webhook de n8n "${kind}" sin configurar.`,
+      message: simulated ? "MOCK MODE: webhook simulado; no se ejecutó n8n." : `Webhook de n8n "${kind}" sin configurar.`,
       response: null,
     };
     recordIntegrationEvent({ target: "n8n", action: `webhook:${kind}`, ok: result.ok, durationMs: 0, detail: result.message });
@@ -94,15 +96,18 @@ export async function triggerWebhook(kind: WebhookKind, payload: Record<string, 
     }
     if (attempt <= retries) await sleep(500 * 3 ** (attempt - 1));
   }
+  // El mensaje también llega a usuarios sin detalle técnico; sanearlo antes
+  // de devolverlo evita exponer una URL firmada o credenciales del transporte.
+  const safeError = sanitizeDiagnostic(lastError);
   const result: WebhookResult = {
     ok: false,
     mode: "live",
     status,
     durationMs: Date.now() - started,
     attempts: retries + 1,
-    message: `n8n no aceptó el webhook: ${lastError}`,
+    message: `n8n no aceptó el webhook: ${safeError}`,
     response: null,
   };
-  recordIntegrationEvent({ target: "n8n", action: `webhook:${kind}`, ok: false, durationMs: result.durationMs, detail: `${lastError} · ${new URL(url).host}` });
+  recordIntegrationEvent({ target: "n8n", action: `webhook:${kind}`, ok: false, durationMs: result.durationMs, detail: `${safeError} · ${new URL(url).host}` });
   return result;
 }

@@ -45,18 +45,18 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Monitoreo",
     items: [
-      { href: "/", label: "Overview", icon: LayoutDashboard },
-      { href: "/live", label: "Live Monitoring", icon: RadioTower },
-      { href: "/platforms", label: "Platforms", icon: Layers },
-      { href: "/campaigns", label: "Campaigns", icon: Megaphone },
+      { href: "/", label: "Resumen", icon: LayoutDashboard },
+      { href: "/live", label: "Monitoreo en vivo", icon: RadioTower },
+      { href: "/platforms", label: "Plataformas", icon: Layers },
+      { href: "/campaigns", label: "Campañas", icon: Megaphone },
       { href: "/monitoreos", label: "Monitoreos", icon: MessageSquareText },
     ],
   },
   {
     label: "Alertas",
     items: [
-      { href: "/alerts", label: "Alerts", icon: BellRing, badge: "alerts" },
-      { href: "/incidents", label: "Incidents", icon: Siren, badge: "incidents" },
+      { href: "/alerts", label: "Alertas", icon: BellRing, badge: "alerts" },
+      { href: "/incidents", label: "Incidentes", icon: Siren, badge: "incidents" },
       { href: "/tickets", label: "Tickets", icon: Ticket, badge: "tickets" },
       { href: "/novedades", label: "Novedades", icon: CalendarClock, badge: "novedades" },
     ],
@@ -71,9 +71,9 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Análisis",
     items: [
-      { href: "/budget", label: "Budget Control", icon: Wallet },
-      { href: "/compare", label: "Compare", icon: GitCompareArrows },
-      { href: "/historical", label: "Historical", icon: History },
+      { href: "/budget", label: "Presupuestos", icon: Wallet },
+      { href: "/compare", label: "Comparativas", icon: GitCompareArrows },
+      { href: "/historical", label: "Histórico", icon: History },
       { href: "/metricas", label: "Métricas", icon: Gauge },
       { href: "/optimizaciones", label: "Optimizaciones", icon: Lightbulb },
     ],
@@ -81,10 +81,10 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Operación",
     items: [
-      { href: "/integrations", label: "Integrations", icon: Plug },
-      { href: "/automation", label: "Automation", icon: Workflow },
+      { href: "/integrations", label: "Integraciones", icon: Plug },
+      { href: "/automation", label: "Automatización", icon: Workflow },
       { href: "/usuarios", label: "Usuarios y accesos", icon: UsersRound, permission: ["users:view", "users:manage"] },
-      { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/settings", label: "Configuración", icon: Settings },
       { href: "/tipo-de-cambio", label: "Tipo de cambio", icon: Coins },
     ],
   },

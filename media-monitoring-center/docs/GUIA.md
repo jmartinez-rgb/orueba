@@ -74,6 +74,11 @@ Tres reglas más, pensadas para los datos reales de la hoja:
 
 ## Flujo diario sugerido
 
+Nexus es el botón de consulta del monitoreo interno. Puedes preguntar por una campaña usando
+nombre o ID, por alertas o frescura, y por cómo delegar un incidente o leer una métrica.
+Responde para la marca seleccionada y el corte disponible, con enlaces para comprobarlo.
+No modifica registros ni plataformas; es búsqueda y guía local. [Uso y límites](NEXUS.md).
+
 1. **Overview**: el estado general y el color de cada plataforma responden si todo está bien.
 2. Si aparece la **alerta crítica a pantalla completa**, revisa, escribe qué revisaste y a quién lo
    reportas (puede crear un ticket).

@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BellRing, Search, Ticket } from "lucide-react";
+import { BellRing, Search, Ticket, UserRound, UserRoundPlus } from "lucide-react";
 import { sileo } from "sileo";
 import type { Alert, Incident, NotificationRecord } from "@/lib/alerts/types";
 import { PLATFORMS } from "@/lib/platforms/registry";
@@ -157,6 +157,7 @@ export function IncidentsTable({
   const [tab, setTab] = useState<"open" | "resolved" | "all" | "mine" | "unassigned">(initialTab);
   const [q, setQ] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialId ?? null);
+  const selectedTrigger = useRef<HTMLTableRowElement | null>(null);
   const [ownerDraft, setOwnerDraft] = useState<string | null>(null);
   const [assignees, setAssignees] = useState<IncidentAssignee[]>([]);
   const [assignmentError, setAssignmentError] = useState(false);
@@ -218,26 +219,31 @@ export function IncidentsTable({
   const duration = (i: Incident) => (i.resolvedAt ? Date.parse(i.resolvedAt) : now) - Date.parse(i.startedAt);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-4">
       {!compact && (
-        <div className="flex flex-wrap items-center gap-2">
-          <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-            <TabsList>
-              <TabsTrigger value="open">Abiertos ({incidents.filter((i) => i.resolvedAt === null).length})</TabsTrigger>
-              <TabsTrigger value="resolved">Resueltos ({incidents.filter((i) => i.resolvedAt !== null).length})</TabsTrigger>
-              <TabsTrigger value="all">Todos</TabsTrigger>
-              {currentUserId && <TabsTrigger value="mine">Mis pendientes ({incidents.filter(i => !i.resolvedAt && assignedTo(i, currentUserId)).length})</TabsTrigger>}
-              {canAssign && <TabsTrigger value="unassigned">Sin delegar ({incidents.filter(i => !i.resolvedAt && !i.ownerId).length})</TabsTrigger>}
+        <div className="space-y-3 rounded-xl bg-foreground/[0.025] p-3">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="min-w-0">
+            <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0" aria-label="Filtrar incidentes">
+              <TabsTrigger value="open" className="h-8 text-xs">Abiertos <span className="tabular rounded-full bg-foreground/[0.06] px-1.5 py-0.5 text-[10px]">{incidents.filter((i) => i.resolvedAt === null).length}</span></TabsTrigger>
+              <TabsTrigger value="resolved" className="h-8 text-xs">Resueltos <span className="tabular rounded-full bg-foreground/[0.06] px-1.5 py-0.5 text-[10px]">{incidents.filter((i) => i.resolvedAt !== null).length}</span></TabsTrigger>
+              <TabsTrigger value="all" className="h-8 text-xs">Todos</TabsTrigger>
+              {currentUserId && <TabsTrigger value="mine" className="h-8 text-xs">Mis pendientes <span className="tabular rounded-full bg-foreground/[0.06] px-1.5 py-0.5 text-[10px]">{incidents.filter(i => !i.resolvedAt && assignedTo(i, currentUserId)).length}</span></TabsTrigger>}
+              {canAssign && <TabsTrigger value="unassigned" className="h-8 text-xs">Sin delegar <span className="tabular rounded-full bg-foreground/[0.06] px-1.5 py-0.5 text-[10px]">{incidents.filter(i => !i.resolvedAt && !i.ownerId).length}</span></TabsTrigger>}
             </TabsList>
           </Tabs>
-          <div className="relative w-full sm:w-64">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar incidente…" className="h-8 pl-8 text-xs" aria-label="Buscar incidente" />
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-(--hairline) pt-3">
+          <div className="relative w-full sm:w-72">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar caso, cuenta o responsable…" className="h-9 bg-background pl-9 text-xs" aria-label="Buscar incidente, cuenta o responsable" />
+          </div>
+          <span className="text-xs text-muted-foreground" aria-live="polite"><strong className="tabular font-semibold text-foreground">{list.length}</strong> {list.length === 1 ? "caso visible" : "casos visibles"}</span>
           </div>
         </div>
       )}
       {list.length === 0 ? (
-        <StateMessage kind="no-incidents" title={tab === "mine" ? "No tienes incidentes pendientes asignados" : tab === "unassigned" ? "No hay incidentes sin delegar" : tab === "resolved" ? "Sin incidentes resueltos" : "Sin incidentes abiertos"} description="Una anomalía persistente o grave se convierte en incidente y se actualiza en cada evaluación." compact />
+        <div className="rounded-xl border border-dashed border-(--hairline) bg-foreground/[0.015] px-4 py-4">
+          <StateMessage kind={q.trim() ? "empty" : "no-incidents"} title={q.trim() ? "No hay incidentes con esta búsqueda" : tab === "mine" ? "No tienes incidentes pendientes asignados" : tab === "unassigned" ? "No hay incidentes sin delegar" : tab === "resolved" ? "Sin incidentes resueltos" : tab === "all" ? "Sin incidentes registrados" : "Sin incidentes abiertos"} description={q.trim() ? "Busca por ID, cuenta, campaña o responsable, o borra la búsqueda para ver los casos de esta sección." : "Una anomalía persistente o grave se convierte en incidente y se actualiza en cada evaluación."} compact />
+        </div>
       ) : (
         <Table>
           <TableHeader>
@@ -263,9 +269,9 @@ export function IncidentsTable({
           </TableHeader>
           <TableBody>
             {list.map((i) => (
-              <TableRow key={i.id} className="cursor-pointer" onClick={() => { setSelectedId(i.id); setOwnerDraft(null); }} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") { setSelectedId(i.id); setOwnerDraft(null); } }}>
+              <TableRow key={i.id} className="cursor-pointer focus-visible:bg-primary/[0.04] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring" aria-label={`Abrir incidente ${i.id}: ${i.title}`} onClick={(e) => { selectedTrigger.current = e.currentTarget; setSelectedId(i.id); setOwnerDraft(null); }} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectedTrigger.current = e.currentTarget; setSelectedId(i.id); setOwnerDraft(null); } }}>
                 <TableCell>
-                  <p className="font-mono text-xs">{i.id}</p>
+                  <p className="font-mono text-[11px] text-muted-foreground">{i.id}</p>
                   <p className={cn("truncate text-[11px] text-muted-foreground", compact ? "max-w-48" : "max-w-56")} title={i.title}>
                     {ANOMALY_LABEL[i.type]} · {i.title}
                   </p>
@@ -302,7 +308,7 @@ export function IncidentsTable({
                     <IncidentStatusBadge status={i.status} />
                   </TableCell>
                 )}
-                {!compact && <TableCell className="max-w-32 truncate text-xs text-muted-foreground">{i.owner ?? "Sin asignar"}</TableCell>}
+                {!compact && <TableCell className="max-w-40 text-xs"><span className={cn("inline-flex max-w-full items-center gap-1.5 rounded-full px-2 py-1", i.owner ? "bg-foreground/[0.04] text-foreground" : "bg-status-attention/10 text-status-attention-text")} title={i.owner ?? "Sin asignar"}>{i.owner ? <UserRound className="size-3 shrink-0" aria-hidden /> : <UserRoundPlus className="size-3 shrink-0" aria-hidden />}<span className="truncate">{i.owner ?? "Sin asignar"}</span></span></TableCell>}
                 {!compact && <TableCell className="tabular text-center text-xs">{i.notification.count}</TableCell>}
               </TableRow>
             ))}
@@ -311,7 +317,7 @@ export function IncidentsTable({
       )}
 
       <Sheet open={selected !== null} onOpenChange={(o) => { if (!o) { setSelectedId(null); setOwnerDraft(null); } }}>
-        <SheetContent>
+        <SheetContent onCloseAutoFocus={(event) => { if (selectedTrigger.current?.isConnected) { event.preventDefault(); selectedTrigger.current.focus(); } }}>
           {selected && (
             <>
               <SheetHeader>

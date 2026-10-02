@@ -19,7 +19,7 @@ import { MONTHS_ES } from "@/lib/time/tz";
 import { UnifiedApiPanel } from "@/components/monitoring/unified-api-panel";
 import { unifiedStatus } from "@/lib/integrations/unified-api";
 
-export const metadata: Metadata = { title: "Integrations" };
+export const metadata: Metadata = { title: "Integraciones" };
 export const dynamic = "force-dynamic";
 
 const STATUS: Record<IntegrationStatus, { label: string; tone: string; Icon: typeof CircleCheck }> = {
@@ -81,7 +81,7 @@ export default async function IntegrationsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="Integrations"
+        title="Integraciones"
         subtitle={
           snap.meta.mode === "unified"
             ? "Métricas de las APIs directas, con histórico guardado y cuentas separadas por marca. Los datos ausentes y los eventos pendientes de definir se muestran sin valor."

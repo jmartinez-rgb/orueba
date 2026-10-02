@@ -1,5 +1,27 @@
 # Traspaso a Claude: continuación de TikTok y X Ads
 
+## Checkpoint vigente: diseño, UX, Nexus y auditoría funcional
+
+Auditar el HEAD remoto de `codex/finalizacion-verificador-meta-x`, continuación desde
+`36bc07c`. Lee primero el [nuevo informe](../../media-monitoring-center/docs/AUDITORIA_UX_NEXUS_2026-10-02.md)
+y [Nexus](../../media-monitoring-center/docs/NEXUS.md). Este checkpoint prevalece sobre los
+conteos y pendientes resueltos de los anteriores.
+
+Se añadieron navegación/contexto visual en español, seguimiento de incidentes y Nexus de
+consulta local por marca. Se corrigieron efectos de n8n en simulación, IDs concurrentes,
+totales parciales de presupuesto/campañas, pronóstico por día de semana, aislamiento de salud
+de entrega, diagnóstico seguro y fallos de teclado/móvil. La auditoría UX usa Chromium con
+datos simulados, sin envíos ni servicios externos. Nexus no es un LLM, no decide eventos ni
+ofrece conversiones de negocio sin confirmar. Los clientes quedan fuera de esta primera versión.
+
+No hay lecturas nuevas de proveedores, cambios de credenciales, publicación o despliegue.
+Siguen pendientes las tasas del equipo, conciliación, CAS general entre instancias,
+notificaciones idempotentes y validación real de persistencia/scheduler en producción.
+Las 31 cuentas del mapeo, los 15 accesos y los cinco responsables nominales se conservan.
+Validación de esta ronda: API **626/33** y tipos/lint/formato/build; monitoreo **485/49** y
+check/build, con recorridos de navegador y evidencia enlazados en el informe. La última revisión
+cruzada también corrigió el mensaje de error n8n antes de devolverlo a la interfaz.
+
 ## Checkpoint vigente: avance de integridad y acceso (2 de octubre de 2026 UTC)
 
 Auditar el HEAD remoto de `codex/finalizacion-verificador-meta-x`, continuación después de

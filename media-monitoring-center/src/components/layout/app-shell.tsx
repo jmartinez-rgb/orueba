@@ -18,11 +18,13 @@ import { logger } from "@/lib/logging/logger";
 import { Sidebar, type NavCounts } from "./sidebar";
 import { Topbar } from "./topbar";
 import { AutoRefresh } from "./auto-refresh";
-import { CriticalAlertGate } from "@/components/monitoring/critical-alert-gate";
-import { MonthGate } from "@/components/novedades/month-gate";
+import { OperationalGates } from "@/components/monitoring/operational-gates";
+import { NexusAssistant } from "@/components/nexus/nexus-assistant";
 import { getKickoff } from "@/lib/records/novedades";
 import { DATA_MODE_LABEL } from "@/lib/platforms/registry";
+import { isBadDataState } from "@/components/monitoring/status";
 import type { DataMode } from "@/lib/types";
+import { Clock3, Database, Eye } from "lucide-react";
 
 /** Estructura común: sidebar + barra superior. Si el snapshot falla, la app sigue navegable. */
 export async function AppShell({ children, session }: { children: ReactNode; session: Session }) {
@@ -30,7 +32,9 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
   let counts: NavCounts = { alerts: 0, incidents: 0, tickets: 0, feedback: 0, novedades: 0, alertsSeverity: "NORMAL", incidentsSeverity: "NORMAL", ticketsSeverity: "NORMAL", novedadesSeverity: "NORMAL" };
   let overall: Severity | null = null;
   let cutoffLabel: string | null = null;
-  let timezone = baseSettings().timezone;
+  const defaults = baseSettings();
+  let timezone = defaults.timezone;
+  let intervalHours = defaults.schedule.intervalHours;
   let mode: DataMode = env.dataSource;
   let scenario: { id: string; name: string } | null = null;
   let scenarios: Array<{ id: string; name: string }> = [];
@@ -67,9 +71,10 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
       ticketsSeverity: tickets.severity,
       novedadesSeverity: kickoff ? "ATTENTION" : "ALERT",
     };
-    overall = snap.overall;
+    overall = snap.overall === "NORMAL" && !snap.run.platforms.some((platform) => !isBadDataState(snap.platformStatus[platform].dataState)) ? null : snap.overall;
     cutoffLabel = hourLabel(snap.meta.cutoffHour);
     timezone = snap.meta.timezone;
+    intervalHours = snap.meta.intervalHours;
     mode = snap.meta.mode;
     scenario = snap.meta.scenario;
     scenarios = snap.meta.scenarios;
@@ -95,15 +100,18 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
       : [];
   return (
     <div className="flex min-h-dvh">
+      <a href="#contenido-principal" className="sr-only z-50 rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground shadow-(--shadow-pop) outline-none focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background">
+        Saltar al contenido principal
+      </a>
       <Sidebar
         brandName={BRANDS[brand].name}
         counts={counts}
         permissions={permissions}
         footer={
-          <div className="space-y-0.5 text-[11px] leading-snug text-muted-foreground">
-            <p className="font-medium text-foreground">{DATA_MODE_LABEL[mode]}</p>
-            <p>Evaluación cada 2 h · {timezone.replace("_", " ")}</p>
-            <p>Solo lectura: no modifica nada en las plataformas.</p>
+          <div className="space-y-2 text-[11px] leading-snug text-muted-foreground">
+            <p className="flex items-center gap-2 font-semibold text-foreground"><Database aria-hidden className="size-3.5 text-primary" />{DATA_MODE_LABEL[mode]}</p>
+            <p className="flex items-start gap-2"><Clock3 aria-hidden className="mt-0.5 size-3.5 shrink-0" /><span>Evaluación cada {intervalHours} h<br />{timezone.replaceAll("_", " ")}</span></p>
+            <p className="flex items-start gap-2"><Eye aria-hidden className="mt-0.5 size-3.5 shrink-0" /><span>Consulta de plataformas en modo lectura.</span></p>
           </div>
         }
       />
@@ -132,14 +140,14 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
         />
         {!brandHasData && (
           <div className="border-b border-(--hairline) bg-status-attention/12 px-4 py-1.5 text-center text-xs text-status-attention-text">
-            La fuente de datos no trae cuentas de {BRANDS[brand].name}. Las cuentas se asignan por su nombre (por ejemplo &quot;Sky - ABCW&quot; o &quot;izzi - Ofertas&quot;).
+            La fuente de datos no trae cuentas de {BRANDS[brand].name}. {mode === "unified" ? "Revisa el mapeo de cuentas autorizadas y el histórico importado de esta marca." : "Las cuentas se asignan por su nombre (por ejemplo Sky - ABCW o izzi - Ofertas)."}
           </div>
         )}
-        <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 pt-5 pb-10 sm:px-6 lg:px-7">{children}</main>
+        <main id="contenido-principal" tabIndex={-1} className="mx-auto w-full max-w-[1600px] flex-1 scroll-mt-28 px-4 pt-5 pb-10 outline-none sm:px-6 lg:px-7">{children}</main>
       </div>
       <AutoRefresh />
-      {mustAcknowledgeCritical(session.role) && hasPermission(session, "tickets:write") && <CriticalAlertGate userName={session.user.name} canTicket={hasPermission(session, "tickets:write")} />}
-      <MonthGate key={brand} canKickoff={hasPermission(session, "kickoff:write")} userId={session.user.id} />
+      {hasPermission(session, "internal:view") && <NexusAssistant key={`nexus:${brand}`} brandId={brand} brandName={BRANDS[brand].name} />}
+      <OperationalGates key={`gates:${brand}`} userName={session.user.name} userId={session.user.id} canAcknowledgeCritical={mustAcknowledgeCritical(session.role) && hasPermission(session, "tickets:write")} canTicket={hasPermission(session, "tickets:write")} canKickoff={hasPermission(session, "kickoff:write")} />
     </div>
   );
 }

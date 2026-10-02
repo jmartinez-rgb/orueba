@@ -10,7 +10,7 @@ import { HistoricalView } from "@/components/monitoring/historical-view";
 import { IncidentsTable } from "@/components/monitoring/incidents-table";
 import { ErrorPanel } from "@/components/monitoring/error-panel";
 
-export const metadata: Metadata = { title: "Historical" };
+export const metadata: Metadata = { title: "Histórico" };
 export const dynamic = "force-dynamic";
 
 export default async function HistoricalPage() {
@@ -30,7 +30,7 @@ export default async function HistoricalPage() {
   const [initial, res] = data;
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Historical" subtitle={`Referencia principal: ${ctx.settings.history.weeks} semanas (configurable). Arquitectura lista para 8, 12 semanas o periodos personalizados.`} />
+      <PageHeader title="Histórico" subtitle={`Referencia principal: ${ctx.settings.history.weeks} semanas (configurable). Revisa la evolución del gasto y compara con semanas anteriores.`} />
       <HistoricalView initial={initial} />
       {res.ok && (
         <Card>

@@ -102,7 +102,7 @@ export function MetricPicker({
         <button
           type="button"
           disabled={busy}
-          className="pressable inline-flex items-center gap-1 rounded-full bg-foreground/[0.05] px-2 py-1 text-[11px] text-muted-foreground hover:bg-foreground/[0.09] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 outline-none disabled:opacity-60"
+          className="pressable inline-flex min-h-8 items-center gap-1 rounded-full bg-foreground/[0.05] px-2 py-1 text-[11px] text-muted-foreground hover:bg-foreground/[0.09] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 outline-none disabled:opacity-60"
           aria-label={`Métrica monitoreada de ${PLATFORMS[platform].name}: ${current}. Cambiar`}
         >
           <SlidersHorizontal className="size-3" /> <span className="font-semibold text-foreground">{current}</span> <ChevronDown className="size-3" />

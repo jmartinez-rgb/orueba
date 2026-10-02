@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BellRing, LogOut, Siren } from "lucide-react";
 import { sileo } from "sileo";
+import { Dialog as DialogPrimitive } from "radix-ui";
 import type { PendingCritical } from "@/lib/services/critical";
 import { TICKET_CHANNEL_LABEL, TICKET_CHANNELS, type TicketChannel } from "@/lib/records/ticket-model";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ function pct(v: number | null) {
  * Un solo acuse cubre todos los pendientes; queda en cada incidente, en la bitácora y
  * (opcional) en un ticket de reporte.
  */
-export function CriticalAlertGate({ userName, canTicket }: { userName: string; canTicket: boolean }) {
+export function CriticalAlertGate({ userName, canTicket, onPendingChange }: { userName: string; canTicket: boolean; onPendingChange?: (pending: boolean) => void }) {
   const router = useRouter();
   const [pending, setPending] = useState<PendingCritical[]>([]);
   const [text, setText] = useState("");
@@ -38,6 +39,7 @@ export function CriticalAlertGate({ userName, canTicket }: { userName: string; c
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
   const seen = useRef<Set<string> | null>(null);
   const [notify, setNotify] = useState<NotificationPermission | "unsupported">("unsupported");
 
@@ -59,11 +61,13 @@ export function CriticalAlertGate({ userName, canTicket }: { userName: string; c
         }
       }
       seen.current = new Set(d.pending.map((p) => p.id));
+      // El coordinador suspende otros modales en el mismo lote que abre el crítico.
+      onPendingChange?.(d.pending.length > 0);
       setPending(d.pending);
     } catch {
       /* sin conexión: se reintenta en el siguiente ciclo */
     }
-  }, []);
+  }, [onPendingChange]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- el permiso de avisos solo existe en el navegador
@@ -94,24 +98,6 @@ export function CriticalAlertGate({ userName, canTicket }: { userName: string; c
   }, [load]);
 
   const open = pending.length > 0;
-  const ids = pending.map((p) => p.id).join(",");
-
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") e.preventDefault();
-    };
-    window.addEventListener("keydown", onKey, true);
-    const f = setTimeout(() => textRef.current?.focus(), 50);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey, true);
-      clearTimeout(f);
-    };
-  }, [open, ids]);
-
   if (!open) return null;
 
   const valid = text.trim().length >= MIN_TEXT && reportTo.trim().length >= 2 && confirmed;
@@ -140,6 +126,7 @@ export function CriticalAlertGate({ userName, canTicket }: { userName: string; c
       setReportTo("");
       setConfirmed(false);
       setTicket(true);
+      onPendingChange?.(false);
       setPending([]);
       router.refresh();
     } catch {
@@ -155,17 +142,34 @@ export function CriticalAlertGate({ userName, canTicket }: { userName: string; c
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/55 p-3 backdrop-blur-md sm:items-center sm:p-6" role="alertdialog" aria-modal="true" aria-labelledby="critical-title" aria-describedby="critical-list">
-      <form onSubmit={submit} className="immc-critical-pulse my-auto w-full max-w-2xl animate-in overflow-hidden rounded-[22px] bg-popover text-popover-foreground shadow-(--shadow-pop) duration-200 ease-out fade-in-0 zoom-in-95">
+    <DialogPrimitive.Root open={open}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[100] bg-black/55 backdrop-blur-md" />
+        <DialogPrimitive.Content
+          role="alertdialog"
+          className="immc-critical-pulse fixed top-1/2 left-1/2 z-[100] max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[22px] bg-popover text-popover-foreground shadow-(--shadow-pop) outline-none"
+          onEscapeKeyDown={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            textRef.current?.focus();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (previousFocus.current?.isConnected) previousFocus.current.focus();
+          }}
+        >
+      <form onSubmit={submit}>
         <div className="flex items-start gap-4 px-6 pt-6 pb-2">
           <span className="grid size-12 shrink-0 place-items-center rounded-full bg-status-critical/14 text-status-critical-text" aria-hidden>
             <Siren className="size-6" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 id="critical-title" className="text-[19px] leading-snug font-semibold tracking-[-0.02em]">
+            <DialogPrimitive.Title className="text-[19px] leading-snug font-semibold tracking-[-0.02em]">
               {pending.length === 1 ? `${pending[0].platformName}: ${pending[0].title}` : `${pending.length} incidentes críticos sin revisar`}
-            </h2>
-            <p className="mt-1 text-[13px] text-muted-foreground">Acción requerida: escribe qué revisaste y a quién lo reportas para continuar.</p>
+            </DialogPrimitive.Title>
+            <DialogPrimitive.Description className="mt-1 text-[13px] text-muted-foreground">Acción requerida: escribe qué revisaste y a quién lo reportas para continuar.</DialogPrimitive.Description>
           </div>
         </div>
 
@@ -222,9 +226,9 @@ export function CriticalAlertGate({ userName, canTicket }: { userName: string; c
               </datalist>
             </div>
             <div className="space-y-1.5">
-              <Label>Canal</Label>
+              <Label htmlFor="ack-channel">Canal</Label>
               <Select value={channel} onValueChange={(v) => setChannel(v as TicketChannel)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="ack-channel" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="z-[110]">
@@ -264,11 +268,11 @@ export function CriticalAlertGate({ userName, canTicket }: { userName: string; c
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-(--hairline) px-6 py-4">
           <div className="flex flex-wrap items-center gap-3">
-            <button type="button" onClick={logout} className="pressable inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground">
+            <button type="button" onClick={logout} className="pressable inline-flex min-h-9 items-center gap-1.5 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
               <LogOut className="size-3.5" /> Cerrar sesión
             </button>
             {notify === "default" && (
-              <button type="button" onClick={enableNotifications} className="pressable inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground">
+              <button type="button" onClick={enableNotifications} className="pressable inline-flex min-h-9 items-center gap-1.5 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
                 <BellRing className="size-3.5" /> Avisarme en el escritorio
               </button>
             )}
@@ -278,6 +282,8 @@ export function CriticalAlertGate({ userName, canTicket }: { userName: string; c
           </Button>
         </div>
       </form>
-    </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

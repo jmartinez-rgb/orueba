@@ -15,7 +15,7 @@ import { RefreshButton } from "@/components/layout/refresh-button";
 import { ErrorPanel } from "@/components/monitoring/error-panel";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Automation" };
+export const metadata: Metadata = { title: "Automatización" };
 export const dynamic = "force-dynamic";
 
 const SEV_ES = { NORMAL: "NORMAL", ATTENTION: "ATENCIÓN", ALERT: "ALERTA", CRITICAL: "CRÍTICO" } as const;
@@ -51,8 +51,8 @@ export default async function AutomationPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="Automation"
-        subtitle="n8n orquesta ingestas, corridas programadas, alertas, escalamientos, recuperaciones y reintentos. Netlify solo aloja la app y su API."
+        title="Automatización"
+        subtitle="Estado de las evaluaciones programadas, sincronizaciones y avisos del equipo. Revisa la última ejecución y los pendientes de cada proceso."
         actions={<RefreshButton canTrigger={snap.meta.permissions.includes("monitoring:trigger")} size="default" />}
       />
 
@@ -178,7 +178,7 @@ export default async function AutomationPage() {
               <li>
                 <span className="font-semibold">Recuperación:</span> {a.notifyRecovery ? "se avisa con inicio, normalización, duración y desviación máxima." : "desactivada."}
               </li>
-              <li className="text-muted-foreground">Destinatarios activos: {snap.settings.recipients.filter((r) => r.active).length} (Settings).</li>
+              <li className="text-muted-foreground">Destinatarios activos: {snap.settings.recipients.filter((r) => r.active).length} (Configuración).</li>
             </ul>
           </CardContent>
         </Card>

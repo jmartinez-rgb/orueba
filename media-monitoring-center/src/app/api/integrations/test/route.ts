@@ -1,7 +1,7 @@
 import { requirePermission } from "@/lib/auth/session";
 import { getEnv } from "@/lib/config/env";
 import { pingBigQuery } from "@/lib/bigquery/client";
-import { recordIntegrationEvent } from "@/lib/logging/logger";
+import { recordIntegrationEvent, sanitizeDiagnostic } from "@/lib/logging/logger";
 import { badRequest, forbidden, json, readJson } from "@/lib/services/http";
 import { FixtureSheetsReader, GoogleSheetsReader } from "@/lib/sheets/reader";
 import { getAppContext } from "@/lib/services/context";
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   if (body?.target === "bigquery") {
     if (!env.bigquery.configured) return json({ ok: false, message: "BigQuery no está configurado (GOOGLE_CLOUD_PROJECT y BIGQUERY_DATASET)." });
     const r = await pingBigQuery();
-    return json({ ok: r.ok, message: r.ok ? `Conexión correcta (${r.durationMs} ms).` : "No pudimos consultar BigQuery.", technical: r.ok ? undefined : r.message });
+    return json({ ok: r.ok, message: r.ok ? `Conexión correcta (${r.durationMs} ms).` : "No pudimos consultar BigQuery.", technical: r.ok ? undefined : sanitizeDiagnostic(r.message) });
   }
   if (body?.target === "sheets") {
     if (!env.sheets.spreadsheetId) return json({ ok: false, message: "Falta SHEETS_SPREADSHEET_ID (el ID de la hoja, entre /d/ y /edit en la URL)." });
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
           : `Conexión correcta con "${info.title}" (${info.sheets.length} pestañas, ${Date.now() - started} ms). Zona horaria de la hoja: ${info.timeZone ?? "—"}.`,
       });
     } catch (err) {
-      const technical = err instanceof Error ? err.message : String(err);
+      const technical = sanitizeDiagnostic(err instanceof Error ? err.message : String(err));
       const hint = explainGoogleError(technical);
       return json({ ok: false, message: hint ? `No pudimos leer la hoja. ${hint}` : "No pudimos leer la hoja.", technical });
     }
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
       return json({ ok, message: ok ? `n8n responde (${Date.now() - started} ms).` : `n8n respondió HTTP ${res.status}.` });
     } catch (err) {
       recordIntegrationEvent({ target: "n8n", action: "healthz", ok: false, durationMs: Date.now() - started, detail: err instanceof Error ? err.message : String(err) });
-      return json({ ok: false, message: "No pudimos comunicarnos con n8n.", technical: err instanceof Error ? err.message : String(err) });
+      return json({ ok: false, message: "No pudimos comunicarnos con n8n.", technical: sanitizeDiagnostic(err instanceof Error ? err.message : String(err)) });
     }
   }
   if (body?.target === "unified") {

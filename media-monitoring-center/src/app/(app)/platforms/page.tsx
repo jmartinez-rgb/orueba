@@ -11,7 +11,7 @@ import { PlatformCard } from "@/components/monitoring/platform-card";
 import { DeltaText, isBadDataState, PlatformMark, PlatformStatusBadge } from "@/components/monitoring/status";
 import { ErrorPanel } from "@/components/monitoring/error-panel";
 
-export const metadata: Metadata = { title: "Platforms" };
+export const metadata: Metadata = { title: "Plataformas" };
 export const dynamic = "force-dynamic";
 
 export default async function PlatformsPage() {
@@ -23,7 +23,7 @@ export default async function PlatformsPage() {
   const cards = snap.run.platforms.map((p) => platformCard(snap, p));
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Platforms" subtitle="Estado, gasto, resultados y pacing por plataforma. Selecciona una para ver campañas, alertas, incidentes y calidad de datos." />
+      <PageHeader title="Plataformas" subtitle="Estado, gasto, resultados y ritmo de inversión por plataforma. Selecciona una para ver campañas, alertas, incidentes y calidad de datos." />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((c) => (
           <PlatformCard key={c.platform} vm={c} timezone={tz} weeks={snap.meta.historyWeeks} attention={attention} />
