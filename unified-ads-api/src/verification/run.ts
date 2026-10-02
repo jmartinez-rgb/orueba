@@ -7,6 +7,7 @@ import type {
   NormalizedPerformance,
   ProviderStatus,
 } from "../types/normalized.js";
+import { safeDiagnostic } from "../utils/diagnostics.js";
 import { ApiError, type ErrorCode } from "../utils/errors.js";
 import { withTimeout } from "../utils/timeout.js";
 import type { XlsxSheet } from "../utils/xlsx.js";
@@ -19,6 +20,8 @@ export interface VerificationOperation {
   date: string | null;
   state: "ok" | "empty" | "partial" | "error" | "not_configured" | "not_supported" | "skipped";
   codes: string[];
+  /** Allowlisted stage/limitation/status fields only; never messages, bodies or URLs. */
+  diagnostics?: string[];
   count: number;
 }
 export interface VerificationRead {
@@ -109,14 +112,22 @@ export async function verifyProviders(
       date: string | null,
       work: (request: ProviderRequestOptions) => Promise<T>,
     ): Promise<T | undefined> => {
-      const warnings: string[] = [];
+      const warnings: string[] = [],
+        diagnostics: string[] = [];
       const signal = options.signal
         ? AbortSignal.any([options.signal, AbortSignal.timeout(timeout)])
         : AbortSignal.timeout(timeout);
       try {
         signal.throwIfAborted();
         const value = await withTimeout(
-          work({ signal, onWarning: (e) => warnings.push(e.code) }),
+          work({
+            signal,
+            onWarning: (e) => {
+              warnings.push(e.code);
+              const diagnostic = safeDiagnostic(e);
+              if (diagnostic) diagnostics.push(diagnostic);
+            },
+          }),
           timeout,
           provider.name,
         );
@@ -143,9 +154,12 @@ export async function verifyProviders(
           count,
           state: warnings.length ? "partial" : count ? "ok" : "empty",
           codes: [...new Set(warnings)],
+          ...(diagnostics.length ? { diagnostics: [...new Set(diagnostics)] } : {}),
         });
         return value;
       } catch (error) {
+        const failure = safeDiagnostic(error);
+        if (failure) diagnostics.push(failure);
         out.operations.push({
           provider: provider.slug,
           account_id: accountId,
@@ -154,6 +168,7 @@ export async function verifyProviders(
           count: 0,
           state: "error",
           codes: [...new Set([...warnings, signal.aborted ? "PROVIDER_TIMEOUT" : code(error)])],
+          ...(diagnostics.length ? { diagnostics: [...new Set(diagnostics)] } : {}),
         });
         return undefined;
       }
@@ -294,7 +309,7 @@ export function verificationSheets(read: VerificationRead): XlsxSheet[] {
   return [
     sheet(
       "Cobertura",
-      ["Plataforma", "Cuenta ID", "Sección", "Fecha", "Estado", "Códigos", "Filas", "Extraído"],
+      ["Plataforma", "Cuenta ID", "Sección", "Fecha", "Estado", "Códigos", "Diagnóstico", "Filas", "Extraído"],
       read.operations.map((r) => [
         r.provider,
         r.account_id,
@@ -302,6 +317,7 @@ export function verificationSheets(read: VerificationRead): XlsxSheet[] {
         r.date,
         r.state,
         r.codes.join(", "),
+        r.diagnostics?.join(" | ") ?? "",
         r.count,
         read.extracted_at,
       ]),

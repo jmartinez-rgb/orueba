@@ -65,6 +65,30 @@ for (const [ip, prefix] of [
 ] as const)
   blocked.addSubnet(ip, prefix, "ipv6");
 
+export type MicrosoftReportStage =
+  "report_submit" | "report_poll" | "report_status" | "report_download_url" | "report_download" | "report_parse";
+const safeToken = (value: unknown) =>
+  typeof value === "string" && /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(value) ? value : "UNRECOGNIZED";
+const safeHost = (hostname: string) =>
+  /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(hostname) &&
+  !isIP(hostname)
+    ? { observed_host: hostname }
+    : {};
+/** Adds the failing report stage to a provider error; every stage still surfaces as PROVIDER_ERROR/502. */
+function staged(error: unknown, stage: MicrosoftReportStage): never {
+  if (error instanceof ApiError) {
+    const details = object(error.details) ? error.details : {};
+    throw new ApiError(error.code, error.message, {
+      details: { provider: "microsoft", ...details, stage },
+      statusCode: error.statusCode,
+      retryAfter: error.retryAfter,
+    });
+  }
+  throw error;
+}
+const failure = (message: string, stage: MicrosoftReportStage, extra: Record<string, unknown> = {}) =>
+  new ApiError("PROVIDER_ERROR", message, { details: { provider: "microsoft", stage, ...extra } });
+
 export async function safeDownloadUrl(
   value: string,
   resolve: MicrosoftResolver = (hostname) => lookup(hostname, { all: true }),
@@ -73,7 +97,9 @@ export async function safeDownloadUrl(
   try {
     url = new URL(value);
   } catch {
-    throw new ApiError("PROVIDER_ERROR", "Microsoft devolvió una URL de descarga inválida.");
+    throw new ApiError("PROVIDER_ERROR", "Microsoft devolvió una URL de descarga inválida.", {
+      details: { provider: "microsoft", limitation: "report_download_url_invalid" },
+    });
   }
   if (
     url.protocol !== "https:" ||
@@ -87,7 +113,17 @@ export async function safeDownloadUrl(
     isIP(url.hostname) ||
     url.hostname.startsWith("[")
   )
-    throw new ApiError("PROVIDER_ERROR", "Microsoft devolvió una URL de descarga no admitida.");
+    // The hostname (never path or signed query) tells whether Microsoft moved its storage account.
+    throw new ApiError("PROVIDER_ERROR", "Microsoft devolvió una URL de descarga no admitida.", {
+      details: {
+        provider: "microsoft",
+        limitation:
+          url.protocol === "https:" && url.hostname !== MICROSOFT_REPORT_HOST
+            ? "report_download_host_unexpected"
+            : "report_download_url_unsafe",
+        ...(url.protocol === "https:" ? safeHost(url.hostname) : {}),
+      },
+    });
   let addresses;
   try {
     addresses = await resolve(url.hostname);
@@ -107,7 +143,9 @@ export async function safeDownloadUrl(
         blocked.check(a.address, a.family === 4 ? "ipv4" : "ipv6"),
     )
   )
-    throw new ApiError("PROVIDER_ERROR", "Microsoft devolvió un servidor de descarga no público.");
+    throw new ApiError("PROVIDER_ERROR", "Microsoft devolvió un servidor de descarga no público.", {
+      details: { provider: "microsoft", limitation: "report_download_address_not_public" },
+    });
   return url;
 }
 
@@ -194,24 +232,39 @@ export async function microsoftReport(
   onWarning?: (e: ApiError) => void,
 ): Promise<ReportRow[]> {
   const request = reportRequest(query, account.account_id, conversions, client.config.completeData);
-  const submit = await client.call("submit", { ReportRequest: request }, signal, account);
+  const submit = await client
+    .call("submit", { ReportRequest: request }, signal, account)
+    .catch((e: unknown) => staged(e, "report_submit"));
   if (typeof submit.ReportRequestId !== "string" || !submit.ReportRequestId || submit.ReportRequestId.length > 2048)
-    throw new ApiError("PROVIDER_ERROR", "Microsoft no devolvió el identificador del informe.");
+    throw failure("Microsoft no devolvió el identificador del informe.", "report_submit", {
+      limitation: "report_id_missing",
+    });
   for (;;) {
     signal.throwIfAborted();
-    const poll = await client.call("poll", { ReportRequestId: submit.ReportRequestId }, signal, account);
+    const poll = await client
+      .call("poll", { ReportRequestId: submit.ReportRequestId }, signal, account)
+      .catch((e: unknown) => staged(e, "report_poll"));
     const status = poll.ReportRequestStatus;
-    if (!object(status)) throw new ApiError("PROVIDER_ERROR", "Microsoft devolvió un estado de informe inválido.");
+    if (!object(status))
+      throw failure("Microsoft devolvió un estado de informe inválido.", "report_poll", {
+        limitation: "report_status_invalid",
+      });
     if (status.Status === "Pending") {
       await client.wait(signal);
       continue;
     }
     if (status.Status !== "Success")
-      throw new ApiError("PROVIDER_ERROR", "Microsoft no pudo generar el informe solicitado.");
+      throw failure("Microsoft no pudo generar el informe solicitado.", "report_status", {
+        report_status: safeToken(status.Status),
+      });
     if (status.ReportDownloadUrl == null) return []; // Officially indicates a successful report with no data.
     if (typeof status.ReportDownloadUrl !== "string")
-      throw new ApiError("PROVIDER_ERROR", "Microsoft devolvió una descarga inválida.");
-    const url = await safeDownloadUrl(status.ReportDownloadUrl, resolve);
+      throw failure("Microsoft devolvió una descarga inválida.", "report_download_url", {
+        limitation: "report_download_url_invalid",
+      });
+    const url = await safeDownloadUrl(status.ReportDownloadUrl, resolve).catch((e: unknown) =>
+      staged(e, "report_download_url"),
+    );
     let response: Response;
     try {
       // Fixed trusted Microsoft host; preserve the configured proxy and TLS verification.
@@ -223,6 +276,7 @@ export async function microsoftReport(
         {
           details: {
             provider: "microsoft",
+            stage: "report_download",
             limitation: "report_download_network",
             report_host: MICROSOFT_REPORT_HOST,
             network_reason: microsoftNetworkReason(error, signal),
@@ -231,12 +285,25 @@ export async function microsoftReport(
       );
     }
     if (!response.ok) {
+      // Azure Storage names the rejection (for example an expired signature) in x-ms-error-code.
+      const blob = response.headers.get("x-ms-error-code");
       await response.body?.cancel();
-      throw new ApiError("PROVIDER_ERROR", "Microsoft no permitió descargar el informe.", {
-        details: { provider: "microsoft", limitation: "report_download_rejected", http_status: response.status },
+      throw failure("Microsoft no permitió descargar el informe.", "report_download", {
+        limitation: "report_download_rejected",
+        http_status: response.status,
+        ...(blob ? { blob_error_code: safeToken(blob) } : {}),
+        transient: response.status >= 500 || response.status === 429,
       });
     }
-    const data = parseReport(await responseBytes(response, 10 * 1024 * 1024, signal), request.Columns);
+    const bytes = await responseBytes(response, 10 * 1024 * 1024, signal).catch((e: unknown) =>
+      staged(e, "report_download"),
+    );
+    let data: ReportRow[];
+    try {
+      data = parseReport(bytes, request.Columns);
+    } catch (e) {
+      staged(e, "report_parse");
+    }
     if (!client.config.completeData)
       onWarning?.(
         new ApiError(
