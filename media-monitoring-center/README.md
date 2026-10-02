@@ -37,7 +37,10 @@ Hay acceso nominal y delegación de incidencias: [cuentas y responsables](docs/A
 La [preauditoría de v1](../unified-ads-api/docs/PREAUDITORIA_V1.md) corrigió acceso ante registros
 inválidos, duplicados, advertencias y pérdida de tasas con guardados simultáneos. Spotify izzi
 ya aporta 30 filas horarias UTC recuperadas; ingresos y conversiones de negocio siguen pendientes.
-Validación: 310 pruebas del monitoreo, tipos/lint/build y permisos nominales por HTTP.
+La continuación protege formularios antiguos con revisión, captura financiera con valor anterior
+y Settings/dictámenes con CAS en Blobs. Corrige carreras de usuarios dentro del proceso y el
+cambio propio de contraseña del principal. Validación: 367 pruebas, tipos/lint/build y conflictos
+por HTTP. Usuarios entre instancias, notificaciones y validación de Blobs real siguen pendientes.
 
 ## Arranque rápido
 

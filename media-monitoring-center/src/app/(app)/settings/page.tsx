@@ -28,7 +28,7 @@ export default async function SettingsPage() {
         title="Settings"
         subtitle={`Los cambios se guardan en el almacén configurado y aplican para todo el equipo. Solo cambian el monitoreo: nada se modifica en las plataformas. Rol actual: ${ROLE_LABEL[ctx.session.role]}${ctx.session.mode === "open" ? " (acceso abierto: cámbialo desde el menú de usuario)" : ""}.`}
       />
-      <SettingsForm initial={settings} canEdit={canEdit} mode={ctx.mode} campaigns={catalog.campaigns.map((c) => ({ id: c.id, name: c.name, platform: c.platform, objective: c.objective }))} />
+      <SettingsForm revision={ctx.settingsRevision} initial={settings} canEdit={canEdit} mode={ctx.mode} campaigns={catalog.campaigns.map((c) => ({ id: c.id, name: c.name, platform: c.platform, objective: c.objective }))} />
       <Card id="moneda" className="scroll-mt-20">
         <CardHeader>
           <div>

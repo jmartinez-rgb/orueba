@@ -3,6 +3,23 @@
 Fecha: 1 de octubre de 2026. Rama: `codex/entrega-auditoria-claude`. Estado recibido: commit
 `39a65be` (idéntico al ZIP `unified-ads-api-para-auditoria.zip`, comprobado archivo por archivo).
 
+## Continuación: configuración y registros — 2 de octubre de 2026 UTC
+
+Desde `fe7a62e`, en `codex/finalizacion-verificador-meta-x`: revisión obligatoria para formularios
+completos y reset; valor anterior requerido para tasas/monedas; guardado condicional por clave
+para Settings y dictámenes en Blobs; correcciones de concurrencia de usuarios dentro del proceso,
+autocambio de contraseña del principal y protección por identidad canónica.
+El SDK Blobs 11.1.1 podía declarar éxito ante HTTP 401: fixture del SDK real y guard de HTTP/ETag.
+Dictámenes deduplican replay de la misma operación dentro de los últimos 50 recibos.
+
+Validación: API **626 pruebas/33 archivos** y tipos/lint/formato; monitoreo **367/38** y
+check/build. HTTP 412/428 comprobado sin cambiar tasas; 15 cuentas conservadas. Esta ronda
+no hizo lecturas nuevas de proveedores: la matriz por plataforma conserva la evidencia anterior.
+Detalles y pendientes por **código, permisos, configuración y negocio**:
+[PREAUDITORIA_V1.md](PREAUDITORIA_V1.md). Siguen abiertos usuarios/otros escritores entre
+instancias, evaluación multiclave, notificaciones idempotentes, bitácora durable y validación de
+Blobs real. File/Memory y BigQuery no adquieren garantías distribuidas por este cambio.
+
 ## Preauditoría de v1 — 2 de octubre de 2026 UTC
 
 Esta revisión parte de `df5aeac` en `codex/finalizacion-verificador-meta-x`. Se corrigieron

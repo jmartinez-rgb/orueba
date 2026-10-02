@@ -4,6 +4,7 @@ import { BRAND_IDS, type BrandId } from "@/lib/brands";
 import { getAuthConfig, normalizeUsername } from "./config";
 import { hashPassword, verifyPassword } from "./password";
 import { PERMISSIONS, permissionsOf, ROLES, type Permission, type Role } from "./roles";
+import { withUserAdminWrite } from "./user-admin-lock";
 import {
   effectiveUniversal,
   findEffectiveAccount,
@@ -116,7 +117,20 @@ function managersLeft(list: EffectiveAccount[]): number {
   return list.filter((a) => a.active && a.permissions.includes("users:manage")).length;
 }
 
-export async function createAccount(actor: Actor, input: unknown): Promise<AdminResult<{ account: AccountView }>> {
+function withAccountWrite<T>(write: () => Promise<T>): Promise<T> {
+  return withUserAdminWrite(async () => {
+    // Refresh after waiting for earlier mutations, before checking identities,
+    // permissions, current password or the last active administrator.
+    await listManagedUsers(true);
+    return write();
+  });
+}
+
+export function createAccount(actor: Actor, input: unknown): Promise<AdminResult<{ account: AccountView }>> {
+  return withAccountWrite(() => createAccountUnlocked(actor, input));
+}
+
+async function createAccountUnlocked(actor: Actor, input: unknown): Promise<AdminResult<{ account: AccountView }>> {
   const parsed = createSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Datos inválidos.");
   const d = parsed.data;
@@ -149,14 +163,19 @@ export async function createAccount(actor: Actor, input: unknown): Promise<Admin
   return { ok: true, value: { account: toView(created!) } };
 }
 
-export async function updateAccount(actor: Actor, username: string, input: unknown): Promise<AdminResult<{ account: AccountView; passwordChanged: boolean; changes: string[] }>> {
+export function updateAccount(actor: Actor, username: string, input: unknown): Promise<AdminResult<{ account: AccountView; passwordChanged: boolean; changes: string[] }>> {
+  return withAccountWrite(() => updateAccountUnlocked(actor, username, input));
+}
+
+async function updateAccountUnlocked(actor: Actor, username: string, input: unknown): Promise<AdminResult<{ account: AccountView; passwordChanged: boolean; changes: string[] }>> {
   const parsed = updateSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Datos inválidos.");
   const d = parsed.data;
-  const u = normalizeUsername(username);
-  if (getAuthConfig().primaryAdminId === u && actor.id !== u) return fail("Solo el administrador principal puede modificar su propia cuenta.", 403);
-  const current = await findEffectiveAccount(u);
+  const current = await findEffectiveAccount(normalizeUsername(username));
   if (!current) return fail("No existe la cuenta.", 404);
+  // Login identifiers may be emails; protection and persistence use the canonical ID.
+  const u = current.username;
+  if (getAuthConfig().primaryAdminId === u && actor.id !== u) return fail("Solo el administrador principal puede modificar su propia cuenta.", 403);
   const self = actor.id === u;
   const touchesAccess = d.role !== undefined || d.permissions !== undefined || d.active !== undefined;
   if (self && touchesAccess) return fail("No puedes cambiar tu propio rol, permisos o estado. Pídeselo a otro administrador.", 403);
@@ -234,7 +253,11 @@ export async function updateAccount(actor: Actor, username: string, input: unkno
 }
 
 /** Borra la cuenta de la app. Si también existe en Netlify, vuelve a la de Netlify. */
-export async function deleteAccount(actor: Actor, username: string): Promise<AdminResult<{ revertedTo: "netlify" | null }>> {
+export function deleteAccount(actor: Actor, username: string): Promise<AdminResult<{ revertedTo: "netlify" | null }>> {
+  return withAccountWrite(() => deleteAccountUnlocked(actor, username));
+}
+
+async function deleteAccountUnlocked(actor: Actor, username: string): Promise<AdminResult<{ revertedTo: "netlify" | null }>> {
   const u = normalizeUsername(username);
   if (getAuthConfig().primaryAdminId === u) return fail("No se puede eliminar al administrador principal.", 403);
   if (actor.id === u) return fail("No puedes eliminar tu propia cuenta.", 403);
@@ -249,7 +272,11 @@ export async function deleteAccount(actor: Actor, username: string): Promise<Adm
   return { ok: true, value: { revertedTo: inEnv ? "netlify" : null } };
 }
 
-export async function updateUniversal(actor: Actor, input: unknown): Promise<AdminResult<{ enabled: boolean; changes: string[] }>> {
+export function updateUniversal(actor: Actor, input: unknown): Promise<AdminResult<{ enabled: boolean; changes: string[] }>> {
+  return withUserAdminWrite(() => updateUniversalUnlocked(actor, input));
+}
+
+async function updateUniversalUnlocked(actor: Actor, input: unknown): Promise<AdminResult<{ enabled: boolean; changes: string[] }>> {
   const parsed = universalSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Datos inválidos.");
   const d = parsed.data;
@@ -286,14 +313,20 @@ export async function updateUniversal(actor: Actor, input: unknown): Promise<Adm
 }
 
 /** La persona cambia su propia contraseña (cuentas nominales). */
-export async function changeOwnPassword(username: string, current: string, next: string): Promise<AdminResult<{ version: number }>> {
+export function changeOwnPassword(username: string, current: string, next: string): Promise<AdminResult<{ version: number }>> {
+  return withAccountWrite(() => changeOwnPasswordUnlocked(username, current, next));
+}
+
+async function changeOwnPasswordUnlocked(username: string, current: string, next: string): Promise<AdminResult<{ version: number }>> {
   const account = await findEffectiveAccount(username);
   if (!account || !account.active) return fail("Solo las cuentas con usuario pueden cambiar su contraseña.", 403);
   if (!(await verifyPassword(current, account.hash))) return fail("La contraseña actual no es correcta.", 403);
   const problem = passwordProblem(next);
   if (problem) return fail(problem);
   if (current === next) return fail("La contraseña nueva debe ser distinta de la actual.");
-  const res = await updateAccount({ id: "__self__", name: account.name, permissions: PERMISSIONS }, account.username, { password: next });
+  // Keep verification and mutation inside the same queue, without acquiring it twice.
+  // The real identity also preserves the principal administrator's self-service access.
+  const res = await updateAccountUnlocked({ id: account.username, name: account.name, permissions: account.permissions }, account.username, { password: next });
   if (!res.ok) return res;
   const updated = await findEffectiveAccount(account.username);
   return { ok: true, value: { version: updated!.version } };

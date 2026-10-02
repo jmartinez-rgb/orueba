@@ -1,5 +1,53 @@
 # Preauditoría de v1 — 2 de octubre de 2026 UTC
 
+## Continuación de la preauditoría — 2 de octubre de 2026 UTC
+
+Base: `fe7a62e`, misma rama `codex/finalizacion-verificador-meta-x`. Esta sección prevalece
+sobre los pendientes y conteos de la primera ronda más abajo. No se publicaron cambios ni se
+consultaron plataformas publicitarias en esta continuación; se avanzó en integridad y acceso.
+
+| Archivo y línea                                                   | Problema comprobado                                                                                                                                                                  | Corrección y alcance                                                                                                                                                                                                                                      |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `media-monitoring-center/src/app/api/settings/route.ts:29`        | PUT/DELETE desde una pantalla antigua revertían o borraban cambios posteriores; dos capturas del mismo mes se sobrescribían. Tres regresiones respondían 200 antes de la corrección. | PUT/DELETE requieren `If-Match`, ligado al contenido, marca y modo; 428 sin revisión y 412 si cambió. PATCH de tasas/monedas requiere el valor anterior del campo. Meses distintos siguen siendo independientes.                                          |
+| `media-monitoring-center/src/lib/services/context.ts:162`         | La revisión podía cambiar entre leer la configuración y guardarla.                                                                                                                   | El guardado exige la base leída y usa `RecordStore.update`. En Blobs, CAS por clave evita sobrescribir otra versión; un conflicto no genera bitácora de éxito. Reset guarda JSON null condicionalmente. BigQuery sigue protegido solo dentro del proceso. |
+| `media-monitoring-center/src/lib/auth/user-admin.ts:120`          | Altas/ediciones simultáneas perdían usuarios, versiones de revocación o cambios del acceso universal. La comprobación de contraseña podía quedar desactualizada antes del guardado.  | Cola compartida del proceso abarca lectura fresca, validación y escritura. Trece regresiones cubren carreras, duplicados, borrados, revocación y liberación ante errores. Usuarios entre instancias siguen pendientes de CAS/transacción.                 |
+| `media-monitoring-center/src/lib/auth/user-admin.ts:176` y `:316` | El principal no podía cambiar su contraseña; usar su correo eludía su protección en una actualización y podía duplicar la identidad.                                                 | Identidad canónica para proteger y persistir; autocambio verifica y guarda en la misma cola con la identidad real. Se preservan Juan Pablo, los 15 usuarios y los cinco responsables.                                                                     |
+| `media-monitoring-center/src/lib/records/store.ts:180`            | El SDK instalado `@netlify/blobs` 11.1.1 devuelve `modified:true` incluso ante HTTP 401 en una escritura condicional. Confirmado con fetch simulado del SDK real.                    | Guard de HTTP antes del SDK, comprobación de ETag y hasta cinco intentos CAS. Errores no incluyen cuerpos, URL ni credenciales. File/Memory serializan por clave y raíz dentro del proceso; no se certifica Blobs real ni varios procesos por archivo.    |
+| `media-monitoring-center/src/lib/records/incident-reviews.ts:25`  | Dictámenes concurrentes se perdían; repetir un append después de una respuesta perdida podía duplicarlo.                                                                             | Append mediante CAS; UUID por operación y últimos 50 recibos evitan duplicación en esa ventana. Fixtures prueban dos actores y una escritura aplicada con respuesta ambigua. Registros anteriores siguen admitidos.                                       |
+
+La interfaz conserva los borradores de tasas de otros meses después de guardar uno. Settings
+mantiene los cambios locales ante conflicto y ofrece una recarga explícita que avisa que los
+reemplazará. Los campos se bloquean durante guardado/recarga. Si DELETE funciona pero falla
+la recarga, se informa que el restablecimiento se aplicó y queda pendiente cargar los valores.
+Estos ajustes de interfaz se revisaron también de forma independiente; no se certificó una
+prueba visual automatizada del navegador.
+
+**Validación final:** API `typecheck`, `lint`, `format:check`, **626 pruebas/33 archivos**.
+Monitoreo `npm run check`: **367 pruebas/38 archivos**, más build de Next.js. Hay 57 pruebas
+nuevas, sin saltos ni cuarentenas. HTTP local: GET Settings 200; PUT/DELETE antiguos 412;
+PUT sin revisión 428; tasa con valor anterior distinto 412. La configuración permaneció
+idéntica, sin tasas ficticias. Login nominal, 15 cuentas y health de API 8086 comprobados.
+Monitoreo local en 3000; no son URL públicas. No se cambiaron contraseñas reales.
+
+**Pendientes separados:**
+
+- **Código:** CAS/transacción de usuarios y otros escritores de registros aún incondicionales;
+  evaluación multiclave y outbox/idempotencia de notificaciones; bitácora financiera durable.
+  La primitive CAS no garantiza ejecución única de cualquier transformación: deben ser puras
+  y deduplicar operaciones si hay respuesta perdida. File/Memory no protegen otros procesos;
+  BigQuery no tiene CAS aquí. Permanecen cobertura/DST, transporte Microsoft con DNS fijado
+  compatible con proxy y muestra no nula de `total_complete_payment_rate`.
+- **Permisos:** ningún acceso nuevo fue comprobado. Spotify USD adicional continúa fuera
+  del mapeo autorizado; no repetir OAuth para un límite de cuota de X.
+- **Configuración:** validar CAS/ETag, persistencia y reinicio en Netlify real; definir volumen
+  y scheduler; capturar tasas mensuales del equipo y llevar identidades privadas al destino.
+- **Negocio/datos:** conciliación por reloj/moneda/atribución y eventos principales pendientes.
+  Se mantienen las reglas de Meta, los dos eventos offline válidos de Google y CPA agregado.
+
+V1 continúa pendiente de auditoría y aceptación.
+
+## Primera ronda de preauditoría (base `df5aeac`)
+
 Rama: `codex/finalizacion-verificador-meta-x`. Base de esta revisión: `df5aeac`.
 Se corrigieron seis problemas de acceso, integridad y disponibilidad antes de la siguiente
 auditoría de Claude. No se declara v1 terminada ni aceptada para producción.

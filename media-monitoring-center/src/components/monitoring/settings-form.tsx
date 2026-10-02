@@ -113,23 +113,28 @@ function Section({ title, description, children }: { title: string; description?
 
 export function SettingsForm({
   initial,
+  revision,
   canEdit,
   mode,
   campaigns,
 }: {
   initial: MonitoringSettings;
+  revision: string;
   canEdit: boolean;
   mode: DataMode;
   campaigns: Array<{ id: string; name: string; platform: PlatformId; objective: CampaignObjective }>;
 }) {
   const router = useRouter();
   const [s, setS] = useState<MonitoringSettings>(initial);
+  const [baseline, setBaseline] = useState(initial);
+  const [formRevision, setFormRevision] = useState(revision);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [conflicted, setConflicted] = useState(false);
   const [campaignFilter, setCampaignFilter] = useState("");
-  const dirty = useMemo(() => JSON.stringify(s) !== JSON.stringify(initial), [s, initial]);
+  const dirty = useMemo(() => JSON.stringify(s) !== JSON.stringify(baseline), [s, baseline]);
   const set = (path: Path) => (v: unknown) => setS((cur) => setIn(cur, path, v));
-  const d = !canEdit;
+  const d = !canEdit || saving;
   const slots = useMemo(() => {
     const out: number[] = [];
     for (let h = s.schedule.startHour; h <= s.schedule.endHour; h += Math.max(1, s.schedule.intervalHours)) out.push(h);
@@ -139,26 +144,68 @@ export function SettingsForm({
   async function save() {
     setSaving(true);
     setMsg(null);
-    const res = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(s) });
-    const data = (await res.json().catch(() => ({}))) as { message?: string };
-    setSaving(false);
-    if (!res.ok) {
-      setMsg({ ok: false, text: data.message ?? "No se pudo guardar." });
-      sileo.error({ title: "No se pudo guardar", description: data.message });
-    } else {
+    try {
+      const res = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json", "If-Match": formRevision }, body: JSON.stringify(s) });
+      const data = (await res.json().catch(() => ({}))) as { message?: string; revision?: string };
+      if (!res.ok) {
+        setConflicted(res.status === 412 || res.status === 428);
+        throw new Error(data.message ?? "No se pudo guardar.");
+      }
+      setBaseline(s);
+      if (data.revision) setFormRevision(data.revision);
+      setConflicted(false);
       setMsg({ ok: true, text: mode === "bigquery" ? "Guardado en BigQuery para todo el equipo." : "Guardado para todo el equipo." });
       sileo.success({ title: "Configuración guardada", description: "Aplica para todo el equipo. No cambia nada en las plataformas." });
       router.refresh();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "No se pudo guardar.";
+      setMsg({ ok: false, text });
+      sileo.error({ title: "No se pudo guardar", description: text });
+    } finally {
+      setSaving(false);
     }
   }
 
   async function reset() {
     setSaving(true);
-    await fetch("/api/settings", { method: "DELETE" });
-    setSaving(false);
-    setMsg({ ok: true, text: "Se restauraron los valores por defecto." });
-    sileo.success({ title: "Valores por defecto restaurados" });
-    router.refresh();
+    setMsg(null);
+    try {
+      const res = await fetch("/api/settings", { method: "DELETE", headers: { "If-Match": formRevision } });
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      if (!res.ok) {
+        setConflicted(res.status === 412 || res.status === 428);
+        throw new Error(data.message ?? "No se pudo restablecer la configuración.");
+      }
+      setMsg({ ok: true, text: "Se restauraron los valores por defecto." });
+      sileo.success({ title: "Valores por defecto restaurados" });
+      try { await reloadValues(); }
+      catch {
+        const text = "Se restableció la configuración, pero no se pudo recargar. Vuelve a cargar los valores vigentes.";
+        setMsg({ ok: false, text });
+        setConflicted(true);
+        sileo.error({ title: "Configuración restablecida; recarga pendiente", description: text });
+      }
+      router.refresh();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "No se pudo restablecer la configuración.";
+      setMsg({ ok: false, text });
+      sileo.error({ title: "No se pudo restablecer", description: text });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function reloadValues() {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/settings");
+      const data = (await res.json()) as { settings?: MonitoringSettings; revision?: string; message?: string };
+      if (!res.ok || !data.settings || !data.revision) throw new Error(data.message ?? "No se pudieron cargar los valores vigentes.");
+      setS(data.settings);
+      setBaseline(data.settings);
+      setFormRevision(data.revision);
+      setConflicted(false);
+    } finally { setSaving(false); }
   }
 
   const updateRecipient = (i: number, patch: Partial<Recipient>) => setS((cur) => ({ ...cur, recipients: cur.recipients.map((r, idx) => (idx === i ? { ...r, ...patch } : r)) }));
@@ -166,6 +213,7 @@ export function SettingsForm({
 
   return (
     <div className="flex flex-col gap-4">
+      {conflicted && <div className="rounded-md border p-3 text-sm">La configuración cambió mientras editabas. Tus cambios siguen en esta pantalla. Recargar reemplaza estos cambios por los valores guardados. <Button variant="outline" size="sm" disabled={saving} onClick={() => reloadValues().catch(error => sileo.error({ title: "No se pudo recargar", description: error instanceof Error ? error.message : undefined }))}>Recargar valores vigentes</Button></div>}
       {!canEdit && <p className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">Solo un Admin puede modificar la configuración. Estás viendo los valores vigentes.</p>}
 
       <Section title="Semáforos" description="Desviación contra el valor esperado (mismo día y franja). Se combinan con volumen, variabilidad, hora y peso en el gasto.">

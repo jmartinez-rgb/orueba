@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { getStore } from "@netlify/blobs";
 import { logger, recordIntegrationEvent } from "@/lib/logging/logger";
+import { withRecordWrite } from "./write-lock";
+import { checkedBlobsFetch } from "./blobs-fetch";
 
 /**
  * Registros operativos de la app que no son métricas: bitácora de accesos y actividad,
@@ -32,6 +34,14 @@ export interface RecordStore {
   readonly backend: RecordBackend;
   get<T>(key: string): Promise<T | null>;
   set(key: string, value: unknown): Promise<void>;
+  /**
+   * Read-modify-write on one key. Transform must be synchronous and pure: Blobs
+   * may replay it after a conflict or a lost response. Append operations must
+   * deduplicate an operation ID; this does not guarantee exactly-once execution.
+   * Returning null stores JSON null (no delete).
+   * File/memory serialize inside this process; Blobs uses conditional writes.
+   */
+  update<T>(key: string, transform: (current: T | null) => T | null): Promise<T | null>;
   delete(key: string): Promise<void>;
   /** Llaves que empiezan con el prefijo. */
   list(prefix: string): Promise<string[]>;
@@ -51,10 +61,18 @@ class MemoryRecordStore implements RecordStore {
     return v === undefined ? null : (JSON.parse(v) as T);
   }
   async set(key: string, value: unknown) {
-    this.map.set(key, JSON.stringify(value));
+    await withRecordWrite(`memory:${key}`, async () => { this.map.set(key, serialize(value)); });
+  }
+  async update<T>(key: string, transform: (current: T | null) => T | null): Promise<T | null> {
+    return withRecordWrite(`memory:${key}`, async () => {
+      const next = transform(await this.get<T>(key));
+      assertSyncValue(next);
+      this.map.set(key, serialize(next));
+      return next;
+    });
   }
   async delete(key: string) {
-    this.map.delete(key);
+    await withRecordWrite(`memory:${key}`, async () => { this.map.delete(key); });
   }
   async list(prefix: string) {
     return [...this.map.keys()].filter((k) => k.startsWith(prefix));
@@ -77,7 +95,19 @@ export class FileRecordStore implements RecordStore {
       throw new RecordStoreError();
     }
   }
+  private scope(key: string) { return `file:${path.resolve(this.file(key))}`; }
   async set(key: string, value: unknown) {
+    await withRecordWrite(this.scope(key), () => this.write(key, value));
+  }
+  async update<T>(key: string, transform: (current: T | null) => T | null): Promise<T | null> {
+    return withRecordWrite(this.scope(key), async () => {
+      const next = transform(await this.get<T>(key));
+      assertSyncValue(next);
+      await this.write(key, next);
+      return next;
+    });
+  }
+  private async write(key: string, value: unknown) {
     const f = this.file(key);
     const temp = `${f}.${randomUUID()}.tmp`;
     try {
@@ -93,8 +123,10 @@ export class FileRecordStore implements RecordStore {
     }
   }
   async delete(key: string) {
-    try { await rm(this.file(key), { force: true }); }
-    catch { throw new RecordStoreError(); }
+    await withRecordWrite(this.scope(key), async () => {
+      try { await rm(this.file(key), { force: true }); }
+      catch { throw new RecordStoreError(); }
+    });
   }
   async list(prefix: string) {
     const out: string[] = [];
@@ -123,7 +155,7 @@ export class FileRecordStore implements RecordStore {
 class BlobsRecordStore implements RecordStore {
   readonly backend = "netlify-blobs" as const;
   private store() {
-    return getStore({ name: "immc-records", consistency: "strong" });
+    return getStore({ name: "immc-records", consistency: "strong", fetch: checkedBlobsFetch });
   }
   private fail(action: string): never {
     logger.error("records.blobs_failed", { action, code: "RECORDS_UNAVAILABLE" });
@@ -145,6 +177,31 @@ class BlobsRecordStore implements RecordStore {
       this.fail("set");
     }
   }
+  async update<T>(key: string, transform: (current: T | null) => T | null): Promise<T | null> {
+    let store: ReturnType<typeof getStore>;
+    try { store = this.store(); }
+    catch { return this.fail("update_read"); }
+    for (let attempt = 0; attempt < 5; attempt++) {
+      let previous: { data: T | null; etag?: string } | null;
+      try { previous = await store.getWithMetadata(key, { type: "json", consistency: "strong" }); }
+      catch { return this.fail("update_read"); }
+      if (previous !== null && (typeof previous !== "object" || !("data" in previous) || !validEtag(previous.etag))) return this.fail("update_read");
+      // Domain errors must propagate unchanged; never include a transform in the
+      // backend catch blocks, and never run side effects in a replayable transform.
+      const next = transform(previous === null ? null : previous.data);
+      assertSyncValue(next);
+      let result: Awaited<ReturnType<typeof store.setJSON>>;
+      try {
+        result = await store.setJSON(key, next, previous === null ? { onlyIfNew: true } : { onlyIfMatch: previous.etag! });
+      } catch { return this.fail("update_write"); }
+      if (result?.modified === false) continue;
+      // SDK 11.1.1 can return modified:true on non-412 HTTP failures. A missing
+      // receipt ETag is not a confirmed write, even when modified is true.
+      if (result?.modified !== true || !validEtag(result.etag)) return this.fail("update_write");
+      return next;
+    }
+    return this.fail("update_conflict");
+  }
   async delete(key: string) {
     try {
       await this.store().delete(key);
@@ -161,6 +218,21 @@ class BlobsRecordStore implements RecordStore {
       return this.fail("list");
     }
   }
+}
+
+const validEtag = (etag: unknown): etag is string => typeof etag === "string" && etag.trim().length > 0;
+
+function assertSyncValue(value: unknown): void {
+  if (value === undefined || (value !== null && typeof value === "object" && "then" in value && typeof value.then === "function")) throw new RecordStoreError();
+  serialize(value);
+}
+
+function serialize(value: unknown): string {
+  try {
+    const serialized = JSON.stringify(value);
+    if (serialized === undefined) throw new RecordStoreError();
+    return serialized;
+  } catch { throw new RecordStoreError(); }
 }
 
 let instance: RecordStore | null = null;

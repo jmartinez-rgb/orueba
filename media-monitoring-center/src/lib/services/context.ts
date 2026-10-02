@@ -31,6 +31,7 @@ import type { PlatformId } from "@/lib/types";
 import { UnifiedDataSource } from "@/lib/unified/source";
 import { loadUnifiedMapping, UnifiedSnapshotStore } from "@/lib/unified/store";
 import { UnifiedDataError } from "@/lib/unified/schema";
+import { settingsRevision, SettingsConflictError } from "@/lib/config/settings-revision";
 
 /** Llave de la configuración compartida en el almacén de registros (modo simulado). */
 export const SETTINGS_RECORD_KEY = "settings/patch";
@@ -40,6 +41,8 @@ export interface AppContext {
   mode: DataMode;
   settings: MonitoringSettings;
   settingsHash: string;
+  /** Revisión de lo guardado antes de ajustes de marca, ligada a la pantalla que se editó. */
+  settingsRevision: string;
   /** Fuente con conversión a MXN aplicada (cuentas en USD con la tasa del mes). */
   source: CurrencyConvertedSource;
   store: StateStore;
@@ -156,11 +159,21 @@ export async function loadStoredSettings(ctx: Pick<AppContext, "mode" | "store">
 }
 
 /** Guarda solo lo que difiere de los valores por omisión y limpia las copias en memoria. */
-export async function saveStoredSettings(ctx: Pick<AppContext, "mode" | "store">, next: MonitoringSettings | null, by: string): Promise<void> {
+export async function saveStoredSettings(ctx: Pick<AppContext, "mode" | "store">, next: MonitoringSettings | null, by: string, expected: MonitoringSettings): Promise<void> {
   const patch = next ? settingsDiff(baseSettings(), next) : null;
-  if (ctx.mode === "bigquery" && ctx.store.saveSettingsPatch) await ctx.store.saveSettingsPatch(patch, by);
-  else if (patch) await getRecordStore().set(SETTINGS_RECORD_KEY, patch);
-  else await getRecordStore().delete(SETTINGS_RECORD_KEY);
+  const check = (current: MonitoringSettings) => {
+    if (settingsRevision(current) !== settingsRevision(expected)) throw new SettingsConflictError();
+  };
+  if (ctx.mode === "bigquery" && ctx.store.saveSettingsPatch) {
+    // BigQuery aún no ofrece CAS en StateStore; la cola de Settings protege una instancia.
+    check(await loadStoredSettings(ctx));
+    await ctx.store.saveSettingsPatch(patch, by);
+  } else {
+    await getRecordStore().update<unknown>(SETTINGS_RECORD_KEY, current => {
+      check(mergeSettings(baseSettings(), current));
+      return patch;
+    });
+  }
   invalidate("live:");
   invalidate("replay:");
   invalidate("settings:");
@@ -214,6 +227,7 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
     }
   }
 
+  const revision = settingsRevision(settings, { brand, mode });
   const scenarioId = c.get(SCENARIO_COOKIE)?.value ?? env.mockScenario ?? DEFAULT_SCENARIO;
   const scenario = useMock ? getScenario(scenarioId) : null;
   if (mode === "sheets") settings = adaptToSheets(settings, sheets.mapping!);
@@ -269,6 +283,7 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
     settings,
     // Incluye lo aprobado en novedades y el arranque: si cambia, la evaluación en vivo se recalcula.
     settingsHash: hash({ brand, settings, plan }),
+    settingsRevision: revision,
     source,
     store,
     scenario,

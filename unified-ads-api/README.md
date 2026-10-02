@@ -12,6 +12,10 @@ La continuación `codex/finalizacion-verificador-meta-x` parte de la auditoría 
 (inventario separado por CAPI WhatsApp y resto), reglas de Meta por campaña y selección
 incremental opcional de X con respaldo. Consulta [la guía de verificación](docs/VERIFICACION.md).
 La conciliación y los permisos externos siguen pendientes; no se declara listo para producción.
+La [preauditoría de v1](docs/PREAUDITORIA_V1.md) avanza en acceso, formularios antiguos y
+registros concurrentes del monitoreo: CAS por clave para configuración/dictámenes en Blobs y
+correcciones de usuarios dentro del proceso. Validación: API 626 pruebas; monitoreo 367 y build.
+Concurrencia general entre instancias y aceptación de producción siguen pendientes.
 
 | Fase | Contenido                                | Estado                                                                                                         |
 | ---- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |

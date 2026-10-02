@@ -24,9 +24,12 @@ de la fecha del costo, antes de agregar importes o calcular razones.
   **Usuarios y accesos → Bitácora de accesos y actividad** registra actor, fecha, mes y valor
   anterior/nuevo al guardar, quitar o restablecer tasas. La bitácora existente es de mejor esfuerzo:
   un fallo al registrar actividad no revierte la configuración; no es un libro financiero transaccional.
-- PUT/PATCH/DELETE serializan lectura y escritura en el mismo proceso: dos capturas simultáneas
-  de meses distintos conservan ambas tasas. La cola se libera ante errores. Sigue pendiente
-  la protección entre instancias y contra formularios completos abiertos con valores antiguos.
+- PUT/DELETE requieren la revisión de la pantalla; PATCH financiero compara el valor anterior
+  del campo. Si otro administrador cambió ese valor, se avisa y se ofrece recargar, sin guardar
+  encima. Los borradores de otros meses permanecen al guardar uno. Dos meses distintos conservan
+  ambas tasas dentro del proceso. Settings usa CAS por clave en Blobs; un conflicto entre lectura
+  y guardado se rechaza. Blobs real aún debe validarse; archivos/BigQuery no quedan protegidos
+  entre procesos. La bitácora sigue siendo una escritura separada.
 
 La tasa no determina conversiones ni eventos principales. CPA sigue siendo suma de costo /
 suma de conversiones, cuando ambas magnitudes estén definidas y conciliadas. La edición general

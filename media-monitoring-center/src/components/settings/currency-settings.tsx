@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { sileo } from "sileo";
 import type { Currency, PlatformId } from "@/lib/types";
@@ -18,10 +18,12 @@ export interface CurrencyAccount {
   sourceCurrency: Currency;
 }
 
-async function patch(path: string, value: unknown) {
-  const res = await fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path, value }) });
+class SettingsChangedError extends Error {}
+
+async function patch(path: string, value: unknown, expectedValue: unknown) {
+  const res = await fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path, value, expectedValue }) });
   const d = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
-  if (!res.ok || !d.ok) throw new Error(d.message ?? "No se pudo guardar");
+  if (!res.ok || !d.ok) throw (res.status === 412 || res.status === 428) ? new SettingsChangedError(d.message ?? "La configuración cambió.") : new Error(d.message ?? "No se pudo guardar");
 }
 
 /**
@@ -46,23 +48,31 @@ export function CurrencySettings({
   editAccountCurrency?: boolean;
 }) {
   const router = useRouter();
-  const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(months.map((m) => [m, settingsRates[m] ? String(settingsRates[m]) : ""])));
+  const [refreshing, startRefresh] = useTransition();
+  // Keep each draft and the value seen when editing started, even after another
+  // month saves and refreshes server props. Untouched months use the latest props.
+  const [drafts, setDrafts] = useState<Record<string, { value: string; expectedValue: number | null }>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [conflicted, setConflicted] = useState(false);
+  const busyNow = busy !== null || refreshing;
   const lookup = rateLookup(new Map(Object.entries({ ...sourceRates, ...settingsRates })));
 
   async function saveRate(month: string) {
-    const raw = values[month]?.replace(",", ".").trim();
+    const raw = (drafts[month]?.value ?? String(settingsRates[month] ?? "")).replace(",", ".").trim();
+    const expected = drafts[month] ? drafts[month].expectedValue : settingsRates[month] ?? null;
     const n = Number(raw);
     setBusy(month);
     try {
-      if (!raw) await patch(`currency.rates.${month}`, null);
+      if (!raw) await patch(`currency.rates.${month}`, null, expected);
       else {
         if (!Number.isFinite(n) || n <= 0 || n > 1000) throw new Error("Escribe una tasa válida (p. ej. 18.45).");
-        await patch(`currency.rates.${month}`, Math.round(n * 10000) / 10000);
+        await patch(`currency.rates.${month}`, Math.round(n * 10000) / 10000, expected);
       }
+      setDrafts(current => { const next = { ...current }; delete next[month]; return next; });
       sileo.success({ title: raw ? `Tasa de ${month} guardada` : `Tasa de ${month} quitada` });
-      router.refresh();
+      startRefresh(() => router.refresh());
     } catch (err) {
+      if (err instanceof SettingsChangedError) setConflicted(true);
       sileo.error({ title: "No se pudo guardar", description: err instanceof Error ? err.message : undefined });
     } finally {
       setBusy(null);
@@ -72,10 +82,11 @@ export function CurrencySettings({
   async function setCurrency(a: CurrencyAccount, c: Currency) {
     setBusy(a.id);
     try {
-      await patch(`currency.accountCurrency.${a.id}`, c === a.sourceCurrency ? null : c);
+      await patch(`currency.accountCurrency.${a.id}`, c === a.sourceCurrency ? null : c, accountCurrency[a.id] ?? null);
       sileo.success({ title: `${a.name}: ${c}` });
-      router.refresh();
+      startRefresh(() => router.refresh());
     } catch (err) {
+      if (err instanceof SettingsChangedError) setConflicted(true);
       sileo.error({ title: "No se pudo guardar", description: err instanceof Error ? err.message : undefined });
     } finally {
       setBusy(null);
@@ -84,6 +95,7 @@ export function CurrencySettings({
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      {conflicted && <p className="lg:col-span-2 text-xs text-muted-foreground">El valor guardado cambió. Recargar reemplaza tus borradores por las tasas vigentes. <Button size="xs" variant="outline" disabled={busyNow} onClick={() => { setDrafts({}); setConflicted(false); startRefresh(() => router.refresh()); }}>Recargar valores vigentes</Button></p>}
       <div className="min-w-0 space-y-2">
         <p className="text-[13px] font-semibold text-foreground">Tipo de cambio por mes (1 USD = MXN)</p>
         <div className="overflow-x-auto rounded-md border">
@@ -107,7 +119,7 @@ export function CurrencySettings({
                     </td>
                     <td className="px-2 py-1">
                       {canEdit ? (
-                        <Input value={values[m] ?? ""} disabled={busy !== null} onChange={(e) => setValues((v) => ({ ...v, [m]: e.target.value }))} inputMode="decimal" placeholder={sourceRates[m] ? String(sourceRates[m]) : "18.45"} className="h-7 w-28 text-xs" aria-label={`Tasa de ${m}`} />
+                        <Input value={drafts[m]?.value ?? String(settingsRates[m] ?? "")} disabled={busyNow} onChange={(e) => setDrafts(current => ({ ...current, [m]: { value: e.target.value, expectedValue: current[m] ? current[m].expectedValue : settingsRates[m] ?? null } }))} inputMode="decimal" placeholder={sourceRates[m] ? String(sourceRates[m]) : "18.45"} className="h-7 w-28 text-xs" aria-label={`Tasa de ${m}`} />
                       ) : (
                         (settingsRates[m] ?? "—")
                       )}
@@ -124,7 +136,7 @@ export function CurrencySettings({
                     </td>
                     {canEdit && (
                       <td className="px-2 py-1 text-right">
-                        <Button size="xs" variant="outline" disabled={busy !== null} onClick={() => saveRate(m)}>
+                        <Button size="xs" variant="outline" disabled={busyNow} onClick={() => saveRate(m)}>
                           Guardar
                         </Button>
                       </td>
@@ -161,7 +173,7 @@ export function CurrencySettings({
                             type="button"
                             role="radio"
                             aria-checked={current === c}
-                            disabled={!canEdit || busy !== null}
+                            disabled={!canEdit || busyNow}
                             onClick={() => current !== c && setCurrency(a, c)}
                             className={cn("rounded px-2 py-0.5 text-[11px] font-semibold", current === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground disabled:hover:text-muted-foreground")}
                           >

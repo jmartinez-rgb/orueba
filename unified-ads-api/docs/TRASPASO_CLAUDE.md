@@ -1,5 +1,29 @@
 # Traspaso a Claude: continuación de TikTok y X Ads
 
+## Checkpoint vigente: avance de integridad y acceso (2 de octubre de 2026 UTC)
+
+Auditar el HEAD remoto de `codex/finalizacion-verificador-meta-x`, continuación después de
+`fe7a62e`. Esta sección prevalece sobre los checkpoints anteriores; lee la nueva continuación
+de [PREAUDITORIA_V1.md](PREAUDITORIA_V1.md), con archivo/línea y alcance comprobado.
+
+- Settings exige revisión para PUT/DELETE y valor anterior para PATCH financiero; 412/428
+  evita formularios antiguos. Guarda con CAS por clave en Blobs, sin falsear éxito ante errores
+  HTTP del SDK 11.1.1. Dictámenes concurrentes conservan historial y deduplican replay.
+- Usuarios se serializan dentro del proceso; Juan Pablo puede cambiar su contraseña y usar
+  el correo para buscarlo ya no elude su protección ni duplica el usuario. Las 15 identidades,
+  marcas y cinco responsables permanecen iguales; no se regeneraron contraseñas reales.
+- API **626 pruebas/33 archivos** + tipos/lint/formato; monitoreo **367/38** + check/build.
+  HTTP local valida conflictos sin cambiar tasas, acceso principal y health. Servicios 8086/3000.
+- No hubo extracción real nueva, publicación ni despliegue. La evidencia de proveedores y
+  conciliación pendiente sigue como en el checkpoint anterior.
+
+**Prioridad de código:** migrar invariantes de usuarios y otros escritores a CAS/transacciones,
+resolver evaluación multiclave/outbox de notificaciones y bitácora financiera. La operación
+`RecordStore.update` requiere transformaciones síncronas/puras y deduplicación de append ante
+respuesta perdida. File/Memory solo serializan un proceso; BigQuery no tiene CAS. Recibos de
+dictámenes se retienen 50 operaciones. Probar Blobs real y persistencia en el destino queda
+como configuración, sin desplegar hasta autorización. Mantener pendientes de negocio y tasas.
+
 ## Última continuación: preauditoría de v1 (2 de octubre de 2026 UTC)
 
 Auditar el HEAD remoto de `codex/finalizacion-verificador-meta-x`, después de `df5aeac`.

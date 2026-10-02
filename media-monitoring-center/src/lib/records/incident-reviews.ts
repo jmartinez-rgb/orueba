@@ -1,17 +1,21 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { DEFAULT_BRAND, type BrandId } from "@/lib/brands";
 import type { AuditVerdict, IncidentReview } from "@/lib/audit/incident-audit";
 import { getRecordStore, mapLimit } from "./store";
 
 /**
  * Dictámenes de auditoría por incidente (`incident-audits/<marca>/<incidente>`). Se conserva el
- * historial: cada nuevo dictamen se agrega y el último es el vigente. Nunca se borran.
+ * historial de los últimos 50 dictámenes: cada nuevo dictamen se agrega y el último
+ * es el vigente. La escritura por clave preserva los dictámenes concurrentes.
  */
 interface ReviewRecord {
   incidentId: string;
   brand: BrandId;
   current: IncidentReview;
   history: IncidentReview[];
+  /** Internal deduplication receipt; old records do not contain it. */
+  appliedOperations?: string[];
 }
 
 const key = (brand: BrandId, incidentId: string) => `incident-audits/${brand}/${encodeURIComponent(incidentId)}`;
@@ -22,13 +26,19 @@ export const AUDIT_VERDICT_LABEL: Record<AuditVerdict, string> = { CUMPLE: "Cump
 export async function saveReview(brand: BrandId, input: Omit<IncidentReview, "at">): Promise<IncidentReview> {
   const store = getRecordStore();
   const review: IncidentReview = { ...input, comment: input.comment.slice(0, 2000), at: new Date().toISOString() };
-  const prev = await store.get<ReviewRecord>(key(brand, input.incidentId));
-  await store.set(key(brand, input.incidentId), {
-    incidentId: input.incidentId,
-    brand,
-    current: review,
-    history: [...(prev?.history ?? []), review].slice(-50),
-  } satisfies ReviewRecord);
+  const operationId = randomUUID();
+  await store.update<ReviewRecord>(key(brand, input.incidentId), prev => {
+    // A transport retry can return 412 after the first write was applied. Replaying
+    // this append must preserve newer reviews without appending ours twice.
+    if (prev?.appliedOperations?.includes(operationId)) return prev;
+    return {
+      incidentId: input.incidentId,
+      brand,
+      current: review,
+      history: [...(prev?.history ?? []), review].slice(-50),
+      appliedOperations: [...(prev?.appliedOperations ?? []), operationId].slice(-50),
+    } satisfies ReviewRecord;
+  });
   return review;
 }
 

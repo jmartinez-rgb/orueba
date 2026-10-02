@@ -10,7 +10,7 @@ describe("validación reversible de almacenamiento", () => {
   });
   it("usa una llave aislada, verifica lectura efectiva y la elimina", async () => {
     let value: unknown;
-    const store: RecordStore = { backend: "file", set: vi.fn(async (_key, data) => { value = data; }), get: vi.fn(async () => value) as RecordStore["get"], delete: vi.fn(async () => {}), list: vi.fn() };
+    const store: RecordStore = { backend: "file", update: vi.fn(), set: vi.fn(async (_key, data) => { value = data; }), get: vi.fn(async () => value) as RecordStore["get"], delete: vi.fn(async () => {}), list: vi.fn() };
     expect(await checkRecordStorage(store)).toMatchObject({ available: true, code: "RECORD_IO_VERIFIED" });
     const key = vi.mocked(store.set).mock.calls[0][0];
     expect(key).toMatch(/^validation\/storage\//);

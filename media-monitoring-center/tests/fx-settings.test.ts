@@ -4,18 +4,19 @@ import { fxRateChanges } from "@/lib/config/fx-audit";
 import { fxMonths } from "@/lib/data/fx-months";
 import { rateLookup } from "@/lib/data/currency";
 import { DELETE, PATCH } from "@/app/api/settings/route";
+import { settingsRevision } from "@/lib/config/settings-revision";
 
 const mocks = vi.hoisted(() => ({ permission: vi.fn(), context: vi.fn(), load: vi.fn(), save: vi.fn(), activity: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ requirePermission: mocks.permission, getSession: vi.fn(), requireAuth: vi.fn(), hasPermission: vi.fn() }));
 vi.mock("@/lib/services/context", () => ({ getAppContext: mocks.context, loadStoredSettings: mocks.load, saveStoredSettings: mocks.save }));
 vi.mock("@/lib/services/activity", () => ({ logActivity: mocks.activity }));
 const session = { user: { id: "principal", name: "Administradora" } };
-const patch = (path: string, value: unknown) => PATCH(new Request("https://monitor.test/api/settings", { method: "PATCH", body: JSON.stringify({ path, value }) }));
+const patch = (path: string, value: unknown, expectedValue: unknown = path === "currency.rates.2026-09" ? 18 : null) => PATCH(new Request("https://monitor.test/api/settings", { method: "PATCH", body: JSON.stringify({ path, value, expectedValue }) }));
 
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.permission.mockResolvedValue(session);
-  mocks.context.mockResolvedValue({ mode: "unified" });
+  mocks.context.mockResolvedValue({ mode: "unified", brand: "izzi" });
   mocks.load.mockResolvedValue({ ...structuredClone(DEFAULT_SETTINGS), currency: { rates: { "2026-09": 18 }, accountCurrency: {} } });
 });
 
@@ -63,7 +64,7 @@ describe("captura mensual de tipo de cambio", () => {
       if (next.currency.rates["2026-09"] === 19 && next.currency.rates["2026-10"] === undefined) { entered(); await blocked; }
       stored = structuredClone(next);
     });
-    const first = patch("currency.rates.2026-09", 19);
+    const first = patch("currency.rates.2026-09", 19, null);
     await firstSave;
     const second = patch("currency.rates.2026-10", 20);
     await new Promise(resolve => setImmediate(resolve)); release();
@@ -73,7 +74,8 @@ describe("captura mensual de tipo de cambio", () => {
   });
   it("un fallo al restablecer configuración devuelve error y no bloquea el siguiente guardado", async () => {
     mocks.save.mockRejectedValueOnce(new Error("fixture storage failure"));
-    expect((await DELETE()).status).toBe(500);
+    const stored = await mocks.load();
+    expect((await DELETE(new Request("https://monitor.test/api/settings", { method: "DELETE", headers: { "If-Match": settingsRevision(stored, { mode: "unified", brand: "izzi" }) } }))).status).toBe(500);
     expect(mocks.activity).not.toHaveBeenCalled();
     expect((await patch("currency.rates.2026-10", 19)).status).toBe(200);
   });
