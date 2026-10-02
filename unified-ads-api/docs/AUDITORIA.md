@@ -96,6 +96,10 @@ citado por Codex. Las regresiones de Google (paralelismo, ceros protobuf), Meta 
 - **X:** `X_ADS_PLACEMENTS` permite sumar `PUBLISHER_NETWORK` si se confirma en v12, la consulta del
   estado de trabajos asíncronos espera 1, 2, 4, 8 y luego 10 s, y antes de cada bloque se consulta
   `active_entities` para pedir métricas solo de campañas con actividad (respaldo: todas las campañas).
+- **Auditoría de Google Ads** (`npm run google:auditoria`): diagnóstico de solo lectura de las 8 cuentas
+  del encargo con informe de 22 secciones por cuenta, quick wins, "no tocar todavía", plan de acción,
+  recomendaciones de Google clasificadas y reglas de monitoreo. Consultas validadas campo por campo
+  contra el descubrimiento v25. Ver `docs/GOOGLE_AUDITORIA.md`.
 - **Monitoreo:** panel de salud en Overview (los topes de Meta se cruzan con el diario vigente de la
   cuenta para saber cuántos días alcanzan), proyección de cierre de mes con los diarios actuales contra
   el presupuesto mensual, y cambios de presupuesto contra el último día guardado (foto diaria por marca

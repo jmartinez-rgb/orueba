@@ -24,7 +24,8 @@
     "tiktok:auth": "tsx scripts/tiktok-auth.ts",
     "meta:exclusiones": "tsx scripts/meta-exclusions.ts",
     "verificar": "tsx scripts/verify-real.ts",
-    "meta:acciones": "tsx scripts/meta-actions.ts"
+    "meta:acciones": "tsx scripts/meta-actions.ts",
+    "google:auditoria": "tsx scripts/google-audit.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",

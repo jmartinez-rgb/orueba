@@ -261,6 +261,15 @@ Recorre estado, cuentas, campañas, presupuestos, salud de entrega y rendimiento
 conciliar contra cada interfaz. No guarda tokens, cabeceras ni respuestas crudas. Si una plataforma
 rota su refresh token durante la lectura, el nuevo se guarda en `.env` (0600).
 
+Auditoría de Google Ads cuenta por cuenta (solo lectura; informe Markdown y Excel en `reportes/`):
+
+```bash
+npm run google:auditoria                                    # las 8 cuentas del encargo
+npm run google:auditoria -- --cuentas 877-953-6058 --sin-urls
+```
+
+Detalle, criterios y fuentes en [docs/GOOGLE_AUDITORIA.md](docs/GOOGLE_AUDITORIA.md).
+
 ## Docker
 
 ```bash
