@@ -4,6 +4,7 @@ import { withRetry, type RetryOptions } from "../../utils/retry.js";
 import { CircuitBreaker } from "../../utils/circuit-breaker.js";
 import { object, type SpotifyConfig } from "./config.js";
 import { spotifyError, isSpotifyRetryable } from "./errors.js";
+import { persistTokenRotation, type RefreshTokenRotationHandler } from "../token-rotation.js";
 
 export const SPOTIFY_API = "https://api-partner.spotify.com/ads/v3";
 export const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
@@ -51,6 +52,7 @@ export async function spotifyJson(response: Response, signal: AbortSignal): Prom
 export class SpotifyClient {
   private access: { token: string; until: number } | null = null;
   private refreshToken: string;
+  private pendingRotation: string | null = null;
   private refreshing: Promise<string> | null = null;
   private readonly breaker = new CircuitBreaker("Spotify Ads", {
     failureThreshold: 5,
@@ -62,9 +64,14 @@ export class SpotifyClient {
     readonly request: SpotifyFetch = fetch,
     private readonly retry: Partial<RetryOptions> = {},
     /** Spotify puede rotar el refresh token al renovar: quien lo reciba debe conservarlo. */
-    private readonly onRefreshTokenRotated?: (token: string) => void,
+    private readonly onRefreshTokenRotated?: RefreshTokenRotationHandler,
   ) {
     this.refreshToken = config.refreshToken;
+  }
+  private async persistRotation(): Promise<void> {
+    if (this.pendingRotation === null) return;
+    await persistTokenRotation("spotify", this.onRefreshTokenRotated, this.pendingRotation);
+    this.pendingRotation = null;
   }
   private retryOptions(signal: AbortSignal): Partial<RetryOptions> {
     return {
@@ -108,49 +115,58 @@ export class SpotifyClient {
     return body;
   }
   private async token(signal: AbortSignal): Promise<string> {
-    if (this.access && this.access.until > Date.now()) return this.access.token;
     if (this.refreshing) return this.refreshing;
-    this.refreshing = withRetry(async () => {
+    if (!this.pendingRotation && this.access && this.access.until > Date.now()) return this.access.token;
+    this.refreshing = (async () => {
+      // Failed storage retains the latest rotated credential for a persistence retry;
+      // the cached access token remains gated until that retry succeeds.
+      await this.persistRotation();
       signal.throwIfAborted();
-      const data = await this.json(
-        SPOTIFY_TOKEN_URL,
-        {
-          method: "POST",
-          headers: {
-            Authorization: spotifyBasic(this.config.clientId, this.config.clientSecret),
-            "Content-Type": "application/x-www-form-urlencoded",
+      if (this.access && this.access.until > Date.now()) return this.access.token;
+      return withRetry(async () => {
+        signal.throwIfAborted();
+        const data = await this.json(
+          SPOTIFY_TOKEN_URL,
+          {
+            method: "POST",
+            headers: {
+              Authorization: spotifyBasic(this.config.clientId, this.config.clientSecret),
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: this.refreshToken }).toString(),
           },
-          body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: this.refreshToken }).toString(),
-        },
-        signal,
-        true,
-      );
-      if (
-        typeof data.access_token !== "string" ||
-        !data.access_token ||
-        /[\r\n]/.test(data.access_token) ||
-        typeof data.expires_in !== "number" ||
-        !Number.isFinite(data.expires_in) ||
-        data.expires_in <= 0 ||
-        data.expires_in > 86400 ||
-        String(data.token_type).toLowerCase() !== "bearer"
-      )
-        throw new ApiError("PROVIDER_ERROR", "Spotify no devolvió un token OAuth válido.");
-      if (
-        typeof data.refresh_token === "string" &&
-        data.refresh_token &&
-        !/[\r\n]/.test(data.refresh_token) &&
-        data.refresh_token !== this.refreshToken
-      ) {
-        this.refreshToken = data.refresh_token;
-        this.onRefreshTokenRotated?.(data.refresh_token);
-      }
-      this.access = {
-        token: data.access_token,
-        until: Date.now() + data.expires_in * 1000 - Math.min(60000, data.expires_in * 100),
-      };
-      return data.access_token;
-    }, this.retryOptions(signal));
+          signal,
+          true,
+        );
+        if (
+          typeof data.access_token !== "string" ||
+          !data.access_token ||
+          /[\r\n]/.test(data.access_token) ||
+          typeof data.expires_in !== "number" ||
+          !Number.isFinite(data.expires_in) ||
+          data.expires_in <= 0 ||
+          data.expires_in > 86400 ||
+          String(data.token_type).toLowerCase() !== "bearer"
+        )
+          throw new ApiError("PROVIDER_ERROR", "Spotify no devolvió un token OAuth válido.");
+        if (
+          typeof data.refresh_token === "string" &&
+          data.refresh_token &&
+          !/[\r\n]/.test(data.refresh_token) &&
+          data.refresh_token !== this.refreshToken
+        ) {
+          this.refreshToken = data.refresh_token;
+          this.pendingRotation = data.refresh_token;
+        }
+        this.access = {
+          token: data.access_token,
+          until: Date.now() + data.expires_in * 1000 - Math.min(60000, data.expires_in * 100),
+        };
+        await this.persistRotation();
+        signal.throwIfAborted();
+        return data.access_token;
+      }, this.retryOptions(signal));
+    })();
     try {
       return await this.refreshing;
     } finally {

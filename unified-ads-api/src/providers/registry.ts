@@ -19,7 +19,7 @@ export class ProviderRegistry {
   static fromEnv(
     env: Readonly<Record<string, string | undefined>>,
     timeoutMs?: number,
-    onRefreshTokenRotated?: (name: RotatingToken, token: string) => void,
+    onRefreshTokenRotated?: (name: RotatingToken, token: string) => unknown,
   ): ProviderRegistry {
     return new ProviderRegistry([
       new GoogleProvider(env, { timeoutMs }),

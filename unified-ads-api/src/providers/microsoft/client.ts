@@ -4,6 +4,7 @@ import { withRetry, type RetryOptions } from "../../utils/retry.js";
 import { CircuitBreaker } from "../../utils/circuit-breaker.js";
 import { MICROSOFT_SCOPE, object, type MicrosoftConfig } from "./config.js";
 import { expiredAccessToken, isMicrosoftRetryable, microsoftError, microsoftErrors } from "./errors.js";
+import { persistTokenRotation, type RefreshTokenRotationHandler } from "../token-rotation.js";
 
 export type MicrosoftFetch = typeof fetch;
 const ENDPOINTS = {
@@ -53,6 +54,7 @@ export async function responseBytes(response: Response, limit: number, signal: A
 export class MicrosoftClient {
   private access: { token: string; until: number } | null = null;
   private refreshToken: string;
+  private pendingRotation: string | null = null;
   private refreshing: Promise<string> | null = null;
   private readonly breaker = new CircuitBreaker("Microsoft Advertising", {
     failureThreshold: 5,
@@ -64,9 +66,14 @@ export class MicrosoftClient {
     readonly request: MicrosoftFetch = fetch,
     private readonly retry: Partial<RetryOptions> = {},
     /** Microsoft rota el refresh token en cada renovación: quien lo reciba debe conservarlo. */
-    private readonly onRefreshTokenRotated?: (token: string) => void,
+    private readonly onRefreshTokenRotated?: RefreshTokenRotationHandler,
   ) {
     this.refreshToken = config.refreshToken;
+  }
+  private async persistRotation(): Promise<void> {
+    if (this.pendingRotation === null) return;
+    await persistTokenRotation("microsoft", this.onRefreshTokenRotated, this.pendingRotation);
+    this.pendingRotation = null;
   }
 
   private retryOptions(signal: AbortSignal): Partial<RetryOptions> {
@@ -116,50 +123,59 @@ export class MicrosoftClient {
     return data;
   }
   private async token(signal: AbortSignal): Promise<string> {
-    if (this.access && this.access.until > Date.now()) return this.access.token;
     if (this.refreshing) return this.refreshing;
-    this.refreshing = withRetry(async () => {
+    if (!this.pendingRotation && this.access && this.access.until > Date.now()) return this.access.token;
+    this.refreshing = (async () => {
+      // A failed write keeps the latest rotated credential in memory. Retry its persistence,
+      // without repeating OAuth or using the access token before confirmation.
+      await this.persistRotation();
       signal.throwIfAborted();
-      const form = new URLSearchParams({
-        client_id: this.config.clientId,
-        client_secret: this.config.clientSecret,
-        refresh_token: this.refreshToken,
-        grant_type: "refresh_token",
-        scope: MICROSOFT_SCOPE,
-      });
-      const data = await this.json(
-        `https://login.microsoftonline.com/${this.config.tenant}/oauth2/v2.0/token`,
-        form.toString(),
-        { "Content-Type": "application/x-www-form-urlencoded" },
-        signal,
-        true,
-      );
-      if (
-        typeof data.access_token !== "string" ||
-        !data.access_token ||
-        /[\r\n]/.test(data.access_token) ||
-        typeof data.expires_in !== "number" ||
-        !Number.isFinite(data.expires_in) ||
-        data.expires_in <= 0 ||
-        data.expires_in > 86400 ||
-        (data.token_type !== undefined && String(data.token_type).toLowerCase() !== "bearer")
-      )
-        throw new ApiError("PROVIDER_ERROR", "Microsoft no devolvió un token OAuth válido.");
-      if (
-        typeof data.refresh_token === "string" &&
-        data.refresh_token &&
-        !/[\r\n]/.test(data.refresh_token) &&
-        data.refresh_token !== this.refreshToken
-      ) {
-        this.refreshToken = data.refresh_token;
-        this.onRefreshTokenRotated?.(data.refresh_token);
-      }
-      this.access = {
-        token: data.access_token,
-        until: Date.now() + data.expires_in * 1000 - Math.min(60000, data.expires_in * 100),
-      };
-      return data.access_token;
-    }, this.retryOptions(signal));
+      if (this.access && this.access.until > Date.now()) return this.access.token;
+      return withRetry(async () => {
+        signal.throwIfAborted();
+        const form = new URLSearchParams({
+          client_id: this.config.clientId,
+          client_secret: this.config.clientSecret,
+          refresh_token: this.refreshToken,
+          grant_type: "refresh_token",
+          scope: MICROSOFT_SCOPE,
+        });
+        const data = await this.json(
+          `https://login.microsoftonline.com/${this.config.tenant}/oauth2/v2.0/token`,
+          form.toString(),
+          { "Content-Type": "application/x-www-form-urlencoded" },
+          signal,
+          true,
+        );
+        if (
+          typeof data.access_token !== "string" ||
+          !data.access_token ||
+          /[\r\n]/.test(data.access_token) ||
+          typeof data.expires_in !== "number" ||
+          !Number.isFinite(data.expires_in) ||
+          data.expires_in <= 0 ||
+          data.expires_in > 86400 ||
+          (data.token_type !== undefined && String(data.token_type).toLowerCase() !== "bearer")
+        )
+          throw new ApiError("PROVIDER_ERROR", "Microsoft no devolvió un token OAuth válido.");
+        if (
+          typeof data.refresh_token === "string" &&
+          data.refresh_token &&
+          !/[\r\n]/.test(data.refresh_token) &&
+          data.refresh_token !== this.refreshToken
+        ) {
+          this.refreshToken = data.refresh_token;
+          this.pendingRotation = data.refresh_token;
+        }
+        this.access = {
+          token: data.access_token,
+          until: Date.now() + data.expires_in * 1000 - Math.min(60000, data.expires_in * 100),
+        };
+        await this.persistRotation();
+        signal.throwIfAborted();
+        return data.access_token;
+      }, this.retryOptions(signal));
+    })();
     try {
       return await this.refreshing;
     } finally {

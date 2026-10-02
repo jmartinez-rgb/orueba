@@ -27,3 +27,6 @@ npm-debug.log*
 
 # registros locales de la app (bitácora, tickets) en desarrollo
 .data/
+
+# conciliación privada y exportaciones de cuentas
+reportes/

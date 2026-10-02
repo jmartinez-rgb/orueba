@@ -1,0 +1,75 @@
+{
+  "exit_code": 2,
+  "configurationReady": false,
+  "checks": [
+    {
+      "id": "data",
+      "status": "configured",
+      "code": "REAL_SOURCE_CONFIGURED",
+      "variables": []
+    },
+    {
+      "id": "auth",
+      "status": "configured",
+      "code": "NAMED_ACCOUNTS_CONFIGURED",
+      "variables": []
+    },
+    {
+      "id": "records",
+      "status": "configured",
+      "code": "RECORD_BACKEND_CONFIGURED",
+      "variables": []
+    },
+    {
+      "id": "unified_api",
+      "status": "configured",
+      "code": "API_CONFIGURATION_PRESENT",
+      "variables": []
+    }
+  ],
+  "deployment": {
+    "target": "netlify",
+    "configurationReady": false,
+    "checks": [
+      {
+        "id": "api_transport",
+        "status": "pending",
+        "code": "PRODUCTION_API_URL_INVALID"
+      },
+      {
+        "id": "records_topology",
+        "status": "pending",
+        "code": "NETLIFY_RECORD_BACKEND_UNSUPPORTED"
+      },
+      {
+        "id": "history_topology",
+        "status": "pending",
+        "code": "NETLIFY_UNIFIED_FILE_HISTORY_UNSUPPORTED"
+      }
+    ],
+    "runtimeVerified": false,
+    "certifiesV1": false,
+    "pendingEvidence": [
+      "HTTPS_AND_DNS_NOT_VERIFIED",
+      "API_NETWORK_AUTH_NOT_VERIFIED",
+      "DURABLE_STORAGE_RESTART_NOT_VERIFIED",
+      "SHARED_WRITERS_NOT_VERIFIED",
+      "TOKEN_ROTATION_DURABILITY_NOT_VERIFIED",
+      "EXTRACTION_WORKER_NOT_VERIFIED",
+      "RECONCILIATION_NOT_VERIFIED",
+      "ROLE_ACCEPTANCE_NOT_VERIFIED"
+    ]
+  },
+  "recordStorage": {
+    "checked": true,
+    "available": true,
+    "code": "RECORD_IO_VERIFIED"
+  },
+  "providerAccess": {
+    "checked": false,
+    "available": null,
+    "providers": []
+  },
+  "provider_network_calls": false,
+  "certifies_v1": false
+}

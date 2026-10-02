@@ -5,6 +5,7 @@ import { getRecordStore } from "../src/lib/records/store";
 import { loadUnifiedMapping } from "../src/lib/unified/store";
 import { checkRecordStorage } from "../src/lib/release/records-check";
 import { fetchUnifiedStatus } from "../src/lib/integrations/unified-api";
+import { deploymentConfiguration, parseReadinessOptions } from "../src/lib/release/deployment";
 import {
   v1Configuration,
   v1ProviderAccess,
@@ -15,11 +16,10 @@ let phase: "opciones" | "entorno" | "configuracion" | "acceso" | "salida" =
 
 async function main() {
   const args = process.argv.slice(2);
-  if (args.some((arg) => !["--sin-red", "--registros", "--ayuda", "--help"].includes(arg)))
-    throw new Error("Opción desconocida.");
-  if (args.includes("--ayuda") || args.includes("--help")) {
+  const options = parseReadinessOptions(args);
+  if (options.help) {
     process.stdout.write(
-      "npm run v1:check -- [--sin-red] [--registros]\nRevisa configuración para producción y estados de conexión. --registros escribe, lee y elimina un sondeo aislado para comprobar el almacenamiento; no modifica registros del equipo ni garantiza un volumen durable. No lee hojas ni publica, ni sustituye conciliación o aceptación de v1.\n",
+      "npm run v1:check -- [--sin-red] [--registros] [--destino local|netlify|contenedor] [--volumen /var/data]\nEl destino predeterminado es local. La configuración de contenedor requiere declarar el volumen durable que contendrá registros e histórico; esa declaración no demuestra montaje, ausencia de symlinks ni persistencia. --registros escribe, lee y elimina un sondeo aislado. No publica ni sustituye conciliación o aceptación de v1.\n",
     );
     return;
   }
@@ -41,13 +41,14 @@ async function main() {
     getRecordStore().backend,
     unifiedMappingReady,
   );
-  const recordStorage = args.includes("--registros") ? await checkRecordStorage(getRecordStore()) : { checked: false, available: null, code: "RECORD_IO_NOT_CHECKED" };
+  const deployment = deploymentConfiguration({ target: options.target, volume: options.volume, dataSource: env.requestedDataSource ?? env.dataSource, recordsBackend: getRecordStore().backend, recordsDirectory: process.env.RECORDS_DIR ?? ".data/records", unifiedDirectory: env.unifiedData.directory, apiUrl: env.unifiedApi.url });
+  const recordStorage = options.records ? await checkRecordStorage(getRecordStore()) : { checked: false, available: null, code: "RECORD_IO_NOT_CHECKED" };
   let access: {
     checked: boolean;
     available: boolean | null;
     providers: Array<{ id: string; state: string; code: string | null }>;
   } = { checked: false, available: null, providers: [] };
-  if (!args.includes("--sin-red") && env.unifiedApi.configured) {
+  if (!options.noNetwork && env.unifiedApi.configured) {
     phase = "acceso";
     const status = await fetchUnifiedStatus();
     access = status.ok
@@ -59,13 +60,13 @@ async function main() {
   }
   phase = "salida";
   process.stdout.write(
-    JSON.stringify({ ...configuration, recordStorage, providerAccess: access }) + "\n",
+    JSON.stringify({ ...configuration, configurationReady: configuration.configurationReady && deployment.configurationReady, deployment, recordStorage, providerAccess: access }) + "\n",
   );
   process.stdout.write(
     "Esta comprobación es de configuración y acceso. Faltan la lectura real de métricas, su conciliación, verificar registros tras reinicio y aceptar los flujos de cada rol antes de liberar v1.\n",
   );
   process.exitCode =
-    configuration.configurationReady && access.available === true && (!recordStorage.checked || recordStorage.available) ? 0 : 2;
+    configuration.configurationReady && deployment.configurationReady && access.available === true && (!recordStorage.checked || recordStorage.available) ? 0 : 2;
 }
 
 void main().catch(() => {

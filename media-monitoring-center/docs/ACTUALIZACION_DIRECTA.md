@@ -50,6 +50,19 @@ al abrir el monitoreo; su ejecución desatendida también necesita una integraci
 
 ## Operación y pendientes
 
+La aceptación actual se limita a izzi. Ambos comandos admiten `--brand izzi|sky`, combinable con
+`--provider`; filtran el mapeo antes de extraer. Sin filtro mantienen todas sus marcas por
+compatibilidad. Para esta v1 usar explícitamente:
+
+```bash
+npm run unified:refresh -- --brand izzi
+# Solo cuando se configure el supervisor autorizado:
+npm run unified:refresh -- --brand izzi --watch
+```
+
+Un filtro sin cuentas no amplía el alcance ni vuelve al mapeo completo. No se activó un worker
+permanente ni se hicieron nuevas consultas de cuentas con esta entrega.
+
 Si un proceso se interrumpe bruscamente, el directorio de bloqueo puede quedar retenido. No se
 elimina automáticamente por tiempo: revisar que no siga activo el proceso propietario antes de
 recuperarlo. La espera persistida se conserva. El disco debe ser durable/compartido en producción;

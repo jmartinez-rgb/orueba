@@ -1,0 +1,265 @@
+{
+  "version": 1,
+  "recordedAt": "2026-10-02T16:13:14.338063+00:00",
+  "scope": "Local Docker validation with synthetic fixtures only; no external deployment, no platform credentials or calls.",
+  "docker": "28.4.0",
+  "node": "v22.23.3",
+  "contextAudits": [
+    {
+      "project": "monitor",
+      "status": "PASS",
+      "includedApprovedFiles": 314,
+      "missingApprovedFiles": 0,
+      "unexpectedFiles": 0,
+      "syntheticCanariesExcluded": 17,
+      "canaryLeaks": 0
+    },
+    {
+      "project": "api",
+      "status": "PASS",
+      "includedApprovedFiles": 103,
+      "missingApprovedFiles": 0,
+      "unexpectedFiles": 0,
+      "syntheticCanariesExcluded": 16,
+      "canaryLeaks": 0
+    }
+  ],
+  "builds": [
+    {
+      "project": "api",
+      "status": "PASS",
+      "imageTag": "codex-api-preflight",
+      "npmCi": "PASS",
+      "typescriptBuild": "PASS",
+      "offlinePrune": "PASS"
+    },
+    {
+      "project": "monitor",
+      "status": "PASS",
+      "imageTag": "codex-monitor-preflight",
+      "npmCi": "PASS",
+      "nextBuild": "PASS",
+      "typescriptBuild": "PASS",
+      "nextVersion": "16.3.6"
+    }
+  ],
+  "networkConfiguration": {
+    "dockerClientConfig": "Temporary writable directory in /tmp; existing home configuration unchanged.",
+    "optionalProxySecrets": "HTTP_PROXY, HTTPS_PROXY, NO_PROXY via BuildKit secrets only for npm ci.",
+    "optionalCaSecret": "Existing NODE_EXTRA_CA_CERTS file via npm_ca secret; TLS verification retained.",
+    "npmPingWithSupportedProxyAndCa": "PASS",
+    "imagePersistedProxyOrAuthenticationVariables": 0
+  },
+  "runtime": [
+    {
+      "project": "api",
+      "image": "sha256:9fdc8ba95c222511a203cbbdf9c94077ea12c9446f71aa02b268d3d097a4201a",
+      "imageUser": "node",
+      "imageProxyOrAuthVariables": 0,
+      "sameVolumeMount": true,
+      "healthcheckState": "healthy",
+      "boundToLoopback": true,
+      "containerImageIsLatestBuild": true
+    },
+    {
+      "project": "monitor",
+      "image": "sha256:63e2a5de655b06347f2cd79888586433f39499aa742256b9aaf475eb063c1ee6",
+      "imageUser": "node",
+      "imageProxyOrAuthVariables": 0,
+      "sameVolumeMount": true,
+      "healthcheckState": "healthy",
+      "boundToLoopback": true,
+      "containerImageIsLatestBuild": true
+    }
+  ],
+  "httpInitialMonitor": {
+    "statuses": [
+      {
+        "path": "/api/health",
+        "status": 200
+      },
+      {
+        "path": "/api/alerts",
+        "status": 401
+      },
+      {
+        "path": "/",
+        "status": 307
+      },
+      {
+        "path": "/login",
+        "status": 200
+      }
+    ],
+    "loginStatus": 200,
+    "sessionCookieSet": true,
+    "authenticatedAlertsStatus": 200,
+    "uid": 1000,
+    "node": "v22.23.3"
+  },
+  "mappedPortHealth": [
+    {
+      "project": "api",
+      "mappedHealthStatus": 200
+    },
+    {
+      "project": "monitor",
+      "mappedHealthStatus": 200
+    }
+  ],
+  "restart": [
+    {
+      "restartHealthStatus": 200,
+      "savedTokenCount": 2,
+      "microsoftPersisted": true,
+      "spotifyPersisted": true,
+      "fileMode": "600",
+      "uid": 1000
+    },
+    {
+      "restartHealthStatus": 200,
+      "recordPersisted": true,
+      "catalogCampaignCount": 1,
+      "partitionRows": 1,
+      "attemptRows": 1,
+      "uid": 1000
+    }
+  ],
+  "containerReplacement": [
+    {
+      "statuses": [
+        {
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/providers",
+          "status": 401
+        }
+      ],
+      "recreatedPersistence": true,
+      "loadedTokensCount": 2,
+      "fileMode": "600",
+      "uid": 1000,
+      "node": "v22.23.3"
+    },
+    {
+      "statuses": [
+        {
+          "path": "/api/health",
+          "status": 200
+        },
+        {
+          "path": "/api/alerts",
+          "status": 401
+        },
+        {
+          "path": "/",
+          "status": 307
+        },
+        {
+          "path": "/login",
+          "status": 200
+        }
+      ],
+      "recordPersisted": true,
+      "catalogCampaignCount": 1,
+      "partitionRows": 1,
+      "attemptRows": 1,
+      "uid": 1000,
+      "node": "v22.23.3"
+    }
+  ],
+  "monitorRecordWrite": {
+    "recordWritePassed": true,
+    "fileMode": "600",
+    "uid": 1000
+  },
+  "monitorUnifiedWrite": {
+    "catalogCampaignCount": 1,
+    "partitionRows": 1,
+    "attemptRows": 1,
+    "partitionMode": "600",
+    "uid": 1000
+  },
+  "cleanup": [
+    {
+      "project": "api",
+      "running": false,
+      "exitCode": 0,
+      "ownVolumesPreserved": true
+    },
+    {
+      "project": "monitor",
+      "running": false,
+      "exitCode": 143,
+      "ownVolumesPreserved": true
+    }
+  ],
+  "limitations": [
+    "Production domain, reverse proxy/TLS termination, persistent hosting volume and backups were not provisioned or tested.",
+    "No live provider reads, hosted auth secrets, actual account mapping or reconciliation data were used.",
+    "Monitor retains dev dependencies because runtime operations currently need tsx and TypeScript config.",
+    "Monitor supports one persistent file store instance; this does not establish distributed state consistency.",
+    "Use an explicit writable /var/data/reportes output path for conciliar; /app is not an operational output directory."
+  ],
+  "verifiedCounts": {
+    "explicitSuccessfulRuntimeHttpAssertions": 18,
+    "imageBuildsPassed": 2,
+    "imageBuildsFailedBeforeCorrection": 2,
+    "contextApprovedFiles": {
+      "monitor": 314,
+      "api": 103
+    },
+    "syntheticCanariesExcluded": {
+      "monitor": 17,
+      "api": 16
+    },
+    "initialRuntimeInstances": 2,
+    "restartChecksPassed": 2,
+    "replacementChecksPassed": 2,
+    "ownedNamedVolumes": 2,
+    "specificPersistedFixtureItems": {
+      "apiRotatedTokens": 2,
+      "monitorRecord": 1,
+      "monitorCatalog": 1,
+      "monitorDailyPartition": 1,
+      "monitorSyncAttempt": 1
+    },
+    "checkedPrivateFileModes0600": 3,
+    "runningOwnContainersAfterCleanup": 0
+  },
+  "diagnosticHistory": [
+    {
+      "step": "Initial Docker client setup",
+      "result": "FAILED",
+      "reason": "Buildx tried mkdir /home/agent/.docker/buildx on a read-only filesystem.",
+      "resolution": "DOCKER_CONFIG set to a new writable temporary directory in /tmp; existing home configuration left unchanged."
+    },
+    {
+      "step": "Initial API image build",
+      "result": "FAILED",
+      "reason": "npm ci exited 1 after 278 seconds: Exit handler never called. Proxy and existing CA were not injected into the build."
+    },
+    {
+      "step": "Initial monitor image build",
+      "result": "FAILED",
+      "reason": "npm ci exited 1 after 232 seconds: Exit handler never called. Proxy and existing CA were not injected into the build."
+    },
+    {
+      "step": "Separate node image diagnostic pull",
+      "result": "BLOCKED",
+      "reason": "Docker Hub returned 429 toomanyrequests for an unauthenticated pull; no alternative image or TLS bypass used."
+    },
+    {
+      "step": "Supported proxy and existing CA diagnosis",
+      "result": "PASS",
+      "reason": "Optional BuildKit secret mounts with existing HTTP_PROXY/HTTPS_PROXY/NO_PROXY and existing CA file allowed npm ping in 3.2 seconds; official base layers reused."
+    },
+    {
+      "step": "Final builds",
+      "result": "PASS",
+      "reason": "Both final images built; npm ci honored the existing proxy and CA via ephemeral secret mounts. API runtime dependencies pruned offline from the verified installation cache."
+    }
+  ]
+}

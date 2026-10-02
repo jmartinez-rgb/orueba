@@ -1,0 +1,29 @@
+{
+  "runtime": "local_api_production_build",
+  "node": "24.19.0",
+  "checks": [
+    {
+      "route": "/api/v1/health",
+      "status": 200,
+      "expected": 200,
+      "passed": true
+    },
+    {
+      "route": "/api/v1/providers",
+      "status": 401,
+      "expected": 401,
+      "passed": true
+    },
+    {
+      "route": "/api/v1/accounts",
+      "status": 401,
+      "expected": 401,
+      "passed": true
+    }
+  ],
+  "provider_network_calls": false,
+  "production_tls_verified": false,
+  "certifies_v1": false,
+  "health_payload_verified": true,
+  "production_mode_verified": true
+}

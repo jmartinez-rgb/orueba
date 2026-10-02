@@ -685,6 +685,39 @@ verificador añadió una lectura de un día y 26 presupuestos actuales, descrita
 | Spotify    | Sí                   | Sí (refresh token)                           | Sí (6; monitoreo 1 MXN izzi)                | Sí (14 accesibles)      | Diarios UTC; izzi: 30 filas horarias UTC recuperadas; ingresos desconocidos; USD extra sin permiso | Pendiente                    |
 | X Ads      | Sí, fixtures sin red | Sí, OAuth 1.0a; HTTP 200, estado `connected` | Sí (3); monitoreo solo izzi por instrucción | Sí (1288); izzi 1276    | API: 3864 filas diarias; monitoreo izzi: 3828; horas HTTP 429                                      | Pendiente                    |
 
+## Preparación de conciliación y producción (2 de octubre)
+
+Continuación desde `37cb65c`, misma rama propia. [Conciliación offline izzi](../../media-monitoring-center/docs/CONCILIACION.md):
+25 filas cuenta/día del 30/09, sin red y sin referencia independiente. Salida 2:
+25 `MISSING_REFERENCE`, 24 `MISSING_SOURCE`; la cobertura incompleta contra el catálogo actual
+no se interpreta como cero ni como defecto probado de la plataforma. La matriz anterior conserva
+**conciliación pendiente** para todas las plataformas; no hay nuevas lecturas publicitarias en esta ronda.
+
+Se corrigieron falsos `MATCH` por offset efectivo de X incompatible con inicio/cierre IANA y
+catálogos con extracción futura. JSON/CSV/plantilla se escriben privados, sin sobrescribir; no
+contienen secretos ni se suben las cifras privadas a Git. Referencias agregadas de Ads Manager
+siguen siendo necesarias. Las conversiones no existen en ese histórico y no se inventan.
+
+Microsoft/Spotify ahora esperan el callback de persistencia del token rotado. Un fallo bloquea
+la operación con `PROVIDER_ERROR` seguro, y la siguiente solicitud reintenta guardar el mismo
+token antes de usar el acceso cacheado, sin otra renovación OAuth. El cierre drena escrituras
+ya registradas. **678 pruebas API/37 archivos** pasan, incluidos 30 casos nuevos de espera,
+concurrencia, errores seguros, reintentos y cierre tras un deadline. No recupera un token perdido
+por interrupción abrupta previa al guardado ni coordina varios procesos; un callback que nunca
+resuelve puede demorar el cierre.
+
+[Producción](../../media-monitoring-center/docs/PRODUCCION.md) explica cómo obtener las URLs y
+preparar volúmenes. Las imágenes excluyen credenciales, histórico y reportes del contexto.
+`v1:check --destino netlify|contenedor --volumen /var/data` añade controles de transporte y
+topología, sin afirmar durabilidad de una ruta declarada. Netlify queda bloqueado con histórico
+unificado por archivo; Cloud Run requiere backend compartido y transporte IAM si se elige ese
+acceso. No se contrató, publicó ni desplegó ningún servicio.
+
+Validación local final: **839 pruebas monitoreo/66 archivos**, **678 API/37**, ambos builds,
+181 casos nuevos monitoreo y 30 API con Node 22 oficial. Ambas imágenes Node 22 construidas y
+stores ficticios conservados tras reinicio/recreación; no certificar almacenamiento del destino.
+Informe, evidencia y límites: [preparación de producción](../../media-monitoring-center/docs/PREPARACION_PRODUCCION_2026-10-02.md).
+
 ## Pendientes y orden recomendado
 
 La guía actual es [VERIFICACION.md](VERIFICACION.md); [TRASPASO_CLAUDE.md](TRASPASO_CLAUDE.md)
@@ -719,7 +752,8 @@ y esta rama conserva esas correcciones.
   Acceso nominal validado localmente; faltan su configuración en producción, tasas mensuales USD,
   scheduler y volumen durable compartido en el entorno destino. Los 31 IDs y marcas del usuario ya están mapeados; X de Sky queda fuera.
   Tasas mensuales capturables desde Operación → Tipo de cambio, aún sin valores del equipo. `v1:check` valida configuración, no cobertura de datos ni aceptación de producción.
-- `TOKEN_STORE_FILE` o un gestor de secretos en el despliegue.
+- `TOKEN_STORE_FILE` sobre volumen durable en el despliegue, o backend externo con coordinación.
+  Inyectar el token inicial desde un gestor de secretos no persiste rotaciones por sí solo.
 - Acciones principales y mapeos.
 - TikTok: conservar token y lista de cuatro IDs en la configuración privada del entorno destino.
   El token actual está en `.env` privado 0600; el código de retorno ya fue consumido.
@@ -729,7 +763,9 @@ y esta rama conserva esas correcciones.
 - Microsoft: la descarga al host permitido se comprobó en esta continuación. Conservar salida
   HTTPS al mismo host y `MICROSOFT_ADS_RETURN_ONLY_COMPLETE_DATA=true`; volver a validar
   desde el entorno destino. El rechazo previo del proxy queda como evidencia histórica.
-- Despliegue (Cloud Run) con sus secretos.
+- Elegir alojamiento, configurar HTTPS y volúmenes/shared storage y aceptar reinicio/reemplazo.
+  Preparación portable Node/Docker: [PRODUCCION.md](../../media-monitoring-center/docs/PRODUCCION.md).
+  Cloud Run/Netlify con disco efímero no cumplen la persistencia actual solo añadiendo secretos.
 
 **Código**
 
@@ -755,6 +791,9 @@ y esta rama conserva esas correcciones.
 - API: `performance.repository.ts` sigue siendo un contrato. El monitoreo ya tiene histórico
   privado por archivo; migrar ese backend antes de usar disco efímero de Functions. Todavía
   falta control transaccional de contadores/listas operativas entre varias instancias.
+- Conciliación: cobertura por fecha explícita, además del catálogo actual conservador. Extender
+  el contrato a conversiones/atribución requiere datos de negocio independientes y grupos Meta
+  separados. La herramienta actual compara costo/impresiones/clics sin inventar eventos o tasas.
 - Aislamiento multicliente, tras la decisión.
 
 **Orden**

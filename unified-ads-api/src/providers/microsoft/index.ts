@@ -14,6 +14,7 @@ import type {
 } from "../../types/normalized.js";
 import { MICROSOFT_REQUIRED, microsoftId, readMicrosoftConfig } from "./config.js";
 import { MicrosoftClient, type MicrosoftFetch } from "./client.js";
+import type { RefreshTokenRotationHandler } from "../token-rotation.js";
 import { discoverMicrosoftAccounts, readMicrosoftAccount, readMicrosoftUser, rows } from "./accounts.js";
 import { microsoftAccountWarning } from "./errors.js";
 import { normalizeMicrosoftBudgets } from "./budgets.js";
@@ -37,7 +38,7 @@ export class MicrosoftProvider extends BaseProvider {
       timeoutMs?: number;
       retry?: Partial<RetryOptions>;
       resolve?: MicrosoftResolver;
-      onRefreshTokenRotated?: (token: string) => void;
+      onRefreshTokenRotated?: RefreshTokenRotationHandler;
     } = {},
   ) {
     super(Provider.MICROSOFT, MICROSOFT_REQUIRED, env);

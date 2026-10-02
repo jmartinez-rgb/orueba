@@ -61,6 +61,17 @@ conciliación y producción siguen pendientes.
 
 ## Arranque rápido
 
+**Conciliación y preparación de producción:** [CONCILIACION.md](docs/CONCILIACION.md) añade
+`npm run conciliar`, sin red, para las 25 cuentas izzi en su moneda/reloj original. Necesita
+exports independientes de Ads Manager; los informes de la API no sirven como referencia propia.
+[PRODUCCION.md](docs/PRODUCCION.md) explica cómo obtener las URLs y preparar discos persistentes.
+Los Dockerfiles excluyen secretos/histórico del contexto; no crean servicios. `v1:check` añade
+`--destino netlify|contenedor` y `--volumen /var/data`, con bloqueos de transporte/almacenamiento.
+Netlify con histórico directo por archivo sigue bloqueado; no se publicó ni aceptó producción.
+Los extractores admiten `--brand izzi`; usar ese filtro explícito durante esta aceptación.
+[Informe para la siguiente auditoría](docs/PREPARACION_PRODUCCION_2026-10-02.md):
+839 pruebas del monitoreo y 678 de la API, evidencia sin cifras privadas y bloqueos separados.
+
 Requisitos: Node.js 22+.
 
 ```bash
@@ -111,6 +122,7 @@ gastar** (datos al día, gasto en cero las últimas 3 horas).
 | `npm test` | Pruebas de motores (comparación, anomalías, incidentes, pacing, data health, BigQuery, escenarios), acceso, clasificadores, monedas, confianza y mensaje de monitoreo |
 | `npm run check` | typecheck + lint + tests |
 | `npm run v1:check` | Configuración de producción y estados de API; `-- --sin-red` evita red. No certifica conciliación ni publica |
+| `npm run conciliar` | Comparación offline izzi por cuenta/día con referencia independiente; JSON/CSV privados, sin inventar ceros, tasas ni eventos |
 | `npm run unified:sync` | Extrae las cuentas del mapeo explícito, guarda catálogo y particiones diarias/horarias privadas; `-- --help` muestra opciones |
 | `npm run auth:setup` | Genera contraseñas nuevas, sus hashes y `AUTH_SECRET` (`-- --write` los guarda en `.env.local`) |
 | `npm run auth:hash -- "contraseña"` | Hash scrypt de una contraseña elegida |

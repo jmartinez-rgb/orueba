@@ -12,6 +12,15 @@ La continuación `codex/finalizacion-verificador-meta-x` parte de la auditoría 
 (inventario separado por CAPI WhatsApp y resto), reglas de Meta por campaña y selección
 incremental opcional de X con respaldo. Consulta [la guía de verificación](docs/VERIFICACION.md).
 La conciliación y los permisos externos siguen pendientes; no se declara listo para producción.
+
+La preparación de [producción del monitoreo](../media-monitoring-center/docs/PRODUCCION.md)
+incorpora imágenes Node 22 sin secretos/histórico en el contexto y volumen privado para tokens.
+La [conciliación offline](../media-monitoring-center/docs/CONCILIACION.md) compara únicamente izzi
+con exports independientes de Ads Manager, sin llamar a las APIs ni convertir monedas/relojes.
+Faltan esos exports y el alojamiento durable: no se ha publicado ni aceptado producción.
+Microsoft/Spotify esperan ahora a que se conserve el token rotado; un fallo de disco bloquea la
+operación y permite reintentar el mismo guardado sin renovar OAuth otra vez. El cierre espera las
+escrituras registradas; no sustituye un volumen durable ni coordinación entre procesos.
 La [preauditoría de v1](docs/PREAUDITORIA_V1.md) avanza en acceso, formularios antiguos y
 registros concurrentes del monitoreo: CAS por clave para configuración/dictámenes en Blobs y
 correcciones de usuarios dentro del proceso. Validación: API 626 pruebas; monitoreo 367 y build.

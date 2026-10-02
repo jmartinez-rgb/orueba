@@ -7,6 +7,7 @@ import type { AccountQuery, CampaignQuery, NormalizedAccount, PerformanceQuery }
 import type { ProviderRequestOptions } from "../provider.js";
 import { SPOTIFY_REQUIRED, PERFORMANCE_FIELDS, CONVERSION_FIELDS, readSpotifyConfig, spotifyId } from "./config.js";
 import { SpotifyClient, type SpotifyFetch } from "./client.js";
+import type { RefreshTokenRotationHandler } from "../token-rotation.js";
 import { discoverSpotifyAccounts, readSpotifyAccount } from "./accounts.js";
 import { spotifyAccountWarning } from "./errors.js";
 import { spotifyCampaigns, spotifyReport, reportRanges } from "./queries.js";
@@ -34,7 +35,7 @@ export class SpotifyProvider extends BaseProvider {
       fetch?: SpotifyFetch;
       timeoutMs?: number;
       retry?: Partial<RetryOptions>;
-      onRefreshTokenRotated?: (token: string) => void;
+      onRefreshTokenRotated?: RefreshTokenRotationHandler;
     } = {},
   ) {
     super(Provider.SPOTIFY, SPOTIFY_REQUIRED, env);

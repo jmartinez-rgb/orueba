@@ -1,0 +1,51 @@
+{
+  "generatedAt": "2026-10-02T15:50:04.013Z",
+  "nodeVersion": "v22.23.3",
+  "distribution": "node-v22.23.3-linux-x64.tar.xz",
+  "distributionSource": "https://nodejs.org/dist/v22.23.3/node-v22.23.3-linux-x64.tar.xz",
+  "checksumSource": "https://nodejs.org/dist/v22.23.3/SHASUMS256.txt",
+  "sha256": "df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de",
+  "sha256VerifiedBeforeExtraction": true,
+  "api": {
+    "success": true,
+    "files": 2,
+    "tests": 30,
+    "passed": 30,
+    "failed": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "monitorInitial": {
+    "success": false,
+    "files": 3,
+    "tests": 140,
+    "passed": 136,
+    "failed": 4,
+    "skipped": 0,
+    "todo": 0
+  },
+  "monitorWarningFiltered": {
+    "success": true,
+    "files": 3,
+    "tests": 140,
+    "passed": 140,
+    "failed": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "warningFilter": "--disable-warning=UNDICI-EHPA (only the known experimental EnvHttpProxyAgent warning; proxy/TLS/fetch test guard remain enabled)",
+  "limits": [
+    "Existing host dependencies reused; no fresh dependency installation under Node22.",
+    "No Docker build, image execution or hosting-platform validation.",
+    "Fixtures only; no advertising-platform requests or private configuration access."
+  ],
+  "workerScope": {
+    "success": true,
+    "tests": 41,
+    "passed": 41,
+    "failed": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "monitorUniqueTestsPassed": 181
+}

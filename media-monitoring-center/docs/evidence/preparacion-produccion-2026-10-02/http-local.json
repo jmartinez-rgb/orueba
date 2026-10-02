@@ -1,0 +1,39 @@
+{
+  "runtime": "local_next_production_build",
+  "node": "24.19.0",
+  "checks": [
+    {
+      "route": "/api/health",
+      "status": 200,
+      "expected": 200,
+      "passed": true
+    },
+    {
+      "route": "/login",
+      "status": 200,
+      "expected": 200,
+      "passed": true
+    },
+    {
+      "route": "/",
+      "status": 307,
+      "expected": 307,
+      "passed": true
+    },
+    {
+      "route": "/api/settings",
+      "status": 401,
+      "expected": 401,
+      "passed": true
+    },
+    {
+      "route": "/api/nexus",
+      "status": 401,
+      "expected": 401,
+      "passed": true
+    }
+  ],
+  "provider_network_calls": false,
+  "production_tls_verified": false,
+  "certifies_v1": false
+}

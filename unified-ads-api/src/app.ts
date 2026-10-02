@@ -101,21 +101,45 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
     });
   }
 
+  const tokenWrites = new Set<Promise<void>>();
+  app.addHook("onClose", async () => {
+    // Request-level timeouts can return before an already registered write settles.
+    // Closing must drain those writes, including failures already reported safely.
+    while (tokenWrites.size) await Promise.allSettled([...tokenWrites]);
+  });
   const registry =
     deps.registry ??
     ProviderRegistry.fromEnv(config.providerEnv, config.providerTimeoutMs, (variable, token) => {
       // Nunca se registra el valor; solo qué variable cambió.
-      if (!config.tokenStoreFile) {
+      const tokenStoreFile = config.tokenStoreFile;
+      if (!tokenStoreFile) {
         app.log.warn(
           { variable },
           "La plataforma rotó el refresh token y no se conservará al reiniciar: configura TOKEN_STORE_FILE o vuelve a autorizar antes de que venza.",
         );
         return;
       }
-      saveRotatedToken(config.tokenStoreFile, variable, token).then(
-        () => app.log.info({ variable }, "refresh token rotado guardado en TOKEN_STORE_FILE"),
-        () => app.log.error({ variable }, "no se pudo guardar el refresh token rotado en TOKEN_STORE_FILE"),
+      const write = Promise.resolve()
+        .then(() => saveRotatedToken(tokenStoreFile, variable, token))
+        .then(
+          () => app.log.info({ variable }, "refresh token rotado guardado en TOKEN_STORE_FILE"),
+          () => {
+            app.log.error({ variable }, "no se pudo guardar el refresh token rotado en TOKEN_STORE_FILE");
+            throw new ApiError(
+              "PROVIDER_ERROR",
+              "No se pudo conservar el refresh token rotado en el almacén privado.",
+              {
+                details: { limitation: "token_persistence_failed", transient: false },
+              },
+            );
+          },
+        );
+      tokenWrites.add(write);
+      void write.then(
+        () => tokenWrites.delete(write),
+        () => tokenWrites.delete(write),
       );
+      return write;
     });
   const statuses = new ProviderStatusService(registry, config.providerTimeoutMs);
   await app.register(healthRoutes({ version: config.version, environment: config.env }), { prefix: "/api/v1" });

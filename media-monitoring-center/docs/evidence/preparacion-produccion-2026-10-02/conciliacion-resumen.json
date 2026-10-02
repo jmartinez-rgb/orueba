@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-02",
+  "scope": "izzi",
+  "source": "existing_private_history",
+  "from": "2026-09-30",
+  "to": "2026-09-30",
+  "rows": 25,
+  "counts": {
+    "MATCH": 0,
+    "DIFFERENCE": 0,
+    "MISSING_REFERENCE": 25,
+    "MISSING_SOURCE": 24,
+    "INCOMPATIBLE_CLOCK": 0,
+    "INCOMPATIBLE_CURRENCY": 0,
+    "UNKNOWN_METRIC": 0
+  },
+  "reasons": {
+    "INCOMPLETE_CATALOG_COVERAGE": 24,
+    "MISSING_DAILY_ROWS": 6
+  },
+  "independent_reference": false,
+  "exit_code": 2,
+  "certifies_v1": false,
+  "network": "fetch_blocked",
+  "private_artifact_permissions_verified": true
+}
