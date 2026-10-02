@@ -115,6 +115,12 @@ para evitar unir horas históricas con zonas distintas sin conciliación especí
 
 `auto` usa consultas síncronas hasta siete días y trabajos asíncronos para rangos mayores.
 La extracción divide rangos en bloques de hasta 30 días y lotes de hasta 20 campañas.
+Antes de cada bloque se consulta `stats/accounts/:id/active_entities` (endpoint del SDK oficial,
+horas completas) y solo se piden métricas de las campañas con actividad en ese bloque; las campañas
+sin actividad no generan filas (no se inventan ceros). Si X rechaza esa consulta (parámetros, permiso
+o error del proveedor), responde con otra forma o la zona de la cuenta no es de horas completas, se
+piden todas las campañas como antes. Límite de tasa, autorización, tiempo agotado y cancelación sí se
+propagan.
 Los trabajos se ejecutan y descargan secuencialmente, con polling acotado (esperas de 1, 2, 4, 8 y luego
 10 s para cuidar el límite de consultas de estado) y un único límite
 temporal para toda la consulta. Un trabajo fallido, pendiente al vencer el plazo, una descarga

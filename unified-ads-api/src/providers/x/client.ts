@@ -53,7 +53,7 @@ export class XClient {
     method: "GET" | "POST" = "GET",
   ): Promise<Record<string, unknown>> {
     if (
-      !/^\/(?:accounts(?:\/[A-Za-z0-9]{1,80}(?:\/(?:campaigns|funding_instruments))?)?|stats\/(?:jobs\/)?accounts\/[A-Za-z0-9]{1,80})$/.test(
+      !/^\/(?:accounts(?:\/[A-Za-z0-9]{1,80}(?:\/(?:campaigns|funding_instruments))?)?|stats\/accounts\/[A-Za-z0-9]{1,80}(?:\/active_entities)?|stats\/jobs\/accounts\/[A-Za-z0-9]{1,80})$/.test(
         path,
       )
     )

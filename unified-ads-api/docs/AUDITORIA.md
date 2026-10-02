@@ -69,13 +69,13 @@ citado por Codex. Las regresiones de Google (paralelismo, ceros protobuf), Meta 
 
 ### Riesgos nuevos por verificar (no demostrados)
 
-| Sev.  | Ubicación                      | Riesgo                                                                                                                                                                       | Cómo cerrarlo                                                                                                 |
-| ----- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Media | `x/config.ts` (`X_PLACEMENTS`) | Se suman `ALL_ON_TWITTER`, `SPOTLIGHT` y `TREND`; el SDK oficial también define `PUBLISHER_NETWORK`. Una campaña en X Audience Platform quedaría subcontada.                 | Confirmar en la referencia v12 si `PUBLISHER_NETWORK` sigue vigente y revisar `placements` de los line items. |
-| Media | `x/reports.ts`                 | Se piden métricas de todas las campañas (incluidas eliminadas) por lote, ubicación y bloque; con muchas campañas puede agotar el límite de tasa. El polling es cada segundo. | Filtrar con `stats/accounts/:id/active_entities` (en el SDK) y espaciar el polling según el límite real.      |
-| Baja  | `x/client.ts` (descarga)       | El patrón `stats_job_<ID>.json.gz` en `ton.twimg.com` no se ha visto en una respuesta real. Si difiere, la descarga falla cerrada.                                           | Primera lectura asíncrona real tras la aprobación.                                                            |
-| Baja  | `google/budgets.ts`            | La consulta de presupuestos usa campos confirmados en v25, pero no se ejecutó contra Google real (seleccionabilidad conjunta).                                               | Una consulta real acotada a una cuenta.                                                                       |
-| Baja  | `microsoft/budgets.ts`         | Con `LifetimeBudgetStandard` se asume que `DailyBudget` lleva el monto total; no suma al diario, solo se informa.                                                            | Comparar una campaña con presupuesto total contra la interfaz.                                                |
+| Sev.  | Ubicación                      | Riesgo                                                                                                                                                                                                 | Cómo cerrarlo                                                                                                 |
+| ----- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| Media | `x/config.ts` (`X_PLACEMENTS`) | Se suman `ALL_ON_TWITTER`, `SPOTLIGHT` y `TREND`; el SDK oficial también define `PUBLISHER_NETWORK`. Una campaña en X Audience Platform quedaría subcontada.                                           | Confirmar en la referencia v12 si `PUBLISHER_NETWORK` sigue vigente y revisar `placements` de los line items. |
+| Baja  | `x/reports.ts`                 | Atendido en esta rama: se filtran campañas con `active_entities` y el polling espacia 1, 2, 4, 8 y 10 s. Falta confirmar con una cuenta real que `active_entities` acepta los mismos límites horarios. | Primera lectura real tras la aprobación de Ads API.                                                           |
+| Baja  | `x/client.ts` (descarga)       | El patrón `stats_job_<ID>.json.gz` en `ton.twimg.com` no se ha visto en una respuesta real. Si difiere, la descarga falla cerrada.                                                                     | Primera lectura asíncrona real tras la aprobación.                                                            |
+| Baja  | `google/budgets.ts`            | La consulta de presupuestos usa campos confirmados en v25, pero no se ejecutó contra Google real (seleccionabilidad conjunta).                                                                         | Una consulta real acotada a una cuenta.                                                                       |
+| Baja  | `microsoft/budgets.ts`         | Con `LifetimeBudgetStandard` se asume que `DailyBudget` lleva el monto total; no suma al diario, solo se informa.                                                                                      | Comparar una campaña con presupuesto total contra la interfaz.                                                |
 
 ### Mejoras añadidas en esta rama
 
@@ -93,8 +93,9 @@ citado por Codex. Las regresiones de Google (paralelismo, ceros protobuf), Meta 
   limitada por presupuesto, puja o políticas, aprendizaje) y Microsoft (pausadas por presupuesto,
   suspendidas). Contratos: SDK de Meta 26.0.2, descubrimiento de Google v25 y WSDL de Microsoft v13.
   TikTok queda fuera porque su SDK no publica los valores de estado.
-- **X:** `X_ADS_PLACEMENTS` permite sumar `PUBLISHER_NETWORK` si se confirma en v12, y la consulta del
-  estado de trabajos asíncronos espera 1, 2, 4, 8 y luego 10 s.
+- **X:** `X_ADS_PLACEMENTS` permite sumar `PUBLISHER_NETWORK` si se confirma en v12, la consulta del
+  estado de trabajos asíncronos espera 1, 2, 4, 8 y luego 10 s, y antes de cada bloque se consulta
+  `active_entities` para pedir métricas solo de campañas con actividad (respaldo: todas las campañas).
 - **Monitoreo:** panel de salud en Overview (los topes de Meta se cruzan con el diario vigente de la
   cuenta para saber cuántos días alcanzan), proyección de cierre de mes con los diarios actuales contra
   el presupuesto mensual, y cambios de presupuesto contra el último día guardado (foto diaria por marca
@@ -390,7 +391,7 @@ tokens; se señalan como puntos de revisión, sin afirmar un incidente real.
 **Código**
 
 - X (auditoría de Claude): confirmar `PUBLISHER_NETWORK` en v12 (se activa con `X_ADS_PLACEMENTS`) y
-  filtrar campañas con `active_entities` para cuidar el límite de tasa.
+  la respuesta real de `active_entities` (el filtro ya está implementado con respaldo).
 - Salud de entrega de TikTok cuando haya un vocabulario oficial de `secondary_status` verificable.
 - Primera lectura real de `/budgets` y `/delivery-health` en Meta, Google y Microsoft para confirmar
   campos y seleccionabilidad (los contratos están confirmados con fuentes oficiales, no con datos reales).

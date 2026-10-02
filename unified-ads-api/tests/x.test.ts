@@ -10,6 +10,8 @@ import type { ApiError } from "../src/utils/errors.js";
 import { makeApp, KEY } from "./helpers.js";
 import { ACCOUNT, SECOND, CAMPAIGN, XSimulator as Sim, json } from "./x-simulator.js";
 const query = { account_id: ACCOUNT, date_from: "2026-09-28", date_to: "2026-09-29", granularity: "daily" as const };
+/** Consultas de métricas; active_entities comparte prefijo pero no devuelve métricas. */
+const isStats = (u: URL) => u.pathname.includes("/stats/accounts/") && !u.pathname.endsWith("/active_entities");
 function setup(extra: Record<string, string | undefined> = {}) {
   const sim = new Sim(),
     env = { ...sim.env, ...extra };
@@ -191,7 +193,7 @@ describe("X reporting contract", () => {
   it("rejects a correct-length report echoing a different date range", async () => {
     const { sim, provider } = setup();
     sim.handler = (u) => {
-      if (!u.pathname.includes("/stats/accounts/")) return undefined;
+      if (!isStats(u)) return undefined;
       const body = sim.stats(u);
       body.request.params.start_time = "2025-09-28T06:00:00Z";
       return json(body);
@@ -231,7 +233,7 @@ describe("X reporting contract", () => {
     const { sim, provider } = setup();
     let omitted = false;
     sim.handler = (u) => {
-      if (!u.pathname.includes("/stats/accounts/")) return undefined;
+      if (!isStats(u)) return undefined;
       const body = sim.stats(u);
       if (u.searchParams.get("placement") === "TREND") {
         const metrics = body.data[0]!.id_data[0]!.metrics as Record<string, unknown>;
@@ -263,7 +265,7 @@ describe("X reporting contract", () => {
     }));
     const rows = await provider.getPerformance({ ...query, date_to: query.date_from });
     expect(rows).toHaveLength(21);
-    const calls = sim.calls.filter((c) => c.url.pathname.includes("/stats/accounts/"));
+    const calls = sim.calls.filter((c) => isStats(c.url));
     expect(calls).toHaveLength(6);
     expect(calls.every((c) => c.url.searchParams.get("entity_ids")!.split(",").length <= 20)).toBe(true);
   });
@@ -292,7 +294,7 @@ describe("X reporting contract", () => {
       date: "2026-09-28",
       currency: "MXN",
     });
-    const calls = sim.calls.filter((c) => c.url.pathname.includes("/stats/accounts/"));
+    const calls = sim.calls.filter((c) => isStats(c.url));
     expect(calls.map((c) => c.url.searchParams.get("placement"))).toEqual([...X_PLACEMENTS]);
     expect(calls[0]!.url.searchParams.get("start_time")).toBe("2026-09-28T06:00:00Z");
     expect(calls[0]!.url.searchParams.get("end_time")).toBe("2026-09-30T06:00:00Z");
@@ -372,8 +374,7 @@ describe("X reporting contract", () => {
   });
   it("rejects mismatched series length and never turns omitted entities into zero", async () => {
     const { sim, provider } = setup();
-    sim.handler = (u) =>
-      u.pathname.includes("/stats/accounts/") ? json({ time_series_length: 2, data: [] }) : undefined;
+    sim.handler = (u) => (isStats(u) ? json({ time_series_length: 2, data: [] }) : undefined);
     await expect(provider.getPerformance(query)).rejects.toMatchObject({ code: "PROVIDER_ERROR" });
   });
   it("rejects ranges before a timezone switch", async () => {
@@ -414,8 +415,58 @@ describe("X: ubicaciones configurables y espera de trabajos (auditoría de Claud
   it("solo pide las ubicaciones configuradas", async () => {
     const { sim, provider } = setup({ X_ADS_PLACEMENTS: "ALL_ON_TWITTER" });
     await provider.getPerformance(query);
-    const calls = sim.calls.filter((c) => c.url.pathname.includes("/stats/accounts/"));
+    const calls = sim.calls.filter((c) => isStats(c.url));
     expect(calls.map((c) => c.url.searchParams.get("placement"))).toEqual(["ALL_ON_TWITTER"]);
+  });
+
+  it("solo pide métricas de las campañas con actividad en el bloque", async () => {
+    const { sim, provider } = setup();
+    sim.campaigns = ["c1", "c2", "c3"].map((id) => ({ id, name: id, entity_status: "ACTIVE", currency: "MXN" }));
+    sim.activeEntities = ["c2"];
+    const rows = await provider.getPerformance(query);
+    expect(new Set(rows.map((r) => r.campaign_id))).toEqual(new Set(["c2"]));
+    const active = sim.calls.filter((c) => c.url.pathname.endsWith("/active_entities"));
+    expect(active).toHaveLength(1);
+    expect(Object.fromEntries(active[0]!.url.searchParams)).toEqual({
+      entity: "CAMPAIGN",
+      start_time: "2026-09-28T06:00:00Z",
+      end_time: "2026-09-30T06:00:00Z",
+    });
+    expect(sim.calls.filter((c) => isStats(c.url)).map((c) => c.url.searchParams.get("entity_ids"))).toEqual(
+      X_PLACEMENTS.map(() => "c2"),
+    );
+  });
+
+  it("sin campañas con actividad no pide métricas ni inventa filas en cero", async () => {
+    const { sim, provider } = setup();
+    sim.activeEntities = [];
+    expect(await provider.getPerformance(query)).toEqual([]);
+    expect(sim.calls.filter((c) => isStats(c.url))).toHaveLength(0);
+  });
+
+  it("si active_entities falla o responde algo inesperado, pide todas las campañas", async () => {
+    const { sim, provider } = setup();
+    sim.campaigns = ["c1", "c2"].map((id) => ({ id, name: id, entity_status: "ACTIVE", currency: "MXN" }));
+    sim.activeEntities = "fail";
+    expect(new Set((await provider.getPerformance(query)).map((r) => r.campaign_id))).toEqual(new Set(["c1", "c2"]));
+    const odd = setup();
+    odd.sim.handler = (u) => (u.pathname.endsWith("/active_entities") ? json({ data: [{ id: 1 }] }) : undefined);
+    expect(await odd.provider.getPerformance(query)).toHaveLength(2);
+  });
+
+  it("propaga el límite de tasa de active_entities en lugar de ocultarlo", async () => {
+    const { sim, provider } = setup();
+    sim.handler = (u) => (u.pathname.endsWith("/active_entities") ? json({}, 429) : undefined);
+    await expect(provider.getPerformance(query)).rejects.toMatchObject({ code: "RATE_LIMITED" });
+    expect(sim.calls.filter((c) => isStats(c.url))).toHaveLength(0);
+  });
+
+  it("no usa active_entities en zonas sin horas completas", async () => {
+    const { sim, provider } = setup();
+    sim.account = { ...sim.account, timezone: "Asia/Kolkata" };
+    await provider.getPerformance(query);
+    expect(sim.calls.some((c) => c.url.pathname.endsWith("/active_entities"))).toBe(false);
+    expect(sim.calls.filter((c) => isStats(c.url)).length).toBeGreaterThan(0);
   });
 
   it("espacia las consultas de estado: 1, 2, 4, 8 y después 10 segundos", () => {

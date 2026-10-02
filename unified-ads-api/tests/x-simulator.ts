@@ -22,6 +22,8 @@ export class XSimulator {
     approval_status: "ACCEPTED",
     deleted: false,
   };
+  /** Campañas activas que devuelve active_entities (por omisión, todas) o "fail" para simular un rechazo. */
+  activeEntities: string[] | "fail" | undefined = undefined;
   campaigns: Record<string, unknown>[] = [
     { id: CAMPAIGN, name: "Campaña X", entity_status: "ACTIVE", currency: "MXN", deleted: false },
   ];
@@ -102,6 +104,11 @@ export class XSimulator {
           },
         ],
       });
+    }
+    if (url.pathname.endsWith("/active_entities")) {
+      if (this.activeEntities === "fail") return json({ errors: [{ code: "INVALID_PARAMETER" }] }, 400);
+      const ids = this.activeEntities ?? this.campaigns.map((c) => String(c.id));
+      return json({ data: ids.map((id) => ({ entity_id: id, placements: ["ALL_ON_TWITTER"] })) });
     }
     if (url.pathname.startsWith("/12/stats/accounts/")) return json(this.stats(url));
     return json({ errors: [{ code: "NOT_FOUND" }] }, 404);

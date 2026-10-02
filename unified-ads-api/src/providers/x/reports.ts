@@ -149,6 +149,39 @@ function parseStats(
     throw new ApiError("PROVIDER_ERROR", "X Ads omitió entidades del informe; no se presume actividad cero.");
   return out;
 }
+/**
+ * Campañas con actividad en el bloque según `stats/accounts/:id/active_entities` (endpoint del SDK
+ * oficial; horas completas). Sirve para no pedir métricas de campañas sin actividad y cuidar el límite
+ * de tasa. Si la respuesta no tiene la forma esperada, la zona no es de horas completas o X rechaza la
+ * consulta (parámetros, permiso o error del proveedor), devuelve null y se piden todas las campañas
+ * como antes. Límite de tasa, autorización, tiempo agotado y cancelación se propagan.
+ */
+export async function activeCampaigns(
+  client: XClient,
+  accountId: string,
+  window: { from: string; to: string },
+  offset: number,
+  signal: AbortSignal,
+): Promise<Set<string> | null> {
+  if (offset % 60 !== 0) return null;
+  try {
+    const body = await client.call(
+      `/stats/accounts/${accountId}/active_entities`,
+      {
+        entity: "CAMPAIGN",
+        start_time: new Date(Date.parse(window.from) - offset * 60000).toISOString().replace(".000Z", "Z"),
+        end_time: new Date(Date.parse(window.to) + DAY - offset * 60000).toISOString().replace(".000Z", "Z"),
+      },
+      signal,
+    );
+    if (!Array.isArray(body.data) || !body.data.every((r) => object(r) && typeof r.entity_id === "string")) return null;
+    return new Set(body.data.map((r) => (r as { entity_id: string }).entity_id));
+  } catch (e) {
+    if (e instanceof ApiError && ["INVALID_REQUEST", "ACCESS_DENIED", "PROVIDER_ERROR"].includes(e.code)) return null;
+    throw e;
+  }
+}
+
 export async function xReport(
   client: XClient,
   account: Record<string, unknown>,
@@ -174,9 +207,12 @@ export async function xReport(
       "El rango atraviesa el cambio histórico de zona de X Ads y requiere conciliación específica.",
     );
   const results: XBucket[] = [];
-  for (const window of windows)
-    for (let pos = 0; pos < ids.length; pos += 20) {
-      const batch = ids.slice(pos, pos + 20),
+  for (const window of windows) {
+    // Solo campañas con actividad en el bloque; sin respuesta fiable se piden todas.
+    const active = await activeCampaigns(client, accountId, window, offset, signal);
+    const windowIds = active ? ids.filter((id) => active.has(id)) : ids;
+    for (let pos = 0; pos < windowIds.length; pos += 20) {
+      const batch = windowIds.slice(pos, pos + 20),
         merged = new Map<string, XBucket>();
       for (const placement of client.config.placements) {
         const params = {
@@ -261,5 +297,6 @@ export async function xReport(
       results.push(...merged.values());
       if (results.length > 200000) throw new ApiError("PROVIDER_ERROR", "X Ads superó el tamaño seguro del informe.");
     }
+  }
   return results;
 }
