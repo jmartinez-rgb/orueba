@@ -117,6 +117,9 @@ export function answerNexus(question: string, data: NexusData): NexusAnswer {
   const q = normalize(question.trim());
   const help = guide(q, data);
   if (help) return help;
+  if (data.context.domain && data.context.domain.id !== "all" && !data.context.domain.available) {
+    return { ...base(data, "Alcance no disponible", "unavailable"), paragraphs: ["La clasificación del dominio seleccionado no está disponible. No puedo atribuir cuentas, alertas ni métricas a ese dominio. Revisa el alcance antes de interpretar los datos."], sources: [source("Estado de datos e integraciones", "/integrations")] };
+  }
   const platforms = platformsOf(q);
   const platform = platforms.length === 1 ? platforms[0] : null;
   if (asksAnotherWindow(q, data)) {

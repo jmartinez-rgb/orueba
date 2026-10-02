@@ -1,5 +1,6 @@
 import "server-only";
-import type { BudgetLevel, BudgetRow, Currency, DataState, PlatformId, Severity } from "@/lib/types";
+import type { BudgetLevel, BudgetRow, Currency, DataState, DomainMetadata, PlatformId, Severity } from "@/lib/types";
+import { scopedBudgets } from "@/lib/domains/scope";
 import { PLATFORM_IDS } from "@/lib/types";
 import { cached } from "@/lib/data/cache";
 import { monthlyPacing } from "@/lib/monitoring/pacing-engine";
@@ -10,7 +11,7 @@ import type { AppContext } from "./context";
 import type { Snapshot } from "./snapshot";
 import { windowTotals, type HourlySeries } from "@/lib/monitoring/historical-comparator";
 
-export interface BudgetLine {
+export interface BudgetLine extends DomainMetadata {
   key: string;
   level: BudgetLevel;
   platform: PlatformId | null;
@@ -39,7 +40,7 @@ export interface BudgetLine {
 
 export type DetectedBudgetLevel = "account" | "campaign" | "mixed" | "none";
 
-export interface AccountBudgetLevel {
+export interface AccountBudgetLevel extends DomainMetadata {
   accountId: string;
   accountName: string;
   platform: PlatformId;
@@ -81,7 +82,7 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
   const histStart = addDays(today, -28);
   const from = monthStart < histStart ? monthStart : histStart;
   const [loadedDaily, sourceBudgets, overrides] = await Promise.all([
-    cached(`budget:daily:${ctx.mode}:${ctx.brand}:${ctx.scenario?.id}:${from}:${today}:${snap.meta.cutoffHour}`, 5 * 60 * 1000, () => ctx.source.getDaily({ from, to: today, level: "campaign" })),
+    cached(`budget:daily:${ctx.mode}:${ctx.scopeKey ?? ctx.brand}:${ctx.settingsHash}:${ctx.scenario?.id}:${from}:${today}:${snap.meta.cutoffHour}`, 5 * 60 * 1000, () => ctx.source.getDaily({ from, to: today, level: "campaign" })),
     ctx.source.getBudgets(month),
     ctx.store.getOverrides(),
   ]);
@@ -89,13 +90,14 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
   // Today's direct-mode subtotal comes from closed hours, never a second daily total.
   const daily = loadedDaily.filter(row => !strict || row.date < today);
   const budgetMap = new Map<string, BudgetRow>();
-  // Capas: hoja → arranque de mes → capturados en la app → ajustes aprobados en novedades.
-  for (const b of sourceBudgets) budgetMap.set(keyOf(b), b);
-  for (const b of ctx.plan.kickoffBudgets.filter((o) => o.month === month)) budgetMap.set(keyOf(b), b);
-  for (const b of overrides.budgets.filter((o) => o.month === month)) budgetMap.set(keyOf(b), b);
-  for (const b of ctx.plan.novedadBudgets.filter((o) => o.month === month)) budgetMap.set(keyOf(b), b);
-
   const catalog = snap.catalog;
+  const filter = (rows: BudgetRow[]) => scopedBudgets(rows, catalog, ctx.domain?.id !== undefined && ctx.domain.id !== "all");
+  // Capas: hoja → arranque de mes → capturados en la app → ajustes aprobados en novedades.
+  for (const b of filter(sourceBudgets)) budgetMap.set(keyOf(b), b);
+  for (const b of filter(ctx.plan.kickoffBudgets.filter((o) => o.month === month))) budgetMap.set(keyOf(b), b);
+  for (const b of filter(overrides.budgets.filter((o) => o.month === month))) budgetMap.set(keyOf(b), b);
+  for (const b of filter(ctx.plan.novedadBudgets.filter((o) => o.month === month))) budgetMap.set(keyOf(b), b);
+
   const campaignById = new Map(catalog.campaigns.map((c) => [c.id, c]));
   if (strict) {
     const hours = await ctx.source.getHourly({ dates: [today], level: "campaign" });
@@ -127,6 +129,10 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
     const effective = confirmed ?? (detected === "account" || detected === "campaign" ? detected : null);
     return {
       accountId: acc.id,
+      domain_id: acc.domain_id,
+      domain_name: acc.domain_name,
+      customer_id: acc.customer_id,
+      account_name: acc.name,
       accountName: acc.name,
       platform: acc.platform,
       currency: acc.currency,
@@ -294,6 +300,10 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
       accountId: accountId || null,
       campaignId: campaignId || null,
       name: level === "total" ? `Total ${ctx.brandInfo.name}` : level === "platform" ? PLATFORMS[p!].name : level === "account" ? (accountName.get(accountId) ?? accountId) : (camp?.name ?? campaignId),
+      domain_id: accountId ? accountById.get(accountId)?.domain_id : ctx.domain?.id === "all" ? null : ctx.domain?.id,
+      domain_name: accountId ? accountById.get(accountId)?.domain_name : ctx.domain?.id === "all" ? null : ctx.domain?.name,
+      customer_id: accountId ? accountById.get(accountId)?.customer_id : null,
+      account_name: accountId ? accountById.get(accountId)?.name : null,
       parentName: level === "campaign" ? (accountName.get(accountId) ?? null) : level === "account" && p ? PLATFORMS[p].name : null,
       budget: b?.amount ?? null,
       spend: incomplete ? null : agg.mtd,

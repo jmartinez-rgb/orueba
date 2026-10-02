@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getAppContext } from "@/lib/services/context";
+import { getViewContext } from "@/lib/services/context";
 import { getCompare } from "@/lib/services/analysis";
 import { businessDate, zonedParts } from "@/lib/time/tz";
 import { PageHeader } from "@/components/monitoring/page-header";
@@ -17,7 +17,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const dimension = (["platform", "account", "strategy", "objective", "campaign"].includes(sp.dimension ?? "") ? sp.dimension : "platform") as "platform" | "account" | "strategy" | "objective" | "campaign";
   const platformParam = sp.platform && (PLATFORM_IDS as string[]).includes(sp.platform) ? (sp.platform as (typeof PLATFORM_IDS)[number]) : "all";
-  const ctx = await getAppContext();
+  const ctx = await getViewContext();
   const now = ctx.source.now();
   const tz = ctx.settings.timezone;
   let initial: Awaited<ReturnType<typeof getCompare>>;
@@ -49,7 +49,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
         title="Comparativas"
         subtitle="Compara cualquier fecha contra el mismo día de semanas anteriores (o una fecha personalizada) en la misma franja horaria, por plataforma, cuenta, estrategia, objetivo o campaña."
       />
-      <CompareView initial={initial} attention={ctx.settings.thresholds.attention} delayed={delayed} />
+      <CompareView key={ctx.scopeKey} initial={initial} attention={ctx.settings.thresholds.attention} delayed={delayed} />
     </div>
   );
 }

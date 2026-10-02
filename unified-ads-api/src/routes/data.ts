@@ -8,6 +8,13 @@ import { errorResponseSchema, providerSlugSchema } from "./schemas.js";
 
 const text = z.string().nullable();
 const number = z.number().finite().nullable();
+const domainFields = {
+  customer_id: z.string().optional(),
+  domain_id: z.string().optional(),
+  domain_name: z.string().optional(),
+  absolute_top_minimum: z.number().min(0).max(1).nullable().optional(),
+  domain_warning: z.literal("GOOGLE_DOMAIN_UNCLASSIFIED").nullable().optional(),
+};
 const accountQuery = z.object({
   provider: providerSlugSchema.optional(),
   client_id: z.string().min(1).max(120).optional(),
@@ -34,6 +41,7 @@ const performanceQuery = campaignQuery
   });
 const status = z.enum(["active", "paused", "removed", "unknown"]);
 const account = z.object({
+  ...domainFields,
   platform: providerSlugSchema,
   client_id: text,
   account_id: z.string(),
@@ -45,9 +53,11 @@ const account = z.object({
   is_manager: z.boolean().optional(),
 });
 const campaign = z.object({
+  ...domainFields,
   platform: providerSlugSchema,
   client_id: text,
   account_id: z.string(),
+  account_name: text.optional(),
   campaign_id: z.string(),
   campaign_name: z.string(),
   campaign_status: status,
@@ -56,6 +66,7 @@ const campaign = z.object({
 });
 const raw = z.record(z.string(), z.unknown());
 const budget = z.object({
+  ...domainFields,
   platform: providerSlugSchema,
   client_id: text,
   account_id: z.string(),
@@ -81,6 +92,7 @@ const budget = z.object({
   raw_metrics: raw,
 });
 const deliverySignal = z.object({
+  ...domainFields,
   platform: providerSlugSchema,
   client_id: text,
   account_id: z.string(),
@@ -111,6 +123,7 @@ const deliverySignal = z.object({
   extracted_at: z.string(),
 });
 const performance = z.object({
+  ...domainFields,
   platform: providerSlugSchema,
   client_id: text,
   account_id: z.string(),
@@ -144,9 +157,11 @@ const performance = z.object({
   raw_metrics: raw,
 });
 const conversion = z.object({
+  ...domainFields,
   platform: providerSlugSchema,
   client_id: text,
   account_id: z.string(),
+  account_name: text.optional(),
   campaign_id: text,
   date: z.iso.date(),
   hour: z.number().int().min(0).max(23).nullable(),
@@ -156,6 +171,64 @@ const conversion = z.object({
   conversion_value: number,
   extracted_at: z.string(),
   raw_metrics: raw.optional(),
+});
+
+const absoluteTopQuery = z
+  .object({
+    account_id: z.string().regex(/^(?:\d{10}|\d{3}-\d{3}-\d{4})$/),
+    date_from: z.iso.date(),
+    date_to: z.iso.date(),
+    granularity: z.enum(["daily", "hourly"]).default("daily"),
+  })
+  .strict()
+  .refine((q) => q.date_from <= q.date_to && (Date.parse(q.date_to) - Date.parse(q.date_from)) / 86400000 <= 6, {
+    message: "Absolute Top admite fechas ordenadas y hasta 7 días por cuenta.",
+    path: ["date_to"],
+  });
+const ratio = z.number().finite().min(0).max(1).nullable();
+const shareBound = z.enum(["lt_10_percent", "gt_90_percent"]);
+const absoluteTop = z.object({
+  platform: z.literal("google"),
+  account_id: z.string(),
+  account_name: z.string(),
+  customer_id: z.string(),
+  domain_id: z.string(),
+  domain_name: z.string(),
+  absolute_top_minimum: ratio,
+  domain_warning: z.literal("GOOGLE_DOMAIN_UNCLASSIFIED").nullable(),
+  level: z.enum(["campaign", "ad_group"]),
+  campaign_id: z.string(),
+  campaign_name: z.string(),
+  campaign_status: z.literal("active"),
+  ad_group_id: text,
+  ad_group_name: text,
+  ad_group_status: z.literal("active").nullable(),
+  date: z.iso.date(),
+  hour: z.number().int().min(0).max(23).nullable(),
+  currency: text,
+  source_timezone: text,
+  extracted_at: z.string(),
+  absolute_top_rate: ratio,
+  top_of_page_rate: ratio,
+  search_impression_share: ratio,
+  search_lost_is_rank: ratio,
+  search_lost_is_budget: ratio,
+  impressions: number,
+  clicks: number,
+  ctr: number,
+  cpc: number,
+  spend: number,
+  conversions: number,
+  bidding_strategy: text,
+  daily_budget: number,
+  share_bounds: z
+    .object({
+      search_impression_share: shareBound.optional(),
+      search_lost_is_rank: shareBound.optional(),
+      search_lost_is_budget: shareBound.optional(),
+    })
+    .optional(),
+  warnings: z.array(z.string()),
 });
 
 export const dataRoutes = (deps: { registry: ProviderRegistry; timeoutMs: number }): FastifyPluginAsyncZod =>
@@ -220,6 +293,24 @@ export const dataRoutes = (deps: { registry: ProviderRegistry; timeoutMs: number
       504: errorResponseSchema,
     });
     const common = { tags: ["Datos"], security: [{ ApiKeyAuth: [] }] };
+    app.get(
+      "/google/absolute-top",
+      {
+        schema: {
+          ...common,
+          summary: "Porcentajes nativos Absolute Top de campañas y grupos Search activos (Google)",
+          querystring: absoluteTopQuery,
+          response: response(absoluteTop),
+        },
+      },
+      async (req) =>
+        collect(
+          "google",
+          req.id,
+          (p, signal, onWarning) => p.getAbsoluteTop!(req.query, { signal, onWarning }),
+          (p) => typeof p.getAbsoluteTop === "function",
+        ),
+    );
     app.get(
       "/accounts",
       {

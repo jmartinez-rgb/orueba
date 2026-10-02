@@ -2,6 +2,8 @@ import "server-only";
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { z } from "zod";
+import { createHash } from "node:crypto";
+import { googleDomainsSchema, type GoogleDomainConfig } from "@/lib/domains/config";
 import { FileRecordStore } from "@/lib/records/store";
 import { attemptSchema, catalogSchema, mappingSchema, partitionSchema, sameScope, UnifiedDataError, type ApiCatalog, type ApiPartition, type SyncAttempt, type UnifiedMapping, type UnifiedScope } from "./schema";
 import { getEnv } from "@/lib/config/env";
@@ -35,6 +37,22 @@ export class UnifiedSnapshotStore {
   readonly root: string;
   constructor(root: string) { this.root = resolve(root); this.files = new FileRecordStore(this.root); }
   private prefix(s: UnifiedScope) { return `${s.brand}/${s.platform}/${s.accountId}`; }
+  async domainConfig(): Promise<GoogleDomainConfig | null> {
+    const raw = await this.files.get(".metadata/google-domains");
+    if (raw === null) return null;
+    const cached = z.object({ config: googleDomainsSchema, fingerprint: z.string().regex(/^[a-f0-9]{64}$/), extractedAt: z.iso.datetime() }).strict().safeParse(raw);
+    if (!cached.success || createHash("sha256").update(JSON.stringify(cached.data.config)).digest("hex") !== cached.data.fingerprint) throw new UnifiedDataError("INVALID_DOMAIN_CONFIGURATION");
+    return cached.data.config;
+  }
+  async saveDomainConfig(config: GoogleDomainConfig, extractedAt = new Date().toISOString()): Promise<string> {
+    const valid = googleDomainsSchema.parse(config);
+    const fingerprint = createHash("sha256").update(JSON.stringify(valid)).digest("hex");
+    // Keep the exact configuration used by historical rows, even after the master changes.
+    await this.files.set(`.metadata/google-domains-history/${fingerprint}`, { config: valid, fingerprint, extractedAt });
+    // Publish only after the exact configuration is durable for reproduction.
+    await this.files.set(".metadata/google-domains", { config: valid, fingerprint, extractedAt });
+    return fingerprint;
+  }
   async catalog(s: UnifiedScope): Promise<ApiCatalog | null> {
     const value = await this.files.get(`${this.prefix(s)}/catalog`);
     if (value === null) return null;

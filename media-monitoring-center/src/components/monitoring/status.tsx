@@ -97,12 +97,14 @@ export function DeltaText({
   attention = 0.15,
   className,
   digits = 1,
+  unit = "%",
 }: {
   value: number | null | undefined;
   bad?: "down" | "up" | "both" | "none";
   attention?: number;
   className?: string;
   digits?: number;
+  unit?: "%" | "pp";
 }) {
   if (value === null || value === undefined || !Number.isFinite(value)) return <span className={cn("text-muted-foreground", className)}>—</span>;
   const abs = Math.abs(value);
@@ -116,9 +118,10 @@ export function DeltaText({
           ? "text-status-alert-text"
           : "text-status-attention-text";
   const s = (abs * 100).toFixed(digits);
+  const suffix = unit === "pp" ? " pp" : "%";
   return (
     <span className={cn("tabular font-medium", tone, className)}>
-      {Number(s) === 0 ? `0.${"0".repeat(digits)}%` : `${value > 0 ? "+" : "−"}${s}%`}
+      {Number(s) === 0 ? `${s}${suffix}` : `${value > 0 ? "+" : "−"}${s}${suffix}`}
     </span>
   );
 }

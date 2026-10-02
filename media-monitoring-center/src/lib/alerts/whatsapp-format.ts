@@ -1,5 +1,6 @@
 import type { Severity } from "@/lib/types";
 import type { AnomalyType } from "@/lib/monitoring/types";
+import { buildAbsoluteTopAlertText } from "@/lib/absolute-top/format";
 import { PLATFORMS } from "@/lib/platforms/registry";
 import { fmtDelta, fmtMetric } from "@/lib/format";
 import { durationLabel, formatTimeInTz } from "@/lib/time/tz";
@@ -19,6 +20,7 @@ export const SEVERITY_ES: Record<Severity, string> = {
 };
 
 export const INCIDENT_KIND_ES: Record<AnomalyType, string> = {
+  ABSOLUTE_TOP_BELOW: "Absolute Top debajo del mínimo", ABSOLUTE_TOP_DROP: "Caída súbita de Absolute Top",
   DATA_ISSUE: "Datos / sincronización",
   DELIVERY_CRITICAL: "Delivery crítico",
   PLATFORM_INCIDENT: "Delivery (plataforma)",
@@ -61,6 +63,10 @@ function entityLines(inc: Incident): string[] {
 }
 
 export function buildAlertMessage(inc: Incident, kind: Exclude<NotificationKind, "RECOVERED">, ctx: MessageContext): { text: string; params: string[] } {
+  if (inc.absoluteTop) {
+    const text = `${header(kind, ctx)}\n${buildAbsoluteTopAlertText(inc.absoluteTop)}\nRef: ${inc.id}`;
+    return { text, params: [brandPrefix(ctx) + "Google Ads · " + (inc.adGroupName ?? inc.campaignName ?? inc.accountName ?? "N/D"), SEVERITY_ES[inc.severity], `${inc.absoluteTop.spend ?? "N/D"} ${inc.absoluteTop.currency}`, "N/D", inc.currentDeviation === null ? "N/D" : `${(inc.currentDeviation * 100).toFixed(2)} pp`, `Absolute Top: ${fmtMetric("absolute_top_rate", inc.absoluteTop.absolute_top_rate)} · mínimo ${fmtMetric("absolute_top_rate", inc.absoluteTop.target_rate)}`, formatTimeInTz(inc.startedAt, inc.absoluteTop.source_timezone), `${inc.absoluteTop.window_to ?? inc.absoluteTop.date} · ${inc.absoluteTop.source_timezone}`, INCIDENT_KIND_ES[inc.type], inc.id] };
+  }
   const spend = inc.evidence.find((e) => e.metric === "spend");
   const result = inc.evidence.find((e) => e.metric !== "spend" && e.metric !== "cpr" && !["clicks", "ctr", "cpc", "cpm"].includes(e.metric));
   const cutoff = `${String(ctx.cutoffHour % 24).padStart(2, "0")}:00`;
@@ -101,6 +107,11 @@ export function buildAlertMessage(inc: Incident, kind: Exclude<NotificationKind,
 }
 
 export function buildRecoveryMessage(inc: Incident, ctx: MessageContext): { text: string; params: string[] } {
+  if (inc.absoluteTop) {
+    const delta = inc.maxDeviation === null ? "N/D" : `${(inc.maxDeviation * 100).toFixed(2)} pp`;
+    const text = `✅ ${ctx.brand?.upper ?? "IZZI"} · Absolute Top recuperado con una observación válida.\nDominio: ${inc.domain_name ?? "Sin clasificar"}\nCuenta: ${inc.accountName}\nCampaña: ${inc.campaignName}\nBrecha máxima: ${delta}\nRef: ${inc.id}`;
+    return { text, params: [brandPrefix(ctx) + "Google Ads · " + (inc.adGroupName ?? inc.campaignName ?? inc.accountName ?? "N/D"), formatTimeInTz(inc.startedAt, inc.absoluteTop.source_timezone), formatTimeInTz(inc.resolvedAt ?? ctx.now, inc.absoluteTop.source_timezone), durationLabel(Date.parse(inc.resolvedAt ?? ctx.now) - Date.parse(inc.startedAt)), delta, inc.id] };
+  }
   const start = formatTimeInTz(inc.startedAt, ctx.timezone);
   const end = formatTimeInTz(inc.resolvedAt ?? ctx.now, ctx.timezone);
   const duration = durationLabel(Date.parse(inc.resolvedAt ?? ctx.now) - Date.parse(inc.startedAt));

@@ -47,7 +47,7 @@ export type DerivedMetric = "cpa" | "cpl" | "roas" | "ctr" | "cpc" | "cpm" | "cp
 
 export const DERIVED_METRICS: DerivedMetric[] = ["cpr", "cpa", "cpl", "roas", "ctr", "cpc", "cpm"];
 
-export type MetricId = BaseMetric | DerivedMetric;
+export type MetricId = BaseMetric | DerivedMetric | "absolute_top_rate";
 
 export type ResultMetric = "conversions" | "leads" | "sales" | "whatsapp" | "calls" | "purchases";
 
@@ -89,7 +89,14 @@ export type CampaignStatus = "ACTIVE" | "PAUSED" | "ENDED" | "UNKNOWN";
 /** Monedas soportadas. Todo se reporta en MXN; las cuentas en USD se convierten con la tasa del mes. */
 export type Currency = "MXN" | "USD";
 
-export interface Account {
+export interface DomainMetadata {
+  domain_id?: string | null;
+  domain_name?: string | null;
+  customer_id?: string | null;
+  account_name?: string | null;
+}
+
+export interface Account extends DomainMetadata {
   /** Asignación explícita de la cuenta cuando la fuente es una API directa. */
   brand?: "izzi" | "sky";
   id: string;
@@ -99,7 +106,7 @@ export interface Account {
   currency: Currency;
 }
 
-export interface Campaign {
+export interface Campaign extends DomainMetadata {
   id: string;
   platform: PlatformId;
   accountId: string;
@@ -129,7 +136,7 @@ export interface Catalog {
 }
 
 /** Fila horaria canónica que devuelve cualquier fuente (mock o BigQuery). */
-export interface HourlyRow {
+export interface HourlyRow extends DomainMetadata {
   /** Fecha de negocio (zona horaria configurada), YYYY-MM-DD. */
   date: string;
   /** Hora local 0..23. La fila cubre [hour:00, hour+1:00). */
@@ -140,7 +147,7 @@ export interface HourlyRow {
   metrics: MetricValues;
 }
 
-export interface DailyRow {
+export interface DailyRow extends DomainMetadata {
   date: string;
   platform: PlatformId;
   accountId: string | null;
@@ -149,6 +156,7 @@ export interface DailyRow {
 }
 
 export type EntityLevel = "platform" | "account" | "campaign";
+export type AlertEntityLevel = EntityLevel | "ad_group";
 
 export type BudgetLevel = "total" | "platform" | "account" | "campaign";
 
@@ -166,7 +174,7 @@ export interface BudgetRow {
 
 export type SyncStatus = "SUCCESS" | "FAILED" | "RUNNING" | "UNKNOWN";
 
-export interface FreshnessRecord {
+export interface FreshnessRecord extends DomainMetadata {
   platform: PlatformId;
   /** null = registro a nivel plataforma. */
   accountId: string | null;
@@ -177,7 +185,8 @@ export interface FreshnessRecord {
   lastError: string | null;
 }
 
-export interface SyncLogEntry {
+export interface SyncLogEntry extends DomainMetadata {
+  accountId?: string | null;
   id: string;
   platform: PlatformId | "bigquery" | "n8n";
   workflow: string;
@@ -226,7 +235,8 @@ export type ExecutionStatus = "OK" | "PARCIAL" | "PENDIENTE" | "EJECUTANDO" | "E
  * Fila de la hoja/tabla de control de ejecución: confirma si Dataslayer, Apps Script o la
  * API ya corrieron y cargaron datos, o si falta ejecutar algún paso.
  */
-export interface ExecutionControlRow {
+export interface ExecutionControlRow extends DomainMetadata {
+  accountId?: string | null;
   id: string;
   /** Paso del flujo (p. ej. "Dataslayer · Meta Ads → Sheets"). */
   step: string;

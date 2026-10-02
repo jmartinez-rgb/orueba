@@ -1,0 +1,65 @@
+{
+  "categories": {
+    "absolute-top": {
+      "cases": 14,
+      "failed": 0
+    },
+    "page": {
+      "cases": 10,
+      "failed": 0
+    },
+    "nexus": {
+      "cases": 1,
+      "failed": 0
+    }
+  },
+  "generatedAt": "2026-10-02T19:55:52.544Z",
+  "base": "http://127.0.0.1:3070",
+  "mode": "mock",
+  "profiles": [
+    {
+      "width": 320,
+      "height": 740
+    },
+    {
+      "width": 390,
+      "height": 844
+    },
+    {
+      "width": 768,
+      "height": 1024
+    },
+    {
+      "width": 1024,
+      "height": 900
+    },
+    {
+      "width": 1440,
+      "height": 1000
+    }
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "cases": 25,
+  "passed": 25,
+  "failed": 0,
+  "failures": [],
+  "mutationCounts": {
+    "POST /api/domain (fixture)": 2
+  },
+  "fixtureMethod": "Synthetic RSC dashboard and browser-intercepted domain/Nexus responses; server domain cookies and Google data are not validated.",
+  "caseFilter": "absolute-top,nexus:error-retry-cancel-and-brand-reset",
+  "fullMatrix": false,
+  "configuredRouteCount": 31,
+  "routeCount": 1,
+  "limits": [
+    "Positive Absolute Top data are synthetic fixtures; no real Ads Manager coverage is certified.",
+    "Domain selection in positive browser fixtures does not validate server cookie persistence.",
+    "Browser fixtures do not validate real platform credentials or data reconciliation.",
+    "Permission checks exercise demo roles, not real nominal-account credentials.",
+    "Geometry/name checks and keyboard tests do not establish full WCAG certification or real screen-reader behavior.",
+    "No mutations persisted; role and brand changes are browser-local demo cookies."
+  ]
+}

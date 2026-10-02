@@ -2,7 +2,7 @@ import { z } from "zod";
 import { requireAuth, requirePermission } from "@/lib/auth/session";
 import { PLATFORM_IDS, type PlatformId } from "@/lib/types";
 import { getAppContext } from "@/lib/services/context";
-import { getSnapshot } from "@/lib/services/snapshot";
+import { getFullSnapshot } from "@/lib/services/snapshot";
 import { confirmKickoff, kickoffStatus } from "@/lib/services/kickoff";
 import { logActivity } from "@/lib/services/activity";
 import { badRequest, forbidden, json, readJson, serverError, unauthorized } from "@/lib/services/http";
@@ -15,7 +15,7 @@ export async function GET() {
   if (!session) return unauthorized();
   try {
     const ctx = await getAppContext();
-    const snap = await getSnapshot().catch(() => null);
+    const snap = await getFullSnapshot().catch(() => null);
     return json({ ok: true, brand: ctx.brand, ...(await kickoffStatus(ctx, snap)) });
   } catch (err) {
     return serverError("api", err, "kickoff");

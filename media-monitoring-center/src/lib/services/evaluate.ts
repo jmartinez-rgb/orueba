@@ -8,6 +8,9 @@ import { logger } from "@/lib/logging/logger";
 import { businessDate } from "@/lib/time/tz";
 import { applyOverrides, baseAlertState, summarizeRun } from "./snapshot";
 import { getAppContext, monitoringInput, type AppContext } from "./context";
+import { annotateDomainRun } from "@/lib/domains/run";
+import { normalizeGoogleCustomerId } from "@/lib/domains/config";
+import { combineAbsoluteTopRun, getAbsoluteTopDashboard } from "@/lib/absolute-top/service";
 import { BRAND_IDS } from "@/lib/brands";
 
 /**
@@ -28,7 +31,9 @@ export async function evaluateNow(ctx: AppContext, opts: { dryRun: boolean; trig
     invalidateMatching((k) => (k.startsWith("bq:hourly") || k.startsWith("bq:freshness") || k.startsWith("bq:quality")) && (k.endsWith(today) || k.startsWith("bq:freshness") || k.startsWith("bq:quality")));
   }
 
-  const run = await runMonitoring(ctx.source, await monitoringInput(ctx, asOf));
+  const generalRun = await runMonitoring(ctx.source, await monitoringInput(ctx, asOf));
+  const combinedRun = combineAbsoluteTopRun(generalRun, await getAbsoluteTopDashboard({ brand: ctx.brand, config: ctx.domainConfig ?? null, domainId: "all", now: asOf, allowedCustomerIds: (await ctx.source.getCatalog()).accounts.filter(account => account.platform === "google").map(account => normalizeGoogleCustomerId(account.id)).filter((id): id is string => id !== null) }));
+  const run = annotateDomainRun(combinedRun, ctx.domainConfig ?? null, ctx.brand);
   const mock = ctx.mode === "mock";
   // Estado previo: replay de las corridas programadas (mock) o el persistido en BigQuery (sin caché).
   const base = mock ? (await baseAlertState(ctx, asOf, run.businessDate)).state : await ctx.store.loadAlertState();

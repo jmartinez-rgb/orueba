@@ -19,12 +19,13 @@ export function fmtNumber(v: number | null | undefined, opts?: { compact?: boole
   return integer.format(v);
 }
 
-/** Variación con signo: +12.3% / −8.0%. */
-export function fmtDelta(v: number | null | undefined, digits = 1): string {
+/** Ratios are stored as fractions; rate gaps use percentage points, relative changes use %. */
+export function fmtDelta(v: number | null | undefined, digits = 1, unit: "%" | "pp" = "%"): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return "—";
   const s = (Math.abs(v) * 100).toFixed(digits);
-  if (Number(s) === 0) return `0.${"0".repeat(digits)}%`;
-  return `${v > 0 ? "+" : "−"}${s}%`;
+  const suffix = unit === "pp" ? " pp" : "%";
+  if (Number(s) === 0) return `${s}${suffix}`;
+  return `${v > 0 ? "+" : "−"}${s}${suffix}`;
 }
 
 export function fmtPercent(v: number | null | undefined, digits = 1): string {

@@ -9,7 +9,7 @@ import { GET } from "@/app/api/incidents/assignees/route";
 const mocks = vi.hoisted(() => ({ permission: vi.fn(), accounts: vi.fn(), snapshot: vi.fn(), context: vi.fn(), update: vi.fn(), activity: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ requirePermission: mocks.permission }));
 vi.mock("@/lib/auth/users", () => ({ listAccounts: mocks.accounts }));
-vi.mock("@/lib/services/snapshot", () => ({ getSnapshot: mocks.snapshot }));
+vi.mock("@/lib/services/snapshot", () => ({ getFullSnapshot: mocks.snapshot }));
 vi.mock("@/lib/services/context", () => ({ getAppContext: mocks.context }));
 vi.mock("@/lib/services/activity", () => ({ logActivity: mocks.activity }));
 

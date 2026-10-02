@@ -1,0 +1,147 @@
+{
+  "generatedAt": "2026-10-02T19:58:27.425056+00:00",
+  "mode": "mock",
+  "realProviderData": false,
+  "privatePathsCopied": false,
+  "runtime": {
+    "node": "24.19.0",
+    "next": "16.3.6",
+    "chromium": "151.0.7922.173",
+    "playwright": "1.62.1"
+  },
+  "isolation": {
+    "sourceCopy": "Whitelisted source/public/config files; no .env, .data, nominal credentials, private mapping, or tokens.",
+    "server": "Memory records, mock data, open demo auth, webhooks/WhatsApp disabled, clean env -i.",
+    "serverFetch": "Loopback HTTP(S) only via NODE_OPTIONS guard.",
+    "browser": "Exact demo origin; external requests blocked; mutations intercepted except demo role/brand cookie setters.",
+    "positiveData": "Synthetic account/campaign/group IDs; public master supplies domain names, targets, and policy; RSC fixture supplies dashboard and browser fixtures supply domain/Nexus responses."
+  },
+  "snapshots": {
+    "fullMatrix": {
+      "copiedAt": "2026-10-02T19:23:49.752073+00:00",
+      "privatePathsCopied": false,
+      "files": {
+        "src/components/absolute-top/dashboard.tsx": "ad2de03eb27bde694350f619d8d1f172acd2ba4442eeefb8633bf0b1e2084d79",
+        "src/components/absolute-top/entity-details.tsx": "4d755d3c19cf645ab6f8883644c5d9252c4919d743b9b7fd862157d3a7a8ea56",
+        "src/components/layout/domain-switch.tsx": "6543104a2edc49c30e7ca304730c66d3794853e3d44f69abe049a286397384c3",
+        "src/components/nexus/nexus-assistant.tsx": "4c11556cdf21a4fd951561f283bff1b7ca01939368759eb456195ed99836d39b"
+      }
+    },
+    "fullMatrixHarnessSha256": "586a15ce3f0ade851b1d62a4af59c5aa7a65e86d026c5b2ee51a416b67088270",
+    "focusedFinal": {
+      "copiedAt": "2026-10-02T19:50:39.658763+00:00",
+      "privatePathsCopied": false,
+      "files": {
+        "src/components/absolute-top/dashboard.tsx": "beb6baee037956b1c571689401fd56eb771b40f370108789ed447a99750b81c2",
+        "src/components/absolute-top/entity-details.tsx": "3a44eb12322357f6a45c68f09904b069e7bc8e188b556fde74bbaa832e967704",
+        "src/components/absolute-top/presentation.ts": "ce2ff4b0c3084819547debc301ee615a127d3bd39da2c2a5d81f1f2caf60bb40",
+        "src/components/absolute-top/domain-summary-copy.tsx": "845a8af7a291d56c3941c016460c0591cadd4e9941356a67d81294c931fc9528",
+        "src/lib/absolute-top/domain-format.ts": "510ca868e9d6c9c7691c3823c2a6fe7094b9d75fa22f99d3d0d27432cb6cfc78",
+        "src/components/layout/topbar.tsx": "bd7f900a0957a7a82d9f3c4d51b59bbcb854a681cd3da5802dbfc14b34d4a95a",
+        "src/components/layout/domain-switch.tsx": "6543104a2edc49c30e7ca304730c66d3794853e3d44f69abe049a286397384c3",
+        "src/components/nexus/nexus-assistant.tsx": "4c11556cdf21a4fd951561f283bff1b7ca01939368759eb456195ed99836d39b"
+      },
+      "harnessSha256": "0a1174f40793eecc01f72ccadfc2f8ea1ba92350b3d92b69a84c0977117016ba",
+      "updatedAt": "2026-10-02T19:52:29.825628+00:00"
+    }
+  },
+  "runs": {
+    "fullMatrix": {
+      "cases": 343,
+      "passed": 342,
+      "failed": 1,
+      "regularRouteCases": 310,
+      "configuredRoutes": 31,
+      "widths": [
+        320,
+        390,
+        768,
+        1024,
+        1440
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "failure": "Nexus brand-reset test reopened its sheet after fixed 500 ms before RSC commit; the subsequent scope remount closed the sheet."
+    },
+    "nexusSemanticWaitRerun": {
+      "cases": 1,
+      "passed": 1,
+      "failed": 0,
+      "change": "Wait for brand POST 200 and selected Sky radio before opening Nexus; no case removed."
+    },
+    "finalFocused": {
+      "cases": 25,
+      "passed": 25,
+      "failed": 0,
+      "positiveAbsoluteTopCases": 14,
+      "emptyAbsoluteTopPageCases": 10,
+      "nexusInteractionCases": 1,
+      "afterFinalSourceFreeze": true,
+      "fullMatrixRepeated": false
+    }
+  },
+  "reproducedAndFixed": [
+    {
+      "issue": "Mobile document overflow",
+      "beforeWidths": {
+        "viewport320": 462,
+        "viewport390": 462,
+        "treeToggleRightAt320": 374
+      },
+      "fix": "min-w-0 comparison/persistence sections; wrapped presentation toggle and long button."
+    },
+    {
+      "issue": "Focused Copy alert control covered by sticky topbar",
+      "before": [
+        {
+          "width": 390,
+          "targetTag": "BUTTON",
+          "targetName": "Copiar alerta",
+          "top": 87.578125,
+          "bottom": 119.578125,
+          "focusVisible": false,
+          "coveredBy": "SPAN"
+        },
+        {
+          "width": 1440,
+          "targetTag": "BUTTON",
+          "targetName": "Copiar alerta",
+          "top": 20.40625,
+          "bottom": 52.40625,
+          "focusVisible": false,
+          "coveredBy": "SPAN"
+        }
+      ],
+      "fix": "Focusable details region and dynamic scroll margin based on actual topbar bottom; reduced motion respected.",
+      "finalVerification": "Visible focused control verified at all five widths in both themes."
+    },
+    {
+      "issue": "Unbounded native CTR hidden as N/D",
+      "syntheticFixture": {
+        "clicks": 600,
+        "impressions": 500,
+        "ctrPercent": 120
+      },
+      "finalVerification": "120.0% displayed in detail; bounded rates remain separate."
+    }
+  ],
+  "coverage": [
+    "Six local filters and dependent-filter reset; explicit empty result; N/D and censored shares.",
+    "Healthy campaign parent remains visible with critical child group.",
+    "Keyboard selection changes entity, transfers focus, continues into visible details.",
+    "Named evolution image and manual clipboard fallback; no external send.",
+    "Per-domain summary read-only textarea with automatic focus, scoped text, denied and successful clipboard.",
+    "Domain changes reset local filters and Nexus conversation; foreign-domain response blocked; Tab and Shift+Tab wrap and Escape restores focus.",
+    "Nexus error, retry, cancel, clear, confirmed brand switch, and next request scope verified."
+  ],
+  "limits": [
+    "These fixtures do not validate Google credentials, Ads Manager reconciliation, or real provider data coverage.",
+    "Positive domain selection is browser-intercepted and does not validate server domain cookie persistence.",
+    "Demo-role flows do not verify real nominal credentials or production authorization.",
+    "Geometry/accessibility-name/runtime and keyboard checks do not establish full WCAG certification or real screen-reader behavior.",
+    "The original complete matrix and the final focused run use separately recorded source snapshots; no 344-case final matrix is claimed.",
+    "No deployment, external messages, or publication performed."
+  ]
+}

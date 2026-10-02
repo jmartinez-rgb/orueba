@@ -28,7 +28,8 @@ export function buildReportMessage(data: ReportData, options: ReportOptions): st
   const out: string[] = [];
   // izzi conserva el saludo de siempre; otra marca se nombra para no confundir los mensajes.
   const brand = data.brandName && data.brandName.toLowerCase() !== "izzi" ? ` de ${data.brandName}` : "";
-  out.push(`${data.greeting} equipo, comparto el monitoreo${brand}:`, "");
+  const scope = data.domain && data.domain.id !== "all" ? ` · ${data.domain.name}` : "";
+  out.push(`${data.greeting} equipo, comparto el monitoreo${brand}${scope}:`, "");
   out.push(`${e(statusOf("budget", data.budget.status, options))}Presupuesto y Línea de crédito`);
   out.push(`${e(statusOf("problems", data.platformProblems.status, options))}Problemas con Plataformas`);
   for (const p of selected) {

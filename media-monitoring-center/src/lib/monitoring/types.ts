@@ -3,6 +3,8 @@ import type {
   CampaignStatus,
   DataState,
   EntityLevel,
+  AlertEntityLevel,
+  DomainMetadata,
   MetricId,
   PlatformId,
   ChartResultMetric,
@@ -31,17 +33,20 @@ export interface MetricComparison {
 
 export type MetricComparisons = Partial<Record<MetricId, MetricComparison>>;
 
-export interface EntityRef {
+export interface EntityRef extends DomainMetadata {
   key: string;
-  level: EntityLevel;
+  level: AlertEntityLevel;
   platform: PlatformId;
   accountId: string | null;
   accountName: string | null;
   campaignId: string | null;
   campaignName: string | null;
+  adGroupId?: string | null;
+  adGroupName?: string | null;
 }
 
 export interface EntityEvaluation extends EntityRef {
+  level: EntityLevel;
   objective: CampaignObjective;
   kpi: Kpi;
   status: CampaignStatus | null;
@@ -97,9 +102,11 @@ export type AnomalyType =
   | "OVERSPEND"
   | "UNDERSPEND"
   | "COST_INCREASE"
-  | "PACING_DEVIATION";
+  | "PACING_DEVIATION"
+  | "ABSOLUTE_TOP_BELOW"
+  | "ABSOLUTE_TOP_DROP";
 
-export type AnomalyFamily = "data" | "delivery" | "tracking" | "performance" | "efficiency" | "pacing";
+export type AnomalyFamily = "data" | "delivery" | "tracking" | "performance" | "efficiency" | "pacing" | "absolute_top";
 
 export interface AnomalyEvidence {
   metric: MetricId;
@@ -150,6 +157,7 @@ export interface SpendBreakdown {
 export type ExplainedBy = "planned_stop" | "rotation" | "reallocation" | "sustained" | "launch";
 
 export interface Anomaly extends EntityRef {
+  absoluteTop?: import("@/lib/absolute-top/types").AbsoluteTopEvaluation;
   /** Huella estable: misma entidad + misma familia = misma anomalía entre corridas. */
   fingerprint: string;
   type: AnomalyType;
@@ -221,6 +229,9 @@ export interface ScopeCurves {
 }
 
 export interface MonitoringRun {
+  /** Only validated, fresh module observations can resolve an Absolute Top episode. */
+  absoluteTopPolicy?: import("@/lib/domains/config").GoogleDomainConfig["absoluteTop"];
+  absoluteTopCoverage?: Record<string, { auditId: string; observedAt: string; evaluation?: import("@/lib/absolute-top/types").AbsoluteTopEvaluation }>;
   runAt: string;
   timezone: string;
   businessDate: string;

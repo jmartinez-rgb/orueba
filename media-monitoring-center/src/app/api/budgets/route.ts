@@ -2,7 +2,7 @@ import { logActivity } from "@/lib/services/activity";
 import { invalidate } from "@/lib/data/cache";
 import { z } from "zod";
 import { requirePermission, requireAuth } from "@/lib/auth/session";
-import { getAppContext } from "@/lib/services/context";
+import { getAppContext, getViewContext } from "@/lib/services/context";
 import { getSnapshot } from "@/lib/services/snapshot";
 import { getBudgetControl } from "@/lib/services/budget";
 import { badRequest, forbidden, json, readJson, serverError, unauthorized } from "@/lib/services/http";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   if (!(await requireAuth())) return unauthorized();
   try {
-    const [ctx, snap] = await Promise.all([getAppContext(), getSnapshot()]);
+    const [ctx, snap] = await Promise.all([getViewContext(), getSnapshot()]);
     return json({ ok: true, ...(await getBudgetControl(ctx, snap)) });
   } catch (err) {
     return serverError("api", err, "budgets");
@@ -35,6 +35,8 @@ export async function PUT(req: Request) {
   if (!parsed.success) return badRequest("Datos de presupuesto inválidos.");
   try {
     const ctx = await getAppContext();
+    const view = await getViewContext(ctx);
+    if (view.domain?.id !== undefined && view.domain.id !== "all") return json({ ok: false, error: "Cambia a Todos los dominios para editar las referencias completas de presupuesto." }, 409);
     await ctx.store.setBudget(parsed.data);
     // El pacing del monitoreo usa estos presupuestos: la evaluación en vivo se recalcula.
     invalidate("live:");

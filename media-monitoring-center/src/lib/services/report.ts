@@ -1,5 +1,5 @@
 import "server-only";
-import type { MetricValues, PlatformId, Severity } from "@/lib/types";
+import type { DomainMetadata, MetricValues, PlatformId, Severity } from "@/lib/types";
 import { PLATFORM_IDS } from "@/lib/types";
 import { addMetrics, addCompleteMetrics, METRICS } from "@/lib/metrics";
 import { windowTotals, type HourlySeries } from "@/lib/monitoring/historical-comparator";
@@ -51,6 +51,7 @@ function worst(list: Severity[]): Severity {
 }
 
 export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<ReportData> {
+  if ((ctx.domain?.id ?? "all") !== (snap.meta.domain?.id ?? "all")) throw new Error("El alcance del reporte cambió; vuelve a cargar la página.");
   const s = ctx.settings;
   const r = s.report;
   const tz = s.timezone;
@@ -59,8 +60,11 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
   const lastWeek = addDays(today, -7);
   const catalog = snap.catalog;
   const accountById = new Map(catalog.accounts.map((a) => [a.id, a]));
+  const campaignById = new Map(catalog.campaigns.map(campaign => [campaign.id, campaign]));
+  const emptyScope = catalog.accounts.length === 0 || !!ctx.domain && ctx.domain.id !== "all" && !ctx.domain.available;
+  const metadata = (account: Partial<DomainMetadata> | undefined): Partial<DomainMetadata> => account ? { domain_id: account.domain_id, domain_name: account.domain_name, customer_id: account.customer_id, account_name: account.account_name } : {};
 
-  const rows = await cached(`report:rows:${ctx.mode}:${ctx.scenario?.id}:${ctx.settingsHash}:${snap.meta.asOf.slice(0, 15)}`, 60 * 1000, () =>
+  const rows = await cached(`report:rows:${ctx.mode}:${ctx.scopeKey ?? `${ctx.brand}:${ctx.domain?.id ?? "all"}`}:${ctx.scenario?.id}:${ctx.settingsHash}:${snap.meta.asOf.slice(0, 15)}`, 60 * 1000, () =>
     ctx.source.getHourly({ dates: [today, yesterday, lastWeek], level: "campaign" }),
   );
 
@@ -71,6 +75,8 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
   const byCampaignHours = new Map<string, HourlySeries>();
   for (const row of rows) {
     if (!row.campaignId || row.hour >= cutOf(row.platform)) continue;
+    const campaign = campaignById.get(row.campaignId);
+    if (!campaign || campaign.platform !== row.platform || row.accountId !== null && row.accountId !== campaign.accountId) continue;
     const key = row.campaignId;
     const t = byCampaign.get(key) ?? { today: null, yesterday: null, lastWeek: null };
     const slot: keyof Totals = row.date === today ? "today" : row.date === yesterday ? "yesterday" : "lastWeek";
@@ -89,7 +95,7 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
   }
   const excluded = new Set(PLATFORM_IDS.flatMap((p) => snap.run.entities.find((e) => e.key === `platform:${p}`)?.excludedAccounts ?? []));
 
-  const platforms: PlatformReportData[] = PLATFORM_IDS.map((p) => {
+  const platforms: PlatformReportData[] = (emptyScope ? [] : snap.run.platforms).map((p) => {
     const pe = snap.run.entities.find((e) => e.key === `platform:${p}`)!;
     const metric = r.conversionMetric[p] ?? platformKpi(p, s.platformMetrics).result;
     const metricLabel = METRICS[metric].label;
@@ -106,9 +112,9 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
       if (c.status !== "ACTIVE") continue;
       const sp = t.today?.spend ?? null;
       const accountName = accountById.get(c.accountId)?.name ?? c.accountId;
-      if (sp === 0 && ((t.yesterday?.spend ?? 0) > 0 || (t.lastWeek?.spend ?? 0) > 0)) zeroSpend.push({ campaign: c.name, account: accountName });
+      if (sp === 0 && ((t.yesterday?.spend ?? 0) > 0 || (t.lastWeek?.spend ?? 0) > 0)) zeroSpend.push({ campaign: c.name, account: accountName, ...metadata(accountById.get(c.accountId)) });
       const vsY = change(sp, t.yesterday?.spend);
-      if (sp !== null && sp >= MIN_CAMPAIGN_SPEND && vsY !== null && vsY >= r.spendIncreaseVsYesterday) higher.set(accountName, [...(higher.get(accountName) ?? []), c.name]);
+      if (sp !== null && sp >= MIN_CAMPAIGN_SPEND && vsY !== null && vsY >= r.spendIncreaseVsYesterday) higher.set(c.accountId, [...(higher.get(c.accountId) ?? []), c.name]);
     }
     for (const [id, windows] of accountWindows) accTotals.set(id, aggregateReportTotals(windows, strict));
     const unknownSpend = strict && accounts.some(a => !accTotals.get(a.id)?.today || accTotals.get(a.id)?.today?.spend == null);
@@ -139,7 +145,7 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
     const deliveryCritical = anomalies.some((a) => a.severity === "CRITICAL" && (a.family === "delivery" || a.type === "PLATFORM_INCIDENT"));
     const trackingCritical = anomalies.some((a) => a.severity === "CRITICAL" && a.family === "tracking");
     const badData = BAD_DATA.includes(pe.dataState);
-    const campaignsHigherVsYesterday: CampaignGroup[] = [...higher.entries()].map(([account, campaigns]) => ({ account, campaigns })).sort((a, b) => b.campaigns.length - a.campaigns.length);
+    const campaignsHigherVsYesterday: CampaignGroup[] = [...higher.entries()].map(([accountId, campaigns]) => ({ account: accountById.get(accountId)?.name ?? accountId, campaigns, ...metadata(accountById.get(accountId)) })).sort((a, b) => b.campaigns.length - a.campaigns.length);
     const spendFindings = lowerLW.length + higherLW.length + lowerY.length + zeroSpend.length + campaignsHigherVsYesterday.length;
     const activeStatus: ReportStatus = deliveryCritical ? "bad" : badData || unknownSpend || spendFindings > 0 || snap.platformStatus[p].severity !== "NORMAL" ? "warn" : "ok";
     const conversionStatus: ReportStatus = trackingCritical ? "bad" : unknownConversions || convLW.length + convY.length > 0 ? "warn" : "ok";
@@ -159,7 +165,7 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
       conversionDropVsLastWeek: convLW,
       conversionDropVsYesterday: convY,
       metricLabel,
-      conversionsByAccount: accounts.map((a) => ({ account: a.name, value: excluded.has(a.id) ? null : (accTotals.get(a.id)?.today?.[metric] ?? null) })),
+      conversionsByAccount: accounts.map((a) => ({ account: a.name, value: excluded.has(a.id) ? null : (accTotals.get(a.id)?.today?.[metric] ?? null), ...metadata(a) })),
       criticalIncidents: critical.map((i) => i.title),
     };
   });
@@ -177,6 +183,7 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
         .map((l) => `${l.name}: cierre estimado ${l.forecastVsBudget! > 0 ? "+" : ""}${Math.round(l.forecastVsBudget! * 100)}% vs presupuesto`),
     };
     if (strict && lines.some(l => l.spend === null || l.forecast === null)) budget = { status: "warn", details: ["El gasto mensual o el pronóstico están pendientes por datos incompletos.", ...budget.details] };
+    if (emptyScope) budget = { status: "warn", details: ["No hay cuentas disponibles en el alcance seleccionado; no se puede evaluar su presupuesto."] };
   } catch {
     budget = { status: "warn", details: ["No se pudo calcular el pacing de presupuesto."] };
   }
@@ -198,6 +205,10 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
   if (snap.execution.status === "PENDIENTE" && pStatus === "ok") pStatus = "warn";
   if (snap.execution.pending.length) problems.push(`Pendiente de ejecutar: ${snap.execution.pending.join(", ")}`);
   if (snap.execution.errors.length) problems.push(`Con error: ${snap.execution.errors.join(", ")}`);
+  if (emptyScope) {
+    if (pStatus === "ok") pStatus = "warn";
+    problems.push("No hay cuentas disponibles en el alcance seleccionado. Esto no confirma normalidad.");
+  }
 
   const hour = zonedParts(new Date(snap.meta.asOf), tz).hour;
   return {
@@ -207,11 +218,12 @@ export async function buildReportData(ctx: AppContext, snap: Snapshot): Promise<
     timezone: tz,
     lastWeekDay: WEEKDAYS_ES[weekdayOf(lastWeek)],
     brandName: ctx.brandInfo.name,
+    domain: ctx.domain ? { ...ctx.domain } : undefined,
     greeting: hour < 12 ? "Buenos días" : hour < 19 ? "Buenas tardes" : "Buenas noches",
     budget,
     platformProblems: { status: pStatus, details: problems },
     platforms,
-    confidence: snap.confidence.overall.score,
+    confidence: emptyScope ? 0 : snap.confidence.overall.score,
     thresholds: { spendIncreaseVsYesterday: r.spendIncreaseVsYesterday, spendChangeVsLastWeek: r.spendChangeVsLastWeek, conversionDrop: r.conversionDrop },
     manualChecks: r.manualChecks,
     closingNote: r.closingNote,

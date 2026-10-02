@@ -115,7 +115,7 @@ export function AlertsTable({
       if (type !== "all") list = list.filter((r) => r.typeLabel === type);
       if (q.trim()) {
         const t = q.toLowerCase();
-        list = list.filter((r) => [r.id, r.title, r.campaignName, r.accountName, PLATFORMS[r.platform].name, r.typeLabel].some((v) => v?.toLowerCase().includes(t)));
+        list = list.filter((r) => [r.id, r.title, r.domain_name, r.adGroupName, r.campaignName, r.accountName, PLATFORMS[r.platform].name, r.typeLabel].some((v) => v?.toLowerCase().includes(t)));
       }
     }
     return limit ? list.slice(0, limit) : list;
@@ -271,10 +271,10 @@ export function AlertsTable({
                   </span>
                 </TableCell>
                 <TableCell className="max-w-64 text-xs" title={r.title}>
-                  <span className="block truncate font-medium">{r.campaignName ?? (r.level === "account" ? `Cuenta: ${r.accountName}` : "Toda la plataforma")}</span>
+                  <span className="block truncate font-medium">{r.adGroupName ?? r.campaignName ?? (r.level === "account" ? `Cuenta: ${r.accountName}` : "Toda la plataforma")}</span>
                   {!compact && (r.campaignName || r.groupedUnderId || r.explained) && (
                     <span className="block truncate text-[10px] text-muted-foreground">
-                      {r.campaignName ? r.accountName : ""}
+                      {r.domain_name ? `${r.domain_name} · ` : ""}{r.adGroupName ? `${r.campaignName} · ` : ""}{r.campaignName ? r.accountName : ""}
                       {r.groupedUnderId ? `${r.campaignName ? " · " : ""}↳ agrupada en ${r.groupedUnderId}` : ""}
                       {r.explained ? `${r.campaignName || r.groupedUnderId ? " · " : ""}Explicada: ${EXPLAINED_LABEL[r.explained].toLowerCase()}` : ""}
                     </span>
@@ -287,7 +287,7 @@ export function AlertsTable({
                 {!compact && <TableCell className="text-right text-xs font-medium">{r.type === "DATA_ISSUE" ? "Datos atrasados" : fmtMetric(r.metric, r.currentValue, { compact: true })}</TableCell>}
                 {!compact && <TableCell className="text-right text-xs text-muted-foreground">{r.type === "DATA_ISSUE" ? "—" : fmtMetric(r.metric, r.expectedValue, { compact: true })}</TableCell>}
                 <TableCell className="text-right text-xs">
-                  <DeltaText value={r.deviation} attention={attention} />
+                  <DeltaText value={r.deviation} unit={r.metric === "absolute_top_rate" ? "pp" : "%"} attention={attention} />
                 </TableCell>
                 <TableCell className="tabular text-xs">{formatTimeInTz(r.detectedAt, timezone)}</TableCell>
                 {!compact && <TableCell className="tabular text-xs text-muted-foreground">{formatTimeInTz(r.lastUpdateAt, timezone)}</TableCell>}
@@ -322,7 +322,7 @@ export function AlertsTable({
                 <SheetDescription>
                   {PLATFORMS[selected.platform].name}
                   {selected.accountName ? ` · ${selected.accountName}` : ""}
-                  {selected.campaignName ? ` · ${selected.campaignName}` : ""} · {selected.typeLabel}
+                  {selected.domain_name ? ` · ${selected.domain_name}` : ""}{selected.campaignName ? ` · ${selected.campaignName}` : ""}{selected.adGroupName ? ` → ${selected.adGroupName}` : ""} · {selected.typeLabel}
                 </SheetDescription>
               </SheetHeader>
               <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4 text-sm">
@@ -371,7 +371,7 @@ export function AlertsTable({
                             <TableCell className="text-right text-xs text-muted-foreground">{fmtMetric(e.metric, e.expected)}</TableCell>
                             <TableCell className="text-right text-xs text-muted-foreground">{fmtMetric(e.metric, e.prevWeek)}</TableCell>
                             <TableCell className="text-right text-xs">
-                              <DeltaText value={e.deviation} bad={e.metric === "spend" ? "both" : ["cpr", "cpa", "cpl", "cpc", "cpm"].includes(e.metric) ? "up" : "down"} attention={attention} />
+                              <DeltaText value={e.deviation} unit={e.metric === "absolute_top_rate" ? "pp" : "%"} bad={e.metric === "spend" ? "both" : ["cpr", "cpa", "cpl", "cpc", "cpm"].includes(e.metric) ? "up" : "down"} attention={attention} />
                             </TableCell>
                           </TableRow>
                         ))}
@@ -396,9 +396,9 @@ export function AlertsTable({
                       {grouped.map((g) => (
                         <li key={g.id} className="flex items-center justify-between gap-2 rounded border px-2 py-1">
                           <span className="truncate">
-                            <span className="font-mono text-muted-foreground">{g.id}</span> {g.campaignName ?? g.accountName}
+                            <span className="font-mono text-muted-foreground">{g.id}</span> {g.adGroupName ?? g.campaignName ?? g.accountName}
                           </span>
-                          <DeltaText value={g.deviation} attention={attention} />
+                          <DeltaText value={g.deviation} unit={g.metric === "absolute_top_rate" ? "pp" : "%"} attention={attention} />
                         </li>
                       ))}
                     </ul>

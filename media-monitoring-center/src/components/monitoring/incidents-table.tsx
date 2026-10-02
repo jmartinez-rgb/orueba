@@ -65,7 +65,7 @@ function incidentAlerts(inc: Incident, alerts: Alert[]): Alert[] {
 }
 
 function IncidentAlertItem({ alert: a, main, timezone, attention }: { alert: Alert; main: boolean; timezone: string; attention: number }) {
-  const scope = a.campaignName ?? (a.accountName ? `Cuenta: ${a.accountName}` : `Toda ${PLATFORMS[a.platform].shortName}`);
+  const scope = a.adGroupName ? `${a.domain_name ?? "Sin clasificar"} · ${a.campaignName} → ${a.adGroupName}` : a.campaignName ?? (a.accountName ? `Cuenta: ${a.accountName}` : `Toda ${PLATFORMS[a.platform].shortName}`);
   const metricLabel = METRICS[a.metric]?.label ?? a.metric;
   return (
     <li>
@@ -91,7 +91,7 @@ function IncidentAlertItem({ alert: a, main, timezone, attention }: { alert: Ale
                 </span>
               </>
             )}
-            {a.deviation !== null && <DeltaText value={a.deviation} attention={attention} />}
+            {a.deviation !== null && <DeltaText value={a.deviation} unit={a.metric === "absolute_top_rate" ? "pp" : "%"} attention={attention} />}
           </span>
         </summary>
         <div className="mt-2 space-y-1.5 border-t border-(--hairline) pt-2 text-muted-foreground">
@@ -100,7 +100,7 @@ function IncidentAlertItem({ alert: a, main, timezone, attention }: { alert: Ale
             <p key={i}>· {t}</p>
           ))}
           <p className="text-[11px]">
-            {a.id} · {a.consecutiveRuns} {a.consecutiveRuns === 1 ? "evaluación" : "evaluaciones"} · desviación máxima {fmtDelta(a.maxDeviation)}
+            {a.id} · {a.consecutiveRuns} {a.consecutiveRuns === 1 ? "evaluación" : "evaluaciones"} · desviación máxima {fmtDelta(a.maxDeviation, 1, a.metric === "absolute_top_rate" ? "pp" : "%")}
             {a.resolvedAt ? ` · se normalizó ${formatTimeInTz(a.resolvedAt, timezone)}` : ""}
           </p>
         </div>
@@ -184,7 +184,7 @@ export function IncidentsTable({
     else if (tab === "unassigned") l = l.filter(i => i.resolvedAt === null && !i.ownerId);
     if (q.trim()) {
       const t = q.toLowerCase();
-      l = l.filter((i) => [i.id, i.title, i.campaignName, i.accountName, PLATFORMS[i.platform].name, i.owner].some((v) => v?.toLowerCase().includes(t)));
+      l = l.filter((i) => [i.id, i.title, i.domain_name, i.adGroupName, i.campaignName, i.accountName, PLATFORMS[i.platform].name, i.owner].some((v) => v?.toLowerCase().includes(t)));
     }
     return l;
   }, [incidents, tab, q, compact, currentUserId]);
@@ -288,7 +288,7 @@ export function IncidentsTable({
                 {!compact && <TableCell className="max-w-40 truncate text-xs text-muted-foreground">{i.accountName ?? "—"}</TableCell>}
                 {!compact && (
                   <TableCell className="max-w-52 truncate text-xs">
-                    {i.campaignName ?? (i.level === "account" ? `Cuenta: ${i.accountName}` : "Toda la plataforma")}
+                    {i.adGroupName ?? i.campaignName ?? (i.level === "account" ? `Cuenta: ${i.accountName}` : "Toda la plataforma")}
                     {i.childAlertIds.length > 0 && <span className="ml-1 text-[10px] text-muted-foreground">(+{i.childAlertIds.length} agrupadas)</span>}
                   </TableCell>
                 )}
@@ -296,11 +296,11 @@ export function IncidentsTable({
                 {!compact && <TableCell className="tabular text-xs text-muted-foreground">{i.resolvedAt ? formatDateTimeInTz(i.resolvedAt, timezone) : "—"}</TableCell>}
                 <TableCell className="text-xs">{durationLabel(duration(i))}</TableCell>
                 <TableCell className="text-right text-xs">
-                  <DeltaText value={i.maxDeviation} attention={attention} digits={0} />
+                  <DeltaText value={i.maxDeviation} unit={i.metric === "absolute_top_rate" ? "pp" : "%"} attention={attention} digits={0} />
                 </TableCell>
                 {!compact && (
                   <TableCell className="text-right text-xs">
-                    <DeltaText value={i.resolvedAt ? null : i.currentDeviation} attention={attention} digits={0} />
+                    <DeltaText value={i.resolvedAt ? null : i.currentDeviation} unit={i.metric === "absolute_top_rate" ? "pp" : "%"} attention={attention} digits={0} />
                   </TableCell>
                 )}
                 {!compact && (
@@ -330,7 +330,7 @@ export function IncidentsTable({
                 <SheetDescription>
                   {PLATFORMS[selected.platform].name}
                   {selected.accountName ? ` · ${selected.accountName}` : ""}
-                  {selected.campaignName ? ` · ${selected.campaignName}` : ""} · {ANOMALY_LABEL[selected.type]}
+                  {selected.domain_name ? ` · ${selected.domain_name}` : ""}{selected.campaignName ? ` · ${selected.campaignName}` : ""}{selected.adGroupName ? ` → ${selected.adGroupName}` : ""} · {ANOMALY_LABEL[selected.type]}
                 </SheetDescription>
               </SheetHeader>
               <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
@@ -338,8 +338,8 @@ export function IncidentsTable({
                   <Info label="Inicio" value={formatDateTimeInTz(selected.startedAt, timezone)} />
                   <Info label="Resuelto" value={selected.resolvedAt ? formatDateTimeInTz(selected.resolvedAt, timezone) : "Abierto"} />
                   <Info label="Duración" value={durationLabel(duration(selected))} />
-                  <Info label="Desviación máxima" value={fmtDelta(selected.maxDeviation)} />
-                  <Info label="Desviación actual" value={selected.resolvedAt ? "—" : fmtDelta(selected.currentDeviation)} />
+                  <Info label="Desviación máxima" value={fmtDelta(selected.maxDeviation, 1, selected.metric === "absolute_top_rate" ? "pp" : "%")} />
+                  <Info label="Desviación actual" value={selected.resolvedAt ? "—" : fmtDelta(selected.currentDeviation, 1, selected.metric === "absolute_top_rate" ? "pp" : "%")} />
                   <Info label="Notificaciones" value={String(selected.notification.count)} />
                   <Info label="Responsable" value={selected.owner ?? "Sin asignar"} />
                 </div>
@@ -374,7 +374,7 @@ export function IncidentsTable({
                         <p className="flex flex-wrap items-center gap-1.5">
                           <span className="tabular font-semibold">{formatTimeInTz(e.at, timezone)}</span>
                           <span className="font-medium">{KIND_LABEL[e.kind] ?? e.kind}</span>
-                          {e.deviation !== null && <DeltaText value={e.deviation} attention={attention} />}
+                          {e.deviation !== null && <DeltaText value={e.deviation} unit={selected.metric === "absolute_top_rate" ? "pp" : "%"} attention={attention} />}
                           {e.notified && (
                             <span className="inline-flex items-center gap-0.5 rounded bg-primary/15 px-1 text-[10px] font-semibold text-primary">
                               <BellRing className="size-2.5" /> notificado

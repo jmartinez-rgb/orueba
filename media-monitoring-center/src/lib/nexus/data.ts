@@ -21,20 +21,23 @@ function values(entity: EntityEvaluation | undefined): NexusMetrics {
 
 export function projectNexusData(snapshot: Snapshot): NexusData {
   const brand = snapshot.meta.brand.id;
+  const domain = snapshot.meta.domain;
   // The catalog is already brand-scoped by getSnapshot; explicit assignments are checked again.
-  const accounts = snapshot.catalog.accounts.filter(account => !account.brand || account.brand === brand);
+  const accounts = snapshot.catalog.accounts.filter(account => (!account.brand || account.brand === brand) && (!domain || domain.id === "all" || domain.available && account.platform === "google" && account.domain_id === domain.id));
   const accountKeys = new Set(accounts.map(account => `${account.platform}:${account.id}`));
   const campaigns = snapshot.catalog.campaigns.filter(campaign => accountKeys.has(`${campaign.platform}:${campaign.accountId}`));
   const campaignKeys = new Set(campaigns.map(campaign => `${campaign.platform}:${campaign.accountId}:${campaign.id}`));
   const platforms = new Set(accounts.map(account => account.platform));
   const inScope = (row: { platform: string; accountId: string | null; campaignId: string | null }) => {
     if (row.campaignId) return !!row.accountId && campaignKeys.has(`${row.platform}:${row.accountId}:${row.campaignId}`);
-    return row.accountId ? accountKeys.has(`${row.platform}:${row.accountId}`) : [...platforms].includes(row.platform as typeof accounts[number]["platform"]);
+    // A brand-wide platform incident is not evidence of an incident in a particular domain.
+    return row.accountId ? accountKeys.has(`${row.platform}:${row.accountId}`) : (!domain || domain.id === "all") && [...platforms].includes(row.platform as typeof accounts[number]["platform"]);
   };
   return {
     context: {
       brand, brandName: snapshot.meta.brand.name, date: snapshot.meta.businessDate,
       cutoffHour: snapshot.meta.cutoffHour, timezone: snapshot.meta.timezone, asOf: snapshot.meta.asOf, mode: snapshot.meta.mode,
+      domain: domain ? { id: domain.id, name: readableName(domain.name), available: domain.available, configVersion: domain.configVersion } : undefined,
     },
     accounts: accounts.map(account => {
       const entity = snapshot.run.entities.find(row => row.level === "account" && row.platform === account.platform && row.accountId === account.id);
@@ -42,6 +45,7 @@ export function projectNexusData(snapshot: Snapshot): NexusData {
         id: account.id, accountId: account.id, name: readableName(account.name), platform: account.platform,
         status: "Cuenta del catálogo", dataState: entity?.dataState ?? "NO_DATA", lastDataAt: entity?.lastDataAt ?? null,
         cutoffHour: entity?.cutoffHour ?? null, metrics: values(entity),
+        domain_id: account.domain_id, domain_name: account.domain_name ? readableName(account.domain_name) : account.domain_name,
       };
     }),
     campaigns: campaigns.map(campaign => {
@@ -50,6 +54,7 @@ export function projectNexusData(snapshot: Snapshot): NexusData {
         id: campaign.id, name: readableName(campaign.name), platform: campaign.platform, accountId: campaign.accountId,
         status: campaign.status, dataState: entity?.dataState ?? "NO_DATA", lastDataAt: entity?.lastDataAt ?? null,
         cutoffHour: entity?.cutoffHour ?? null, metrics: values(entity),
+        domain_id: campaign.domain_id, domain_name: campaign.domain_name ? readableName(campaign.domain_name) : campaign.domain_name,
       };
     }),
     platforms: [...platforms].map(id => ({ id, state: snapshot.platformStatus[id].dataState, lastDataAt: snapshot.run.dataHealth[id].lastDataAt })),

@@ -15,12 +15,14 @@ export interface GoogleRow {
     name?: string;
     status?: string;
     advertisingChannelType?: string;
+    biddingStrategyType?: string;
     servingStatus?: string;
     primaryStatus?: string;
     primaryStatusReasons?: string[];
     startDateTime?: string;
     endDateTime?: string;
   };
+  adGroup?: { id?: string; name?: string; status?: string };
   campaignBudget?: {
     resourceName?: string;
     amountMicros?: string | number;
@@ -33,6 +35,7 @@ export interface GoogleRow {
   segments?: {
     date?: string;
     hour?: number;
+    adNetworkType?: string;
     conversionAction?: string;
     conversionActionName?: string;
     conversionActionCategory?: string;

@@ -5,7 +5,7 @@ import { getAppContext } from "@/lib/services/context";
 import { invalidate } from "@/lib/data/cache";
 import { listAccounts } from "@/lib/auth/users";
 import { canAssignIncident, eligibleAssignees } from "@/lib/alerts/assignment";
-import { getSnapshot } from "@/lib/services/snapshot";
+import { getFullSnapshot } from "@/lib/services/snapshot";
 import { badRequest, forbidden, json, readJson, serverError } from "@/lib/services/http";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (!parsed.success || !/^(?:[A-Z]+-)?INC-[0-9]+$/.test(id)) return badRequest("Datos o id de incidente inválidos.");
   try {
     const app = await getAppContext();
-    const incident = (await getSnapshot()).state.incidents.find(i => i.id === id);
+    const incident = (await getFullSnapshot()).state.incidents.find(i => i.id === id);
     if (!incident) return json({ ok: false, message: "El incidente no existe en esta marca." }, 404);
     if (incident.resolvedAt && parsed.data.status && parsed.data.status !== "RESOLVED") return badRequest("El incidente ya está resuelto.");
     if (parsed.data.status === "RESOLVED" && !parsed.data.note) return badRequest("Documenta el cierre con una nota.");

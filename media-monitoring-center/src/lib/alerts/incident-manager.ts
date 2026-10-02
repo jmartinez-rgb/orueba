@@ -57,6 +57,9 @@ function alertFromAnomaly(a: Anomaly, id: string, at: string): Alert {
     accountName: a.accountName,
     campaignId: a.campaignId,
     campaignName: a.campaignName,
+    adGroupId: a.adGroupId, adGroupName: a.adGroupName,
+    domain_id: a.domain_id, domain_name: a.domain_name, customer_id: a.customer_id, account_name: a.account_name,
+    absoluteTop: a.absoluteTop,
     severity: a.severity,
     maxSeverity: a.severity,
     type: a.type,
@@ -70,11 +73,11 @@ function alertFromAnomaly(a: Anomaly, id: string, at: string): Alert {
     diagnosis: a.diagnosis,
     adjustments: a.adjustments,
     evidence: a.evidence,
-    detectedAt: at,
+    detectedAt: a.absoluteTop?.persistence.first_detected_at ?? at,
     lastUpdateAt: at,
     resolvedAt: null,
     status: "NEW",
-    consecutiveRuns: 1,
+    consecutiveRuns: a.absoluteTop?.persistence.consecutive_audits ?? 1,
     incidentId: null,
     groupedUnder: a.groupedUnder,
     cutoffHour: a.cutoffHour,
@@ -101,16 +104,23 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
   const notifications: NotificationRecord[] = [];
   const ctx: MessageContext = { timezone: run.timezone, cutoffHour: run.cutoffHour, now, brand: opts.brand };
   const prefix = opts.brand?.idPrefix ?? "";
-  const anomalies = new Map(run.anomalies.map((a) => [a.fingerprint, a]));
+  const effectiveAnomalies = run.anomalies.filter(anomaly => anomaly.family !== "absolute_top" || Boolean(run.absoluteTopCoverage?.[anomaly.fingerprint]));
+  const anomalies = new Map(effectiveAnomalies.map((a) => [a.fingerprint, a]));
   // Anomalías silenciadas por un cambio autorizado: su alerta e incidente se cierran con esa explicación.
   const authorized = new Map((run.silenced ?? []).map((x) => [x.anomaly.fingerprint, `Cerrado: cambio autorizado por ${x.by} ("${x.reason}").`]));
   const active = state.alerts.filter((a) => a.resolvedAt === null);
   const activeByFp = new Map(active.map((a) => [a.fingerprint, a]));
+  const untouchedModule = new Set(active.filter(alert => alert.family === "absolute_top" && (!run.absoluteTopCoverage?.[alert.fingerprint] || run.absoluteTopCoverage[alert.fingerprint].auditId === alert.absoluteTop?.audit_id)).map(alert => alert.fingerprint));
 
   // 1) Actualizar o resolver alertas vivas.
   for (const alert of active) {
+    if (untouchedModule.has(alert.fingerprint)) continue;
     const a = anomalies.get(alert.fingerprint);
     if (!a) {
+      const recovered = run.absoluteTopCoverage?.[alert.fingerprint]?.evaluation;
+      if (alert.family === "absolute_top" && recovered) {
+        alert.absoluteTop = recovered; alert.currentValue = recovered.absolute_top_rate; alert.expectedValue = recovered.target_rate; alert.deviation = recovered.gap_pp === null ? null : recovered.gap_pp / 100;
+      }
       alert.resolvedAt = now;
       alert.lastUpdateAt = now;
       if (alert.status !== "FALSE_POSITIVE") alert.status = "RESOLVED";
@@ -132,7 +142,12 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
     // una evaluación manual junto a la programada) no cuentan como persistencia adicional.
     const sameSlot = Date.parse(now) - Date.parse(alert.lastUpdateAt) < SAME_SLOT_MS;
     alert.lastUpdateAt = now;
-    if (!sameSlot) alert.consecutiveRuns += 1;
+    alert.domain_id = a.domain_id; alert.domain_name = a.domain_name; alert.customer_id = a.customer_id; alert.account_name = a.account_name;
+    if (a.absoluteTop) {
+      alert.consecutiveRuns = a.absoluteTop.persistence.consecutive_audits;
+      alert.absoluteTop = a.absoluteTop;
+      alert.adGroupId = a.adGroupId; alert.adGroupName = a.adGroupName;
+    } else if (!sameSlot) alert.consecutiveRuns += 1;
     alert.groupedUnder = a.groupedUnder;
     alert.cutoffHour = a.cutoffHour;
     alert.expectedSpendShare = a.expectedSpendShare;
@@ -141,7 +156,7 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
   }
 
   // 2) Nuevas alertas.
-  for (const a of run.anomalies) {
+  for (const a of effectiveAnomalies) {
     if (activeByFp.has(a.fingerprint)) continue;
     state.seq.alert += 1;
     const alert = alertFromAnomaly(a, `${prefix}ALT-${pad(state.seq.alert)}`, now);
@@ -153,7 +168,7 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
   const alertByFpActive = new Map(state.alerts.filter((a) => a.resolvedAt === null).map((a) => [a.fingerprint, a]));
 
   const notify = (inc: Incident, kind: NotificationKind, severity: Severity) => {
-    if (!opts.notify) return false;
+    if (!opts.notify || inc.absoluteTop) return false; // Absolute Top is review/copy only; no external dispatch.
     const msg = kind === "RECOVERED" ? buildRecoveryMessage(inc, ctx) : buildAlertMessage(inc, kind, ctx);
     const template =
       kind === "RECOVERED"
@@ -196,9 +211,11 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
 
   // 3) Incidentes abiertos: actualizar, escalar, recuperar.
   for (const inc of state.incidents.filter((i) => i.resolvedAt === null)) {
+    if (untouchedModule.has(inc.fingerprint)) continue;
     const alert = alertById.get(inc.alertId);
     const live = alert && alert.resolvedAt === null ? alert : undefined;
     if (!live || live.status === "FALSE_POSITIVE") {
+      if (inc.absoluteTop && alert?.absoluteTop && alert.resolvedAt !== null) { inc.absoluteTop = alert.absoluteTop; inc.currentDeviation = alert.deviation; }
       inc.resolvedAt = now;
       inc.lastUpdateAt = now;
       inc.status = "RESOLVED";
@@ -231,6 +248,7 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
       continue;
     }
     const prevSeverity = inc.severity;
+    const previousDeviation = inc.currentDeviation;
     inc.severity = live.severity;
     inc.maxSeverity = maxSeverity(inc.maxSeverity, live.severity);
     inc.type = live.type;
@@ -239,9 +257,15 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
     inc.currentDeviation = live.deviation;
     inc.maxDeviation = worseDeviation(inc.maxDeviation, live.deviation);
     inc.evidence = live.evidence;
+    inc.absoluteTop = live.absoluteTop;
+    inc.adGroupId = live.adGroupId; inc.adGroupName = live.adGroupName;
+    inc.domain_id = live.domain_id; inc.domain_name = live.domain_name; inc.customer_id = live.customer_id; inc.account_name = live.account_name;
     inc.lastUpdateAt = now;
     inc.expectedSpendShare = live.expectedSpendShare;
-    const canNotify = shouldNotify(settings, live.severity, inc.level, live.expectedSpendShare);
+    const canNotify = !live.absoluteTop && shouldNotify(settings, live.severity, inc.level, live.expectedSpendShare);
+    const moduleWorsened = Boolean(live.absoluteTop && live.deviation !== null && previousDeviation !== null && absDev(live.deviation) - absDev(previousDeviation) >= (run.absoluteTopPolicy?.deepeningGapPp ?? Infinity) / 100);
+    const lastModuleReminder = inc.timeline.filter(event => event.kind === "DURATION_EXCEEDED").at(-1)?.at ?? inc.startedAt;
+    const moduleReminder = Boolean(live.absoluteTop && Date.parse(now) - Date.parse(lastModuleReminder) >= (run.absoluteTopPolicy?.repeatAfterHours ?? Infinity) * 3600000);
     const hoursOpen = (Date.parse(now) - Date.parse(inc.startedAt)) / 3600000;
     const lastSev = inc.notification.lastSeverity;
     if (severityRank(live.severity) > severityRank(prevSeverity) || (canNotify && lastSev === null)) {
@@ -262,17 +286,17 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
         message: `Severidad baja de ${SEVERITY_ES[prevSeverity]} a ${SEVERITY_ES[live.severity]}. Sigue abierto hasta normalizar.`,
         notified: false,
       });
-    } else if (canNotify && inc.notification.lastDeviation !== null && absDev(live.deviation) - absDev(inc.notification.lastDeviation) >= settings.alerts.worsenDeltaPts) {
+    } else if (moduleWorsened || (canNotify && inc.notification.lastDeviation !== null && absDev(live.deviation) - absDev(inc.notification.lastDeviation) >= settings.alerts.worsenDeltaPts)) {
       const notified = notify(inc, "WORSENED", live.severity);
       pushEvent(inc, { kind: "WORSENED", severity: live.severity, deviation: live.deviation, message: "Empeora de forma significativa.", notified });
-    } else if (canNotify && hoursOpen >= settings.alerts.escalateAfterHours && !inc.notification.durationReminderSent) {
+    } else if (moduleReminder || (canNotify && hoursOpen >= settings.alerts.escalateAfterHours && !inc.notification.durationReminderSent)) {
       inc.notification.durationReminderSent = true;
       const notified = notify(inc, "DURATION_EXCEEDED", live.severity);
       pushEvent(inc, {
         kind: "DURATION_EXCEEDED",
         severity: live.severity,
         deviation: live.deviation,
-        message: `Supera ${settings.alerts.escalateAfterHours} h abierto: se escala.`,
+        message: live.absoluteTop ? `Continúa Absolute Top fuera de objetivo tras ${run.absoluteTopPolicy?.repeatAfterHours} h; revisión registrada sin envío externo.` : `Supera ${settings.alerts.escalateAfterHours} h abierto: se escala.`,
         notified,
       });
     } else {
@@ -285,7 +309,7 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
     if (alert.resolvedAt !== null || alert.incidentId || alert.groupedUnder || alert.status === "FALSE_POSITIVE") continue;
     // Persistir en Atención abre incidente solo para cuentas o plataformas y si el cambio no está explicado
     // (pausas del equipo, rotación, reasignación o un nuevo nivel sostenido).
-    const persistent = alert.consecutiveRuns >= settings.alerts.persistRunsForIncident && alert.level !== "campaign" && !alert.explained;
+    const persistent = alert.absoluteTop ? alert.consecutiveRuns >= 3 : alert.consecutiveRuns >= settings.alerts.persistRunsForIncident && alert.level !== "campaign" && !alert.explained;
     const promote = atLeast(alert.severity, settings.alerts.incidentMinSeverity) || persistent;
     if (!promote) continue;
     state.seq.incident += 1;
@@ -299,6 +323,9 @@ export function reconcile(prev: AlertState, run: MonitoringRun, opts: ReconcileO
       accountName: alert.accountName,
       campaignId: alert.campaignId,
       campaignName: alert.campaignName,
+      adGroupId: alert.adGroupId, adGroupName: alert.adGroupName,
+      domain_id: alert.domain_id, domain_name: alert.domain_name, customer_id: alert.customer_id, account_name: alert.account_name,
+      absoluteTop: alert.absoluteTop,
       type: alert.type,
       title: alert.title,
       metric: alert.metric,

@@ -26,6 +26,7 @@ export interface Recommendation {
 }
 
 export const TRIGGER_BY_ANOMALY: Record<AnomalyType, RecTrigger> = {
+  ABSOLUTE_TOP_BELOW: "PERFORMANCE", ABSOLUTE_TOP_DROP: "PERFORMANCE",
   DATA_ISSUE: "DATA",
   DELIVERY_CRITICAL: "DELIVERY",
   PLATFORM_INCIDENT: "DELIVERY",

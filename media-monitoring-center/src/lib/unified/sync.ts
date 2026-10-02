@@ -5,6 +5,9 @@ import { addDays, diffDays } from "@/lib/time/tz";
 import { accountSchema, campaignSchema, mappingSchema, performanceSchema, UnifiedDataError, type UnifiedMapping } from "./schema";
 import { UnifiedSnapshotStore } from "./store";
 import { dailyAligned } from "./source";
+import { fetchGoogleDomainConfig } from "@/lib/domains/api";
+import { domainMetadata } from "@/lib/domains/config";
+import { createHash } from "node:crypto";
 
 const errors = z.array(z.object({ provider: z.string().optional(), error: z.object({ code: z.string(), details: z.object({ limitation: z.string().optional(), account_id: z.string().optional(), provider: z.string().optional(), partial_data: z.boolean().optional(), unsupported_metrics: z.array(z.string()).optional() }).optional() }) })).default([]);
 export interface UnifiedSyncOptions {
@@ -57,6 +60,16 @@ export async function syncUnified(options: UnifiedSyncOptions) {
     return parsed.data.data;
   };
   try {
+    // An invalid cache blocks classification, not repair through the validated API contract.
+    let domains = await options.store.domainConfig().catch(() => null);
+    let domainFingerprint = domains ? createHash("sha256").update(JSON.stringify(domains)).digest("hex") : undefined;
+    if (mapping.data.accounts.some(scope => scope.platform === "google" && scope.brand === "izzi")) {
+      try {
+        const next = await fetchGoogleDomainConfig({ base, apiKey: options.apiKey, request, timeoutMs: options.timeoutMs });
+        domainFingerprint = await options.store.saveDomainConfig(next, clock().toISOString());
+        domains = next;
+      } catch { /* Existing validated configuration remains usable offline; no invented map. */ }
+    }
     for (const scope of mapping.data.accounts) {
       const at = clock().toISOString();
       try {
@@ -69,9 +82,11 @@ export async function syncUnified(options: UnifiedSyncOptions) {
         const account = parsedAccount.data;
         if (!account || account.is_manager) throw new UnifiedDataError("ACCOUNT_NOT_ACCESSIBLE");
         if (account.currency !== scope.currency) throw new UnifiedDataError("ACCOUNT_CURRENCY_MISMATCH");
-        const campaigns = await call("campaigns", { provider: scope.platform, account_id: scope.accountId }, campaignSchema);
+        const meta = domainMetadata(domains, scope.platform, scope.accountId, account.account_name, scope.brand);
+        const fingerprint = domainFingerprint ? { domain_config_fingerprint: domainFingerprint } : {};
+        const campaigns = (await call("campaigns", { provider: scope.platform, account_id: scope.accountId }, campaignSchema)).map(campaign => ({ ...campaign, ...meta, ...fingerprint }));
         if (campaigns.some(c => c.account_id !== scope.accountId || c.platform !== scope.platform) || new Set(campaigns.map(c => c.campaign_id)).size !== campaigns.length) throw new UnifiedDataError("INVALID_CAMPAIGN_SCOPE");
-        await options.store.saveCatalog({ version: 1, scope, account, campaigns, extractedAt: at });
+        await options.store.saveCatalog({ version: 1, scope, account: { ...account, ...meta, account_name: account.account_name, ...fingerprint }, campaigns, extractedAt: at });
       } catch (error) {
         const code = error instanceof UnifiedDataError ? error.code : "CATALOG_READ_FAILED";
         for (const granularity of options.granularities) {
@@ -88,7 +103,7 @@ export async function syncUnified(options: UnifiedSyncOptions) {
           // Small windows let each successful block be checkpointed without erasing older days.
           for (let start = options.from; start <= options.to; start = addDays(start, 3)) {
             const end = [addDays(start, 2), options.to].sort()[0];
-            const rows = await call("performance", { provider: scope.platform, account_id: scope.accountId, date_from: start, date_to: end, granularity }, performanceSchema);
+            const rows = (await call("performance", { provider: scope.platform, account_id: scope.accountId, date_from: start, date_to: end, granularity }, performanceSchema)).map(row => ({ ...row, ...domainMetadata(domains, scope.platform, scope.accountId, catalog.account.account_name, scope.brand), ...(domainFingerprint ? { domain_config_fingerprint: domainFingerprint } : {}) }));
             const keys = new Set<string>();
             for (const row of rows) {
               const key = `${row.date}/${row.hour}/${row.campaign_id}`;

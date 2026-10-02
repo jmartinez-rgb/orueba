@@ -6,6 +6,7 @@ import { badRequest, forbidden, json, unauthorized } from "@/lib/services/http";
 import { answerNexus } from "@/lib/nexus/answer";
 import { projectNexusData } from "@/lib/nexus/data";
 import { NexusRateLimit } from "@/lib/nexus/rate-limit";
+import { parseDomainFilter } from "@/lib/domains/scope";
 
 export const dynamic = "force-dynamic";
 const limiter = new NexusRateLimit();
@@ -43,8 +44,9 @@ export async function POST(request: Request) {
   let body: unknown;
   try { body = await input(request); } catch { return badRequest("Envía una pregunta de hasta 500 caracteres y la marca seleccionada."); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return badRequest("La consulta no es válida.");
-  const { question, brand } = body as Record<string, unknown>;
+  const { question, brand, domain = "all" } = body as Record<string, unknown>;
   if (typeof question !== "string" || !question.trim() || question.length > 500 || !isBrand(brand)) return badRequest("Envía una pregunta de hasta 500 caracteres y la marca seleccionada.");
+  if (typeof domain !== "string" || parseDomainFilter(domain) !== domain) return badRequest("Selecciona un alcance válido antes de consultar Nexus.");
   if (session.brands.length && !session.brands.includes(brand)) return forbidden("No tienes acceso a esa marca.");
   const rate = limiter.take(session.user.id);
   if (!rate.allowed) return new Response(JSON.stringify({ ok: false, message: "Has enviado varias consultas seguidas. Espera un momento y vuelve a intentarlo." }), {
@@ -54,6 +56,7 @@ export async function POST(request: Request) {
     const snapshot = await getSnapshot();
     // A tab may still display the old brand after another tab changed the shared cookie.
     if (snapshot.meta.brand.id !== brand) return json({ ok: false, message: "La marca seleccionada cambió. Actualiza la página antes de consultar Nexus." }, 409);
+    if ((snapshot.meta.domain?.id ?? "all") !== domain) return json({ ok: false, message: "El dominio seleccionado cambió. Actualiza la página antes de consultar Nexus." }, 409);
     return json({ ok: true, answer: answerNexus(question, projectNexusData(snapshot)) });
   } catch {
     // No technical errors, secret-bearing URLs, underlying notes or raw snapshots are returned.

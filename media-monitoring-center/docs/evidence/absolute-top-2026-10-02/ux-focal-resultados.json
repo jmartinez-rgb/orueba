@@ -1,0 +1,393 @@
+{
+  "generatedAt": "2026-10-02T19:55:52.445Z",
+  "results": [
+    {
+      "name": "absolute-top:positive:320:light",
+      "ok": true,
+      "ms": 8615,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true,
+      "ctrAbove100Visible": true,
+      "detailsKeyboardFocusVisible": true
+    },
+    {
+      "name": "absolute-top:positive:320:dark",
+      "ok": true,
+      "ms": 3908,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true,
+      "ctrAbove100Visible": true,
+      "detailsKeyboardFocusVisible": true
+    },
+    {
+      "name": "absolute-top:positive:390:light",
+      "ok": true,
+      "ms": 3302,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true,
+      "ctrAbove100Visible": true,
+      "detailsKeyboardFocusVisible": true
+    },
+    {
+      "name": "absolute-top:positive:390:dark",
+      "ok": true,
+      "ms": 3283,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true,
+      "ctrAbove100Visible": true,
+      "detailsKeyboardFocusVisible": true
+    },
+    {
+      "name": "absolute-top:positive:768:light",
+      "ok": true,
+      "ms": 3768,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true,
+      "ctrAbove100Visible": true,
+      "detailsKeyboardFocusVisible": true
+    },
+    {
+      "name": "absolute-top:positive:768:dark",
+      "ok": true,
+      "ms": 3905,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true,
+      "ctrAbove100Visible": true,
+      "detailsKeyboardFocusVisible": true
+    },
+    {
+      "name": "absolute-top:positive:1024:light",
+      "ok": true,
+      "ms": 3280,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true,
+      "ctrAbove100Visible": true,
+      "detailsKeyboardFocusVisible": true
+    },
+    {
+      "name": "absolute-top:positive:1024:dark",
+      "ok": true,
+      "ms": 3074,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true,
+      "ctrAbove100Visible": true,
+      "detailsKeyboardFocusVisible": true
+    },
+    {
+      "name": "absolute-top:positive:1440:light",
+      "ok": true,
+      "ms": 3257,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true,
+      "ctrAbove100Visible": true,
+      "detailsKeyboardFocusVisible": true
+    },
+    {
+      "name": "absolute-top:positive:1440:dark",
+      "ok": true,
+      "ms": 3381,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true,
+      "ctrAbove100Visible": true,
+      "detailsKeyboardFocusVisible": true
+    },
+    {
+      "name": "absolute-top:filters-and-details:390:dark",
+      "ok": true,
+      "ms": 4311,
+      "filters": 6,
+      "dependentFiltersReset": true,
+      "emptyState": true,
+      "unknowns": true,
+      "independentGroup": true,
+      "keyboardDetail": true,
+      "detailsFocus": true,
+      "manualClipboard": true,
+      "noExternalSend": true
+    },
+    {
+      "name": "absolute-top:filters-and-details:1440:light",
+      "ok": true,
+      "ms": 4463,
+      "filters": 6,
+      "dependentFiltersReset": true,
+      "emptyState": true,
+      "unknowns": true,
+      "independentGroup": true,
+      "keyboardDetail": true,
+      "detailsFocus": true,
+      "manualClipboard": true,
+      "noExternalSend": true
+    },
+    {
+      "name": "absolute-top:domain-summary-manual-copy",
+      "ok": true,
+      "ms": 4115,
+      "domainSummary": true,
+      "manualFallback": true,
+      "readOnly": true,
+      "manualFocus": true,
+      "scoped": true,
+      "clipboardSuccess": true,
+      "noExternalSend": true
+    },
+    {
+      "name": "absolute-top:domain-nexus-scope-reset",
+      "ok": true,
+      "ms": 4334,
+      "domainFixture": true,
+      "scopeSent": true,
+      "conversationReset": true,
+      "localFiltersReset": true,
+      "foreignAnswerBlocked": true,
+      "keyboardDialog": true,
+      "focusWrapBothDirections": true,
+      "serverCookieNotValidated": true
+    },
+    {
+      "name": "page:/absolute-top:320:light",
+      "ok": true,
+      "ms": 1397,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:320:dark",
+      "ok": true,
+      "ms": 1447,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:390:light",
+      "ok": true,
+      "ms": 1316,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:390:dark",
+      "ok": true,
+      "ms": 1521,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:768:light",
+      "ok": true,
+      "ms": 1397,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:768:dark",
+      "ok": true,
+      "ms": 1323,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:1024:light",
+      "ok": true,
+      "ms": 1633,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:1024:dark",
+      "ok": true,
+      "ms": 1585,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:1440:light",
+      "ok": true,
+      "ms": 1769,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:1440:dark",
+      "ok": true,
+      "ms": 1852,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "nexus:error-retry-cancel-and-brand-reset",
+      "ok": true,
+      "ms": 5555,
+      "error": true,
+      "retry": true,
+      "cancel": true,
+      "clearConversation": true,
+      "focusRestored": true,
+      "brandReset": true,
+      "newRequestScopeVerified": true
+    }
+  ],
+  "mutationCounts": {
+    "POST /api/domain (fixture)": 2
+  }
+}

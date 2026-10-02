@@ -1,6 +1,7 @@
 import type { Alert, Incident } from "@/lib/alerts/types";
 import type { AnomalyType, DailyPacing, PlatformStatusInfo } from "@/lib/monitoring/types";
 import type { DataState, PlatformId, Severity } from "@/lib/types";
+import type { DomainSelection } from "@/lib/domains/types";
 
 /**
  * Vista del cliente: el estado general en lenguaje simple. Nunca incluye notas, responsables,
@@ -51,9 +52,13 @@ export interface ClientViewInput {
   nextEvaluationAt: string;
   /** Avance mensual por plataforma y total (de Budget Control), si hay presupuesto. */
   month: Partial<Record<PlatformId | "total", { usedPct: number | null; expectedPct: number | null }>>;
+  /** The public projection contains the scope label, never its technical account IDs. */
+  domain?: DomainSelection;
+  hasAccounts?: boolean;
+  scopeAccounts?: ReadonlyArray<{ id: string; platform: PlatformId }>;
 }
 
-const BAD_DATA: DataState[] = ["DELAYED", "ERROR", "NO_DATA"];
+const BAD_DATA: DataState[] = ["DELAYED", "ERROR", "NO_DATA", "PARTIAL"];
 
 const WHAT: Record<AnomalyType, string> = {
   DATA_ISSUE: "Actualización de datos",
@@ -67,6 +72,8 @@ const WHAT: Record<AnomalyType, string> = {
   UNDERSPEND: "Ritmo de inversión por debajo de lo planeado",
   COST_INCREASE: "Aumento de costos",
   PACING_DEVIATION: "Ritmo de inversión",
+  ABSOLUTE_TOP_BELOW: "Revisión de visibilidad en búsqueda",
+  ABSOLUTE_TOP_DROP: "Variación en visibilidad en búsqueda",
 };
 
 const LEVEL_LABEL: Record<ClientLevel, string> = {
@@ -88,6 +95,17 @@ function levelOf(severity: Severity, dataState: DataState): ClientLevel {
 const pct = (v: number | null | undefined) => (v === null || v === undefined || !Number.isFinite(v) ? null : Math.round(v * 100));
 
 export function buildClientView(input: ClientViewInput): ClientView {
+  const unavailableScope = input.domain?.id !== "all" && input.domain?.available === false;
+  const emptyScope = unavailableScope || input.hasAccounts === false || input.platforms.length === 0;
+  if (emptyScope) return {
+    overall: "nodata",
+    headline: unavailableScope ? "Alcance no disponible" : "Sin cuentas en este alcance",
+    message: unavailableScope ? "La clasificación del alcance seleccionado no está disponible. El equipo revisará la configuración antes de interpretar sus datos." : "No hay cuentas configuradas en el alcance seleccionado. Este estado no confirma que las campañas estén en orden.",
+    updatedAt: null, nextReviewAt: input.nextEvaluationAt,
+    platforms: [], attending: [], alerts: [], month: null,
+  };
+  const accountKeys = new Set(input.scopeAccounts?.map(account => `${account.platform}:${account.id}`));
+  const inScope = (row: Pick<Incident, "platform" | "accountId">) => !input.domain || input.domain.id === "all" || !!row.accountId && accountKeys.has(`${row.platform}:${row.accountId}`);
   const platforms: ClientPlatform[] = input.platforms.map((p) => {
     const st = input.platformStatus[p];
     const level = st ? levelOf(st.severity, st.dataState) : "nodata";
@@ -104,7 +122,7 @@ export function buildClientView(input: ClientViewInput): ClientView {
 
   // Solo lo que el equipo atiende (desde Alerta) y sigue abierto; sin nombres, notas ni IDs.
   const attending: ClientAttention[] = input.incidents
-    .filter((i) => i.resolvedAt === null && (i.maxSeverity === "ALERT" || i.maxSeverity === "CRITICAL") && input.platforms.includes(i.platform))
+    .filter((i) => i.resolvedAt === null && (i.maxSeverity === "ALERT" || i.maxSeverity === "CRITICAL") && input.platforms.includes(i.platform) && inScope(i))
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
     .map((i) => ({
       platform: i.platform,
@@ -142,7 +160,7 @@ export function buildClientView(input: ClientViewInput): ClientView {
     nextReviewAt: input.nextEvaluationAt,
     platforms,
     attending,
-    alerts: (input.alerts ?? []).filter(alert => alert.resolvedAt === null && alert.status !== "FALSE_POSITIVE" && !alert.groupedUnder && input.platforms.includes(alert.platform)).map(alert => ({ platform: alert.platform, severity: alert.severity, what: WHAT[alert.type] ?? "Revisión en curso", since: alert.detectedAt })),
+    alerts: (input.alerts ?? []).filter(alert => alert.resolvedAt === null && alert.status !== "FALSE_POSITIVE" && !alert.groupedUnder && input.platforms.includes(alert.platform) && inScope(alert)).map(alert => ({ platform: alert.platform, severity: alert.severity, what: WHAT[alert.type] ?? "Revisión en curso", since: alert.detectedAt })),
     month: input.month.total ? { usedPct: pct(input.month.total.usedPct), expectedPct: pct(input.month.total.expectedPct) } : null,
   };
 }

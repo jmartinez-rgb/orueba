@@ -37,7 +37,7 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (key: string) => mocks.cookies.has(key) ? { value: mocks.cookies.get(key) } : undefined, set: mocks.cookieSet }),
   headers: async () => new Headers({ "user-agent": "Fixture Browser" }),
 }));
-vi.mock("@/lib/services/snapshot", () => ({ getSnapshot: mocks.snapshot }));
+vi.mock("@/lib/services/snapshot", () => ({ getSnapshot: mocks.snapshot, getFullSnapshot: mocks.snapshot }));
 vi.mock("@/lib/services/context", () => ({ getAppContext: mocks.context }));
 vi.mock("@/lib/services/activity", () => ({ logActivity: mocks.activity }));
 vi.mock("@/lib/services/critical", () => ({ pendingCritical: mocks.critical, acknowledgeCritical: mocks.acknowledge }));

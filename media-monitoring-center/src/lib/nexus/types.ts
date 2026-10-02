@@ -1,5 +1,6 @@
 import type { BrandId } from "@/lib/brands";
 import type { DataMode, DataState, PlatformId } from "@/lib/types";
+import type { DomainSelection } from "@/lib/domains/types";
 
 export interface NexusLink { label: string; href: string }
 export interface NexusAnswer {
@@ -10,7 +11,7 @@ export interface NexusAnswer {
   items: Array<{ title: string; detail: string; href?: string }>;
   sources: NexusLink[];
   suggestions: string[];
-  context: { brand: BrandId; brandName: string; date: string; cutoffHour: number; timezone: string; asOf: string; mode: DataMode };
+  context: { brand: BrandId; brandName: string; date: string; cutoffHour: number; timezone: string; asOf: string; mode: DataMode; domain?: DomainSelection };
 }
 
 export interface NexusMetrics { spend: number | null; impressions: number | null; clicks: number | null }
@@ -24,6 +25,8 @@ export interface NexusEntity {
   lastDataAt: string | null;
   cutoffHour: number | null;
   metrics: NexusMetrics;
+  domain_id?: string | null;
+  domain_name?: string | null;
 }
 
 /** Small allowlisted projection; never hand a full snapshot to the answer engine or browser. */

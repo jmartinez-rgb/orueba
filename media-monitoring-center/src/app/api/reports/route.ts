@@ -1,8 +1,10 @@
 import { z } from "zod";
+import { cookies } from "next/headers";
 import { requireAuth, requirePermission } from "@/lib/auth/session";
 import { listReports, saveReport } from "@/lib/records/reports";
 import { logActivity } from "@/lib/services/activity";
 import { resolveBrand } from "@/lib/services/brand";
+import { DOMAIN_COOKIE, parseDomainFilter } from "@/lib/domains/scope";
 import { badRequest, forbidden, json, readJson, serverError, unauthorized } from "@/lib/services/http";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +13,9 @@ export async function GET() {
   const session = await requireAuth();
   if (!session) return unauthorized();
   try {
-    return json({ ok: true, reports: await listReports(30, await resolveBrand(session)) });
+    const brand = await resolveBrand(session);
+    if (brand === "izzi" && parseDomainFilter((await cookies()).get(DOMAIN_COOKIE)?.value) !== "all") return json({ ok: true, reports: [] });
+    return json({ ok: true, reports: await listReports(30, brand) });
   } catch (err) {
     return serverError("api", err, "reports");
   }
@@ -32,7 +36,9 @@ export async function POST(req: Request) {
   const parsed = body.safeParse(await readJson(req));
   if (!parsed.success) return badRequest("El mensaje está vacío o es inválido.");
   try {
-    const r = await saveReport({ ...parsed.data, by: session.user.name, brand: await resolveBrand(session) });
+    const brand = await resolveBrand(session);
+    if (brand === "izzi" && parseDomainFilter((await cookies()).get(DOMAIN_COOKIE)?.value) !== "all") return json({ ok: false, message: "Selecciona Todos los dominios antes de guardar un mensaje en el historial de la marca." }, 409);
+    const r = await saveReport({ ...parsed.data, by: session.user.name, brand });
     await logActivity(session, "REPORT_GENERATED", `${r.id} · corte ${String(parsed.data.cutoffHour).padStart(2, "0")}:00 · ${parsed.data.summary}`);
     return json({ ok: true, report: r });
   } catch (err) {

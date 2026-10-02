@@ -15,6 +15,7 @@ export interface MetricDefinition {
 }
 
 export const METRICS: Record<MetricId, MetricDefinition> = {
+  absolute_top_rate: { id: "absolute_top_rate", label: "Absolute Top", short: "Abs. Top", format: "percent", bad: "down" },
   spend: { id: "spend", label: "Gasto", short: "Gasto", format: "currency", bad: "both" },
   impressions: { id: "impressions", label: "Impresiones", short: "Impr.", format: "number", bad: "down" },
   clicks: { id: "clicks", label: "Clics", short: "Clics", format: "number", bad: "down" },
@@ -115,6 +116,8 @@ function ratio(num: number | null, den: number | null, factor = 1): number | nul
 /** Calcula una métrica (base o derivada) a partir de totales. */
 export function metricValue(values: MetricValues, metric: MetricId, kpi?: Kpi): number | null {
   switch (metric) {
+    case "absolute_top_rate":
+      return null; // Independent Google report; cannot be derived from additive totals.
     case "cpa":
       return ratio(values.spend, values.conversions);
     case "cpl":

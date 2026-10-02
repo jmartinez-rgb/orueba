@@ -49,6 +49,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/live", label: "Monitoreo en vivo", icon: RadioTower },
       { href: "/platforms", label: "Plataformas", icon: Layers },
       { href: "/campaigns", label: "Campañas", icon: Megaphone },
+      { href: "/absolute-top", label: "Absolute Top", icon: Gauge },
       { href: "/monitoreos", label: "Monitoreos", icon: MessageSquareText },
     ],
   },

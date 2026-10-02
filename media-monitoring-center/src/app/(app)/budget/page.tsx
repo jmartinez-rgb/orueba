@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { safeSnapshot } from "@/lib/services/safe";
-import { getAppContext } from "@/lib/services/context";
+import { getAppContext, getViewContext } from "@/lib/services/context";
+import { buildSnapshot } from "@/lib/services/snapshot";
 import { getBudgetControl } from "@/lib/services/budget";
 import { fmtCurrency, fmtPercent } from "@/lib/format";
 import { MONTHS_ES } from "@/lib/time/tz";
@@ -27,12 +28,19 @@ export default async function BudgetPage() {
   const res = await safeSnapshot();
   if (!res.ok) return <ErrorPanel message={res.message} technical={res.technical} />;
   const snap = res.snap;
-  const ctx = await getAppContext();
+  const ctx = await getViewContext();
   const bc = await getBudgetControl(ctx, snap);
   const total = bc.lines.find((l) => l.level === "total");
   const [y, m] = bc.month.split("-").map(Number);
   const b = snap.settings.budget;
-  const budgets = await budgetState(snap, bc);
+  const partial = ctx.domain?.id !== undefined && ctx.domain.id !== "all";
+  if (partial && snap.meta.mode !== "mock") {
+    // Only a complete brand overview may update the shared daily budget snapshot.
+    const fullContext = await getAppContext();
+    const fullSnapshot = await buildSnapshot(fullContext);
+    await budgetState(fullSnapshot, await getBudgetControl(fullContext, fullSnapshot));
+  }
+  const budgets = await budgetState(snap, bc, partial);
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -42,6 +50,7 @@ export default async function BudgetPage() {
       {snap.meta.mode === "unified" && bc.lines.some(l => l.spend === null || l.forecast === null) && (
         <p className="rounded-md border border-status-attention/40 bg-status-attention/10 p-3 text-xs text-status-attention-text">Hay días, horas o tasas de cambio pendientes. El gasto incompleto y el pronóstico sin suficiente historial se muestran sin valor.</p>
       )}
+      {partial && <p className="rounded-md border border-(--hairline) bg-muted/40 p-3 text-xs text-muted-foreground">Los importes de esta vista corresponden al dominio seleccionado. Para editar las referencias de presupuesto, cambia a «Todos los dominios»; así no se modifica un presupuesto general desde un subtotal.</p>}
       {total && (
         <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
           <Tile label="Presupuesto mensual" value={fmtCurrency(total.budget)} />
@@ -89,7 +98,7 @@ export default async function BudgetPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <BudgetTable lines={bc.lines} month={bc.month} canEdit={snap.meta.permissions.includes("budgets:write")} />
+          <BudgetTable lines={bc.lines} month={bc.month} canEdit={!partial && snap.meta.permissions.includes("budgets:write")} />
         </CardContent>
       </Card>
     </div>
@@ -97,7 +106,7 @@ export default async function BudgetPage() {
 }
 
 /** Presupuestos vigentes: API unificada con datos reales; derivados del catálogo en modo demo. */
-async function budgetState(snap: Snapshot, bc: Awaited<ReturnType<typeof getBudgetControl>>): Promise<BudgetPanelState> {
+async function budgetState(snap: Snapshot, bc: Awaited<ReturnType<typeof getBudgetControl>>, partial = false): Promise<BudgetPanelState> {
   const fxRate = bc.fxRate;
   const demo = snap.meta.mode === "mock";
   const source = demo ? { ok: true as const, budgets: demoBudgets(snap, fxRate), warnings: [] as string[] } : await unifiedBudgets();
@@ -135,8 +144,9 @@ async function budgetState(snap: Snapshot, bc: Awaited<ReturnType<typeof getBudg
   const today = snap.meta.businessDate;
   const current = snapshotFrom(overview, today, snap.meta.generatedAt);
   try {
-    const prev = demo ? demoPreviousSnapshot(current, addDays(today, -1)) : await latestSnapshotBefore(snap.meta.brand.id, today);
-    if (!demo && Object.keys(current.units).length) await saveBudgetSnapshot(snap.meta.brand.id, current);
+    const complete = source.warnings.length === 0;
+    const prev = partial || !complete ? null : demo ? demoPreviousSnapshot(current, addDays(today, -1)) : await latestSnapshotBefore(snap.meta.brand.id, today);
+    if (!partial && !demo && complete && Object.keys(current.units).length) await saveBudgetSnapshot(snap.meta.brand.id, current);
     if (prev) changes = detectBudgetChanges(prev, current, snap.settings.thresholds.attention);
   } catch {
     // Sin almacén disponible el panel sigue sin la comparación.

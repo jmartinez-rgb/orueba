@@ -1,0 +1,4397 @@
+{
+  "generatedAt": "2026-10-02T19:38:06.523Z",
+  "results": [
+    {
+      "name": "absolute-top:positive:320:light",
+      "ok": true,
+      "ms": 8258,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true
+    },
+    {
+      "name": "absolute-top:positive:320:dark",
+      "ok": true,
+      "ms": 3793,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true
+    },
+    {
+      "name": "absolute-top:positive:390:light",
+      "ok": true,
+      "ms": 3497,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true
+    },
+    {
+      "name": "absolute-top:positive:390:dark",
+      "ok": true,
+      "ms": 3433,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true
+    },
+    {
+      "name": "absolute-top:positive:768:light",
+      "ok": true,
+      "ms": 3552,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true
+    },
+    {
+      "name": "absolute-top:positive:768:dark",
+      "ok": true,
+      "ms": 3053,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true
+    },
+    {
+      "name": "absolute-top:positive:1024:light",
+      "ok": true,
+      "ms": 3009,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true
+    },
+    {
+      "name": "absolute-top:positive:1024:dark",
+      "ok": true,
+      "ms": 2718,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true
+    },
+    {
+      "name": "absolute-top:positive:1440:light",
+      "ok": true,
+      "ms": 4013,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true
+    },
+    {
+      "name": "absolute-top:positive:1440:dark",
+      "ok": true,
+      "ms": 3282,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      },
+      "rscFixture": true,
+      "realProviderData": false,
+      "boundsVisible": true,
+      "unknownVisible": true
+    },
+    {
+      "name": "absolute-top:filters-and-details:390:dark",
+      "ok": true,
+      "ms": 4391,
+      "filters": 6,
+      "dependentFiltersReset": true,
+      "emptyState": true,
+      "unknowns": true,
+      "independentGroup": true,
+      "keyboardDetail": true,
+      "detailsFocus": true,
+      "manualClipboard": true,
+      "noExternalSend": true
+    },
+    {
+      "name": "absolute-top:filters-and-details:1440:light",
+      "ok": true,
+      "ms": 3898,
+      "filters": 6,
+      "dependentFiltersReset": true,
+      "emptyState": true,
+      "unknowns": true,
+      "independentGroup": true,
+      "keyboardDetail": true,
+      "detailsFocus": true,
+      "manualClipboard": true,
+      "noExternalSend": true
+    },
+    {
+      "name": "absolute-top:domain-nexus-scope-reset",
+      "ok": true,
+      "ms": 4381,
+      "domainFixture": true,
+      "scopeSent": true,
+      "conversationReset": true,
+      "localFiltersReset": true,
+      "foreignAnswerBlocked": true,
+      "keyboardDialog": true,
+      "focusWrapBothDirections": true,
+      "serverCookieNotValidated": true
+    },
+    {
+      "name": "page:/:320:light",
+      "ok": true,
+      "ms": 1713,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/live:320:light",
+      "ok": true,
+      "ms": 1404,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms:320:light",
+      "ok": true,
+      "ms": 1132,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/google:320:light",
+      "ok": true,
+      "ms": 1442,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/meta:320:light",
+      "ok": true,
+      "ms": 1348,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/tiktok:320:light",
+      "ok": true,
+      "ms": 1346,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/microsoft:320:light",
+      "ok": true,
+      "ms": 1432,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/spotify:320:light",
+      "ok": true,
+      "ms": 1506,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/x:320:light",
+      "ok": true,
+      "ms": 1713,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/campaigns:320:light",
+      "ok": true,
+      "ms": 1018,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/monitoreos:320:light",
+      "ok": true,
+      "ms": 1114,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:320:light",
+      "ok": true,
+      "ms": 954,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/alerts:320:light",
+      "ok": true,
+      "ms": 1020,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/incidents:320:light",
+      "ok": true,
+      "ms": 997,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tickets:320:light",
+      "ok": true,
+      "ms": 974,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades:320:light",
+      "ok": true,
+      "ms": 1017,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades/arranque:320:light",
+      "ok": true,
+      "ms": 1066,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/auditoria:320:light",
+      "ok": true,
+      "ms": 1167,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/cliente:320:light",
+      "ok": true,
+      "ms": 1008,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/budget:320:light",
+      "ok": true,
+      "ms": 1570,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/compare:320:light",
+      "ok": true,
+      "ms": 2783,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/historical:320:light",
+      "ok": true,
+      "ms": 2288,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/metricas:320:light",
+      "ok": true,
+      "ms": 1423,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/optimizaciones:320:light",
+      "ok": true,
+      "ms": 1092,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/integrations:320:light",
+      "ok": true,
+      "ms": 1071,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/automation:320:light",
+      "ok": true,
+      "ms": 1042,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/usuarios:320:light",
+      "ok": true,
+      "ms": 993,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/settings:320:light",
+      "ok": true,
+      "ms": 1290,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tipo-de-cambio:320:light",
+      "ok": true,
+      "ms": 1529,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/guia:320:light",
+      "ok": true,
+      "ms": 1234,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/sugerencias:320:light",
+      "ok": true,
+      "ms": 1039,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/:320:dark",
+      "ok": true,
+      "ms": 1441,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/live:320:dark",
+      "ok": true,
+      "ms": 1606,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms:320:dark",
+      "ok": true,
+      "ms": 1259,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/google:320:dark",
+      "ok": true,
+      "ms": 1037,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/meta:320:dark",
+      "ok": true,
+      "ms": 1528,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/tiktok:320:dark",
+      "ok": true,
+      "ms": 2116,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/microsoft:320:dark",
+      "ok": true,
+      "ms": 1559,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/spotify:320:dark",
+      "ok": true,
+      "ms": 1467,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/x:320:dark",
+      "ok": true,
+      "ms": 1501,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/campaigns:320:dark",
+      "ok": true,
+      "ms": 1098,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/monitoreos:320:dark",
+      "ok": true,
+      "ms": 1002,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:320:dark",
+      "ok": true,
+      "ms": 1033,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/alerts:320:dark",
+      "ok": true,
+      "ms": 1141,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/incidents:320:dark",
+      "ok": true,
+      "ms": 1223,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tickets:320:dark",
+      "ok": true,
+      "ms": 1050,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades:320:dark",
+      "ok": true,
+      "ms": 1203,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades/arranque:320:dark",
+      "ok": true,
+      "ms": 1247,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/auditoria:320:dark",
+      "ok": true,
+      "ms": 1099,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/cliente:320:dark",
+      "ok": true,
+      "ms": 971,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/budget:320:dark",
+      "ok": true,
+      "ms": 1064,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/compare:320:dark",
+      "ok": true,
+      "ms": 1704,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/historical:320:dark",
+      "ok": true,
+      "ms": 1768,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/metricas:320:dark",
+      "ok": true,
+      "ms": 1610,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/optimizaciones:320:dark",
+      "ok": true,
+      "ms": 1335,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/integrations:320:dark",
+      "ok": true,
+      "ms": 1117,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/automation:320:dark",
+      "ok": true,
+      "ms": 1012,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/usuarios:320:dark",
+      "ok": true,
+      "ms": 1254,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/settings:320:dark",
+      "ok": true,
+      "ms": 1389,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tipo-de-cambio:320:dark",
+      "ok": true,
+      "ms": 1302,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/guia:320:dark",
+      "ok": true,
+      "ms": 1104,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/sugerencias:320:dark",
+      "ok": true,
+      "ms": 1009,
+      "geometry": {
+        "viewport": 320,
+        "width": 320,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/:390:light",
+      "ok": true,
+      "ms": 1872,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/live:390:light",
+      "ok": true,
+      "ms": 1477,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms:390:light",
+      "ok": true,
+      "ms": 1095,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/google:390:light",
+      "ok": true,
+      "ms": 1617,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/meta:390:light",
+      "ok": true,
+      "ms": 1479,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/tiktok:390:light",
+      "ok": true,
+      "ms": 1492,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/microsoft:390:light",
+      "ok": true,
+      "ms": 1523,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/spotify:390:light",
+      "ok": true,
+      "ms": 1492,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/x:390:light",
+      "ok": true,
+      "ms": 1275,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/campaigns:390:light",
+      "ok": true,
+      "ms": 1088,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/monitoreos:390:light",
+      "ok": true,
+      "ms": 1107,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:390:light",
+      "ok": true,
+      "ms": 974,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/alerts:390:light",
+      "ok": true,
+      "ms": 1176,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/incidents:390:light",
+      "ok": true,
+      "ms": 1118,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tickets:390:light",
+      "ok": true,
+      "ms": 1020,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades:390:light",
+      "ok": true,
+      "ms": 1019,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades/arranque:390:light",
+      "ok": true,
+      "ms": 1352,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/auditoria:390:light",
+      "ok": true,
+      "ms": 1140,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/cliente:390:light",
+      "ok": true,
+      "ms": 1147,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/budget:390:light",
+      "ok": true,
+      "ms": 1492,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/compare:390:light",
+      "ok": true,
+      "ms": 1513,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/historical:390:light",
+      "ok": true,
+      "ms": 1379,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/metricas:390:light",
+      "ok": true,
+      "ms": 1063,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/optimizaciones:390:light",
+      "ok": true,
+      "ms": 1248,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/integrations:390:light",
+      "ok": true,
+      "ms": 1399,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/automation:390:light",
+      "ok": true,
+      "ms": 1065,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/usuarios:390:light",
+      "ok": true,
+      "ms": 1074,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/settings:390:light",
+      "ok": true,
+      "ms": 1862,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tipo-de-cambio:390:light",
+      "ok": true,
+      "ms": 1455,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/guia:390:light",
+      "ok": true,
+      "ms": 1585,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/sugerencias:390:light",
+      "ok": true,
+      "ms": 1702,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/:390:dark",
+      "ok": true,
+      "ms": 5640,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/live:390:dark",
+      "ok": true,
+      "ms": 3615,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms:390:dark",
+      "ok": true,
+      "ms": 2073,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/google:390:dark",
+      "ok": true,
+      "ms": 1802,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/meta:390:dark",
+      "ok": true,
+      "ms": 2260,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/tiktok:390:dark",
+      "ok": true,
+      "ms": 2374,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/microsoft:390:dark",
+      "ok": true,
+      "ms": 1509,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/spotify:390:dark",
+      "ok": true,
+      "ms": 1793,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/x:390:dark",
+      "ok": true,
+      "ms": 2671,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/campaigns:390:dark",
+      "ok": true,
+      "ms": 1681,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/monitoreos:390:dark",
+      "ok": true,
+      "ms": 2080,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:390:dark",
+      "ok": true,
+      "ms": 1475,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/alerts:390:dark",
+      "ok": true,
+      "ms": 1721,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/incidents:390:dark",
+      "ok": true,
+      "ms": 2291,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tickets:390:dark",
+      "ok": true,
+      "ms": 1459,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades:390:dark",
+      "ok": true,
+      "ms": 1594,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades/arranque:390:dark",
+      "ok": true,
+      "ms": 1353,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/auditoria:390:dark",
+      "ok": true,
+      "ms": 1819,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/cliente:390:dark",
+      "ok": true,
+      "ms": 1602,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/budget:390:dark",
+      "ok": true,
+      "ms": 1921,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/compare:390:dark",
+      "ok": true,
+      "ms": 2343,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/historical:390:dark",
+      "ok": true,
+      "ms": 2147,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/metricas:390:dark",
+      "ok": true,
+      "ms": 1964,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/optimizaciones:390:dark",
+      "ok": true,
+      "ms": 1798,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/integrations:390:dark",
+      "ok": true,
+      "ms": 1591,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/automation:390:dark",
+      "ok": true,
+      "ms": 1639,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/usuarios:390:dark",
+      "ok": true,
+      "ms": 1604,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/settings:390:dark",
+      "ok": true,
+      "ms": 2705,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tipo-de-cambio:390:dark",
+      "ok": true,
+      "ms": 1783,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/guia:390:dark",
+      "ok": true,
+      "ms": 2840,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/sugerencias:390:dark",
+      "ok": true,
+      "ms": 1986,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/:768:light",
+      "ok": true,
+      "ms": 2887,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/live:768:light",
+      "ok": true,
+      "ms": 2826,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms:768:light",
+      "ok": true,
+      "ms": 2380,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/google:768:light",
+      "ok": true,
+      "ms": 2236,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/meta:768:light",
+      "ok": true,
+      "ms": 1645,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/tiktok:768:light",
+      "ok": true,
+      "ms": 1403,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/microsoft:768:light",
+      "ok": true,
+      "ms": 1449,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/spotify:768:light",
+      "ok": true,
+      "ms": 1518,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/x:768:light",
+      "ok": true,
+      "ms": 1591,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/campaigns:768:light",
+      "ok": true,
+      "ms": 1454,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/monitoreos:768:light",
+      "ok": true,
+      "ms": 1247,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:768:light",
+      "ok": true,
+      "ms": 1080,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/alerts:768:light",
+      "ok": true,
+      "ms": 1075,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/incidents:768:light",
+      "ok": true,
+      "ms": 1149,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tickets:768:light",
+      "ok": true,
+      "ms": 1356,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades:768:light",
+      "ok": true,
+      "ms": 1129,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades/arranque:768:light",
+      "ok": true,
+      "ms": 1436,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/auditoria:768:light",
+      "ok": true,
+      "ms": 1326,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/cliente:768:light",
+      "ok": true,
+      "ms": 1005,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/budget:768:light",
+      "ok": true,
+      "ms": 1218,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/compare:768:light",
+      "ok": true,
+      "ms": 1546,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/historical:768:light",
+      "ok": true,
+      "ms": 2368,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/metricas:768:light",
+      "ok": true,
+      "ms": 1578,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/optimizaciones:768:light",
+      "ok": true,
+      "ms": 1257,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/integrations:768:light",
+      "ok": true,
+      "ms": 1396,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/automation:768:light",
+      "ok": true,
+      "ms": 1124,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/usuarios:768:light",
+      "ok": true,
+      "ms": 1594,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/settings:768:light",
+      "ok": true,
+      "ms": 1504,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tipo-de-cambio:768:light",
+      "ok": true,
+      "ms": 1366,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/guia:768:light",
+      "ok": true,
+      "ms": 1322,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/sugerencias:768:light",
+      "ok": true,
+      "ms": 1270,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/:768:dark",
+      "ok": true,
+      "ms": 2283,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/live:768:dark",
+      "ok": true,
+      "ms": 1628,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms:768:dark",
+      "ok": true,
+      "ms": 1168,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/google:768:dark",
+      "ok": true,
+      "ms": 1026,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/meta:768:dark",
+      "ok": true,
+      "ms": 1143,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/tiktok:768:dark",
+      "ok": true,
+      "ms": 1563,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/microsoft:768:dark",
+      "ok": true,
+      "ms": 1714,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/spotify:768:dark",
+      "ok": true,
+      "ms": 1546,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/x:768:dark",
+      "ok": true,
+      "ms": 1538,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/campaigns:768:dark",
+      "ok": true,
+      "ms": 1060,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/monitoreos:768:dark",
+      "ok": true,
+      "ms": 1271,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:768:dark",
+      "ok": true,
+      "ms": 1270,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/alerts:768:dark",
+      "ok": true,
+      "ms": 1334,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/incidents:768:dark",
+      "ok": true,
+      "ms": 1520,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tickets:768:dark",
+      "ok": true,
+      "ms": 1081,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades:768:dark",
+      "ok": true,
+      "ms": 1165,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades/arranque:768:dark",
+      "ok": true,
+      "ms": 1861,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/auditoria:768:dark",
+      "ok": true,
+      "ms": 1716,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/cliente:768:dark",
+      "ok": true,
+      "ms": 1284,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/budget:768:dark",
+      "ok": true,
+      "ms": 1340,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/compare:768:dark",
+      "ok": true,
+      "ms": 1903,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/historical:768:dark",
+      "ok": true,
+      "ms": 2091,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/metricas:768:dark",
+      "ok": true,
+      "ms": 1801,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/optimizaciones:768:dark",
+      "ok": true,
+      "ms": 1149,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/integrations:768:dark",
+      "ok": true,
+      "ms": 1216,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/automation:768:dark",
+      "ok": true,
+      "ms": 1300,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/usuarios:768:dark",
+      "ok": true,
+      "ms": 1116,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/settings:768:dark",
+      "ok": true,
+      "ms": 1350,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tipo-de-cambio:768:dark",
+      "ok": true,
+      "ms": 1328,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/guia:768:dark",
+      "ok": true,
+      "ms": 1350,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/sugerencias:768:dark",
+      "ok": true,
+      "ms": 1284,
+      "geometry": {
+        "viewport": 768,
+        "width": 768,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/:1024:light",
+      "ok": true,
+      "ms": 1607,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/live:1024:light",
+      "ok": true,
+      "ms": 1947,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms:1024:light",
+      "ok": true,
+      "ms": 1214,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/google:1024:light",
+      "ok": true,
+      "ms": 1715,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/meta:1024:light",
+      "ok": true,
+      "ms": 1807,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/tiktok:1024:light",
+      "ok": true,
+      "ms": 1856,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/microsoft:1024:light",
+      "ok": true,
+      "ms": 1829,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/spotify:1024:light",
+      "ok": true,
+      "ms": 1671,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/x:1024:light",
+      "ok": true,
+      "ms": 1786,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/campaigns:1024:light",
+      "ok": true,
+      "ms": 1522,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/monitoreos:1024:light",
+      "ok": true,
+      "ms": 1311,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:1024:light",
+      "ok": true,
+      "ms": 1377,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/alerts:1024:light",
+      "ok": true,
+      "ms": 1434,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/incidents:1024:light",
+      "ok": true,
+      "ms": 1520,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tickets:1024:light",
+      "ok": true,
+      "ms": 1567,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades:1024:light",
+      "ok": true,
+      "ms": 1775,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades/arranque:1024:light",
+      "ok": true,
+      "ms": 1287,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/auditoria:1024:light",
+      "ok": true,
+      "ms": 1228,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/cliente:1024:light",
+      "ok": true,
+      "ms": 1021,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/budget:1024:light",
+      "ok": true,
+      "ms": 1693,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/compare:1024:light",
+      "ok": true,
+      "ms": 1809,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/historical:1024:light",
+      "ok": true,
+      "ms": 2085,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/metricas:1024:light",
+      "ok": true,
+      "ms": 1731,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/optimizaciones:1024:light",
+      "ok": true,
+      "ms": 1465,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/integrations:1024:light",
+      "ok": true,
+      "ms": 1413,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/automation:1024:light",
+      "ok": true,
+      "ms": 1580,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/usuarios:1024:light",
+      "ok": true,
+      "ms": 1661,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/settings:1024:light",
+      "ok": true,
+      "ms": 2486,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tipo-de-cambio:1024:light",
+      "ok": true,
+      "ms": 1908,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/guia:1024:light",
+      "ok": true,
+      "ms": 1679,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/sugerencias:1024:light",
+      "ok": true,
+      "ms": 1716,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/:1024:dark",
+      "ok": true,
+      "ms": 2248,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/live:1024:dark",
+      "ok": true,
+      "ms": 1654,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms:1024:dark",
+      "ok": true,
+      "ms": 1669,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/google:1024:dark",
+      "ok": true,
+      "ms": 1992,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/meta:1024:dark",
+      "ok": true,
+      "ms": 2236,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/tiktok:1024:dark",
+      "ok": true,
+      "ms": 3014,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/microsoft:1024:dark",
+      "ok": true,
+      "ms": 2625,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/spotify:1024:dark",
+      "ok": true,
+      "ms": 2772,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/x:1024:dark",
+      "ok": true,
+      "ms": 1596,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/campaigns:1024:dark",
+      "ok": true,
+      "ms": 1450,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/monitoreos:1024:dark",
+      "ok": true,
+      "ms": 1488,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:1024:dark",
+      "ok": true,
+      "ms": 1384,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/alerts:1024:dark",
+      "ok": true,
+      "ms": 1607,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/incidents:1024:dark",
+      "ok": true,
+      "ms": 1916,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tickets:1024:dark",
+      "ok": true,
+      "ms": 1598,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades:1024:dark",
+      "ok": true,
+      "ms": 3076,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades/arranque:1024:dark",
+      "ok": true,
+      "ms": 1950,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/auditoria:1024:dark",
+      "ok": true,
+      "ms": 1600,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/cliente:1024:dark",
+      "ok": true,
+      "ms": 1115,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/budget:1024:dark",
+      "ok": true,
+      "ms": 1562,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/compare:1024:dark",
+      "ok": true,
+      "ms": 2088,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/historical:1024:dark",
+      "ok": true,
+      "ms": 2156,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/metricas:1024:dark",
+      "ok": true,
+      "ms": 1442,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/optimizaciones:1024:dark",
+      "ok": true,
+      "ms": 1521,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/integrations:1024:dark",
+      "ok": true,
+      "ms": 1349,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/automation:1024:dark",
+      "ok": true,
+      "ms": 1527,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/usuarios:1024:dark",
+      "ok": true,
+      "ms": 1587,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/settings:1024:dark",
+      "ok": true,
+      "ms": 2038,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tipo-de-cambio:1024:dark",
+      "ok": true,
+      "ms": 1258,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/guia:1024:dark",
+      "ok": true,
+      "ms": 1307,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/sugerencias:1024:dark",
+      "ok": true,
+      "ms": 1306,
+      "geometry": {
+        "viewport": 1024,
+        "width": 1024,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/:1440:light",
+      "ok": true,
+      "ms": 1641,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/live:1440:light",
+      "ok": true,
+      "ms": 1901,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms:1440:light",
+      "ok": true,
+      "ms": 1758,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/google:1440:light",
+      "ok": true,
+      "ms": 2062,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/meta:1440:light",
+      "ok": true,
+      "ms": 2003,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/tiktok:1440:light",
+      "ok": true,
+      "ms": 1579,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/microsoft:1440:light",
+      "ok": true,
+      "ms": 2106,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/spotify:1440:light",
+      "ok": true,
+      "ms": 1820,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/x:1440:light",
+      "ok": true,
+      "ms": 2060,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/campaigns:1440:light",
+      "ok": true,
+      "ms": 1688,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/monitoreos:1440:light",
+      "ok": true,
+      "ms": 1712,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:1440:light",
+      "ok": true,
+      "ms": 1747,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/alerts:1440:light",
+      "ok": true,
+      "ms": 1675,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/incidents:1440:light",
+      "ok": true,
+      "ms": 1570,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tickets:1440:light",
+      "ok": true,
+      "ms": 1303,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades:1440:light",
+      "ok": true,
+      "ms": 1593,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades/arranque:1440:light",
+      "ok": true,
+      "ms": 1859,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/auditoria:1440:light",
+      "ok": true,
+      "ms": 1577,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/cliente:1440:light",
+      "ok": true,
+      "ms": 1140,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/budget:1440:light",
+      "ok": true,
+      "ms": 1663,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/compare:1440:light",
+      "ok": true,
+      "ms": 2331,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/historical:1440:light",
+      "ok": true,
+      "ms": 2423,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/metricas:1440:light",
+      "ok": true,
+      "ms": 1590,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/optimizaciones:1440:light",
+      "ok": true,
+      "ms": 1349,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/integrations:1440:light",
+      "ok": true,
+      "ms": 1535,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/automation:1440:light",
+      "ok": true,
+      "ms": 1670,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/usuarios:1440:light",
+      "ok": true,
+      "ms": 1710,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/settings:1440:light",
+      "ok": true,
+      "ms": 2697,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tipo-de-cambio:1440:light",
+      "ok": true,
+      "ms": 1842,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/guia:1440:light",
+      "ok": true,
+      "ms": 1831,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/sugerencias:1440:light",
+      "ok": true,
+      "ms": 1855,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/:1440:dark",
+      "ok": true,
+      "ms": 2872,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/live:1440:dark",
+      "ok": true,
+      "ms": 5127,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms:1440:dark",
+      "ok": true,
+      "ms": 4374,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/google:1440:dark",
+      "ok": true,
+      "ms": 2844,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/meta:1440:dark",
+      "ok": true,
+      "ms": 3938,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/tiktok:1440:dark",
+      "ok": true,
+      "ms": 3371,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/microsoft:1440:dark",
+      "ok": true,
+      "ms": 2737,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/spotify:1440:dark",
+      "ok": true,
+      "ms": 5729,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/platforms/x:1440:dark",
+      "ok": true,
+      "ms": 3750,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/campaigns:1440:dark",
+      "ok": true,
+      "ms": 4050,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/monitoreos:1440:dark",
+      "ok": true,
+      "ms": 3072,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/absolute-top:1440:dark",
+      "ok": true,
+      "ms": 1960,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/alerts:1440:dark",
+      "ok": true,
+      "ms": 3398,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/incidents:1440:dark",
+      "ok": true,
+      "ms": 2805,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tickets:1440:dark",
+      "ok": true,
+      "ms": 2418,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades:1440:dark",
+      "ok": true,
+      "ms": 2341,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/novedades/arranque:1440:dark",
+      "ok": true,
+      "ms": 2637,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/auditoria:1440:dark",
+      "ok": true,
+      "ms": 1944,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/cliente:1440:dark",
+      "ok": true,
+      "ms": 1891,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/budget:1440:dark",
+      "ok": true,
+      "ms": 4514,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/compare:1440:dark",
+      "ok": true,
+      "ms": 3589,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/historical:1440:dark",
+      "ok": true,
+      "ms": 4467,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/metricas:1440:dark",
+      "ok": true,
+      "ms": 2885,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/optimizaciones:1440:dark",
+      "ok": true,
+      "ms": 3754,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/integrations:1440:dark",
+      "ok": true,
+      "ms": 3540,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/automation:1440:dark",
+      "ok": true,
+      "ms": 4361,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/usuarios:1440:dark",
+      "ok": true,
+      "ms": 3439,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/settings:1440:dark",
+      "ok": true,
+      "ms": 4957,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/tipo-de-cambio:1440:dark",
+      "ok": true,
+      "ms": 2051,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/guia:1440:dark",
+      "ok": true,
+      "ms": 2861,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "page:/sugerencias:1440:dark",
+      "ok": true,
+      "ms": 3512,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "headings": 1,
+        "unlabelledFields": [],
+        "emptyNames": [],
+        "overflow": []
+      }
+    },
+    {
+      "name": "keyboard:skip-link",
+      "ok": true,
+      "ms": 2207
+    },
+    {
+      "name": "keyboard:mobile-navigation:320",
+      "ok": true,
+      "ms": 3327
+    },
+    {
+      "name": "keyboard:mobile-navigation:390",
+      "ok": true,
+      "ms": 4250
+    },
+    {
+      "name": "keyboard:mobile-navigation:768",
+      "ok": true,
+      "ms": 3120
+    },
+    {
+      "name": "keyboard:detail:/alerts:Enter",
+      "ok": true,
+      "ms": 3044
+    },
+    {
+      "name": "keyboard:detail:/alerts:Space",
+      "ok": true,
+      "ms": 3277
+    },
+    {
+      "name": "keyboard:detail:/incidents:Enter",
+      "ok": true,
+      "ms": 2517
+    },
+    {
+      "name": "keyboard:detail:/incidents:Space",
+      "ok": true,
+      "ms": 3252
+    },
+    {
+      "name": "role:admin",
+      "ok": true,
+      "ms": 9732,
+      "role": "admin",
+      "expected": {
+        "settings": true,
+        "users": true
+      }
+    },
+    {
+      "name": "role:coadmin",
+      "ok": true,
+      "ms": 5586,
+      "role": "coadmin",
+      "expected": {
+        "settings": true,
+        "users": true
+      }
+    },
+    {
+      "name": "role:manager",
+      "ok": true,
+      "ms": 3828,
+      "role": "manager",
+      "expected": {
+        "settings": false,
+        "users": false
+      }
+    },
+    {
+      "name": "role:viewer",
+      "ok": true,
+      "ms": 4932,
+      "role": "viewer",
+      "expected": {
+        "settings": false,
+        "users": false
+      }
+    },
+    {
+      "name": "role:auditor",
+      "ok": true,
+      "ms": 3675,
+      "role": "auditor",
+      "expected": {
+        "settings": false,
+        "users": true
+      }
+    },
+    {
+      "name": "role:client",
+      "ok": true,
+      "ms": 2988,
+      "role": "client",
+      "expected": {
+        "settings": false,
+        "users": false
+      }
+    },
+    {
+      "name": "gates:kickoff:50:500",
+      "ok": true,
+      "ms": 3805,
+      "criticalFocus": true,
+      "monthlyResumed": true,
+      "escapeHandled": true
+    },
+    {
+      "name": "gates:kickoff:500:50",
+      "ok": true,
+      "ms": 5487,
+      "criticalFocus": true,
+      "monthlyResumed": true,
+      "escapeHandled": true
+    },
+    {
+      "name": "gates:reminder:50:500",
+      "ok": true,
+      "ms": 4440,
+      "criticalFocus": true,
+      "monthlyResumed": true,
+      "escapeHandled": true
+    },
+    {
+      "name": "gates:reminder:500:50",
+      "ok": true,
+      "ms": 5962,
+      "criticalFocus": true,
+      "monthlyResumed": true,
+      "escapeHandled": true
+    },
+    {
+      "name": "nexus:error-retry-cancel-and-brand-reset",
+      "ok": false,
+      "ms": 34693,
+      "error": "locator.waitFor: Timeout 30000ms exceeded. Call log:   - waiting for getByRole('dialog', { name: /Nexus/ }).getByText(/marca Sky seleccionada/) to be visible "
+    },
+    {
+      "name": "forms:settings-and-fx-offline-retain-drafts",
+      "ok": true,
+      "ms": 10718,
+      "settingsDraft": true,
+      "fxDraft": true,
+      "requestsIntercepted": true
+    }
+  ],
+  "mutationCounts": {
+    "POST /api/domain (fixture)": 2,
+    "PUT /api/settings": 1,
+    "PATCH /api/settings": 1
+  }
+}

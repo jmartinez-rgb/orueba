@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "domains": [
+    {
+      "id": "first_domain",
+      "name": "Primer Dominio",
+      "accounts": [
+        { "customerId": "8779536058", "name": "izzi – Performance AO - mxn" },
+        { "customerId": "6214109105", "name": "izzi – Performance AO - mxn 2" }
+      ],
+      "absoluteTopMinimum": 0.7
+    },
+    {
+      "id": "second_domain",
+      "name": "Segundo Dominio",
+      "accounts": [{ "customerId": "3224850043", "name": "izzi - Paquetes - 2do Dominio" }],
+      "absoluteTopMinimum": 0.1
+    },
+    {
+      "id": "third_domain",
+      "name": "Tercer Dominio",
+      "accounts": [{ "customerId": "7367928294", "name": "izzi - Ofertas" }],
+      "absoluteTopMinimum": 0.25
+    }
+  ],
+  "absoluteTop": {
+    "minImpressions": 100,
+    "warningGapPp": 5,
+    "suddenDropThresholdPp": 7,
+    "deepeningGapPp": 5,
+    "repeatAfterHours": 6,
+    "retentionDays": 90
+  }
+}

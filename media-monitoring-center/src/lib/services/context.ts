@@ -32,6 +32,9 @@ import { UnifiedDataSource } from "@/lib/unified/source";
 import { loadUnifiedMapping, UnifiedSnapshotStore } from "@/lib/unified/store";
 import { UnifiedDataError } from "@/lib/unified/schema";
 import { settingsRevision, SettingsConflictError } from "@/lib/config/settings-revision";
+import { DomainScopedSource } from "@/lib/data/domain-source";
+import { DOMAIN_COOKIE, scopedBudgets, selectDomain } from "@/lib/domains/scope";
+import type { DomainSelection, GoogleDomainConfig } from "@/lib/domains/types";
 
 /** Llave de la configuración compartida en el almacén de registros (modo simulado). */
 export const SETTINGS_RECORD_KEY = "settings/patch";
@@ -66,6 +69,11 @@ export interface AppContext {
   kickoff: MonthKickoff | null;
   /** Lo que el monitoreo toma en cuenta de las novedades y del arranque de mes. */
   plan: MonitoringPlan;
+  /** Offline copy of the validated master owned by unified-ads-api. */
+  domainConfig?: GoogleDomainConfig | null;
+  /** View selection only; persistent evaluation always uses the complete brand context. */
+  domain?: DomainSelection;
+  scopeKey?: string;
 }
 
 /** Entrada del motor con lo que el equipo aprobó (novedades, arranque de mes y presupuestos capturados en la app). */
@@ -75,12 +83,14 @@ export async function monitoringInput(ctx: AppContext, asOf: Date) {
     return { budgets: [] as BudgetRow[] };
   });
   const month = businessDate(asOf, ctx.settings.timezone).slice(0, 7);
+  const partial = ctx.domain?.id !== undefined && ctx.domain.id !== "all";
+  const catalog = partial ? await ctx.source.getCatalog() : { accounts: [], campaigns: [] };
   return {
     settings: ctx.settings,
     asOf,
     authorizations: ctx.plan.authorizations,
     declaredCampaigns: ctx.plan.declaredCampaigns,
-    extraBudgets: [ctx.plan.kickoffBudgets, overrides.budgets.filter((b) => b.month === month), ctx.plan.novedadBudgets],
+    extraBudgets: [ctx.plan.kickoffBudgets, overrides.budgets.filter((b) => b.month === month), ctx.plan.novedadBudgets].map(rows => scopedBudgets(rows, catalog, partial)),
   };
 }
 
@@ -232,10 +242,13 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
   const scenario = useMock ? getScenario(scenarioId) : null;
   if (mode === "sheets") settings = adaptToSheets(settings, sheets.mapping!);
   let inner: MonitoringDataSource;
+  let domainConfig: GoogleDomainConfig | null = null;
   if (mode === "unified") {
     if (!env.unifiedData.directory) throw new UnifiedDataError("DATA_DIRECTORY_MISSING");
     const direct = await loadUnifiedMapping();
-    inner = new UnifiedDataSource({ store: new UnifiedSnapshotStore(env.unifiedData.directory), accounts: direct.accounts.filter(a => a.brand === brand), timezone: settings.timezone });
+    const snapshots = new UnifiedSnapshotStore(env.unifiedData.directory);
+    domainConfig = await snapshots.domainConfig().catch(error => { logger.warn("domains.configuration_unavailable", { error }); return null; });
+    inner = new UnifiedDataSource({ store: snapshots, accounts: direct.accounts.filter(a => a.brand === brand), timezone: settings.timezone, domainConfig });
     const platforms = [...new Set(direct.accounts.filter(a => a.brand === brand).map(a => a.platform))];
     settings = { ...settings, monitoredPlatforms: platforms, ingestion: { ...settings.ingestion, ...Object.fromEntries(platforms.map(p => [p, "api" as const])) } };
   } else if (mode === "sheets") {
@@ -282,7 +295,7 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
     mode,
     settings,
     // Incluye lo aprobado en novedades y el arranque: si cambia, la evaluación en vivo se recalcula.
-    settingsHash: hash({ brand, settings, plan }),
+    settingsHash: hash({ brand, settings, plan, domainConfig }),
     settingsRevision: revision,
     source,
     store,
@@ -300,5 +313,19 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
     month,
     kickoff,
     plan,
+    domainConfig,
+    domain: selectDomain("all", brand, domainConfig),
+    scopeKey: `${brand}:all:${hash(domainConfig)}`,
   };
+}
+
+/** Request-scoped view. Never pass this context to evaluateNow, kickoff writes or acuses. */
+export async function getViewContext(full?: AppContext): Promise<AppContext> {
+  const ctx = full ?? await getAppContext();
+  const selection = selectDomain((await cookies()).get(DOMAIN_COOKIE)?.value, ctx.brand, ctx.domainConfig ?? null);
+  if (selection.id === "all") return { ...ctx, domain: selection, scopeKey: `${ctx.brand}:all:${hash(ctx.domainConfig)}` };
+  const raw = new DomainScopedSource(ctx.source.original, selection, ctx.domainConfig ?? null, ctx.brand, ctx.settings.timezone);
+  const source = new CurrencyConvertedSource(raw, { rates: ctx.settings.currency.rates, accountCurrency: ctx.settings.currency.accountCurrency });
+  const platforms = [...new Set((await raw.getCatalog()).accounts.map(account => account.platform))];
+  return { ...ctx, source, raw, domain: selection, brandPlatforms: platforms, scopeKey: `${ctx.brand}:${selection.id}:${hash(ctx.domainConfig)}`, settings: { ...ctx.settings, monitoredPlatforms: platforms.length ? platforms : ["google"] }, settingsHash: hash({ parent: ctx.settingsHash, selection, config: ctx.domainConfig }) };
 }

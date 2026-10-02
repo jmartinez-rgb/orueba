@@ -1,5 +1,11 @@
 # ABCW · Paid Media OS y motor de plan masivo
 
+**Nueva continuación:** [Dominios Google y Absolute Top](media-monitoring-center/docs/DOMINIOS_ABSOLUTE_TOP.md),
+rama `codex/dominios-absolute-top`. Añade la jerarquía dominio → cuenta → campaña → grupo,
+la clasificación central de las cuatro cuentas izzi y los mínimos 70% / 10% / 25%.
+Primera lectura diaria y horaria de las cuatro cuentas izzi comprobada; conciliación
+independiente y aceptación de producción siguen pendientes.
+
 **Continuación y auditoría del monitoreo v1:** [ENTREGA_CLAUDE.md](ENTREGA_CLAUDE.md).
 Incluye la guía vigente, un texto listo para pegar en Claude y la revisión manual del equipo.
 Rama `codex/finalizacion-verificador-meta-x`; conciliación y producción aún pendientes.

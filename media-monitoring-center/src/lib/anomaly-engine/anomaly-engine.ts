@@ -15,6 +15,7 @@ import { classifyDeviation, downgrade, maxSeverity, minSeverity, severityRank, u
  */
 
 const TYPE_FAMILY: Record<AnomalyType, AnomalyFamily> = {
+  ABSOLUTE_TOP_BELOW: "absolute_top", ABSOLUTE_TOP_DROP: "absolute_top",
   DATA_ISSUE: "data",
   DELIVERY_CRITICAL: "delivery",
   PLATFORM_INCIDENT: "delivery",
@@ -29,6 +30,7 @@ const TYPE_FAMILY: Record<AnomalyType, AnomalyFamily> = {
 };
 
 export const ANOMALY_LABEL: Record<AnomalyType, string> = {
+  ABSOLUTE_TOP_BELOW: "Absolute Top debajo del mínimo", ABSOLUTE_TOP_DROP: "Caída súbita de Absolute Top",
   DATA_ISSUE: "Problema de datos",
   DELIVERY_CRITICAL: "Paro de entrega",
   PLATFORM_INCIDENT: "Incidente de plataforma",

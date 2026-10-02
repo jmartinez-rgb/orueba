@@ -22,6 +22,7 @@ export interface TopbarProps {
   /** Marca vigente (nombre en el logo) y botón de cambio izzi | Sky. */
   brandName: string;
   brandSwitch: ReactNode;
+  domainSwitch?: ReactNode;
   counts: NavCounts;
   permissions: Permission[];
   overall: Severity | null;
@@ -44,7 +45,7 @@ export function Topbar(p: TopbarProps) {
   const zoneLabel = p.timezone.split("/").pop()?.replaceAll("_", " ") ?? p.timezone;
   const m = p.overall ? SEVERITY_META[p.overall] : null;
   return (
-    <header className="sticky top-0 z-40 px-2 pt-2 sm:px-3">
+    <header data-monitoring-topbar className="sticky top-0 z-40 px-2 pt-2 sm:px-3">
       {/* Barra de herramientas flotante de vidrio: el contenido se desplaza por debajo. */}
       <div className="glass rounded-[18px] px-2 sm:px-3">
         <div className="flex min-h-16 items-center gap-2">
@@ -117,6 +118,7 @@ export function Topbar(p: TopbarProps) {
             />
           </div>
         </div>
+        {p.domainSwitch && <div className="flex min-h-11 flex-wrap items-center gap-2 border-t border-(--hairline) px-1 py-1">{p.domainSwitch}<span className="text-[11px] text-muted-foreground">El filtro afecta la vista; los acuses y la evaluación conservan la marca completa.</span></div>}
         <div className="flex min-h-9 items-center justify-between gap-3 border-t border-(--hairline) px-1 pb-1 text-[11px] md:hidden">
           <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
             <Clock3 aria-hidden className="size-3.5 shrink-0" />

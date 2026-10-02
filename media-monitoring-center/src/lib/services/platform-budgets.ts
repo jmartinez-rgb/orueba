@@ -430,6 +430,6 @@ export function buildBudgetOverview(input: BudgetInput): BudgetOverview {
     const closing = projectionInsight("el total", projection, total.total);
     if (closing) insights.splice(Math.min(1, insights.length), 0, closing);
   }
-  const extractedAt = input.budgets.reduce<string | null>((max, b) => (max === null || b.extracted_at > max ? b.extracted_at : max), null);
+  const extractedAt = [...byPlatform.values()].flat().reduce<string | null>((max, b) => (max === null || b.extracted_at > max ? b.extracted_at : max), null);
   return { total, projection, platforms, insights, excluded: { rows: excluded.rows, currencies: [...excluded.currencies] }, extractedAt };
 }

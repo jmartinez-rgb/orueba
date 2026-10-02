@@ -10,7 +10,7 @@ import { recordAudit } from "@/lib/records/audit";
 import { createTicket, listTickets, OPEN_TICKET_STATUSES, type TicketCategory, type TicketChannel } from "@/lib/records/tickets";
 import { invalidate } from "@/lib/data/cache";
 import { getAppContext } from "./context";
-import { getSnapshot } from "./snapshot";
+import { getFullSnapshot } from "./snapshot";
 
 /** Incidente crítico pendiente de acuse para una persona. */
 export interface PendingCritical {
@@ -22,6 +22,7 @@ export interface PendingCritical {
   title: string;
   entity: string;
   deviation: number | null;
+  deviationUnit?: "%" | "pp";
   lastUpdateAt: string;
   diagnosis: string | null;
   ackedBy: string[];
@@ -37,13 +38,14 @@ export function categoryFor(type: AnomalyType): TicketCategory {
 }
 
 function entityOf(i: Incident): string {
+  if (i.level === "ad_group") return `${i.domain_name ?? "Sin clasificar"} · ${i.accountName ?? ""} · ${i.campaignName ?? i.campaignId} → ${i.adGroupName ?? i.adGroupId}`;
   if (i.level === "campaign") return `${i.campaignName ?? i.campaignId} · ${i.accountName ?? ""}`.trim();
   if (i.level === "account") return i.accountName ?? i.accountId ?? "Cuenta";
   return PLATFORMS[i.platform].name;
 }
 
 export async function pendingCritical(session: Session): Promise<PendingCritical[]> {
-  const snap = await getSnapshot();
+  const snap = await getFullSnapshot();
   const critical = snap.state.incidents.filter((i) => i.resolvedAt === null && i.severity === "CRITICAL");
   if (!critical.length) return [];
   const tickets = await listTickets(snap.meta.brand.id).catch(() => []);
@@ -62,6 +64,7 @@ export async function pendingCritical(session: Session): Promise<PendingCritical
       title: i.title,
       entity: entityOf(i),
       deviation: i.currentDeviation,
+      deviationUnit: i.metric === "absolute_top_rate" ? "pp" : "%",
       lastUpdateAt: i.lastUpdateAt,
       diagnosis: alert?.diagnosis ?? null,
       ackedBy: acks.map((a) => a.userName),
@@ -77,7 +80,7 @@ export async function acknowledgeCritical(
   input: { text: string; reportTo: string; channel: TicketChannel; createTicket: boolean },
   info: { ip: string | null; agent: string | null },
 ): Promise<{ ticketId: string | null; acknowledged: string[] }> {
-  const snap = await getSnapshot();
+  const snap = await getFullSnapshot();
   const incidents = snap.state.incidents.filter((i) => incidentIds.includes(i.id) && i.resolvedAt === null);
   if (!incidents.length) throw new Error("INCIDENT_NOT_FOUND");
   const by = session.user.name;

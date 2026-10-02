@@ -1,4 +1,5 @@
 import type { ProviderSlug } from "./providers.js";
+import type { DomainMetadata } from "../config/google-domains.js";
 
 /**
  * Modelo normalizado: todas las plataformas responden con estas formas. Las métricas que una
@@ -29,7 +30,7 @@ export interface ProviderStatus {
 
 export type CampaignStatus = "active" | "paused" | "removed" | "unknown";
 
-export interface NormalizedAccount {
+export interface NormalizedAccount extends Partial<DomainMetadata> {
   platform: ProviderSlug;
   client_id: string | null;
   account_id: string;
@@ -42,7 +43,7 @@ export interface NormalizedAccount {
   is_manager?: boolean;
 }
 
-export interface NormalizedCampaign {
+export interface NormalizedCampaign extends Partial<DomainMetadata> {
   platform: ProviderSlug;
   client_id: string | null;
   account_id: string;
@@ -59,7 +60,7 @@ export interface NormalizedCampaign {
  * Es configuración actual de la plataforma (no gasto): sirve para comparar el gasto del día contra
  * lo que la plataforma tiene autorizado gastar.
  */
-export interface NormalizedBudget {
+export interface NormalizedBudget extends Partial<DomainMetadata> {
   platform: ProviderSlug;
   client_id: string | null;
   account_id: string;
@@ -111,7 +112,7 @@ export type DeliveryKind =
   | "learning_limited"
   | "pending";
 
-export interface NormalizedDeliverySignal {
+export interface NormalizedDeliverySignal extends Partial<DomainMetadata> {
   platform: ProviderSlug;
   client_id: string | null;
   account_id: string;
@@ -135,7 +136,7 @@ export interface NormalizedDeliverySignal {
   extracted_at: string;
 }
 
-export interface NormalizedPerformance {
+export interface NormalizedPerformance extends Partial<DomainMetadata> {
   platform: ProviderSlug;
   client_id: string | null;
   account_id: string;
@@ -173,7 +174,7 @@ export interface NormalizedPerformance {
 }
 
 /** Conversión con su acción original y la categoría normalizada (mapeo configurable). */
-export interface NormalizedConversion {
+export interface NormalizedConversion extends Partial<DomainMetadata> {
   platform: ProviderSlug;
   client_id: string | null;
   account_id: string;

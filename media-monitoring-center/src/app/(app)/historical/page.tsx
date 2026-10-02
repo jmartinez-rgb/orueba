@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getAppContext } from "@/lib/services/context";
+import { getViewContext } from "@/lib/services/context";
 import { getHistorical } from "@/lib/services/analysis";
 import { safeSnapshot } from "@/lib/services/safe";
 import { businessDate, zonedParts } from "@/lib/time/tz";
@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Histórico" };
 export const dynamic = "force-dynamic";
 
 export default async function HistoricalPage() {
-  const ctx = await getAppContext();
+  const ctx = await getViewContext();
   const now = ctx.source.now();
   const tz = ctx.settings.timezone;
   let data: [Awaited<ReturnType<typeof getHistorical>>, Awaited<ReturnType<typeof safeSnapshot>>];
@@ -31,7 +31,7 @@ export default async function HistoricalPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Histórico" subtitle={`Referencia principal: ${ctx.settings.history.weeks} semanas (configurable). Revisa la evolución del gasto y compara con semanas anteriores.`} />
-      <HistoricalView initial={initial} />
+      <HistoricalView key={ctx.scopeKey} initial={initial} />
       {res.ok && (
         <Card>
           <CardHeader>

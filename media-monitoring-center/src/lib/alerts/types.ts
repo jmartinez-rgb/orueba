@@ -1,4 +1,4 @@
-import type { EntityLevel, MetricId, PlatformId, Severity } from "@/lib/types";
+import type { AlertEntityLevel, DomainMetadata, EntityLevel, MetricId, PlatformId, Severity } from "@/lib/types";
 import type { AnomalyEvidence, AnomalyFamily, AnomalyType, ExplainedBy, SpendBreakdown } from "@/lib/monitoring/types";
 
 export type AlertStatus = "NEW" | "ACKNOWLEDGED" | "INVESTIGATING" | "RESOLVED" | "FALSE_POSITIVE";
@@ -7,13 +7,16 @@ export const ALERT_STATUSES: AlertStatus[] = ["NEW", "ACKNOWLEDGED", "INVESTIGAT
 export type IncidentStatus = "OPEN" | "ACKNOWLEDGED" | "INVESTIGATING" | "RESOLVED";
 export const INCIDENT_STATUSES: IncidentStatus[] = ["OPEN", "ACKNOWLEDGED", "INVESTIGATING", "RESOLVED"];
 
-interface EntityFields {
-  level: EntityLevel;
+interface EntityFields extends DomainMetadata {
+  level: AlertEntityLevel;
   platform: PlatformId;
   accountId: string | null;
   accountName: string | null;
   campaignId: string | null;
   campaignName: string | null;
+  adGroupId?: string | null;
+  adGroupName?: string | null;
+  absoluteTop?: import("@/lib/absolute-top/types").AbsoluteTopEvaluation;
 }
 
 export interface Alert extends EntityFields {

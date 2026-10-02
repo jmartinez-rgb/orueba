@@ -18,8 +18,8 @@ const POLL_MS = 60_000;
 const MIN_TEXT = 20;
 const REPORT_SUGGESTIONS = ["Líder de la plataforma", "Equipo Paid Media", "Soporte de la plataforma", "Cliente", "Equipo de datos"];
 
-function pct(v: number | null) {
-  return v === null ? "s/d" : `${v > 0 ? "+" : ""}${(v * 100).toFixed(1)}%`;
+function pct(v: number | null, unit: "%" | "pp" = "%") {
+  return v === null ? "s/d" : `${v > 0 ? "+" : ""}${(v * 100).toFixed(1)}${unit === "pp" ? " pp" : "%"}`;
 }
 
 /**
@@ -180,7 +180,7 @@ export function CriticalAlertGate({ userName, canTicket, onPendingChange }: { us
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                   <PlatformMark platform={p.platform} />
                   <span className="font-semibold">{p.title}</span>
-                  <span className="tabular ml-auto text-xs font-semibold text-status-critical-text">{pct(p.deviation)}</span>
+                  <span className="tabular ml-auto text-xs font-semibold text-status-critical-text">{pct(p.deviation, p.deviationUnit)}</span>
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   <span className="font-mono">{p.id}</span> · {p.type} · {p.entity}

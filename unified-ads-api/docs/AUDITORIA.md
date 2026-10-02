@@ -1,8 +1,30 @@
 # Auditoría de la entrega de Codex — Unified Ads API
 
-**Punto de entrada vigente (2 de octubre de 2026 UTC):**
+## Continuación de dominios y Absolute Top — 2 de octubre de 2026 UTC
+
+Rama `codex/dominios-absolute-top`, desde `f32ba707`.
+[Informe A–J](../../media-monitoring-center/docs/DOMINIOS_ABSOLUTE_TOP.md) y
+[contrato Google v25](GOOGLE_ABSOLUTE_TOP.md). El maestro central clasifica cuatro cuentas
+izzi, con mínimos de presencia absoluta superior 70% / 10% / 25%. Se añaden catálogo y métricas
+independientes por campaña/grupo, metadatos transversales, histórico, evaluación y selector.
+API: **775/775 pruebas**, tipos/lint/formato pasan. Se comprobaron las ocho lecturas reales
+del nuevo módulo (diario/horario × cuatro cuentas izzi) para el día cerrado 2026-10-01,
+con reloj `America/Mexico_City`: 614 filas diarias y 14.736 intervalos horarios, conservando
+N/D. Las auditorías diarias quedaron importadas en el backend local privado File.
+La matriz histórica siguiente conserva sus fechas; esta muestra no acredita conciliación.
+
+Pendientes de **código/operación**: backend durable y garantías entre instancias.
+De **configuración**: extracción supervisada y almacenamiento de producción.
+De **datos/permisos**: comparar la muestra con exports independientes de Ads Manager,
+respetando el reloj de origen y la maduración de cuotas; no hace falta un permiso nuevo para
+las cuatro lecturas ya realizadas.
+De **negocio**: eventos principales, mapeos offline y tasas mensuales siguen bajo decisión del equipo.
+La ponderación por impresiones es un indicador aproximado; no se inventa la pérdida por
+presupuesto a nivel grupo ni se modifica una campaña. Producción sigue pendiente de aceptación.
+
+**Punto de entrada de la entrega anterior (2 de octubre de 2026 UTC):**
 [entrega para Claude](../../media-monitoring-center/docs/ENTREGA_CLAUDE_V1.md).
-Rama actual `codex/finalizacion-verificador-meta-x`, base funcional `f7431b2`.
+Rama anterior `codex/finalizacion-verificador-meta-x`, base funcional `f7431b2`.
 Los encabezados y resultados siguientes son evidencia fechada; no repetir como actuales los
 bloqueos superados de OAuth/aprobación. La aceptación de cifras de esta ronda es **solo izzi**.
 

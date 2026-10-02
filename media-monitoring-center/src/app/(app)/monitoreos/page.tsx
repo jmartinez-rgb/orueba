@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { safeSnapshot } from "@/lib/services/safe";
-import { getAppContext } from "@/lib/services/context";
+import { getViewContext } from "@/lib/services/context";
 import { buildReportData } from "@/lib/services/report";
 import { listReports } from "@/lib/records/reports";
 import { friendlyError } from "@/lib/logging/logger";
@@ -16,7 +16,7 @@ export default async function MonitoreosPage() {
   const res = await safeSnapshot();
   if (!res.ok) return <ErrorPanel message={res.message} technical={res.technical} />;
   const snap = res.snap;
-  const ctx = await getAppContext();
+  const ctx = await getViewContext();
   let data: Awaited<ReturnType<typeof buildReportData>>;
   try {
     data = await buildReportData(ctx, snap);
@@ -24,15 +24,17 @@ export default async function MonitoreosPage() {
     const f = friendlyError(ctx.mode === "mock" ? "api" : ctx.mode, err);
     return <ErrorPanel message={f.message} technical={f.technical} />;
   }
-  const history = (await listReports(30, ctx.brand).catch(() => [])).map((r) => ({ id: r.id, at: r.at, by: r.by, text: r.text, summary: r.summary, cutoffHour: r.cutoffHour }));
+  const fullScope = (ctx.domain?.id ?? "all") === "all";
+  const history = (fullScope ? await listReports(30, ctx.brand).catch(() => []) : []).map((r) => ({ id: r.id, at: r.at, by: r.by, text: r.text, summary: r.summary, cutoffHour: r.cutoffHour }));
   const perms = snap.meta.permissions;
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Monitoreos"
-        subtitle={`Mensaje de monitoreo para el grupo de WhatsApp, armado con los datos de hoy 00:00–${hourLabel(data.cutoffHour)} contra ayer y contra el ${data.lastWeekDay} pasado en la misma franja. Se copia y se envía manualmente.`}
+        subtitle={`Mensaje de monitoreo para el grupo de WhatsApp, armado con los datos de hoy 00:00–${hourLabel(data.cutoffHour)} contra ayer y contra el ${data.lastWeekDay} pasado en la misma franja. Se copia y se envía manualmente.${!fullScope ? ` Alcance: ${ctx.domain?.name}.` : ""}`}
       />
-      <ReportBuilder data={data} history={history} canSave={perms.includes("reports:write")} canConfigure={perms.includes("settings:write")} timezone={snap.meta.timezone} />
+      {!fullScope && <p className="rounded-lg border bg-card px-4 py-3 text-sm">La vista está filtrada. Para guardar mensajes o consultar el historial de la marca, selecciona Todos los dominios.</p>}
+      <ReportBuilder key={ctx.scopeKey ?? `${ctx.brand}:${ctx.domain?.id ?? "all"}`} data={data} history={history} canSave={fullScope && perms.includes("reports:write")} canConfigure={perms.includes("settings:write")} timezone={snap.meta.timezone} />
     </div>
   );
 }

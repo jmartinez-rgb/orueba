@@ -8,6 +8,8 @@ import { BrandSwitch, type BrandStatus } from "./brand-switch";
 import { getEnv } from "@/lib/config/env";
 import { hourLabel } from "@/lib/time/tz";
 import { baseSettings } from "@/lib/services/context";
+import { getViewContext } from "@/lib/services/context";
+import { DomainSwitch } from "./domain-switch";
 import { sessionPermissions, type Session, hasPermission } from "@/lib/auth/session";
 import { getAuthConfig } from "@/lib/auth/config";
 import { mustAcknowledgeCritical } from "@/lib/auth/roles";
@@ -84,17 +86,16 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
     counts = { ...counts, tickets: tickets.open, feedback: feedbackNew, ticketsSeverity: tickets.severity };
   }
   const permissions = sessionPermissions(session);
+  const viewContext = await getViewContext().catch(() => null);
+  const domain = viewContext?.domain;
+  const domainOptions = [{ id: "all", name: "Todos los dominios" }, ...(viewContext?.domainConfig?.domains ?? []).map(({ id, name }) => ({ id, name })), ...(viewContext?.domainConfig ? [{ id: "unclassified", name: "Sin clasificar" }] : [])];
   const auth = getAuthConfig();
   // Estado de cada marca para el botón de cambio (la vigente sale del snapshot; las otras, en caché por minuto).
   const brandStatuses: BrandStatus[] =
     allowedBrands.length > 1
       ? (
           await Promise.all(
-            allowedBrands.map((b) =>
-              b === brand && snapResult.ok
-                ? Promise.resolve({ brand: b, overall: snapResult.s.meta.brandHasData ? snapResult.s.overall : null, critical: snapResult.s.state.incidents.filter((i) => i.resolvedAt === null && i.severity === "CRITICAL").length })
-                : getBrandStatus(b),
-            ),
+            allowedBrands.map((b) => getBrandStatus(b)),
           )
         ).filter((x): x is BrandStatus => x !== null)
       : [];
@@ -124,6 +125,7 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
         <Topbar
           brandName={BRANDS[brand].name}
           brandSwitch={<BrandSwitch current={brand} statuses={brandStatuses} />}
+          domainSwitch={brand === "izzi" && domain ? <DomainSwitch current={domain} options={domainOptions} enabled={!!viewContext?.domainConfig} /> : undefined}
           counts={counts}
           permissions={permissions}
           overall={overall}
@@ -143,10 +145,12 @@ export async function AppShell({ children, session }: { children: ReactNode; ses
             La fuente de datos no trae cuentas de {BRANDS[brand].name}. {mode === "unified" ? "Revisa el mapeo de cuentas autorizadas y el histórico importado de esta marca." : "Las cuentas se asignan por su nombre (por ejemplo Sky - ABCW o izzi - Ofertas)."}
           </div>
         )}
+        {brand === "izzi" && !viewContext?.domainConfig && <div className="border-b border-(--hairline) bg-status-attention/12 px-4 py-2 text-xs text-status-attention-text">Clasificación de dominios pendiente: el extractor necesita guardar la configuración maestra validada de la API. Absolute Top permanece sin evaluación.</div>}
+        {domain && domain.id !== "all" && <div className="border-b border-(--hairline) bg-primary/5 px-4 py-2 text-xs text-foreground">Vista: Google Ads · {domain.name}{!domain.available ? " · configuración no disponible" : ""}. Las métricas representan únicamente las cuentas de este alcance.</div>}
         <main id="contenido-principal" tabIndex={-1} className="mx-auto w-full max-w-[1600px] flex-1 scroll-mt-28 px-4 pt-5 pb-10 outline-none sm:px-6 lg:px-7">{children}</main>
       </div>
       <AutoRefresh />
-      {hasPermission(session, "internal:view") && <NexusAssistant key={`nexus:${brand}`} brandId={brand} brandName={BRANDS[brand].name} />}
+      {hasPermission(session, "internal:view") && <NexusAssistant key={`nexus:${viewContext?.scopeKey ?? brand}`} brandId={brand} brandName={BRANDS[brand].name} domainId={domain?.id ?? "all"} domainName={domain?.name} />}
       <OperationalGates key={`gates:${brand}`} userName={session.user.name} userId={session.user.id} canAcknowledgeCritical={mustAcknowledgeCritical(session.role) && hasPermission(session, "tickets:write")} canTicket={hasPermission(session, "tickets:write")} canKickoff={hasPermission(session, "kickoff:write")} />
     </div>
   );

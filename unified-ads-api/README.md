@@ -1,6 +1,12 @@
 # Unified Ads API
 
-**Entrega vigente para Claude:** [guía completa](../media-monitoring-center/docs/ENTREGA_CLAUDE_V1.md)
+**Continuación Dominios/Absolute Top:** [informe A–J](../media-monitoring-center/docs/DOMINIOS_ABSOLUTE_TOP.md),
+rama `codex/dominios-absolute-top`. [Contrato Google v25](docs/GOOGLE_ABSOLUTE_TOP.md):
+`GET /api/v1/google-domains` expone el maestro y `GET /api/v1/google/absolute-top` consulta
+campañas/grupos Search de una cuenta, en una ventana máxima de siete días. Ambos requieren
+la autenticación habitual; datos ausentes se conservan como N/D.
+
+**Entrega anterior para Claude:** [guía completa](../media-monitoring-center/docs/ENTREGA_CLAUDE_V1.md)
 y [texto listo para pegar](../media-monitoring-center/docs/PROMPT_PARA_CLAUDE.md).
 Los informes anteriores conservan sus fechas; los conteos y bloqueos históricos no sustituyen
 el estado actual. Extracción y aceptación de cifras de esta ronda: **solo izzi**.

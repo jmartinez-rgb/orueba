@@ -30,10 +30,10 @@ beforeEach(() => {
   ctx = {
     mode: "mock", brand: "izzi", brandInfo: BRANDS.izzi,
     settings: structuredClone(DEFAULT_SETTINGS),
-    source: { now: () => new Date("2026-10-02T13:00:00Z") },
+    source: { now: () => new Date("2026-10-02T13:00:00Z"), getCatalog: async () => ({ accounts: [], campaigns: [] }) },
     store: { loadAlertState: vi.fn(async () => emptyAlertState()), getOverrides: vi.fn(async () => ({ alerts: {}, incidents: {}, budgets: [] })), saveAlertState: vi.fn(), saveNotifications: vi.fn(), saveRun: vi.fn() },
   } as unknown as AppContext;
-  mocks.run.mockResolvedValue({ businessDate: "2026-10-02", runAt: "2026-10-02T13:00:00Z", cutoffHour: 7, overall: "ALERT", anomalies: [] });
+  mocks.run.mockResolvedValue({ businessDate: "2026-10-02", runAt: "2026-10-02T13:00:00Z", cutoffHour: 7, overall: "ALERT", anomalies: [], entities: [] });
   mocks.base.mockResolvedValue({ state: emptyAlertState(), runs: [] });
   mocks.reconcile.mockReturnValue({ state: emptyAlertState(), notifications: [notification] });
   mocks.summary.mockReturnValue({ platforms: {}, anomalies: 0, openIncidents: 0 });

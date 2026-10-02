@@ -43,7 +43,7 @@ function getSeries(map: Map<string, HourlySeries>, key: string): HourlySeries {
 }
 
 const BAD_STATES: DataState[] = ["DELAYED", "ERROR", "NO_DATA"];
-const LEVEL_RANK = { platform: 0, account: 1, campaign: 2 } as const;
+const LEVEL_RANK = { platform: 0, account: 1, campaign: 2, ad_group: 3 } as const;
 
 export interface MonitoringInput {
   settings: MonitoringSettings;

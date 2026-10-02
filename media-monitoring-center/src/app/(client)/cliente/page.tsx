@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { CircleCheck, CircleDashed, Eye, LifeBuoy } from "lucide-react";
 import { buildClientView, type ClientLevel } from "@/lib/client/client-view";
-import { getAppContext } from "@/lib/services/context";
+import { getViewContext } from "@/lib/services/context";
 import { getBudgetControl } from "@/lib/services/budget";
 import { safeSnapshot } from "@/lib/services/safe";
 import { PLATFORMS } from "@/lib/platforms/registry";
@@ -34,7 +34,7 @@ export default async function ClientPage() {
   // Avance del mes por plataforma (si hay presupuesto); si no se puede calcular, la vista sigue sin él.
   const month: Partial<Record<PlatformId | "total", { usedPct: number | null; expectedPct: number | null }>> = {};
   try {
-    const control = await getBudgetControl(await getAppContext(), snap);
+    const control = await getBudgetControl(await getViewContext(), snap);
     for (const l of control.lines) {
       if (l.level === "total") month.total = { usedPct: l.usedPct, expectedPct: l.expectedPct };
       else if (l.level === "platform" && l.platform) month[l.platform] = { usedPct: l.usedPct, expectedPct: l.expectedPct };
@@ -51,11 +51,15 @@ export default async function ClientPage() {
     lastDataAt: snap.meta.lastDataAt,
     nextEvaluationAt: snap.meta.nextEvaluationAt,
     month,
+    domain: snap.meta.domain,
+    hasAccounts: snap.catalog.accounts.length > 0,
+    scopeAccounts: snap.catalog.accounts,
   });
   const hero = LEVEL[view.overall];
 
   return (
     <div className="flex flex-col gap-5">
+      {snap.meta.domain && snap.meta.domain.id !== "all" && <p className="rounded-lg border bg-card px-4 py-3 text-sm" role="status">Alcance: {snap.meta.domain.name}. {snap.meta.domain.available ? "El estado mostrado corresponde a este alcance." : "Su clasificación está pendiente de configuración."}</p>}
       <section className={cn("surface flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:p-8")} aria-live="polite">
         <span className={cn("grid size-14 shrink-0 place-items-center rounded-2xl", hero.tint)} aria-hidden>
           <hero.Icon className={cn("size-7", hero.tone)} />

@@ -1,11 +1,13 @@
 import type { PlatformId } from "@/lib/types";
+import type { DomainMetadata } from "@/lib/types";
+import type { DomainSelection } from "@/lib/domains/types";
 
 /** Semáforo del mensaje de WhatsApp: 🟢 bien · 🟠 hay observaciones · 🔴 problema. */
 export type ReportStatus = "ok" | "warn" | "bad";
 
 export const STATUS_EMOJI: Record<ReportStatus, string> = { ok: "🟢", warn: "🟠", bad: "🔴" };
 
-export interface CampaignGroup {
+export interface CampaignGroup extends Partial<DomainMetadata> {
   account: string;
   campaigns: string[];
 }
@@ -22,13 +24,13 @@ export interface PlatformReportData {
   spendHigherVsLastWeek: string[];
   spendLowerVsYesterday: string[];
   spendHigherVsYesterday: string[];
-  zeroSpend: Array<{ campaign: string; account: string }>;
+  zeroSpend: Array<{ campaign: string; account: string } & Partial<DomainMetadata>>;
   campaignsHigherVsYesterday: CampaignGroup[];
   conversionDropVsLastWeek: string[];
   conversionDropVsYesterday: string[];
   /** Métrica que se reporta como "conversiones" y su etiqueta. */
   metricLabel: string;
-  conversionsByAccount: Array<{ account: string; value: number | null }>;
+  conversionsByAccount: Array<{ account: string; value: number | null } & Partial<DomainMetadata>>;
   /** Incidentes críticos abiertos (para mencionarlos). */
   criticalIncidents: string[];
 }
@@ -51,6 +53,8 @@ export interface ReportData {
   accountBreakdown: PlatformId[];
   /** Marca del monitoreo ("izzi", "Sky"); el mensaje la menciona cuando no es izzi. */
   brandName?: string;
+  /** Explicit scope of the generated message; omitted by legacy fixtures. */
+  domain?: DomainSelection;
 }
 
 export interface ReportOptions {

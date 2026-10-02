@@ -1,5 +1,6 @@
 import type { Provider, ProviderSlug } from "../types/providers.js";
 import type { ApiError } from "../utils/errors.js";
+import type { GoogleAbsoluteTopQuery, GoogleAbsoluteTopRow } from "../types/google-absolute-top.js";
 import type {
   AccountQuery,
   CampaignQuery,
@@ -40,6 +41,8 @@ export interface AdsProvider {
   listBudgets?(query: CampaignQuery, options?: ProviderRequestOptions): Promise<NormalizedBudget[]>;
   /** Salud de entrega que reporta la plataforma (cuentas, campañas, conjuntos). */
   listDeliverySignals?(query: CampaignQuery, options?: ProviderRequestOptions): Promise<NormalizedDeliverySignal[]>;
+  /** Native Google Search position rates, independently by active campaign and ad group. */
+  getAbsoluteTop?(query: GoogleAbsoluteTopQuery, options?: ProviderRequestOptions): Promise<GoogleAbsoluteTopRow[]>;
 }
 
 export interface ProviderRequestOptions {

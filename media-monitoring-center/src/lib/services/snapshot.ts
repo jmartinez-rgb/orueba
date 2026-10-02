@@ -20,9 +20,15 @@ import type { RunSummary } from "@/lib/state/store";
 import { overallConfidence, platformConfidence, summarizeExecution, type ConfidenceResult, type ExecutionSummary } from "@/lib/monitoring/confidence";
 import type { CurrencyReport } from "@/lib/data/currency";
 import { PLATFORMS } from "@/lib/platforms/registry";
-import { getAppContext, monitoringInput, type AppContext } from "./context";
+import { getAppContext, getViewContext, monitoringInput, type AppContext } from "./context";
 import { SheetsDataSource } from "@/lib/sheets/sheets-source";
 import type { BrandId, BrandInfo } from "@/lib/brands";
+import type { DomainSelection } from "@/lib/domains/types";
+import { normalizeGoogleCustomerId } from "@/lib/domains/config";
+import { annotateDomainRun } from "@/lib/domains/run";
+import { enrichCatalog } from "@/lib/domains/scope";
+import { combineAbsoluteTopRun, getAbsoluteTopDashboard } from "@/lib/absolute-top/service";
+import type { AbsoluteTopDashboard } from "@/lib/absolute-top/types";
 
 export interface SnapshotMeta {
   appName: string;
@@ -54,6 +60,7 @@ export interface SnapshotMeta {
   brands: BrandId[];
   /** false = la fuente no trae cuentas de esta marca. */
   brandHasData: boolean;
+  domain?: DomainSelection;
   /** Modo Google Sheets: título de la hoja y problemas del mapeo o de las pestañas. */
   sheets: { title: string | null; readAt?: string | null; errors: string[]; tabs: Array<{ sheet: string; platform: string; rows: number | null; updatedAt: string | null; status: string | null; found: boolean }> } | null;
 }
@@ -79,6 +86,7 @@ export interface Snapshot {
   execution: ExecutionSummary;
   /** Cuentas en USD, tasas usadas y meses sin tasa. */
   currency: CurrencyReport;
+  absoluteTop?: AbsoluteTopDashboard;
 }
 
 
@@ -224,7 +232,7 @@ export class SnapshotError extends Error {
   }
 }
 
-export async function getSnapshot(): Promise<Snapshot> {
+export async function getFullSnapshot(): Promise<Snapshot> {
   const ctx = await getAppContext();
   try {
     return await buildSnapshot(ctx);
@@ -232,6 +240,20 @@ export async function getSnapshot(): Promise<Snapshot> {
     const f = friendlyError(ctx.mode === "mock" ? "api" : ctx.mode, err);
     logger.error("snapshot.failed", { error: err });
     throw new SnapshotError(f.message, f.technical);
+  }
+}
+
+/** Complete evaluation first; a selected domain is a read-only projection of that result. */
+export async function getSnapshot(): Promise<Snapshot> {
+  const ctx = await getAppContext();
+  try {
+    const full = await buildSnapshot(ctx);
+    const view = await getViewContext(ctx);
+    return view.domain?.id === "all" ? full : await buildSnapshot(view, { viewOf: full });
+  } catch (err) {
+    const failure = friendlyError(ctx.mode === "mock" ? "api" : ctx.mode, err);
+    logger.error("snapshot.failed", { error: err });
+    throw new SnapshotError(failure.message, failure.technical);
   }
 }
 
@@ -285,24 +307,37 @@ export async function getBrandStatus(brand: BrandId): Promise<{ brand: BrandId; 
   }
 }
 
-export async function buildSnapshot(ctx: AppContext): Promise<Snapshot> {
+export async function buildSnapshot(ctx: AppContext, options: { viewOf?: Snapshot } = {}): Promise<Snapshot> {
   const env = getEnv();
   const asOf = ctx.source.now();
   const tz = ctx.settings.timezone;
   const minuteKey = Math.floor(asOf.getTime() / 60000);
   const liveKey = `live:${ctx.mode}:${ctx.scenario?.id}:${ctx.settingsHash}:${minuteKey}`;
-  const run = await cached(liveKey, 60 * 1000, async () => runMonitoring(ctx.source, await monitoringInput(ctx, asOf)));
+  const evaluated = await cached(liveKey, 60 * 1000, async () => runMonitoring(ctx.source, await monitoringInput(ctx, asOf)));
+  const catalog = enrichCatalog(await ctx.source.getCatalog(), ctx.domainConfig ?? null, ctx.brand);
+  const allowedCustomerIds = catalog.accounts.filter(account => account.platform === "google").flatMap(account => {
+    const id = normalizeGoogleCustomerId(account.id);
+    return id ? [id] : [];
+  });
+  const absoluteTop = await getAbsoluteTopDashboard({ brand: ctx.brand, domainId: ctx.domain?.id ?? "all", config: ctx.domainConfig ?? null, now: asOf, allowedCustomerIds });
+  // A view does not create coverage or new incident transitions; it only carries approved full-run observations.
+  const allowedAccounts = new Set(catalog.accounts.map(account => account.id));
+  const combined = options.viewOf
+    ? { ...evaluated, anomalies: [...evaluated.anomalies, ...options.viewOf.run.anomalies.filter(anomaly => anomaly.family === "absolute_top" && !!anomaly.accountId && allowedAccounts.has(anomaly.accountId))] }
+    : combineAbsoluteTopRun(evaluated, absoluteTop);
+  const run = annotateDomainRun(combined, ctx.domainConfig ?? null, ctx.brand);
 
-  let { state: base, runs: allRuns } = await baseAlertState(ctx, asOf, run.businessDate);
+  let { state: base, runs: allRuns } = options.viewOf ? { state: options.viewOf.state, runs: options.viewOf.runs } : await baseAlertState(ctx, asOf, run.businessDate);
   // Vista previa en vivo: actualiza alertas/incidentes con la evaluación de este momento, sin notificar.
-  let preview = reconcile(base, run, { settings: ctx.settings, notify: false, whatsapp: env.whatsapp, brand: ctx.brandInfo });
-  if (await autoPersist(ctx, asOf, base, preview.state, allRuns)) {
+  let preview = options.viewOf ? { state: projectDomainState(base, catalog) } : reconcile(base, run, { settings: ctx.settings, notify: false, whatsapp: env.whatsapp, brand: ctx.brandInfo });
+  if (!options.viewOf && await autoPersist(ctx, asOf, base, preview.state, allRuns)) {
     ({ state: base, runs: allRuns } = await baseAlertState(ctx, asOf, run.businessDate));
     preview = reconcile(base, run, { settings: ctx.settings, notify: false, whatsapp: env.whatsapp, brand: ctx.brandInfo });
   }
-  const runs = allRuns.filter((r) => r.businessDate === run.businessDate);
+  // Persisted run summaries have brand totals, not entity-level attribution to domains.
+  const runs = options.viewOf ? [] : allRuns.filter((r) => r.businessDate === run.businessDate);
   const overrides = await ctx.store.getOverrides();
-  const state = applyOverrides(preview.state, overrides);
+  const state = options.viewOf ? preview.state : applyOverrides(preview.state, overrides);
   // Falsos positivos no pintan el estado de la plataforma.
   const falsePositive = new Set(state.alerts.filter((a) => a.status === "FALSE_POSITIVE" && a.resolvedAt === null).map((a) => a.fingerprint));
   const platformStatus = Object.fromEntries(
@@ -313,10 +348,10 @@ export async function buildSnapshot(ctx: AppContext): Promise<Snapshot> {
   ) as Record<PlatformId, PlatformStatusView>;
   const overall = maxSeverity(...run.platforms.map((p) => platformStatus[p].severity));
 
-  const [catalog, execRows] = await Promise.all([ctx.source.getCatalog(), ctx.source.getExecutionControl(asOf).catch((err) => {
+  const execRows = await ctx.source.getExecutionControl(asOf).catch((err) => {
     logger.warn("execution_control.failed", { error: err });
     return [];
-  })]);
+  });
   const execution = summarizeExecution(execRows, asOf);
   const months = [...new Set([run.businessDate, ...run.comparisonDates].map((d) => d.slice(0, 7)))];
   const currency = await ctx.source.currencyReport(months);
@@ -380,8 +415,26 @@ export async function buildSnapshot(ctx: AppContext): Promise<Snapshot> {
     sheets: await sheetsMeta(ctx),
     brand: ctx.brandInfo,
     brands: ctx.brands,
-    brandHasData: ctx.brandPlatforms.length > 0,
+    // Empty domain selections do not mean the complete brand has no configured accounts.
+    brandHasData: options.viewOf?.meta.brandHasData ?? (ctx.brandPlatforms.length > 0),
+    domain: ctx.domain,
   };
 
-  return { meta, run, platformStatus, overall, state, runs, catalog, settings: ctx.settings, confidence, execution, currency };
+  return { meta, run, platformStatus, overall, state, runs, catalog, settings: ctx.settings, confidence, execution, currency, absoluteTop };
+}
+
+/** Global/platform alerts are not evidence about a particular domain. No writes occur here. */
+export function projectDomainState(state: AlertState, catalog: Catalog): AlertState {
+  const accounts = new Map(catalog.accounts.map(account => [account.id, account]));
+  const keep = (item: { accountId: string | null; platform: PlatformId }) => !!item.accountId && accounts.get(item.accountId)?.platform === item.platform;
+  const metadata = (accountId: string) => {
+    const account = accounts.get(accountId)!;
+    return { domain_id: account.domain_id, domain_name: account.domain_name, customer_id: account.customer_id, account_name: account.name };
+  };
+  const selectedAlerts = state.alerts.filter(keep);
+  const alertIds = new Set(selectedAlerts.map(alert => alert.id));
+  const incidents = state.incidents.filter(keep).map(incident => ({ ...incident, childAlertIds: incident.childAlertIds.filter(id => alertIds.has(id)), ...metadata(incident.accountId!) }));
+  const ids = new Set(incidents.map(incident => incident.id));
+  const alerts = selectedAlerts.map(alert => ({ ...alert, groupedUnder: null, incidentId: alert.incidentId && ids.has(alert.incidentId) ? alert.incidentId : null, ...metadata(alert.accountId!) }));
+  return { ...state, alerts, incidents, notifications: state.notifications.filter(notification => ids.has(notification.incidentId)) };
 }

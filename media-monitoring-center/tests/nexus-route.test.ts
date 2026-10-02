@@ -43,6 +43,30 @@ describe("Nexus API", () => {
     expect(JSON.stringify(await response.json())).not.toMatch(/Foreign|PRIVATE/);
   });
 
+  it("rejects stale domain selections, including legacy all-scope tabs, without returning data", async () => {
+    const snapshot = nexusSnapshot();
+    snapshot.meta.domain = { id: "fixture_domain", name: "Dominio de prueba", available: true, configVersion: 3 };
+    mocks.snapshot.mockResolvedValue(snapshot);
+    for (const domain of [undefined, "all", "another_domain"]) {
+      const response = await POST(request({ question: "Resumen", brand: "izzi", ...(domain === undefined ? {} : { domain }) }));
+      expect(response.status).toBe(409);
+      const body = await response.json();
+      expect(body).not.toHaveProperty("answer");
+      expect(JSON.stringify(body)).not.toMatch(/PRIVATE|acc1|Promociones/);
+    }
+    const accepted = await POST(request({ question: "Resumen", brand: "izzi", domain: "fixture_domain" }));
+    expect(accepted.status).toBe(200);
+    expect((await accepted.json()).answer.context.domain).toEqual(snapshot.meta.domain);
+  });
+
+  it("validates domain input before reading data and preserves all-scope compatibility", async () => {
+    for (const domain of [null, [], {}, 1, "", "ALL", "../first_domain", "x".repeat(65)]) {
+      expect((await POST(request({ question: "Resumen", brand: "izzi", domain }))).status).toBe(400);
+    }
+    expect(mocks.snapshot).not.toHaveBeenCalled();
+    expect((await POST(request({ question: "Resumen", brand: "izzi", domain: "all" }))).status).toBe(200);
+  });
+
   it("bounds input, rejects malformed bodies and does not compute a snapshot", async () => {
     for (const body of [null, [], {}, { question: "", brand: "izzi" }, { question: "x".repeat(501), brand: "izzi" }, { question: 123, brand: "izzi" }, { question: "Resumen", brand: "unknown" }]) {
       expect((await POST(request(body))).status).toBe(400);

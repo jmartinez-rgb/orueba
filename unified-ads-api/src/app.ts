@@ -22,6 +22,7 @@ import { ProviderStatusService } from "./services/provider-status.service.js";
 import { healthRoutes } from "./routes/health.js";
 import { providerRoutes } from "./routes/providers.js";
 import { dataRoutes } from "./routes/data.js";
+import { googleDomainRoutes } from "./routes/google-domains.js";
 
 export interface AppDeps {
   registry?: ProviderRegistry;
@@ -145,6 +146,7 @@ export async function buildApp(config: AppConfig, deps: AppDeps = {}): Promise<F
   await app.register(healthRoutes({ version: config.version, environment: config.env }), { prefix: "/api/v1" });
   await app.register(providerRoutes({ registry, statuses }), { prefix: "/api/v1" });
   await app.register(dataRoutes({ registry, timeoutMs: config.providerTimeoutMs }), { prefix: "/api/v1" });
+  await app.register(googleDomainRoutes, { prefix: "/api/v1" });
 
   return app;
 }

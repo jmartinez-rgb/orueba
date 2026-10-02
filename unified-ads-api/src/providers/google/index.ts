@@ -21,6 +21,9 @@ import { budgetsQuery, normalizeGoogleBudget } from "./budgets.js";
 import { healthQuery, normalizeGoogleHealth } from "./health.js";
 import type { RetryOptions } from "../../utils/retry.js";
 import type { ProviderRequestOptions } from "../provider.js";
+import { withGoogleDomain } from "../../config/google-domains.js";
+import type { GoogleAbsoluteTopQuery, GoogleAbsoluteTopRow } from "../../types/google-absolute-top.js";
+import { readAbsoluteTop, validateAbsoluteTopQuery } from "./absolute-top.js";
 
 /** Google Ads REST de solo lectura: OAuth, MCC, GAQL y respuestas normalizadas. */
 export class GoogleProvider extends BaseProvider {
@@ -140,7 +143,8 @@ export class GoogleProvider extends BaseProvider {
 
   override listAccounts(query: AccountQuery, options?: ProviderRequestOptions) {
     return this.run(
-      async (client, signal) => (await this.select(client, signal, query, options)).map((a) => ({ ...a })),
+      async (client, signal) =>
+        (await this.select(client, signal, query, options)).map((a) => withGoogleDomain({ ...a })),
       true,
       options?.signal,
     );
@@ -197,7 +201,9 @@ export class GoogleProvider extends BaseProvider {
     return this.run(
       async (client, signal) => {
         const rows = await this.rows(client, signal, query, campaignsQuery(), options);
-        return rows.map(({ row, account }) => normalizeCampaign(row, account));
+        return rows.map(({ row, account }) =>
+          withGoogleDomain({ ...normalizeCampaign(row, account), account_name: account.account_name }),
+        );
       },
       true,
       options?.signal,
@@ -210,7 +216,7 @@ export class GoogleProvider extends BaseProvider {
       async (client, signal) => {
         const at = new Date().toISOString();
         const rows = await this.rows(client, signal, query, budgetsQuery(), options);
-        return rows.flatMap(({ row, account }) => normalizeGoogleBudget(row, account, at) ?? []);
+        return rows.flatMap(({ row, account }) => normalizeGoogleBudget(row, account, at) ?? []).map(withGoogleDomain);
       },
       true,
       options?.signal,
@@ -223,7 +229,7 @@ export class GoogleProvider extends BaseProvider {
       async (client, signal) => {
         const at = new Date().toISOString();
         const rows = await this.rows(client, signal, query, healthQuery(), options);
-        return rows.flatMap(({ row, account }) => normalizeGoogleHealth(row, account, at));
+        return rows.flatMap(({ row, account }) => normalizeGoogleHealth(row, account, at)).map(withGoogleDomain);
       },
       true,
       options?.signal,
@@ -236,7 +242,7 @@ export class GoogleProvider extends BaseProvider {
       async (client, signal) => {
         const at = new Date().toISOString();
         const rows = await this.rows(client, signal, query, gaql, options);
-        return rows.map(({ row, account }) => normalizePerformance(row, account, query, at));
+        return rows.map(({ row, account }) => withGoogleDomain(normalizePerformance(row, account, query, at)));
       },
       true,
       options?.signal,
@@ -249,7 +255,29 @@ export class GoogleProvider extends BaseProvider {
       async (client, signal) => {
         const at = new Date().toISOString();
         const rows = await this.rows(client, signal, query, gaql, options);
-        return rows.map(({ row, account }) => normalizeConversion(row, account, query, client.config, at));
+        return rows.map(({ row, account }) =>
+          withGoogleDomain({
+            ...normalizeConversion(row, account, query, client.config, at),
+            account_name: account.account_name,
+          }),
+        );
+      },
+      true,
+      options?.signal,
+    );
+  }
+
+  getAbsoluteTop(query: GoogleAbsoluteTopQuery, options?: ProviderRequestOptions): Promise<GoogleAbsoluteTopRow[]> {
+    const scoped = validateAbsoluteTopQuery(query);
+    return this.run(
+      async (client, signal) => {
+        if (client.config.version !== "v25")
+          throw new ApiError("INVALID_REQUEST", "Absolute Top requiere Google Ads API v25.");
+        const accounts = await this.select(client, signal, scoped, options);
+        const account = accounts[0];
+        if (!account || account.is_manager)
+          throw new ApiError("INVALID_REQUEST", "Absolute Top requiere una cuenta publicitaria, no una MCC.");
+        return readAbsoluteTop(client, account, scoped, signal);
       },
       true,
       options?.signal,

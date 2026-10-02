@@ -22,6 +22,7 @@
     "auth:hash": "node scripts/auth-hash.mjs",
     "sheets:setup": "node scripts/sheets-setup.mjs",
     "sheets:check": "node scripts/sheets-setup.mjs --check",
+    "absolute-top:sync": "node --conditions=react-server --import tsx scripts/absolute-top-sync.ts",
     "unified:sync": "node --conditions=react-server --import tsx scripts/unified-sync.ts",
     "auth:bootstrap": "node --conditions=react-server --import tsx scripts/auth-bootstrap.ts",
     "unified:refresh": "node --conditions=react-server --import tsx scripts/unified-refresh.ts"
