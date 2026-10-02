@@ -180,3 +180,104 @@ Las causas incluyen 24 coberturas incompletas contra catálogo actual y seis dí
 (las causas pueden coincidir). La red estuvo bloqueada durante esta comprobación. Se validaron
 **83 pruebas** del contrato, privacidad de archivos y CLI, además de tipos y lint del alcance.
 Estos resultados describen esta muestra y no amplían la cobertura histórica ni certifican v1.
+
+## Absolute Top: comparación específica por campaña y grupo
+
+`npm run conciliar` compara totales de cuenta/día y **no acredita Absolute Top**: no contiene
+tasas, niveles ni cuotas. Para eso existe `npm run conciliar:absolute-top` (añadido el 2 de octubre
+de 2026 en `claude/auditoria-final-v1`). Compara el valor nativo de Google por entidad, guardado en
+las auditorías del monitoreo, contra un **export independiente de la interfaz de Google Ads** del
+mismo día cerrado, cuenta, reloj, moneda, red y nivel. Solo izzi; no llama APIs ni carga `.env`.
+
+- Métrica principal: **Impr. (Abs. Top) %** = `metrics.absolute_top_impression_percentage`.
+  No usar la columna «Search abs. top IS»: es otra métrica con otro denominador. Como defensa,
+  el mapa de columnas se rechaza si la tasa apunta a una cabecera con «IS», «share» o «cuota».
+- Secundarias opcionales: Impr. (Top) %, Search impr. share, Search lost IS (rank), Search lost IS
+  (budget) (solo campaña; Google no la publica por grupo), Impr., Clicks y Cost.
+- El agregado de dominio **no se compara**: es un indicador aproximado con otro denominador.
+  Campañas y grupos se comparan por separado; nunca se suman entre niveles.
+
+### 1. Fuente madura
+
+Google indica que las cuotas pueden actualizarse durante uno o dos días. El comparador marca
+`SOURCE_MATURITY_PENDING` / `REFERENCE_MATURITY_PENDING` si la extracción o el export ocurrieron
+antes de **48 h tras el cierre del día** en el reloj de la cuenta, y entonces nunca sale con 0.
+La lectura real del 2 de octubre sobre 2026-10-01 se hizo antes de ese umbral (cierre
+2026-10-02 06:00 UTC, madurez 2026-10-04 06:00 UTC). Para reproducir esa muestra:
+
+```bash
+# Con la configuración privada del entorno autorizado, después de 2026-10-04 06:00 UTC:
+npm run absolute-top:sync -- --from 2026-10-01 --to 2026-10-01 --granularity daily
+```
+
+### 2. Export independiente desde Google Ads (por cuenta y nivel)
+
+En cada una de las cuatro cuentas del maestro (8779536058, 6214109105, 3224850043, 7367928294):
+
+1. Vista **Campañas** (y después **Grupos de anuncios**), período personalizado de un solo día
+   (2026-10-01), filtro *Tipo de campaña = Búsqueda*. Incluir todas las campañas/grupos, sin filtro
+   de nombre; el comparador listará como `MISSING_SOURCE` las entidades no activas.
+2. Segmentar por **Red (con socios de búsqueda)** y conservar la etiqueta de la Red de Búsqueda
+   de Google tal como aparece en el export, o filtrar la vista para excluir socios y declararlo.
+   La API excluye socios de búsqueda: incluirlos cambia impresiones y tasas.
+3. Columnas: ID de campaña, ID del grupo (nivel grupo), red, código de moneda y las métricas
+   anteriores. Descargar CSV. Anotar la hora exacta de exportación (instante ISO con zona).
+4. No incluir datos personales ni la pestaña «Ventas Detalle». Guardar fuera de Git.
+
+### 3. Mapa de columnas e importación
+
+Las cabeceras dependen del idioma de la interfaz; el operador las declara textualmente. Hay
+ejemplos con cabeceras de la interfaz en inglés en `config/absolute-top-columns.*.example.json`;
+copiarlos y **sustituir cada cabecera por la del export real** (no se adivina por parecido).
+
+```bash
+npm run conciliar:absolute-top -- importar --csv privado/at-8779536058-campaign.csv \
+  --columnas privado/columnas-campaign.json --cuenta 877-953-6058 --nivel campaign \
+  --fecha 2026-10-01 --zona America/Mexico_City --moneda MXN --exportado 2026-10-04T15:00:00-06:00 \
+  --decimal . --miles , --separador coma --red-etiqueta "Google search" \
+  --output reportes/ref-at-8779536058-campaign.json
+```
+
+Formato numérico declarado (`--decimal`, `--miles` con `,`, `.`, `espacio` o `ninguno`);
+separador `coma`, `punto-y-coma` o `tab`; CSV UTF-8 o UTF-16 con BOM. Se omiten filas
+`Total…`; una fila sin ID, otra moneda, otra fecha (si se mapea la columna de día), una celda
+fuera de formato, un ID duplicado o cabeceras ausentes detienen la importación con un código y
+el número de fila, sin mostrar el contenido. `--` queda desconocido, nunca cero. Solo se aceptan
+como límites las censuras publicadas por Google: `< 10%` en Search impr. share y `> 90%` en lost IS.
+
+### 4. Comparación
+
+```bash
+npm run conciliar:absolute-top -- comparar \
+  --referencia reportes/ref-at-8779536058-campaign.json \
+  --referencia reportes/ref-at-8779536058-ad_group.json \
+  --output reportes/conciliacion-absolute-top-2026-10-01.json
+```
+
+Hasta 64 referencias (cuatro cuentas × dos niveles por día). Usa la auditoría diaria completa más
+reciente que cubra el día (`--auditoria ID` fija una concreta para una sola cuenta) y advierte
+`NEWER_AUDIT_NOT_COMPLETE` si una más nueva falló. Lee el backend de registros inyectado por
+`RECORDS_BACKEND`/`RECORDS_DIR`. Escribe JSON y CSV privados (0600, sin sobrescribir, IDs como
+texto, sin nombres de cuenta/campaña/grupo); stdout solo muestra conteos y rutas.
+
+| Código | Significado |
+| --- | --- |
+| `MATCH` | Diferencia dentro de **medio dígito del redondeo mostrado** por la interfaz (p. ej. ±0,005 pp con dos decimales); conteos exactos |
+| `BOUND_MATCH` | Ambos lados publican el mismo límite censurado |
+| `DIFFERENCE` | Fuera de esa tolerancia, o un lado censurado y el otro exacto |
+| `UNKNOWN_METRIC` | Un lado es N/D (`SOURCE_UNKNOWN` / `REFERENCE_UNKNOWN`); no se convierte en cero |
+| `NOT_EXPORTED` | La columna no se mapeó |
+| `MISSING_SOURCE` / `MISSING_REFERENCE` | La entidad falta en la auditoría activa o en el export |
+| `INCOMPATIBLE_CLOCK` / `INCOMPATIBLE_CURRENCY` | Zona o moneda distintas; no se convierten |
+
+Salida **0** solo si todas las entidades de todas las particiones coinciden (`MATCH`/`BOUND_MATCH`)
+con la métrica principal comparada, ambos lados maduros y sin motivos pendientes; **2** si hay
+diferencias, faltantes, desconocidos o maduración pendiente; **1** ante opciones, archivos o
+referencias inválidas. Una referencia intradía o futura se rechaza. La declaración de red
+(`SEGMENT_COLUMN` o `FILTERED_IN_UI`) y el origen del export son declaraciones del operador.
+`certifiesV1` es siempre `false`.
+
+**Estado al 2 de octubre de 2026:** no hay export independiente en este entorno ni configuración
+privada para leer las auditorías guardadas. La comparación está lista y probada con fixtures
+(19 casos: formato, censura, N/D frente a cero, niveles, reloj/moneda, madurez, selección de
+auditoría, importación UTF-16 y CLI sin red); **la conciliación real sigue pendiente**.

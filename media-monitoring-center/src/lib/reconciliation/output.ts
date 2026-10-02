@@ -41,17 +41,13 @@ export function outputPath(value?: string): string {
 }
 
 /** Exclusive files, private permissions, no following output symlinks or overwriting data. */
-export async function writeReconciliationArtifacts(report: ReconciliationReport, output?: string): Promise<{ json: string; csv: string; template: string }> {
-  const json = outputPath(output);
-  const files = { json, csv: json.replace(/\.json$/, ".csv"), template: json.replace(/\.json$/, ".reference-template.json") };
-  const bodies = [JSON.stringify(report, null, 2) + "\n", reconciliationCsv(report), JSON.stringify(referenceTemplate(report), null, 2) + "\n"];
-  const paths = [files.json, files.csv, files.template];
+export async function writeExclusivePrivateFiles(paths: string[], bodies: string[]): Promise<void> {
   try {
     for (const path of paths) {
       try { await lstat(path); throw new ReconciliationError("OUTPUT_EXISTS"); }
       catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
     }
-    await mkdir(dirname(json), { recursive: true, mode: 0o700 });
+    await mkdir(dirname(paths[0]), { recursive: true, mode: 0o700 });
   } catch (error) { throw error instanceof ReconciliationError ? error : new ReconciliationError("OUTPUT_FAILED"); }
   const created: { path: string; ino: number; dev: number }[] = [];
   try {
@@ -72,18 +68,24 @@ export async function writeReconciliationArtifacts(report: ReconciliationReport,
     }
     throw new ReconciliationError((error as NodeJS.ErrnoException).code === "EEXIST" ? "OUTPUT_EXISTS" : "OUTPUT_FAILED");
   }
+}
+
+export async function writeReconciliationArtifacts(report: ReconciliationReport, output?: string): Promise<{ json: string; csv: string; template: string }> {
+  const json = outputPath(output);
+  const files = { json, csv: json.replace(/\.json$/, ".csv"), template: json.replace(/\.json$/, ".reference-template.json") };
+  await writeExclusivePrivateFiles([files.json, files.csv, files.template], [JSON.stringify(report, null, 2) + "\n", reconciliationCsv(report), JSON.stringify(referenceTemplate(report), null, 2) + "\n"]);
   return files;
 }
 
-/** Bounded regular JSON files only. Errors never disclose JSON bodies or parser excerpts. */
-export async function readReferenceFile(path: string): Promise<unknown> {
-  if (!path.endsWith(".json") || /[\u0000-\u001f?#]/.test(path) || /(^|[\/\\])\.env(?:\.|$)/.test(path) || /^[a-z][a-z\d+.-]*:\/\//i.test(path)) throw new ReconciliationError("INVALID_REFERENCE_FILE");
+/** Bounded regular files only, never through a symlink. Errors never disclose file bodies. */
+export async function readPrivateInputFile(path: string, extension: ".json" | ".csv", code: string): Promise<Buffer> {
+  if (!path.endsWith(extension) || /[\u0000-\u001f?#]/.test(path) || /(^|[\/\\])\.env(?:\.|$)/.test(path) || /^[a-z][a-z\d+.-]*:\/\//i.test(path)) throw new ReconciliationError(code);
   const maxBytes = 8 * 1024 * 1024;
   try {
     const file = await open(resolve(path), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
     try {
       const stat = await file.stat();
-      if (!stat.isFile() || stat.size > maxBytes) throw new ReconciliationError("INVALID_REFERENCE_FILE");
+      if (!stat.isFile() || stat.size > maxBytes) throw new ReconciliationError(code);
       const bytes = Buffer.alloc(maxBytes + 1);
       let size = 0;
       while (size < bytes.length) {
@@ -91,8 +93,14 @@ export async function readReferenceFile(path: string): Promise<unknown> {
         if (read.bytesRead === 0) break;
         size += read.bytesRead;
       }
-      if (size > maxBytes) throw new ReconciliationError("INVALID_REFERENCE_FILE");
-      return JSON.parse(bytes.subarray(0, size).toString("utf8"));
+      if (size > maxBytes) throw new ReconciliationError(code);
+      return bytes.subarray(0, size);
     } finally { await file.close(); }
-  } catch { throw new ReconciliationError("INVALID_REFERENCE_FILE"); }
+  } catch { throw new ReconciliationError(code); }
+}
+
+/** Bounded regular JSON files only. Errors never disclose JSON bodies or parser excerpts. */
+export async function readReferenceFile(path: string): Promise<unknown> {
+  const bytes = await readPrivateInputFile(path, ".json", "INVALID_REFERENCE_FILE");
+  try { return JSON.parse(bytes.toString("utf8")); } catch { throw new ReconciliationError("INVALID_REFERENCE_FILE"); }
 }

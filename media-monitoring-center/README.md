@@ -147,6 +147,7 @@ gastar** (datos al día, gasto en cero las últimas 3 horas).
 | `npm run v1:check` | Configuración de producción y estados de API; `-- --sin-red` evita red. No certifica conciliación ni publica |
 | `npm run produccion:smoke` | Siete comprobaciones HTTPS sin autenticación ni escrituras; requiere `--monitor` y `--api`; no acepta la v1 |
 | `npm run conciliar` | Comparación offline izzi por cuenta/día con referencia independiente; JSON/CSV privados, sin inventar ceros, tasas ni eventos |
+| `npm run conciliar:absolute-top` | Importa un export CSV de Google Ads y compara Impr. (Abs. Top) % por campaña/grupo contra las auditorías guardadas; madurez 48 h, sin red ([guía](docs/CONCILIACION.md#absolute-top-comparación-específica-por-campaña-y-grupo)) |
 | `npm run unified:sync` | Extrae las cuentas del mapeo explícito, guarda catálogo y particiones diarias/horarias privadas; `-- --help` muestra opciones |
 | `npm run auth:setup` | Genera contraseñas nuevas, sus hashes y `AUTH_SECRET` (`-- --write` los guarda en `.env.local`) |
 | `npm run auth:hash -- "contraseña"` | Hash scrypt de una contraseña elegida |

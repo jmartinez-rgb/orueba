@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "level": "campaign",
+  "columns": {
+    "campaignId": "Campaign ID",
+    "adGroupId": null,
+    "network": "Network (with search partners)",
+    "currency": "Currency code",
+    "date": null,
+    "absolute_top_rate": "Impr. (Abs. Top) %",
+    "top_of_page_rate": "Impr. (Top) %",
+    "search_impression_share": "Search impr. share",
+    "search_lost_is_rank": "Search lost IS (rank)",
+    "search_lost_is_budget": "Search lost IS (budget)",
+    "impressions": "Impr.",
+    "clicks": "Clicks",
+    "spend": "Cost"
+  }
+}
