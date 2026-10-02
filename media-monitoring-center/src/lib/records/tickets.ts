@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import type { Severity } from "@/lib/types";
 import { DEFAULT_BRAND, type BrandId } from "@/lib/brands";
 import { getRecordStore, mapLimit } from "./store";
@@ -6,6 +7,13 @@ import { nextRecordId } from "./counter";
 import { OPEN_TICKET_STATUSES, TICKET_CHANNEL_LABEL, TICKET_STATUS_LABEL, type NewTicket, type Ticket, type TicketChannel, type TicketStatus } from "./ticket-model";
 
 export * from "./ticket-model";
+
+interface StoredTicket extends Ticket { appliedOperations?: string[] }
+function publicTicket(record: StoredTicket): Ticket {
+  const result = { ...record };
+  delete result.appliedOperations;
+  return result;
+}
 
 /**
  * Tickets de reporte: cuando un problema es grave se documenta a quién se reportó, por qué
@@ -44,7 +52,8 @@ export async function createTicket(input: NewTicket, by: string, brand: BrandId 
 
 export async function getTicket(id: string): Promise<Ticket | null> {
   if (!/^TKT-\d{4,}$/.test(id)) return null;
-  return getRecordStore().get<Ticket>(`tickets/${id}`);
+  const record = await getRecordStore().get<StoredTicket>(`tickets/${id}`);
+  return record ? publicTicket(record) : null;
 }
 
 export async function updateTicket(
@@ -52,53 +61,58 @@ export async function updateTicket(
   patch: { status?: TicketStatus; text?: string; externalRef?: string | null; owner?: string | null; reportedTo?: string; channel?: TicketChannel },
   by: string,
 ): Promise<Ticket | null> {
-  const t = await getTicket(id);
-  if (!t) return null;
+  if (!await getTicket(id)) return null;
   const now = new Date().toISOString();
-  const notes: string[] = [];
-  if (patch.externalRef !== undefined && (patch.externalRef?.trim() || null) !== t.externalRef) {
-    t.externalRef = patch.externalRef?.trim().slice(0, 80) || null;
-    notes.push(`Referencia externa: ${t.externalRef ?? "—"}.`);
-  }
-  if (patch.owner !== undefined && (patch.owner?.trim() || null) !== t.owner) {
-    t.owner = patch.owner?.trim().slice(0, 80) || null;
-    notes.push(`Responsable: ${t.owner ?? "sin asignar"}.`);
-  }
-  if (patch.reportedTo !== undefined && patch.reportedTo.trim() !== t.reportedTo) {
-    t.reportedTo = patch.reportedTo.trim().slice(0, 120);
-    notes.push(`Reportado a: ${t.reportedTo || "—"}.`);
-  }
-  if (patch.channel && patch.channel !== t.channel) {
-    t.channel = patch.channel;
-    notes.push(`Canal: ${TICKET_CHANNEL_LABEL[t.channel]}.`);
-  }
-  let status: TicketStatus | null = null;
-  if (patch.status && patch.status !== t.status) {
-    status = patch.status;
-    t.status = patch.status;
-    if (patch.status === "RESUELTO") t.resolvedAt = now;
-    if (patch.status === "CERRADO") {
-      t.closedAt = now;
-      t.resolvedAt ??= now;
+  const operationId = randomUUID();
+  const updated = await getRecordStore().update<StoredTicket>(`tickets/${id}`, (current) => {
+    if (!current || current.appliedOperations?.includes(operationId)) return current;
+    const t: StoredTicket = { ...current, updates: [...current.updates] };
+    const notes: string[] = [];
+    if (patch.externalRef !== undefined && (patch.externalRef?.trim() || null) !== t.externalRef) {
+      t.externalRef = patch.externalRef?.trim().slice(0, 80) || null;
+      notes.push(`Referencia externa: ${t.externalRef ?? "—"}.`);
     }
-    if (OPEN_TICKET_STATUSES.includes(patch.status)) {
-      t.resolvedAt = null;
-      t.closedAt = null;
+    if (patch.owner !== undefined && (patch.owner?.trim() || null) !== t.owner) {
+      t.owner = patch.owner?.trim().slice(0, 80) || null;
+      notes.push(`Responsable: ${t.owner ?? "sin asignar"}.`);
     }
-  }
-  const text = [patch.text?.trim().slice(0, 2000), ...notes].filter(Boolean).join(" ");
-  if (!text && !status) return t;
-  t.updates.push({ at: now, by, status, text: text || `Estado: ${TICKET_STATUS_LABEL[t.status]}.` });
-  await getRecordStore().set(`tickets/${id}`, t);
-  return t;
+    if (patch.reportedTo !== undefined && patch.reportedTo.trim() !== t.reportedTo) {
+      t.reportedTo = patch.reportedTo.trim().slice(0, 120);
+      notes.push(`Reportado a: ${t.reportedTo || "—"}.`);
+    }
+    if (patch.channel && patch.channel !== t.channel) {
+      t.channel = patch.channel;
+      notes.push(`Canal: ${TICKET_CHANNEL_LABEL[t.channel]}.`);
+    }
+    let status: TicketStatus | null = null;
+    if (patch.status && patch.status !== t.status) {
+      status = patch.status;
+      t.status = patch.status;
+      if (patch.status === "RESUELTO") t.resolvedAt = now;
+      if (patch.status === "CERRADO") {
+        t.closedAt = now;
+        t.resolvedAt ??= now;
+      }
+      if (OPEN_TICKET_STATUSES.includes(patch.status)) {
+        t.resolvedAt = null;
+        t.closedAt = null;
+      }
+    }
+    const text = [patch.text?.trim().slice(0, 2000), ...notes].filter(Boolean).join(" ");
+    if (!text && !status) return t;
+    t.updates.push({ at: now, by, status, text: text || `Estado: ${TICKET_STATUS_LABEL[t.status]}.` });
+    t.appliedOperations = [...(current.appliedOperations ?? []), operationId].slice(-50);
+    return t;
+  });
+  return updated ? publicTicket(updated) : null;
 }
 
 /** Tickets de una marca (sin marca = todos). Los tickets sin marca guardada son de izzi. */
 export async function listTickets(brand?: BrandId): Promise<Ticket[]> {
   const store = getRecordStore();
   const keys = (await store.list("tickets/")).filter((k) => /^tickets\/TKT-\d+$/.test(k));
-  const rows = await mapLimit(keys, 16, (k) => store.get<Ticket>(k));
-  return rows.filter((t): t is Ticket => t !== null && (!brand || (t.brand ?? DEFAULT_BRAND) === brand)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+  const rows = await mapLimit(keys, 16, (k) => store.get<StoredTicket>(k));
+  return rows.filter((t): t is StoredTicket => t !== null && (!brand || (t.brand ?? DEFAULT_BRAND) === brand)).map(publicTicket).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
 }
 
 export async function openTicketStats(brand?: BrandId): Promise<{ open: number; severity: Severity }> {

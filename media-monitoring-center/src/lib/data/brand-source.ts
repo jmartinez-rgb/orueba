@@ -3,6 +3,7 @@ import { BASE_METRICS, PLATFORM_IDS } from "@/lib/types";
 import { addMetrics } from "@/lib/metrics";
 import { brandOfAccount, brandOfCampaign, DEFAULT_BRAND, type BrandId } from "@/lib/brands";
 import type { DailyQuery, HourlyQuery, MonitoringDataSource } from "./source";
+import { coverAccounts } from "./account-coverage";
 
 /**
  * Vista de una sola marca (izzi o Sky) sobre la fuente completa. La hoja, el mock o BigQuery
@@ -119,19 +120,23 @@ export class BrandScopedSource implements MonitoringDataSource {
 
   async getHourly(q: HourlyQuery): Promise<HourlyRow[]> {
     const { s, direct, filtered } = await this.split(q.platforms);
+    const strict = this.kind === "unified" && q.level !== "campaign";
     const [a, b] = await Promise.all([
-      direct.length ? this.inner.getHourly({ ...q, platforms: direct }) : Promise.resolve([]),
+      direct.length ? this.inner.getHourly({ ...q, level: strict ? "account" : q.level, platforms: direct }) : Promise.resolve([]),
       filtered.length ? this.inner.getHourly({ ...q, level: "campaign", platforms: filtered }) : Promise.resolve([]),
     ]);
+    if (strict) return aggregate(coverAccounts([...a, ...b.filter(r => this.keepRow(s, r))], s.catalog.accounts.filter(account => !q.platforms?.length || q.platforms.includes(account.platform))), q.level, true);
     return [...a, ...aggregate(b.filter((r) => this.keepRow(s, r)), q.level, this.kind === "unified")];
   }
 
   async getDaily(q: DailyQuery): Promise<DailyRow[]> {
     const { s, direct, filtered } = await this.split(q.platforms);
+    const strict = this.kind === "unified" && q.level !== "campaign";
     const [a, b] = await Promise.all([
-      direct.length ? this.inner.getDaily({ ...q, platforms: direct }) : Promise.resolve([]),
+      direct.length ? this.inner.getDaily({ ...q, level: strict ? "account" : q.level, platforms: direct }) : Promise.resolve([]),
       filtered.length ? this.inner.getDaily({ ...q, level: "campaign", platforms: filtered }) : Promise.resolve([]),
     ]);
+    if (strict) return aggregate(coverAccounts([...a, ...b.filter(r => this.keepRow(s, r))], s.catalog.accounts.filter(account => !q.platforms?.length || q.platforms.includes(account.platform))), q.level, true);
     return [...a, ...aggregate(b.filter((r) => this.keepRow(s, r)), q.level, this.kind === "unified")];
   }
 

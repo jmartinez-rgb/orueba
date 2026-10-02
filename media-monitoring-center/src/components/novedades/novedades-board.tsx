@@ -139,10 +139,10 @@ export function NovedadesBoard({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-          <TabsList>
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)} className="min-w-0 w-full sm:w-auto">
+          <TabsList className="h-auto w-full flex-wrap justify-start gap-1" aria-label="Filtrar novedades">
             <TabsTrigger value="active">Vigentes ({activeCount})</TabsTrigger>
             <TabsTrigger value="all">Todas ({novedades.length})</TabsTrigger>
             <TabsTrigger value="closed">Cerradas o vencidas</TabsTrigger>

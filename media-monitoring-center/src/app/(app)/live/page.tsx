@@ -77,13 +77,13 @@ export default async function LivePage() {
                 const spend = i.evidence.find((e) => e.metric === "spend");
                 const result = i.evidence.find((e) => e.metric !== "spend" && e.metric !== "cpr" && !["clicks", "ctr", "cpc", "cpm"].includes(e.metric));
                 return (
-                  <a key={i.id} href={`/incidents?id=${i.id}`} className={cn("flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted/50", SEVERITY_META[i.severity].border)}>
-                    <div className="flex items-center gap-2">
+                  <a key={i.id} href={`/incidents?id=${i.id}`} className={cn("flex min-w-0 flex-col gap-2 rounded-lg border p-3 hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring", SEVERITY_META[i.severity].border)}>
+                    <div className="flex min-w-0 items-center gap-2">
                       <PlatformMark platform={i.platform} className="size-5 text-[9px]" />
-                      <span className="text-xs font-semibold">{PLATFORMS[i.platform].name}</span>
-                      <SeverityBadge severity={i.severity} className="ml-auto" />
+                      <span className="min-w-0 flex-1 truncate text-xs font-semibold" title={PLATFORMS[i.platform].name}>{PLATFORMS[i.platform].name}</span>
+                      <SeverityBadge severity={i.severity} className="ml-auto shrink-0" />
                     </div>
-                    <p className="text-sm leading-snug font-medium">{i.title}</p>
+                    <p className="text-sm leading-snug font-medium wrap-anywhere">{i.title}</p>
                     <p className="truncate text-[11px] text-muted-foreground">
                       {i.id} · {ANOMALY_LABEL[i.type]} · {i.campaignName ?? i.accountName ?? "Toda la plataforma"}
                     </p>

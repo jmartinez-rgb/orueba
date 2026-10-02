@@ -31,8 +31,8 @@ const RESULT_LABELS: Record<ChartResultMetric, string> = {
 function ScopeSelect({ value, onChange, scopes }: { value: Scope; onChange: (s: Scope) => void; scopes: ScopeOption[] }) {
   return (
     <Select value={value} onValueChange={(v) => onChange(v as Scope)}>
-      <SelectTrigger size="sm" className="w-40" aria-label="Plataforma">
-        <SelectValue />
+      <SelectTrigger size="sm" className="w-full max-w-full sm:w-40" aria-label="Plataforma" title={scopes.find((scope) => scope.id === value)?.label}>
+        <SelectValue className="min-w-0 truncate" />
       </SelectTrigger>
       <SelectContent>
         {scopes.map((s) => (
@@ -138,10 +138,10 @@ export function ResultsPacingCard({
           <CardTitle>Ritmo de resultados</CardTitle>
           <CardDescription>Acumulado por hora vs el mismo día de semanas anteriores</CardDescription>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full min-w-0 max-w-full flex-wrap gap-2 sm:w-auto">
           <Select value={metric} onValueChange={(v) => setMetric(v as ChartResultMetric)}>
-            <SelectTrigger size="sm" className="w-36" aria-label="Métrica">
-              <SelectValue />
+            <SelectTrigger size="sm" className="w-full max-w-full sm:w-36" aria-label="Métrica">
+              <SelectValue className="min-w-0 truncate" />
             </SelectTrigger>
             <SelectContent>
               {metrics.map((m) => (

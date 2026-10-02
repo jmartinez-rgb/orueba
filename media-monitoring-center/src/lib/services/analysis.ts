@@ -1,7 +1,7 @@
 import "server-only";
-import type { MetricId, PlatformId } from "@/lib/types";
+import type { MetricId, MetricValues, PlatformId } from "@/lib/types";
 import { PLATFORM_IDS } from "@/lib/types";
-import { addMetrics, addCompleteMetrics, emptyMetrics, metricValue, METRICS, OBJECTIVE_KPI, OBJECTIVE_LABEL } from "@/lib/metrics";
+import { addMetrics, addCompleteMetrics, emptyMetrics, isBaseMetric, metricValue, sumMetrics, METRICS, OBJECTIVE_KPI, OBJECTIVE_LABEL } from "@/lib/metrics";
 import { DEFAULT_CLASSIFIERS } from "@/lib/classifiers/defaults";
 import { classifyCampaign } from "@/lib/classifiers/classify";
 import { PLATFORMS } from "@/lib/platforms/registry";
@@ -14,6 +14,16 @@ import type { AppContext } from "./context";
 export const ANALYSIS_METRICS: MetricId[] = ["spend", "conversions", "cpa", "whatsapp", "leads", "sales", "ctr", "cpc", "cpl", "cpm", "impressions", "clicks"];
 
 const KPI = OBJECTIVE_KPI.CONVERSIONS;
+
+/** Paired base metrics include zero-result days; a null component excludes that sample pair. */
+function referenceRatio(totals: Array<MetricValues | null>, metric: MetricId): number | null {
+  const numerator = metric === "ctr" ? "clicks" : metric === "roas" ? "revenue" : "spend";
+  const denominator = metric === "ctr" || metric === "cpm" ? "impressions" : metric === "cpc" ? "clicks" : metric === "cpl" ? "leads" : metric === "roas" ? "spend" : KPI.result;
+  const complete = totals.filter((total): total is MetricValues => total !== null && total[numerator] !== null && total[denominator] !== null);
+  if (!complete.length) return null;
+  const result = metricValue(sumMetrics(complete), metric, KPI);
+  return result !== null && Number.isFinite(result) ? result : null;
+}
 
 function toSeries(rows: HourlyRow[], strict = false): Map<PlatformId | "total", HourlySeries> {
   const out = new Map<PlatformId | "total", HourlySeries>();
@@ -155,7 +165,14 @@ export async function getCompare(
       groups.set(key, g);
     }
     add(g.series, r);
-    add(total, r);
+    if (!strict || dimension === "platform") add(total, r);
+  }
+
+  // Campaign/strategy groupings cannot establish coverage of an absent account. Build the
+  // global direct-source total from the coverage-aware platform query instead of visible rows.
+  if (strict && dimension !== "platform") {
+    const complete = await ctx.source.getHourly({ dates: columns.map(c => c.date), level: "platform", platforms: platform === "all" ? undefined : [platform] });
+    for (const row of complete) add(total, row);
   }
 
   const buildRow = (id: string, name: string, sub: string | null, p: PlatformId | null, series: HourlySeries): CompareRow => {
@@ -164,7 +181,7 @@ export async function getCompare(
       return t ? metricValue(t, metric, KPI) : null;
     });
     const weekVals = values.slice(1, 1 + weeks.length).filter((v): v is number => v !== null);
-    const avg = mean(weekVals);
+    const avg = isBaseMetric(metric) ? mean(weekVals) : referenceRatio(columns.slice(1, 1 + weeks.length).map(c => windowTotals(series, c.date, 0, cutoffHour, strict)), metric);
     const med = median(weekVals);
     const prevIdx = weeks.indexOf(1);
     const prev = prevIdx >= 0 ? values[prevIdx + 1] : (values[1] ?? null);
@@ -257,8 +274,10 @@ export async function getHistorical(ctx: AnalysisContext, params: { today: strin
     days.push(row);
   }
   const weekdayProfile = Array.from({ length: 7 }, (_, wd) => {
-    const vals = days.filter((d) => d.weekday === wd).map((d) => d.total).filter((v): v is number => v !== null && v !== undefined);
-    return { weekday: wd, avg: mean(vals) };
+    const weekdayDays = days.filter((d) => d.weekday === wd);
+    const vals = weekdayDays.map((d) => d.total).filter((v): v is number => v !== null && v !== undefined);
+    const avg = isBaseMetric(metric) ? mean(vals) : referenceRatio(weekdayDays.map(d => byDay.get(d.date)?.get("total") ?? null), metric);
+    return { weekday: wd, avg };
   });
   // Mismo día de la semana a la misma hora de corte (regla principal) en todo el periodo.
   const sameDates = sameWeekdayDates(today, weeks);

@@ -85,7 +85,9 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
     ctx.source.getBudgets(month),
     ctx.store.getOverrides(),
   ]);
-  const daily = [...loadedDaily];
+  const strict = ctx.mode === "unified";
+  // Today's direct-mode subtotal comes from closed hours, never a second daily total.
+  const daily = loadedDaily.filter(row => !strict || row.date < today);
   const budgetMap = new Map<string, BudgetRow>();
   // Capas: hoja → arranque de mes → capturados en la app → ajustes aprobados en novedades.
   for (const b of sourceBudgets) budgetMap.set(keyOf(b), b);
@@ -94,11 +96,13 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
   for (const b of ctx.plan.novedadBudgets.filter((o) => o.month === month)) budgetMap.set(keyOf(b), b);
 
   const catalog = snap.catalog;
-  const strict = ctx.mode === "unified";
+  const campaignById = new Map(catalog.campaigns.map((c) => [c.id, c]));
   if (strict) {
     const hours = await ctx.source.getHourly({ dates: [today], level: "campaign" });
     const series = new Map<string, HourlySeries>();
     for (const r of hours) if (r.campaignId) {
+      const campaign = campaignById.get(r.campaignId);
+      if (r.date !== today || !campaign || r.platform !== campaign.platform || (r.accountId !== null && r.accountId !== campaign.accountId) || !Number.isInteger(r.hour) || r.hour < 0 || r.hour > 23) continue;
       const s = series.get(r.campaignId) ?? new Map();
       const h = s.get(today) ?? Array.from({ length: 24 }, () => null);
       h[r.hour] = r.metrics; s.set(today, h); series.set(r.campaignId, s);
@@ -135,7 +139,6 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
     };
   });
   const levelOf = new Map(accounts.map((a) => [a.accountId, a]));
-  const campaignById = new Map(catalog.campaigns.map((c) => [c.id, c]));
   const nDays = daysInMonth(month);
   const elapsedFullDays = diffDays(today, monthStart);
   const remainingWeekdays: number[] = [];
@@ -161,6 +164,8 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
   const monthDays = new Map<string, Set<string>>();
   const unknownMonth = new Set<string>();
   const unknownToday = new Set<string>();
+  const historicalDays = new Set<string>();
+  const historicalTotals = new Map<string, Map<string, { spend: number; complete: boolean }>>();
   // A date with any row is not complete coverage of an account/platform/brand.
   // Each catalog member must be covered, including members with no rows at all.
   const requiredMembers = new Map<string, string[]>();
@@ -206,6 +211,13 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
         }
         seenDay.set(k, seen);
       }
+      if (strict && r.date >= histStart && r.date < today) {
+        historicalDays.add(r.date);
+        const days = historicalTotals.get(k) ?? new Map<string, { spend: number; complete: boolean }>();
+        const previous = days.get(r.date) ?? { spend: 0, complete: true };
+        days.set(r.date, { spend: previous.spend + spend, complete: previous.complete && r.metrics.spend !== null });
+        historicalTotals.set(k, days);
+      }
     }
   }
   for (const [member, parents] of requiredMembers) {
@@ -216,6 +228,22 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
     if (unknownToday.has(member) || !monthDays.get(member)?.has(today)) {
       unknownToday.add(member);
       for (const parent of parents) unknownToday.add(parent);
+    }
+    for (const date of historicalDays) if (!historicalTotals.get(member)?.get(date)?.complete) {
+      for (const parent of parents) {
+        const day = historicalTotals.get(parent)?.get(date);
+        if (day) day.complete = false;
+      }
+    }
+  }
+  if (strict) for (const [k, dates] of historicalTotals) {
+    const agg = get(k);
+    agg.byWeekday.fill(0);
+    agg.weekdayDays.fill(0);
+    for (const [date, day] of dates) if (day.complete) {
+      const weekday = weekdayOf(date);
+      agg.byWeekday[weekday] += day.spend;
+      agg.weekdayDays[weekday] += 1;
     }
   }
 
@@ -254,7 +282,8 @@ export async function getBudgetControl(ctx: AppContext, snap: Snapshot): Promise
       remainingWeekdays,
     });
     const incomplete = strict && (unknownMonth.has(k) || (monthDays.get(k)?.size ?? 0) < elapsedFullDays + 1);
-    const forecastIncomplete = incomplete || (strict && remainingWeekdays.some((weekday) => agg.weekdayDays[weekday] < ctx.settings.history.minSamples));
+    const cutoff = p ? (snap.run.entities.find(entity => entity.key === `platform:${p}`)?.cutoffHour ?? snap.run.cutoffHour) : snap.run.cutoffHour;
+    const forecastIncomplete = incomplete || (strict && ((cutoff < 24 && (!Number.isFinite(share) || share <= 0.02)) || remainingWeekdays.some((weekday) => agg.weekdayDays[weekday] < ctx.settings.history.minSamples)));
     const todayUnknown = strict && (unknownToday.has(k) || !monthDays.get(k)?.has(today));
     const dataState = incomplete ? "PARTIAL" : p ? snap.platformStatus[p].dataState : "OK";
     const camp = campaignId ? campaignById.get(campaignId) : undefined;

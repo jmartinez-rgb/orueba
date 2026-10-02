@@ -15,7 +15,7 @@ import { pastIncidents, PAST_INCIDENT_COUNT } from "@/lib/mock/history";
 import { listScenarios } from "@/lib/mock/scenarios";
 import { addDays, businessDate, longDateLabel, zonedTimeToUtc } from "@/lib/time/tz";
 import type { Permission, Role } from "@/lib/auth/roles";
-import { friendlyError, logger } from "@/lib/logging/logger";
+import { friendlyError, logger, sanitizeDiagnostic } from "@/lib/logging/logger";
 import type { RunSummary } from "@/lib/state/store";
 import { overallConfidence, platformConfidence, summarizeExecution, type ConfidenceResult, type ExecutionSummary } from "@/lib/monitoring/confidence";
 import type { CurrencyReport } from "@/lib/data/currency";
@@ -206,11 +206,12 @@ export async function baseAlertState(ctx: AppContext, asOf: Date, businessDay: s
 async function sheetsMeta(ctx: AppContext): Promise<SnapshotMeta["sheets"]> {
   if (ctx.mode !== "sheets" && !ctx.sheetsErrors.length) return null;
   const inner = ctx.raw;
-  if (!(inner instanceof SheetsDataSource)) return { title: null, errors: ctx.sheetsErrors, tabs: [] };
+  if (!(inner instanceof SheetsDataSource)) return { title: null, errors: ctx.sheetsErrors.map(sanitizeDiagnostic), tabs: [] };
   try {
-    return await inner.summary();
+    const summary = await inner.summary();
+    return { ...summary, errors: summary.errors.map(sanitizeDiagnostic) };
   } catch (err) {
-    return { title: null, errors: [err instanceof Error ? err.message : String(err)], tabs: [] };
+    return { title: null, errors: [sanitizeDiagnostic(err instanceof Error ? err.message : String(err))], tabs: [] };
   }
 }
 

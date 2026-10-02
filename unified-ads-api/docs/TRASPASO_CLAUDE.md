@@ -1,5 +1,21 @@
 # Traspaso a Claude: continuación de TikTok y X Ads
 
+## Checkpoint vigente: auditoría ampliada
+
+Auditar el HEAD remoto de `codex/finalizacion-verificador-meta-x`, continuación de `501e45f`.
+Leer [el informe ampliado](../../media-monitoring-center/docs/AUDITORIA_AMPLIADA_2026-10-02.md)
+y su evidencia saneada. API **648/35**, monitoreo **658/61**, gates/build, 15 accesos nominales y
+harness UX de 30 rutas/cinco anchos/dos temas. Se conservan las 31 cuentas, 15 usuarios, cinco
+responsables y configuración privada. No hay extracción publicitaria nueva, publicación ni despliegue.
+
+Revisar especialmente cobertura de cuentas ausentes, CPA desde componentes agregados en
+Comparar/Histórico, pronóstico incompleto, acceso a tickets por marca, diagnóstico según permiso,
+seguimiento CAS/replay y límites de Nexus. Los recibos de append cubren 50 operaciones, no
+transacciones multiclave. Settings con respuesta perdida puede exigir recarga por 412; la nueva
+regresión documenta el límite. Siguen pendientes usuarios entre instancias, outbox/notificaciones,
+Blobs real, persistencia/scheduler, DNS Microsoft compatible con proxy y conciliación/decisiones
+de negocio. Este checkpoint prevalece sobre pendientes resueltos y conteos históricos siguientes.
+
 ## Checkpoint vigente: diseño, UX, Nexus y auditoría funcional
 
 Auditar el HEAD remoto de `codex/finalizacion-verificador-meta-x`, continuación desde

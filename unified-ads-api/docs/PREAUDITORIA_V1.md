@@ -1,5 +1,12 @@
 # Preauditoría de v1 — 2 de octubre de 2026 UTC
 
+Checkpoint vigente desde `501e45f`: [auditoría ampliada](../../media-monitoring-center/docs/AUDITORIA_AMPLIADA_2026-10-02.md).
+API **648/35**, monitoreo **658/61** y ambas compilaciones. Calendario estricto en Google/Meta;
+pruebas de límites de los seis proveedores, permisos, marcas, CAS/replay, cobertura, presupuesto,
+CPA agregado en Comparar/Histórico y Nexus. Revisión UX reproducible en cinco anchos y dos temas,
+acceso nominal de 15 usuarios sin cambios de credenciales. Esta ronda prevalece sobre conteos y
+pendientes resueltos de las anteriores; no revalida las lecturas reales ni certifica producción.
+
 La ronda más reciente parte de `36bc07c` e incluye diseño, UX, Nexus y nuevas correcciones
 funcionales: [informe completo](../../media-monitoring-center/docs/AUDITORIA_UX_NEXUS_2026-10-02.md).
 Esa ronda prevalece sobre los pendientes resueltos y conteos históricos de esta página.

@@ -2,7 +2,7 @@ import "server-only";
 import type { PlatformId } from "@/lib/types";
 import { getEnv } from "@/lib/config/env";
 import { PLATFORMS } from "@/lib/platforms/registry";
-import { lastIntegrationEvent } from "@/lib/logging/logger";
+import { lastIntegrationEvent, sanitizeDiagnostic, type IntegrationEvent } from "@/lib/logging/logger";
 import { WORKFLOWS } from "@/lib/n8n/workflows";
 import type { Snapshot } from "./snapshot";
 
@@ -21,9 +21,15 @@ export interface IntegrationItem {
   testable?: "bigquery" | "sheets" | "n8n";
 }
 
-export function getIntegrations(snap: Snapshot): IntegrationItem[] {
+export function getIntegrations(snap: Snapshot, access?: { canViewTechnical: boolean }): IntegrationItem[] {
   const env = getEnv();
   const mock = snap.meta.mode === "mock";
+  // SSR usa los permisos de su snapshot; la API pasa los de su sesión actual.
+  const technical = access?.canViewTechnical ?? snap.meta.permissions?.includes("technical:view") ?? false;
+  const diagnostic = (errors: string[], message: string) => technical ? errors.map(sanitizeDiagnostic).join(" · ") : message;
+  const eventDetail = (event: IntegrationEvent) => technical
+    ? sanitizeDiagnostic(`${event.action}: ${event.detail ?? ""}`)
+    : event.ok ? "La última comprobación fue correcta." : "La última comprobación tuvo un error. El equipo técnico puede revisar el diagnóstico.";
   const items: IntegrationItem[] = [];
   for (const p of snap.run.platforms) {
     const h = snap.run.dataHealth[p];
@@ -37,7 +43,7 @@ export function getIntegrations(snap: Snapshot): IntegrationItem[] {
       status,
       lastLabel: "Last data received",
       lastAt: h.lastDataAt,
-      detail: `${snap.meta.mode === "unified" ? "API directa → histórico guardado" : snap.meta.mode === "sheets" ? "Dataslayer → Google Sheets" : `${wf?.id ?? "n8n"} → BigQuery`}. ${h.checks.filter((c) => c.status !== "OK").map((c) => c.detail).join(" · ") || "Sin incidencias de datos."}`,
+      detail: `${snap.meta.mode === "unified" ? "API directa → histórico guardado" : snap.meta.mode === "sheets" ? "Dataslayer → Google Sheets" : `${wf?.id ?? "n8n"} → BigQuery`}. ${h.checks.filter((c) => c.status !== "OK").map((c) => sanitizeDiagnostic(c.detail)).join(" · ") || "Sin incidencias de datos."}`,
       facts: [
         { label: "Última sync", value: h.lastSyncStatus },
         { label: "Salud del dato", value: `${h.score}/100` },
@@ -58,10 +64,10 @@ export function getIntegrations(snap: Snapshot): IntegrationItem[] {
     lastAt: sheetsActive ? (sheetsEvent?.at ?? sm?.readAt ?? null) : null,
     detail: sheetsActive
       ? sm?.errors.length
-        ? sm.errors.join(" · ")
+        ? diagnostic(sm.errors, "No pudimos completar la lectura de Google Sheets. El equipo técnico puede revisar el diagnóstico.")
         : `${sm?.title ? `"${sm.title}"` : "Hoja"}: ${sm?.tabs.filter((t) => t.found).length ?? 0} pestañas leídas. La app solo lee (cuenta de servicio con permiso de Lector).`
       : env.requestedDataSource === "sheets"
-        ? `DATA_SOURCE=sheets pero falta configuración: ${[!env.sheets.spreadsheetId && "SHEETS_SPREADSHEET_ID", !env.sheets.credentials && "GOOGLE_CLIENT_EMAIL + GOOGLE_PRIVATE_KEY", ...(snap.meta.sheets?.errors ?? [])].filter(Boolean).join(", ")}. Mientras tanto se usan datos simulados.`
+        ? `DATA_SOURCE=sheets pero falta configuración: ${[!env.sheets.spreadsheetId && "SHEETS_SPREADSHEET_ID", !env.sheets.credentials && "GOOGLE_CLIENT_EMAIL + GOOGLE_PRIVATE_KEY", ...(sm?.errors.length ? [diagnostic(sm.errors, "el mapeo de la hoja no es válido")] : [])].filter(Boolean).join(", ")}. Mientras tanto se usan datos simulados.`
         : "Para leer la hoja de Dataslayer: DATA_SOURCE=sheets, SHEETS_SPREADSHEET_ID y la cuenta de servicio (docs/INSTALACION.md).",
     facts: [
       { label: "Hoja", value: sm?.title ?? (env.sheets.spreadsheetId ? "Configurada" : "—") },
@@ -88,10 +94,10 @@ export function getIntegrations(snap: Snapshot): IntegrationItem[] {
       ? "No se usa: los datos se leen directamente de la hoja de Google Sheets (Dataslayer)."
       : mock
       ? snap.meta.mappingErrors.length
-        ? `Configurado pero el mapeo es inválido; se usa MOCK: ${snap.meta.mappingErrors.join(" · ")}`
+        ? `Configurado pero el mapeo es inválido; se usa MOCK. ${diagnostic(snap.meta.mappingErrors, "El equipo técnico puede revisar el diagnóstico.")}`
         : "MOCK MODE activo (USE_MOCK_DATA=true). La capa de datos está lista: define proyecto, dataset y BIGQUERY_MAPPING."
       : bqEvent
-        ? `${bqEvent.action}: ${bqEvent.detail ?? ""}`
+        ? eventDetail(bqEvent)
         : "Sin consultas en esta instancia todavía.",
     facts: [
       { label: "Proyecto", value: env.bigquery.projectId ?? "—" },
@@ -113,7 +119,7 @@ export function getIntegrations(snap: Snapshot): IntegrationItem[] {
     lastLabel: "Last execution",
     lastAt: n8nEvent?.at ?? lastRun?.at ?? null,
     detail: env.n8n.configured
-      ? (n8nEvent ? `${n8nEvent.action}: ${n8nEvent.detail ?? ""}` : "Webhooks configurados. Sin ejecuciones en esta instancia todavía.")
+      ? (n8nEvent ? eventDetail(n8nEvent) : "Webhooks configurados. Sin ejecuciones en esta instancia todavía.")
       : mock
         ? "Webhooks simulados. Las corridas programadas se reproducen localmente (07:00–23:00 cada 2 h)."
         : "Configura N8N_BASE_URL y los webhooks.",

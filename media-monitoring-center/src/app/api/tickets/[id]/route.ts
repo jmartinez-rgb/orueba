@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { requirePermission, hasPermission } from "@/lib/auth/session";
-import { TICKET_CHANNELS, TICKET_STATUSES, updateTicket, type TicketChannel, type TicketStatus } from "@/lib/records/tickets";
+import { TICKET_CHANNELS, TICKET_STATUSES, getTicket, updateTicket, type TicketChannel, type TicketStatus } from "@/lib/records/tickets";
+import { DEFAULT_BRAND } from "@/lib/brands";
+import { resolveBrand } from "@/lib/services/brand";
 import { logActivity } from "@/lib/services/activity";
 import { badRequest, forbidden, json, readJson, serverError } from "@/lib/services/http";
 
@@ -26,6 +28,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const managing = p.status !== undefined || p.externalRef !== undefined || p.owner !== undefined || p.reportedTo !== undefined || p.channel !== undefined;
   if (managing && !hasPermission(session, "tickets:manage")) return forbidden("Tu rol puede comentar el ticket, pero no cambiar su estado ni datos de seguimiento.");
   try {
+    // El folio es global, pero leer o editar el ticket requiere la marca vigente.
+    // Los registros anteriores al campo brand pertenecen a izzi.
+    const current = await getTicket(id);
+    if (!current || (current.brand ?? DEFAULT_BRAND) !== await resolveBrand(session)) return json({ ok: false, message: "No existe el ticket en esta marca." }, 404);
     const t = await updateTicket(id, p, session.user.name);
     if (!t) return json({ ok: false, message: "No existe el ticket." }, 404);
     await logActivity(session, "TICKET_UPDATED", `${id}${p.status ? ` → ${p.status}` : ""}${p.text ? " · comentario" : ""}`);

@@ -75,4 +75,61 @@ describe("Nexus API", () => {
     expect(Number(response.headers.get("Retry-After"))).toBeGreaterThan(0);
     expect(mocks.snapshot).toHaveBeenCalledTimes(12);
   });
+
+  it("accepts exactly 4096 streamed UTF-8 bytes including split multi-byte characters and rejects the next byte", async () => {
+    const base = JSON.stringify({ question: "Campaña 12345", brand: "izzi", ignored: "😀á" });
+    const bytes = new TextEncoder().encode(base + " ".repeat(4_096 - new TextEncoder().encode(base).length));
+    let offset = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) { if (offset < bytes.length) controller.enqueue(bytes.subarray(offset, ++offset)); else controller.close(); },
+    });
+    const response = await POST(new Request("http://localhost/api/nexus", { method: "POST", body: stream, duplex: "half", headers: { "Content-Length": "1" } } as RequestInit));
+    expect(response.status).toBe(200);
+    const oversized = new Request("http://localhost/api/nexus", { method: "POST", body: new Uint8Array([...bytes, 32]), headers: { "Content-Length": "1" } });
+    expect((await POST(oversized)).status).toBe(400);
+    expect(mocks.snapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed on malformed or truncated UTF-8 and stream failures without error details", async () => {
+    const encoder = new TextEncoder();
+    const invalid = new Uint8Array([...encoder.encode('{"question":"'), 0xc3, 0x28, ...encoder.encode('\",\"brand\":\"izzi\"}')]);
+    const truncated = new Uint8Array([...encoder.encode('{"question":"Resumen","brand":"izzi"}'), 0xe2, 0x82]);
+    for (const bytes of [invalid, truncated]) expect((await POST(new Request("http://localhost/api/nexus", { method: "POST", body: bytes }))).status).toBe(400);
+    const failed = new ReadableStream<Uint8Array>({ pull(controller) { controller.error(new Error("PRIVATE TOKEN")); } });
+    const response = await POST(new Request("http://localhost/api/nexus", { method: "POST", body: failed, duplex: "half" } as RequestInit));
+    expect(response.status).toBe(400);
+    expect(JSON.stringify(await response.json())).not.toContain("PRIVATE");
+    expect(mocks.snapshot).not.toHaveBeenCalled();
+  });
+
+  it("cancels unconsumed streaming input after a decoder failure or size rejection", async () => {
+    const invalidCanceled = vi.fn();
+    const invalid = new ReadableStream<Uint8Array>({
+      pull(controller) { controller.enqueue(new Uint8Array([0xc3, 0x28])); }, cancel: invalidCanceled,
+    });
+    expect((await POST(new Request("http://localhost/api/nexus", { method: "POST", body: invalid, duplex: "half" } as RequestInit))).status).toBe(400);
+    expect(invalidCanceled).toHaveBeenCalledOnce();
+    const oversizedCanceled = vi.fn();
+    const oversized = new ReadableStream<Uint8Array>({
+      pull(controller) { controller.enqueue(new Uint8Array(4_097).fill(32)); }, cancel: oversizedCanceled,
+    });
+    expect((await POST(new Request("http://localhost/api/nexus", { method: "POST", body: oversized, duplex: "half" } as RequestInit))).status).toBe(400);
+    expect(oversizedCanceled).toHaveBeenCalledOnce();
+    expect(mocks.snapshot).not.toHaveBeenCalled();
+  });
+
+  it("counts question length consistently in UTF-16 and lets invalid input consume no rate budget", async () => {
+    for (let index = 0; index < 13; index++) expect((await POST(request({ question: "😀".repeat(251), brand: "izzi" }))).status).toBe(400);
+    expect((await POST(request({ question: "😀".repeat(250), brand: "izzi" }))).status).toBe(200);
+    expect(mocks.snapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("authorizes only the selected permitted brand and projects it even when session brands include both", async () => {
+    mocks.session.mockResolvedValue({ authenticated: true, role: "auditor", permissions: ["internal:view"], brands: ["izzi", "sky"], user: { id: `nexus-dual-${user}` } });
+    const response = await POST(request({ question: "Resumen", brand: "izzi" }));
+    expect(response.status).toBe(200);
+    expect(JSON.stringify(await response.json())).not.toMatch(/FOREIGN|sky-secret|PRIVATE/);
+    mocks.session.mockResolvedValue({ authenticated: true, role: "admin", permissions: [], brands: [], user: { id: `nexus-admin-${user}` } });
+    expect((await POST(request({ question: "Resumen", brand: "izzi" }))).status).toBe(403);
+  });
 });

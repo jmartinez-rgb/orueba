@@ -15,14 +15,24 @@ function base(data: NexusData, title: string, kind: NexusAnswer["kind"]): NexusA
   return { kind, title, context: data.context, paragraphs: [], facts: [], items: [], sources: [], suggestions: NEXUS_SUGGESTIONS };
 }
 
-function platformOf(question: string): PlatformId | null {
-  if (/\bgoogle\b/.test(question)) return "google";
-  if (/\b(meta|facebook|instagram)\b/.test(question)) return "meta";
-  if (/\b(tiktok|tik tok)\b/.test(question)) return "tiktok";
-  if (/\b(microsoft|bing)\b/.test(question)) return "microsoft";
-  if (/\bspotify\b/.test(question)) return "spotify";
-  if (/\b(x ads|twitter|x)\b/.test(question)) return "x";
-  return null;
+function platformsOf(question: string): PlatformId[] {
+  const patterns: Array<[PlatformId, RegExp]> = [
+    ["google", /\bgoogle\b/], ["meta", /\b(meta|facebook|instagram)\b/], ["tiktok", /\b(tiktok|tik tok)\b/],
+    ["microsoft", /\b(microsoft|bing)\b/], ["spotify", /\bspotify\b/], ["x", /\b(x ads|twitter|x)\b/],
+  ];
+  return patterns.filter(([, pattern]) => pattern.test(question)).map(([id]) => id);
+}
+
+function asksAnotherWindow(question: string, data: NexusData): boolean {
+  // Month/year labels often belong to a campaign name, not to a requested report window.
+  // Strip only exact full names and complete IDs; a separate "ayer" or date remains a request.
+  let remaining = question;
+  const labels = [...data.campaigns, ...data.accounts].flatMap(entity => [normalize(entity.name), normalize(entity.id)]).filter(label => label.length >= 4).sort((a, b) => b.length - a.length);
+  for (const label of labels) remaining = remaining.replaceAll(label, " ");
+  return /\b(ayer|anteayer|manana|anoche|semana|mes|septiembre|octubre|enero|febrero|marzo|abril|mayo|junio|julio|agosto|noviembre|diciembre)\b/.test(remaining)
+    || /\b20\d{2}[-/]\d{1,2}[-/]\d{1,2}\b|\b\d{1,2}[-/]\d{1,2}[-/]20\d{2}\b/.test(remaining)
+    || /\b(ultimos?|ultimas?|hace)\s+\d+\s+(dias?|horas?)\b/.test(remaining)
+    || /\b(hasta|desde|a las|corte|hora)\b[^?!.]{0,20}\b\d{1,2}:\d{2}\b/.test(remaining);
 }
 
 function guide(question: string, data: NexusData): NexusAnswer | null {
@@ -79,13 +89,16 @@ function matches(question: string, entities: NexusEntity[], platform: PlatformId
 }
 
 function metricFacts(entity: NexusEntity): NexusAnswer["facts"] {
-  const { spend, impressions, clicks } = entity.metrics;
+  const finite = (value: number | null) => typeof value === "number" && Number.isFinite(value) ? value : null;
+  const spend = finite(entity.metrics.spend), impressions = finite(entity.metrics.impressions), clicks = finite(entity.metrics.clicks);
+  const cpc = spend === null || clicks === null || clicks <= 0 ? null : finite(spend / clicks);
+  const ctr = clicks === null || impressions === null || impressions <= 0 ? null : finite(clicks / impressions * 100);
   return [
     { label: "Gasto disponible (MXN)", value: spend === null ? "Sin dato" : money.format(spend) },
     { label: "Impresiones", value: impressions === null ? "Sin dato" : number.format(impressions) },
     { label: "Clics", value: clicks === null ? "Sin dato" : number.format(clicks) },
-    { label: "CPC", value: spend === null || clicks === null || clicks <= 0 ? "Sin dato" : money.format(spend / clicks) },
-    { label: "CTR", value: clicks === null || impressions === null || impressions <= 0 ? "Sin dato" : `${number.format(clicks / impressions * 100)}%` },
+    { label: "CPC", value: cpc === null ? "Sin dato" : money.format(cpc) },
+    { label: "CTR", value: ctr === null ? "Sin dato" : `${number.format(ctr)}%` },
   ];
 }
 
@@ -104,8 +117,9 @@ export function answerNexus(question: string, data: NexusData): NexusAnswer {
   const q = normalize(question.trim());
   const help = guide(q, data);
   if (help) return help;
-  const platform = platformOf(q);
-  if (/\b(ayer|semana|mes|septiembre|octubre|enero|febrero|marzo|abril|mayo|junio|julio|agosto|noviembre|diciembre)\b|20\d{2}-\d{2}-\d{2}/.test(q)) {
+  const platforms = platformsOf(q);
+  const platform = platforms.length === 1 ? platforms[0] : null;
+  if (asksAnotherWindow(q, data)) {
     return { ...base(data, "Consulta de otro periodo", "unavailable"), paragraphs: ["Esta versión de Nexus consulta el corte actual del monitoreo. No extrapolo sus valores a otro día ni a un mes. Utiliza Histórico o Comparar para elegir el periodo."], sources: [source("Histórico", "/historical"), source("Comparar periodos", "/compare")] };
   }
   if (/\b(alerta|alertas|incidente|incidentes|critico|critica|criticas|criticos)\b/.test(q)) {
@@ -145,6 +159,9 @@ export function answerNexus(question: string, data: NexusData): NexusAnswer {
     response.sources = [source("Catálogo de campañas", "/campaigns")];
     return response;
   }
+  if (platforms.length > 1) {
+    return { ...base(data, "Elige una plataforma para consultar", "clarify"), paragraphs: ["La consulta menciona varias plataformas. Indica una plataforma o el ID completo de la campaña para delimitar sus datos; no asumiré un alcance distinto."], suggestions: platforms.map(id => `¿Cómo está ${PLATFORMS[id].shortName}?`), sources: [source("Plataformas", "/platforms")] };
+  }
   if (/\b(gasto|gastado|gastando|costo|clics|clicks|impresiones|cpc|cpm|ctr)\b/.test(q)) {
     const accounts = data.accounts.filter(account => !platform || account.platform === platform);
     const response = base(data, platform ? `Métricas de ${PLATFORMS[platform].shortName}` : "Métricas del corte actual", "metrics");
@@ -154,7 +171,7 @@ export function answerNexus(question: string, data: NexusData): NexusAnswer {
       const sameWindow = accounts.every(account => account.cutoffHour === data.context.cutoffHour);
       if (!sameWindow) response.paragraphs.push("Las cuentas no comparten la misma hora de corte; no sumo ventanas distintas.");
       const complete = (metric: keyof NexusEntity["metrics"]) => {
-        if (!sameWindow || accounts.some(account => account.metrics[metric] === null)) return null;
+        if (!sameWindow || accounts.some(account => account.dataState !== "OK" || account.metrics[metric] === null)) return null;
         const value = accounts.reduce((total, account) => total + account.metrics[metric]!, 0);
         return Number.isFinite(value) ? value : null;
       };

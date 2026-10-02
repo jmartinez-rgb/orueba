@@ -13,6 +13,9 @@ Versiones: plataforma **6.1.0**, plan masivo y motor **5.7.0**, API de Meta **v2
 Hallazgos y cambios de esta versión: `AUDITORIA.md`.
 
 Revisión del monitoreo del 2 de octubre: [auditoría funcional, UX y Nexus](media-monitoring-center/docs/AUDITORIA_UX_NEXUS_2026-10-02.md).
+La [auditoría ampliada](media-monitoring-center/docs/AUDITORIA_AMPLIADA_2026-10-02.md) añade
+regresiones de permisos, marcas, concurrencia, cobertura y CPA agregado: monitoreo **658 pruebas**,
+API **648**, compilaciones y recorrido de navegador reproducible. V1 sigue pendiente de aceptación.
 Nexus consulta campañas y explica el monitoreo con acceso por marca; quedan pendientes la
 conciliación de datos, configuración de producción y decisiones de negocio.
 

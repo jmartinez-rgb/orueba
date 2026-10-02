@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bug, Download, Lightbulb, Send } from "lucide-react";
 import { sileo } from "sileo";
@@ -53,6 +53,7 @@ export interface SectionOption {
 
 /** Formulario para enviar un bug o una sugerencia (le llega solo al administrador). */
 export function FeedbackForm({ sections, initialPage }: { sections: SectionOption[]; initialPage: string | null }) {
+  const formId = useId();
   const router = useRouter();
   const [kind, setKind] = useState<FeedbackKind>("BUG");
   const [title, setTitle] = useState("");
@@ -97,19 +98,19 @@ export function FeedbackForm({ sections, initialPage }: { sections: SectionOptio
         onChange={setKind}
       />
       <div className="space-y-1">
-        <Label htmlFor="fb-title">{kind === "BUG" ? "¿Qué falla?" : "¿Qué te gustaría mejorar?"}</Label>
-        <Input id="fb-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140} placeholder={kind === "BUG" ? "Ej. El mensaje de Monitoreos no muestra las conversiones de Meta" : "Ej. Agregar la comparación contra el mes anterior en Compare"} />
+        <Label htmlFor={`${formId}-title`}>{kind === "BUG" ? "¿Qué falla?" : "¿Qué te gustaría mejorar?"}</Label>
+        <Input id={`${formId}-title`} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140} placeholder={kind === "BUG" ? "Ej. El mensaje de Monitoreos no muestra las conversiones de Meta" : "Ej. Agregar la comparación contra el mes anterior en Compare"} />
       </div>
       <div className="space-y-1">
-        <Label htmlFor="fb-desc">{kind === "BUG" ? "¿Qué hiciste, qué esperabas y qué pasó?" : "Cuéntanos la idea y para qué te serviría"}</Label>
-        <Textarea id="fb-desc" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={4000} rows={5} />
-        <p className="text-[11px] text-muted-foreground">No incluyas contraseñas ni datos personales.</p>
+        <Label htmlFor={`${formId}-description`}>{kind === "BUG" ? "¿Qué hiciste, qué esperabas y qué pasó?" : "Cuéntanos la idea y para qué te serviría"}</Label>
+        <Textarea id={`${formId}-description`} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={4000} rows={5} aria-describedby={`${formId}-privacy`} />
+        <p id={`${formId}-privacy`} className="text-[11px] text-muted-foreground">No incluyas contraseñas ni datos personales.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="min-w-0 space-y-1">
-          <Label>Sección</Label>
+          <Label htmlFor={`${formId}-section`}>Sección</Label>
           <Select value={page} onValueChange={setPage}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger id={`${formId}-section`} className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -123,9 +124,9 @@ export function FeedbackForm({ sections, initialPage }: { sections: SectionOptio
           </Select>
         </div>
         <div className="min-w-0 space-y-1">
-          <Label>{kind === "BUG" ? "Impacto" : "Prioridad"}</Label>
+          <Label htmlFor={`${formId}-impact`}>{kind === "BUG" ? "Impacto" : "Prioridad"}</Label>
           <Select value={impact} onValueChange={(v) => setImpact(v as FeedbackImpact)}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger id={`${formId}-impact`} className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -150,6 +151,18 @@ export function FeedbackForm({ sections, initialPage }: { sections: SectionOptio
 
 function csvCell(v: string) {
   return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+}
+
+/** Used inside expanded cases; the same case can appear in both the admin inbox and "Mis envíos". */
+export function FeedbackStatusField({ reportId, value, onChange }: { reportId: string; value: FeedbackStatus; onChange: (value: FeedbackStatus) => void }) {
+  const id = useId();
+  return <div className="min-w-0 space-y-1">
+    <Label htmlFor={id}>Estado</Label>
+    <Select value={value} onValueChange={next => onChange(next as FeedbackStatus)}>
+      <SelectTrigger id={id} className="w-full" aria-label={`Estado del reporte ${reportId}`}><SelectValue /></SelectTrigger>
+      <SelectContent>{FEEDBACK_STATUSES.map(status => <SelectItem key={status} value={status}>{FEEDBACK_STATUS_LABEL[status]}</SelectItem>)}</SelectContent>
+    </Select>
+  </div>;
 }
 
 /**
@@ -280,21 +293,7 @@ export function FeedbackList({ items, timezone, manage, sectionLabel }: { items:
                   )}
                   {manage && (
                     <div className="grid gap-2 sm:grid-cols-[180px_1fr_auto] sm:items-end">
-                      <div className="min-w-0 space-y-1">
-                        <Label>Estado</Label>
-                        <Select value={d.status} onValueChange={(v) => setDraft((x) => ({ ...x, [f.id]: { ...d, status: v as FeedbackStatus } }))}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {FEEDBACK_STATUSES.map((s) => (
-                              <SelectItem key={s} value={s}>
-                                {FEEDBACK_STATUS_LABEL[s]}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      <FeedbackStatusField reportId={f.id} value={d.status} onChange={status => setDraft((current) => ({ ...current, [f.id]: { ...d, status } }))} />
                       <div className="min-w-0 space-y-1">
                         <Label htmlFor={`note-${f.id}`}>Nota o respuesta (la ve quien lo envió)</Label>
                         <Input id={`note-${f.id}`} value={d.note} maxLength={2000} onChange={(e) => setDraft((x) => ({ ...x, [f.id]: { ...d, note: e.target.value } }))} />

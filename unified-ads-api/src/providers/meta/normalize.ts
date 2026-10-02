@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type {
   NormalizedAccount,
   NormalizedCampaign,
@@ -58,8 +59,7 @@ function bucket(row: MetaInsight, account: NormalizedAccount, query: Performance
   const date = row.date_start;
   if (
     typeof date !== "string" ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-    !Number.isFinite(Date.parse(date)) ||
+    !z.iso.date().safeParse(date).success ||
     date < query.date_from ||
     date > query.date_to ||
     row.date_stop !== date

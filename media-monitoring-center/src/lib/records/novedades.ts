@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { DEFAULT_BRAND, type BrandId } from "@/lib/brands";
 import { cached, invalidate } from "@/lib/data/cache";
 import { getRecordStore, mapLimit } from "./store";
@@ -6,6 +7,13 @@ import { nextRecordId } from "./counter";
 import { NOVEDAD_KIND_LABEL, type KickoffItem, type MonthKickoff, type NewNovedad, type Novedad } from "./novedad-model";
 
 export * from "./novedad-model";
+
+interface StoredNovedad extends Novedad { appliedOperations?: string[] }
+function publicNovedad(record: StoredNovedad): Novedad {
+  const result = { ...record };
+  delete result.appliedOperations;
+  return result;
+}
 
 /**
  * Novedades del mes (ajustes aprobados) y arranque de mes. Registro interno: la app no cambia
@@ -62,46 +70,53 @@ export async function createNovedad(input: NewNovedad, by: string, brand: BrandI
 
 export async function getNovedad(id: string): Promise<Novedad | null> {
   if (!/^NOV-\d{4,}$/.test(id)) return null;
-  return getRecordStore().get<Novedad>(`novedades/${id}`);
+  const record = await getRecordStore().get<StoredNovedad>(`novedades/${id}`);
+  return record ? publicNovedad(record) : null;
 }
 
 /** Seguimiento de una novedad: comentario, cambio de vigencia o cierre. Nunca se borra. */
 export async function updateNovedad(id: string, patch: { text?: string; effectiveUntil?: string | null; status?: Novedad["status"] }, by: string): Promise<Novedad | null> {
-  const n = await getNovedad(id);
-  if (!n) return null;
+  if (!await getNovedad(id)) return null;
   const now = new Date().toISOString();
-  const notes: string[] = [];
-  if (patch.effectiveUntil !== undefined && patch.effectiveUntil !== n.effectiveUntil) {
-    n.effectiveUntil = patch.effectiveUntil;
-    notes.push(`Vigencia: ${patch.effectiveUntil ? `hasta el ${patch.effectiveUntil}` : "todo el mes"}.`);
-  }
-  if (patch.status && patch.status !== n.status) {
-    n.status = patch.status;
-    if (patch.status === "CERRADA") {
-      n.closedAt = now;
-      n.closedBy = by;
-      notes.push("Cerrada: el monitoreo ya no la toma en cuenta.");
-    } else {
-      n.closedAt = null;
-      n.closedBy = null;
-      notes.push("Reabierta.");
+  const operationId = randomUUID();
+  const updated = await getRecordStore().update<StoredNovedad>(`novedades/${id}`, (current) => {
+    if (!current || current.appliedOperations?.includes(operationId)) return current;
+    const n: StoredNovedad = { ...current, updates: [...current.updates] };
+    const notes: string[] = [];
+    if (patch.effectiveUntil !== undefined && patch.effectiveUntil !== n.effectiveUntil) {
+      n.effectiveUntil = patch.effectiveUntil;
+      notes.push(`Vigencia: ${patch.effectiveUntil ? `hasta el ${patch.effectiveUntil}` : "todo el mes"}.`);
     }
-  }
-  const text = [patch.text?.trim().slice(0, 2000), ...notes].filter(Boolean).join(" ");
-  if (!text) return n;
-  n.updates.push({ at: now, by, text });
-  await getRecordStore().set(`novedades/${id}`, n);
-  changed();
-  return n;
+    if (patch.status && patch.status !== n.status) {
+      n.status = patch.status;
+      if (patch.status === "CERRADA") {
+        n.closedAt = now;
+        n.closedBy = by;
+        notes.push("Cerrada: el monitoreo ya no la toma en cuenta.");
+      } else {
+        n.closedAt = null;
+        n.closedBy = null;
+        notes.push("Reabierta.");
+      }
+    }
+    const text = [patch.text?.trim().slice(0, 2000), ...notes].filter(Boolean).join(" ");
+    if (!text) return n;
+    n.updates.push({ at: now, by, text });
+    n.appliedOperations = [...(current.appliedOperations ?? []), operationId].slice(-50);
+    return n;
+  });
+  if (updated?.appliedOperations?.includes(operationId)) changed();
+  return updated ? publicNovedad(updated) : null;
 }
 
 export async function listNovedades(brand: BrandId): Promise<Novedad[]> {
   return cached(`novedades:${brand}`, LIST_TTL, async () => {
     const store = getRecordStore();
     const keys = (await store.list("novedades/")).filter((k) => /^novedades\/NOV-\d+$/.test(k));
-    const rows = await mapLimit(keys, 16, (k) => store.get<Novedad>(k));
+    const rows = await mapLimit(keys, 16, (k) => store.get<StoredNovedad>(k));
     return rows
-      .filter((n): n is Novedad => n !== null && (n.brand ?? DEFAULT_BRAND) === brand)
+      .filter((n): n is StoredNovedad => n !== null && (n.brand ?? DEFAULT_BRAND) === brand)
+      .map(publicNovedad)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
   });
 }

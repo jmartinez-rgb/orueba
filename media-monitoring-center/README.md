@@ -51,6 +51,14 @@ producción y decisiones de negocio siguen separados de las comprobaciones local
 valida **485 pruebas**, tipos/lint/build y recorridos de navegador en escritorio/móvil; el informe
 incluye evidencia visual con datos simulados y resultados por escenario.
 
+La [auditoría ampliada](docs/AUDITORIA_AMPLIADA_2026-10-02.md) continúa desde `501e45f`:
+**658 pruebas** del monitoreo y **648 de la API**, con tipos/lint/formato y ambas compilaciones.
+Corrige acceso a tickets de otra marca, diagnósticos privados, pérdida de seguimiento concurrente,
+cuentas ausentes en agregados, proyección incompleta y promedios de CPA en Comparar/Histórico.
+Incluye 15 accesos nominales por HTTP y `scripts/ux-regression.cjs` para la revisión en navegador
+de 30 rutas, cinco anchos y dos temas. Fixtures y comprobaciones reales se distinguen en el informe;
+conciliación y producción siguen pendientes.
+
 ## Arranque rápido
 
 Requisitos: Node.js 22+.

@@ -98,15 +98,15 @@ export default async function ClientPage() {
 
       <section aria-label="Plataformas">
         <h2 className="mb-2 text-[15px] font-semibold">Plataformas</h2>
-        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {view.platforms.map((p) => {
             const m = LEVEL[p.level];
             return (
-              <li key={p.platform} className="surface flex flex-col gap-3 p-4">
-                <div className="flex items-center gap-2.5">
+              <li key={p.platform} className="surface flex min-w-0 flex-col gap-3 p-4">
+                <div className="flex min-w-0 items-center gap-2.5">
                   <PlatformMark platform={p.platform} className="size-7 text-[11px]" />
-                  <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{PLATFORMS[p.platform].name}</span>
-                  <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold", m.tint, m.tone)}>
+                  <span className="min-w-0 flex-1 truncate text-[14px] font-medium" title={PLATFORMS[p.platform].name}>{PLATFORMS[p.platform].name}</span>
+                  <span className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold", m.tint, m.tone)}>
                     <span className={cn("size-1.5 rounded-full", m.dot)} aria-hidden />
                     {p.label}
                   </span>

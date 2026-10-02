@@ -3,6 +3,17 @@
 Fecha: 1 de octubre de 2026. Rama: `codex/entrega-auditoria-claude`. Estado recibido: commit
 `39a65be` (idéntico al ZIP `unified-ads-api-para-auditoria.zip`, comprobado archivo por archivo).
 
+## Auditoría ampliada — 2 de octubre de 2026
+
+Desde `501e45f`, misma rama de continuación: [informe](../../media-monitoring-center/docs/AUDITORIA_AMPLIADA_2026-10-02.md).
+API **648 pruebas/35 archivos** + tipos/lint/formato/build; monitoreo **658/61** + check/build.
+Se rechazan fechas imposibles en Google/Meta y se amplían fixtures de monedas, ventanas y
+cancelación para los seis proveedores. Ambas suites bloquean `fetch` por defecto incluso tras
+restaurar stubs. Se corrigen nuevos defectos de marca, privacidad, concurrencia y cálculo en el
+monitoreo, con acceso nominal y revisión UX reproducible. **Sin lecturas publicitarias nuevas**:
+la matriz real conserva sus fechas y evidencias. Los pendientes de código, permisos, configuración
+y negocio están separados en el informe; V1 no se declara aceptada.
+
 ## Diseño, auditoría funcional y Nexus — 2 de octubre de 2026 UTC
 
 Continuación desde `36bc07c` en `codex/finalizacion-verificador-meta-x`. La

@@ -22,6 +22,12 @@ continúa desde `36bc07c`: corrige simulación de webhooks, contadores, totales 
 alcance de entrega y diagnóstico seguro en el monitoreo, y añade un chat interno de consulta.
 Esta ronda no vuelve a verificar proveedores ni cambia las decisiones de negocio pendientes.
 
+La [auditoría ampliada](../media-monitoring-center/docs/AUDITORIA_AMPLIADA_2026-10-02.md)
+continúa desde `501e45f`: **648 pruebas / 35 archivos** de API y **658 / 61** del monitoreo,
+con tipos/lint/formato/build. Calendario estricto para Google/Meta, límites de los seis proveedores
+y guard de `fetch` resistente a restauración de stubs. Amplía permisos, integridad, CPA agregado,
+concurrencia y UX del monitoreo. La matriz de lecturas reales conserva su evidencia anterior.
+
 | Fase | Contenido                                | Estado                                                                                                         |
 | ---- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | 1    | Infraestructura base (sin integraciones) | **Lista**                                                                                                      |

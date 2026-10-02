@@ -7,6 +7,7 @@ import type { MonitoringDataSource, DailyQuery, HourlyQuery } from "@/lib/data/s
 import { addDays, businessDate, diffDays, zonedParts, zonedTimeToUtc } from "@/lib/time/tz";
 import { campaignId, sourceId, UnifiedDataError, type ApiPerformance, type UnifiedScope } from "./schema";
 import { UnifiedSnapshotStore } from "./store";
+import { coverAccounts } from "@/lib/data/account-coverage";
 
 /** The API report clock can differ from the IANA clock for X historical reports. */
 export function reportInstant(row: ApiPerformance, hour: number): Date {
@@ -63,7 +64,7 @@ export class UnifiedDataSource implements MonitoringDataSource {
         }
       }
     }
-    return aggregate(rows, q.level);
+    return aggregate(q.level === "campaign" ? rows : coverAccounts(rows, this.scopes(q.platforms).map(s => ({ id: sourceId(s), platform: s.platform }))), q.level);
   }
   async getHourly(q: HourlyQuery): Promise<HourlyRow[]> {
     if (q.dates.length > 100) throw new UnifiedDataError("INVALID_QUERY_RANGE");
@@ -82,7 +83,7 @@ export class UnifiedDataSource implements MonitoringDataSource {
         }
       }
     }
-    return aggregate(rows, q.level);
+    return aggregate(q.level === "campaign" ? rows : coverAccounts(rows, this.scopes(q.platforms).map(s => ({ id: sourceId(s), platform: s.platform }))), q.level);
   }
   async getFreshness(asOf: Date): Promise<FreshnessRecord[]> {
     const rows: FreshnessRecord[] = [], today = businessDate(asOf, this.opts.timezone);

@@ -28,7 +28,7 @@ function SheetContent({
         {...props}
       >
         {children}
-        <SheetPrimitive.Close className="pressable absolute top-2.5 right-2.5 flex size-11 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring outline-none sm:size-9">
+        <SheetPrimitive.Close className="pressable absolute top-2.5 right-2.5 flex size-11 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring outline-none">
           <X aria-hidden className="size-4" />
           <span className="sr-only">Cerrar</span>
         </SheetPrimitive.Close>

@@ -1,6 +1,6 @@
 "use client";
 import { sileo } from "sileo";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import type { CampaignObjective, PlatformId, Severity, DataMode } from "@/lib/types";
@@ -55,13 +55,17 @@ function Num({
   disabled?: boolean;
   hint?: string;
 }) {
+  const id = useId();
   const shown = percent ? Math.round(value * 1000) / 10 : value;
+  const description = [(suffix || percent) && `${id}-unit`, hint && `${id}-hint`].filter(Boolean).join(" ") || undefined;
   return (
     <div className="space-y-1">
-      <Label className="text-[11px] text-muted-foreground">{label}</Label>
+      <Label htmlFor={id} className="text-[11px] text-muted-foreground">{label}</Label>
       <div className="flex items-center gap-1.5">
         <Input
+          id={id}
           type="number"
+          aria-describedby={description}
           value={Number.isFinite(shown) ? shown : 0}
           min={min}
           max={max}
@@ -73,17 +77,17 @@ function Num({
           }}
           className="h-8 w-28 text-xs"
         />
-        {(suffix || percent) && <span className="text-xs text-muted-foreground">{percent ? "%" : suffix}</span>}
+        {(suffix || percent) && <span id={`${id}-unit`} className="text-xs text-muted-foreground">{percent ? "%" : suffix}</span>}
       </div>
-      {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
+      {hint && <p id={`${id}-hint`} className="text-[10px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
 
-function SevSelect({ value, onChange, disabled }: { value: Severity; onChange: (s: Severity) => void; disabled?: boolean }) {
+function SevSelect({ value, onChange, disabled, id, label }: { value: Severity; onChange: (s: Severity) => void; disabled?: boolean; id?: string; label: string }) {
   return (
     <Select value={value} onValueChange={(v) => onChange(v as Severity)} disabled={disabled}>
-      <SelectTrigger size="sm" className="w-32">
+      <SelectTrigger id={id} size="sm" className="w-32" aria-label={label}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -124,6 +128,7 @@ export function SettingsForm({
   mode: DataMode;
   campaigns: Array<{ id: string; name: string; platform: PlatformId; objective: CampaignObjective }>;
 }) {
+  const formId = useId();
   const router = useRouter();
   const [s, setS] = useState<MonitoringSettings>(initial);
   const [baseline, setBaseline] = useState(initial);
@@ -230,20 +235,20 @@ export function SettingsForm({
 
       <Section title="Periodo histórico" description="Semanas del mismo día de la semana que forman la referencia.">
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">Semanas de referencia</Label>
-          <div className="flex gap-1">
+          <Label htmlFor={`${formId}-weeks`} className="text-[11px] text-muted-foreground">Semanas de referencia</Label>
+          <div className="flex gap-1" role="group" aria-label="Semanas de referencia">
             {[4, 8, 12].map((w) => (
-              <button key={w} type="button" disabled={d} onClick={() => set(["history", "weeks"])(w)} className={cn("h-8 rounded-md border px-3 text-xs font-medium", s.history.weeks === w ? "border-primary bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted")}>
+              <button key={w} type="button" disabled={d} aria-label={`${w} semanas de referencia`} aria-pressed={s.history.weeks === w} onClick={() => set(["history", "weeks"])(w)} className={cn("h-8 rounded-md border px-3 text-xs font-medium", s.history.weeks === w ? "border-primary bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted")}>
                 {w}
               </button>
             ))}
-            <Input type="number" min={1} max={12} value={s.history.weeks} disabled={d} onChange={(e) => set(["history", "weeks"])(Math.max(1, Math.min(12, Number(e.target.value) || 4)))} className="h-8 w-16 text-xs" aria-label="Semanas personalizadas" />
+            <Input id={`${formId}-weeks`} type="number" min={1} max={12} value={s.history.weeks} disabled={d} onChange={(e) => set(["history", "weeks"])(Math.max(1, Math.min(12, Number(e.target.value) || 4)))} className="h-8 w-16 text-xs" aria-label="Semanas de referencia personalizadas" />
           </div>
         </div>
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">Valor esperado</Label>
+          <Label htmlFor={`${formId}-baseline`} className="text-[11px] text-muted-foreground">Valor esperado</Label>
           <Select value={s.history.baseline} onValueChange={(v) => set(["history", "baseline"])(v)} disabled={d}>
-            <SelectTrigger size="sm" className="w-44">
+            <SelectTrigger id={`${formId}-baseline`} size="sm" className="w-44">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -257,7 +262,7 @@ export function SettingsForm({
 
       <Section title="Zona horaria de negocio" description="Todas las comparaciones (lunes vs lunes, hora vs hora) usan esta zona. Nunca se mezcla con UTC.">
         <Select value={s.timezone} onValueChange={(v) => set(["timezone"])(v)} disabled={d}>
-          <SelectTrigger size="sm" className="w-56">
+          <SelectTrigger size="sm" className="w-56" aria-label="Zona horaria de negocio">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -295,19 +300,19 @@ export function SettingsForm({
 
       <Section title="Alertas y escalamiento" description="Anti-spam: una alerta por anomalía; se notifica solo al abrir, escalar, empeorar, superar la duración o recuperarse.">
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">Incidente inmediato desde</Label>
-          <SevSelect value={s.alerts.incidentMinSeverity} onChange={set(["alerts", "incidentMinSeverity"])} disabled={d} />
+          <Label htmlFor={`${formId}-incident-severity`} className="text-[11px] text-muted-foreground">Incidente inmediato desde</Label>
+          <SevSelect id={`${formId}-incident-severity`} label="Incidente inmediato desde" value={s.alerts.incidentMinSeverity} onChange={set(["alerts", "incidentMinSeverity"])} disabled={d} />
         </div>
         <Num label="…o tras N evaluaciones" value={s.alerts.persistRunsForIncident} onChange={set(["alerts", "persistRunsForIncident"])} min={1} max={12} disabled={d} />
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">Notificar desde</Label>
-          <SevSelect value={s.alerts.notifyMinSeverity} onChange={set(["alerts", "notifyMinSeverity"])} disabled={d} />
+          <Label htmlFor={`${formId}-notify-severity`} className="text-[11px] text-muted-foreground">Notificar desde</Label>
+          <SevSelect id={`${formId}-notify-severity`} label="Notificar desde" value={s.alerts.notifyMinSeverity} onChange={set(["alerts", "notifyMinSeverity"])} disabled={d} />
         </div>
         <Num label="Re-notificar si empeora" value={s.alerts.worsenDeltaPts} onChange={set(["alerts", "worsenDeltaPts"])} percent disabled={d} hint="Puntos porcentuales de desviación." />
         <Num label="Escalar tras" value={s.alerts.escalateAfterHours} onChange={set(["alerts", "escalateAfterHours"])} suffix="h" disabled={d} />
         <div className="flex items-center gap-2 self-end pb-1.5">
-          <Switch id="recovery" checked={s.alerts.notifyRecovery} onCheckedChange={set(["alerts", "notifyRecovery"])} disabled={d} />
-          <Label htmlFor="recovery" className="text-xs font-normal">
+          <Switch id={`${formId}-recovery`} checked={s.alerts.notifyRecovery} onCheckedChange={set(["alerts", "notifyRecovery"])} disabled={d} />
+          <Label htmlFor={`${formId}-recovery`} className="text-xs font-normal">
             Notificar recuperación
           </Label>
         </div>
@@ -353,11 +358,11 @@ export function SettingsForm({
               {s.recipients.map((r, i) => (
                 <TableRow key={r.id}>
                   <TableCell>
-                    <Input value={r.name} disabled={d} onChange={(e) => updateRecipient(i, { name: e.target.value })} className="h-8 w-44 text-xs" aria-label="Nombre" />
+                    <Input value={r.name} disabled={d} onChange={(e) => updateRecipient(i, { name: e.target.value })} className="h-8 w-44 text-xs" aria-label={`Nombre del destinatario ${i + 1}`} />
                   </TableCell>
                   <TableCell>
                     <Select value={r.channel} onValueChange={(v) => updateRecipient(i, { channel: v as Recipient["channel"] })} disabled={d}>
-                      <SelectTrigger size="sm" className="w-28">
+                      <SelectTrigger size="sm" className="w-28" aria-label={`Canal del destinatario ${i + 1}`}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -367,14 +372,14 @@ export function SettingsForm({
                     </Select>
                   </TableCell>
                   <TableCell>
-                    <Input value={r.address} disabled={d} onChange={(e) => updateRecipient(i, { address: e.target.value })} className="h-8 w-48 text-xs" aria-label="Dirección" />
+                    <Input value={r.address} disabled={d} onChange={(e) => updateRecipient(i, { address: e.target.value })} className="h-8 w-48 text-xs" aria-label={`Dirección del destinatario ${i + 1}`} />
                   </TableCell>
                   <TableCell>
-                    <SevSelect value={r.minSeverity} onChange={(v) => updateRecipient(i, { minSeverity: v })} disabled={d} />
+                    <SevSelect label={`Severidad mínima del destinatario ${i + 1}`} value={r.minSeverity} onChange={(v) => updateRecipient(i, { minSeverity: v })} disabled={d} />
                   </TableCell>
                   <TableCell>
                     <Select value={r.platforms === "all" ? "all" : r.platforms[0] ?? "all"} onValueChange={(v) => updateRecipient(i, { platforms: v === "all" ? "all" : [v as PlatformId] })} disabled={d}>
-                      <SelectTrigger size="sm" className="w-36">
+                      <SelectTrigger size="sm" className="w-36" aria-label={`Plataformas del destinatario ${i + 1}`}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -388,10 +393,10 @@ export function SettingsForm({
                     </Select>
                   </TableCell>
                   <TableCell>
-                    <Switch checked={r.active} onCheckedChange={(v) => updateRecipient(i, { active: v })} disabled={d} aria-label="Activo" />
+                    <Switch checked={r.active} onCheckedChange={(v) => updateRecipient(i, { active: v })} disabled={d} aria-label={`Destinatario ${i + 1} activo`} />
                   </TableCell>
                   <TableCell>
-                    <Button size="icon-sm" variant="ghost" disabled={d} aria-label="Quitar" onClick={() => setS((cur) => ({ ...cur, recipients: cur.recipients.filter((_, idx) => idx !== i) }))}>
+                    <Button size="icon-sm" variant="ghost" disabled={d} aria-label={`Quitar destinatario ${i + 1}`} onClick={() => setS((cur) => ({ ...cur, recipients: cur.recipients.filter((_, idx) => idx !== i) }))}>
                       <Trash2 />
                     </Button>
                   </TableCell>
@@ -446,7 +451,7 @@ export function SettingsForm({
                             })
                           }
                         >
-                          <SelectTrigger size="sm" className="w-40">
+                          <SelectTrigger size="sm" className="w-40" aria-label={`Objetivo asignado a ${c.name} (${c.id})`}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>

@@ -22,11 +22,15 @@ async function input(request: Request): Promise<unknown> {
       const chunk = await reader.read();
       if (chunk.done) break;
       bytes += chunk.value.byteLength;
-      if (bytes > 4_096) { await reader.cancel(); throw new Error("input"); }
+      if (bytes > 4_096) throw new Error("input");
       text += decoder.decode(chunk.value, { stream: true });
     }
     text += decoder.decode();
     return JSON.parse(text);
+  } catch (error) {
+    // Decoder failures can leave a streaming client sending indefinitely; stop unread input.
+    await reader.cancel().catch(() => undefined);
+    throw error;
   } finally {
     reader.releaseLock();
   }

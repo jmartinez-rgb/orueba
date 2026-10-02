@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type {
   NormalizedAccount,
   NormalizedCampaign,
@@ -39,7 +40,7 @@ export function normalizeCampaign(row: GoogleRow, account: NormalizedAccount): N
 function dateAndHour(row: GoogleRow, query: PerformanceQuery): { date: string; hour: number | null } {
   const date = row.segments?.date;
   const hour = row.segments?.hour;
-  if (!date || date < query.date_from || date > query.date_to || !/^\d{4}-\d{2}-\d{2}$/.test(date))
+  if (!date || !z.iso.date().safeParse(date).success || date < query.date_from || date > query.date_to)
     throw new ApiError("PROVIDER_ERROR", "Google Ads devolvió una fecha inválida o fuera del rango.");
   if (query.granularity === "hourly" && (!Number.isInteger(hour) || hour! < 0 || hour! > 23))
     throw new ApiError("PROVIDER_ERROR", "Google Ads no devolvió una hora válida.");

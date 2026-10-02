@@ -13,6 +13,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    setupFiles: ["tests/setup.ts"],
     env: { RECORDS_BACKEND: "memory" },
     include: ["tests/**/*.test.ts"],
   },

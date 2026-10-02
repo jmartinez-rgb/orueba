@@ -121,4 +121,80 @@ describe("monthly budget coverage in direct API mode", () => {
     // Four Sundays are available; the configured minimum of five is unmet.
     expect(lines.find(l => l.level === "total")).toMatchObject({ spend: 3000, todaySpend: 100, dataState: "OK", forecast: null, forecastVsBudget: null, status: "ATTENTION" });
   });
+
+  it("never uses a future-date hourly row as a closed hour of today", async () => {
+    const { ctx, snap } = fixture({ hourly: [hourly("a"), { ...hourly("b"), date: "2026-10-03" }] });
+    const { lines } = await getBudgetControl(ctx, snap);
+    expect(lines.find(l => l.level === "account" && l.accountId === "b")).toMatchObject({ spend: null, todaySpend: null, dataState: "PARTIAL" });
+    expect(lines.find(l => l.level === "total")).toMatchObject({ spend: null, todaySpend: null, dataState: "PARTIAL" });
+  });
+
+  it("uses closed hourly data once when a daily source also supplies today's rows", async () => {
+    const { ctx, snap } = fixture({ daily: [daily("a"), daily("b"), daily("a", 500, "2026-10-02"), daily("b", 500, "2026-10-02")] });
+    const { lines } = await getBudgetControl(ctx, snap);
+    expect(lines.find(l => l.level === "total")).toMatchObject({ spend: 400, todaySpend: 200, dataState: "OK" });
+  });
+
+  it("does not forecast an aggregate from partial historical account samples outside this month", async () => {
+    const historical = ["2026-09-06", "2026-09-07", "2026-09-08", "2026-09-09", "2026-09-11", "2026-09-12", "2026-10-01"];
+    const rows = historical.flatMap(date => date === "2026-09-07" ? [daily("a", 100, date)] : [daily("a", 100, date), daily("b", 100, date)]);
+    const { ctx, snap } = fixture({ daily: rows });
+    ctx.settings = { ...ctx.settings, history: { ...ctx.settings.history, minSamples: 1 } };
+    const { lines } = await getBudgetControl(ctx, snap);
+    expect(lines.find(l => l.level === "account" && l.accountId === "a")).toMatchObject({ spend: 200, forecast: 4000, dataState: "OK" });
+    expect(lines.find(l => l.level === "account" && l.accountId === "b")).toMatchObject({ spend: 200, forecast: null, dataState: "OK" });
+    for (const level of ["platform", "total"]) expect(lines.find(l => l.level === level)).toMatchObject({ spend: 400, todaySpend: 200, forecast: null, dataState: "OK" });
+  });
+
+  it("does not invent the rest of today when its forecast divisor is zero", async () => {
+    const historical = ["2026-09-06", "2026-09-07", "2026-09-08", "2026-09-09", "2026-09-11", "2026-09-12", "2026-10-01"];
+    const { ctx, snap } = fixture({ daily: historical.flatMap(date => [daily("a", 100, date), daily("b", 100, date)]) });
+    ctx.settings = { ...ctx.settings, history: { ...ctx.settings.history, minSamples: 1 } };
+    snap.run.pacing.google.curveShare = 0;
+    snap.run.pacing.total.curveShare = 0;
+    const { lines } = await getBudgetControl(ctx, snap);
+    expect(lines.find(l => l.level === "total")).toMatchObject({ spend: 400, todaySpend: 200, forecast: null, dataState: "OK" });
+  });
+
+  it("keeps zero or absent budgets out of ratio denominators", async () => {
+    const { ctx, snap } = fixture();
+    ctx.source.getBudgets = async () => [{ month: "2026-10", level: "total", platform: null, accountId: null, campaignId: null, amount: 0 }];
+    const { lines } = await getBudgetControl(ctx, snap);
+    expect(lines.find(l => l.level === "total")).toMatchObject({ budget: 0, spend: 400, remaining: -400, usedPct: null, variance: null, forecastVsBudget: null });
+    expect(lines.find(l => l.level === "account" && l.accountId === "a")).toMatchObject({ budget: null, usedPct: null, forecastVsBudget: null });
+    expect(JSON.stringify(lines)).not.toContain("NaN");
+    expect(lines.every(line => Object.values(line).every(value => typeof value !== "number" || Number.isFinite(value)))).toBe(true);
+  });
+
+  it("preserves coverage and sums across deterministic mixed-platform missing-data cases", async () => {
+    const platforms = ["google", "meta", "spotify"] as const;
+    const accounts = platforms.flatMap(platform => [account(`${platform}-a`, platform), account(`${platform}-b`, platform)]);
+    const campaigns = accounts.flatMap(acc => [campaign(`${acc.id}-1`, acc.id, acc.platform), campaign(`${acc.id}-2`, acc.id, acc.platform)]);
+    const dates = ["2026-10-01", "2026-10-02", "2026-10-03"];
+    for (let seed = 1; seed <= 16; seed++) {
+      invalidate();
+      let state = seed;
+      const amount = () => { state = (state * 1664525 + 1013904223) >>> 0; return state % 11; };
+      const days = campaigns.flatMap(c => dates.map(date => daily(c.id, amount(), date, c.accountId, c.platform)));
+      const hours = campaigns.flatMap(c => [0, 1].map(hour => ({ ...hourly(c.id, amount(), c.accountId, c.platform), date: "2026-10-04", hour })));
+      if (seed % 4 === 1) days.splice(seed % days.length, 1);
+      if (seed % 4 === 2) days[seed % days.length].metrics.spend = null;
+      if (seed % 4 === 3) hours.splice(seed % hours.length, 1);
+      const { ctx, snap } = fixture({ catalog: { accounts, campaigns }, daily: days, hourly: hours });
+      snap.run.businessDate = "2026-10-04"; snap.run.cutoffHour = 2; snap.meta.cutoffHour = 2;
+      const { lines } = await getBudgetControl(ctx, snap);
+      for (const line of lines) {
+        const members = campaigns.filter(c => (!line.platform || c.platform === line.platform) && (!line.accountId || c.accountId === line.accountId) && (!line.campaignId || c.id === line.campaignId));
+        const current = members.flatMap(c => hours.filter(row => row.campaignId === c.id));
+        const prior = members.flatMap(c => days.filter(row => row.campaignId === c.id));
+        const todayComplete = members.every(c => [0, 1].every(hour => hours.some(row => row.campaignId === c.id && row.hour === hour && row.metrics.spend !== null)));
+        const monthComplete = todayComplete && members.every(c => dates.every(date => days.some(row => row.campaignId === c.id && row.date === date && row.metrics.spend !== null)));
+        const currentSum = current.reduce((sum, row) => sum + (row.metrics.spend ?? 0), 0);
+        const priorSum = prior.reduce((sum, row) => sum + (row.metrics.spend ?? 0), 0);
+        expect(line.todaySpend, `seed ${seed}, ${line.key}`).toBe(todayComplete ? currentSum : null);
+        expect(line.spend, `seed ${seed}, ${line.key}`).toBe(monthComplete ? priorSum + currentSum : null);
+        expect(line.dataState, `seed ${seed}, ${line.key}`).toBe(monthComplete ? "OK" : "PARTIAL");
+      }
+    }
+  });
 });
