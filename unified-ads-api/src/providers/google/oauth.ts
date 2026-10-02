@@ -29,6 +29,25 @@ export function validOAuthState(actual: string | null, expected: string): boolea
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+const OAUTH_HINTS: Record<string, [ApiError["code"], string]> = {
+  invalid_client: [
+    "AUTH_ERROR",
+    "Google rechazó el ID o el secreto del cliente. Revisa que GOOGLE_ADS_CLIENT_SECRET sea del mismo ID de cliente que GOOGLE_ADS_CLIENT_ID, sin espacios ni comillas; si acabas de crear el secreto, espera unos minutos y repite",
+  ],
+  invalid_grant: [
+    "AUTH_ERROR",
+    "El código de autorización ya no es válido (vencido o usado). Vuelve a correr npm run google:auth y autoriza enseguida con la liga nueva",
+  ],
+  redirect_uri_mismatch: [
+    "INVALID_REQUEST",
+    "La URI de redireccionamiento no coincide con la registrada en el ID de cliente. Agrega exactamente http://127.0.0.1:8089/oauth/google/callback",
+  ],
+  unauthorized_client: [
+    "AUTH_ERROR",
+    "Este ID de cliente no puede usar este tipo de autorización. Usa un cliente de tipo Aplicación web o App de escritorio",
+  ],
+};
+
 export async function exchangeAuthorizationCode(
   opts: {
     clientId: string;
@@ -64,7 +83,15 @@ export async function exchangeAuthorizationCode(
   } catch {
     throw new ApiError("PROVIDER_ERROR", "Google OAuth devolvió una respuesta inválida.");
   }
-  if (!response.ok) throw googleError(response.status, data, response.headers);
+  if (!response.ok) {
+    // El código de error OAuth es público (RFC 6749) y no contiene secretos; se informa para saber qué corregir.
+    const raw = (data as { error?: unknown } | null)?.error;
+    const code = typeof raw === "string" && /^[a-z_]{1,64}$/.test(raw) ? raw : null;
+    const hint = code ? OAUTH_HINTS[code] : undefined;
+    if (hint)
+      throw new ApiError(hint[0], `${hint[1]} (${code})`, { details: { provider: "google", oauth_error: code } });
+    throw googleError(response.status, data, response.headers);
+  }
   const token = (data as { refresh_token?: unknown } | null)?.refresh_token;
   if (typeof token !== "string" || !token)
     throw new ApiError("AUTH_ERROR", "Google no devolvió un refresh token. Repite la autorización con consentimiento.");

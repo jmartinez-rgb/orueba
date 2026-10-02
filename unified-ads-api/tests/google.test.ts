@@ -717,6 +717,22 @@ describe("OAuth helper", () => {
       ),
     ).rejects.toMatchObject({ code: "AUTH_ERROR" });
   });
+  it.each([
+    ["invalid_client", "AUTH_ERROR", "secreto del cliente"],
+    ["invalid_grant", "AUTH_ERROR", "Vuelve a correr npm run google:auth"],
+    ["redirect_uri_mismatch", "INVALID_REQUEST", "http://127.0.0.1:8089/oauth/google/callback"],
+  ])("explica el rechazo %s sin exponer el cuerpo de la respuesta", async (error, code, hint) => {
+    const mock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ error, error_description: "detalle-del-servidor" }, { status: 400 }));
+    const call = exchangeAuthorizationCode(
+      { clientId: "id", clientSecret: "secret", code: "code", redirectUri: "http://127.0.0.1/cb", verifier: "v" },
+      mock,
+    );
+    await expect(call).rejects.toMatchObject({ code, details: { oauth_error: error } });
+    await expect(call).rejects.toThrow(hint);
+    await expect(call).rejects.not.toThrow("detalle-del-servidor");
+  });
   it("al guardar conserva las demás variables y comentarios sin duplicar el token", () => {
     const original = '# comment\nAPI_KEYS="keep-me"\nGOOGLE_ADS_REFRESH_TOKEN=old\n';
     const saved = updateEnvVariable(original, "GOOGLE_ADS_REFRESH_TOKEN", "new$token");
