@@ -176,6 +176,14 @@ function normalizeObservation(
   return row;
 }
 
+/** One level of one read may expand to at most 100,000 observations; above that the read fails, never truncates. */
+function assertCapacity(entities: number, query: GoogleAbsoluteTopQuery): number {
+  const days = (Date.parse(query.date_to) - Date.parse(query.date_from)) / 86400000 + 1;
+  if (entities * days * (query.granularity === "hourly" ? 24 : 1) > 100000)
+    throw new ApiError("PROVIDER_ERROR", "Absolute Top excede el límite de observaciones de una lectura.");
+  return days;
+}
+
 /** Independent native observations; never derive a campaign from its groups or copy a daily rate to hours. */
 export function joinAbsoluteTopRows(
   catalogRows: GoogleRow[],
@@ -219,9 +227,7 @@ export function joinAbsoluteTopRows(
     if (reports.has(reportKey)) throw fail();
     reports.set(reportKey, row);
   }
-  const days = (Date.parse(query.date_to) - Date.parse(query.date_from)) / 86400000 + 1;
-  if (entities.size * days * (query.granularity === "hourly" ? 24 : 1) > 100000)
-    throw new ApiError("PROVIDER_ERROR", "Absolute Top excede el límite de observaciones de una lectura.");
+  const days = assertCapacity(entities.size, scoped);
   const result: GoogleAbsoluteTopRow[] = [];
   for (let offset = 0; offset < days; offset++) {
     const date = new Date(Date.parse(query.date_from) + offset * 86400000).toISOString().slice(0, 10);
@@ -252,6 +258,8 @@ export async function readAbsoluteTop(
       signal,
       account.manager_account_id ?? undefined,
     );
+    // Reject an oversized expansion before downloading its metric pages.
+    assertCapacity(catalog(catalogRows, level).size, validateAbsoluteTopQuery(query));
     const metricRows = await client.search(
       account.account_id,
       absoluteTopMetricsQuery(query, level),
