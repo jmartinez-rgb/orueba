@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Siren,
   Ticket,
+  Coins,
   UsersRound,
   Wallet,
   Workflow,
@@ -84,6 +85,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/automation", label: "Automation", icon: Workflow },
       { href: "/usuarios", label: "Usuarios y accesos", icon: UsersRound, permission: ["users:view", "users:manage"] },
       { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/tipo-de-cambio", label: "Tipo de cambio", icon: Coins },
     ],
   },
   {

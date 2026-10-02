@@ -33,6 +33,36 @@ const sync = (fetcher = request(), extra = {}) => syncUnified({ mapping: { versi
 const source = () => new UnifiedDataSource({ store: new UnifiedSnapshotStore(directory), accounts: [scope], timezone: "America/Mexico_City", clock: () => now });
 
 describe("durable direct advertising source", () => {
+  it("preserves unknown account zones and Microsoft identifiers without assigning a report clock", async () => {
+    for (const timezone of [null, "GuadalajaraMexicoCityMonterrey"]) {
+      const base = request([row({ hour: 18, source_timezone: "UTC" })]);
+      const fetcher: typeof fetch = async (input, init) => {
+        const response = await base(input, init);
+        const body = await response.json();
+        if (new URL(String(input)).pathname.endsWith("/accounts")) body.data[0].timezone = timezone;
+        return Response.json(body);
+      };
+      expect((await sync(fetcher, { granularities: ["hourly"] }))[0].status).toBe("SUCCESS");
+      expect((await store.catalog(scope))?.account.timezone).toBe(timezone);
+      const source = new UnifiedDataSource({ store, accounts: [scope], timezone: "America/Mexico_City", clock: () => now });
+      expect((await source.getHourly({ dates: ["2026-09-29"], level: "campaign" }))[0].hour).toBe(12);
+    }
+    const invalid = request([row({ hour: 18, source_timezone: null })]);
+    expect((await sync(invalid, { granularities: ["hourly"] }))[0]).toMatchObject({ status: "FAILED", code: "INVALID_API_RESPONSE" });
+  });
+
+  it("ignores only an explicit denied foreign account when the selected account is present", async () => {
+    const base = request();
+    const fetcher = (deniedId: string, code = "ACCESS_DENIED"): typeof fetch => async (input, init) => {
+      const response = await base(input, init); const body = await response.json();
+      if (new URL(String(input)).pathname.endsWith("/accounts")) body.errors = [{ error: { code, details: { account_id: deniedId } } }];
+      return Response.json(body);
+    };
+    expect((await sync(fetcher("foreign")))[0].status).toBe("SUCCESS");
+    expect((await sync(fetcher(scope.accountId)))[0]).toMatchObject({ status: "FAILED", code: "PARTIAL_API_RESPONSE" });
+    expect((await sync(fetcher("foreign", "RATE_LIMITED")))[0].status).toBe("FAILED");
+  });
+
   it("an unmapped manager or foreign-currency account does not block the mapped account", async () => {
     const base = request();
     const fetcher: typeof fetch = async (input, init) => {
@@ -71,6 +101,34 @@ describe("durable direct advertising source", () => {
     expect((await sync(request([row()], warning)))[0].status).toBe("SUCCESS");
     expect((await sync(request([row({ spend: 500 })], { provider: "tiktok", error: { code: "ACCESS_DENIED" } })))[0].code).toBe("PARTIAL_API_RESPONSE");
     expect((await source().getDaily({ from: "2026-09-29", to: "2026-09-29", level: "campaign" }))[0].metrics.spend).toBe(40);
+  });
+  it("accepts Meta's hourly limitation only when it excludes all imported metrics", async () => {
+    const metaScope = { ...scope, platform: "meta" as const };
+    const fetcher = (unsupported = ["reach", "frequency", "offsite_conversions"], partial = true): typeof fetch => async input => {
+      const response = await request([row({ hour: 12 })])(input); const body = await response.json();
+      body.data = body.data.map((r: Record<string, unknown>) => ({ ...r, platform: "meta" }));
+      if (new URL(String(input)).pathname.endsWith("/performance")) body.errors = [{ error: { code: "PROVIDER_ERROR", details: { provider: "meta", limitation: "hourly_breakdown", partial_data: partial, unsupported_metrics: unsupported } } }];
+      return Response.json(body);
+    };
+    const extra = { mapping: { version: 1, accounts: [metaScope] }, granularities: ["hourly"] };
+    expect((await sync(fetcher(), extra))[0].status).toBe("SUCCESS");
+    expect((await sync(fetcher(["spend"]), extra))[0].code).toBe("PARTIAL_API_RESPONSE");
+    expect((await sync(fetcher([], false), extra))[0].code).toBe("PARTIAL_API_RESPONSE");
+    expect((await store.partition(metaScope, "2026-09-29", "hourly"))?.rows[0].spend).toBe(40);
+  });
+  it("Spotify conversion/revenue warnings do not block base metrics; unknown reporting warnings do", async () => {
+    const spotify = { ...scope, platform: "spotify" as const };
+    const fetcher = (limitation: string, accountId = scope.accountId): typeof fetch => async input => {
+      const response = await request()(input); const body = await response.json();
+      body.data = body.data.map((r: Record<string, unknown>) => ({ ...r, platform: "spotify" }));
+      if (new URL(String(input)).pathname.endsWith("/performance")) body.errors = [{ error: { code: "PROVIDER_ERROR", details: { provider: "spotify", account_id: accountId, limitation } } }];
+      return Response.json(body);
+    };
+    const extra = { mapping: { version: 1, accounts: [spotify] } };
+    expect((await sync(fetcher("revenue_unavailable"), extra))[0].status).toBe("SUCCESS");
+    expect((await sync(fetcher("privacy_suppressed_conversions"), extra))[0].status).toBe("SUCCESS");
+    expect((await sync(fetcher("reporting_warning"), extra))[0].code).toBe("PARTIAL_API_RESPONSE");
+    expect((await sync(fetcher("revenue_unavailable", "foreign"), extra))[0].code).toBe("PARTIAL_API_RESPONSE");
   });
   it("daily data never creates hourly data or current-day freshness", async () => {
     await sync();

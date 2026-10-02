@@ -147,7 +147,7 @@ export const settingsSchema = z.object({
   /** Moneda: todo se reporta en MXN; las cuentas en USD se convierten con la tasa del mes. */
   currency: z.object({
     /** 1 USD = N MXN por mes (YYYY-MM). La tasa cambia cada mes. */
-    rates: z.record(z.string().regex(/^\d{4}-\d{2}$/), z.number().positive().max(1000)),
+    rates: z.record(z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), z.number().positive().max(1000)),
     /** Corrección de la moneda de una cuenta (si la fuente no la trae o viene mal). */
     accountCurrency: z.record(z.string(), z.enum(["MXN", "USD"])),
   }),

@@ -15,7 +15,7 @@ de cada plataforma siguen exclusivamente en el servidor de la API; Next.js usa s
 
 ## Configuración local
 
-En `unified-ads-api/.env`, conservar las credenciales vigentes y definir `PORT=8087`,
+En `unified-ads-api/.env`, conservar las credenciales vigentes y definir `PORT=8088`,
 `HOST=127.0.0.1` y `TOKEN_STORE_FILE` en una ruta privada persistente. En este entorno se reutiliza
 el `.env` privado para conservar rotaciones. No copiar valores al chat o al repositorio.
 Iniciar la API desde su carpeta con `npm run dev` o, después del build, `npm start`.
@@ -26,7 +26,7 @@ En `media-monitoring-center/.env.local`, configurar:
 DATA_SOURCE=unified
 USE_MOCK_DATA=false
 APP_TIMEZONE=America/Mexico_City
-UNIFIED_ADS_API_URL=http://127.0.0.1:8087
+UNIFIED_ADS_API_URL=http://127.0.0.1:8088
 # UNIFIED_ADS_API_KEY: una llave interna ya autorizada en API_KEYS; guardar privadamente.
 UNIFIED_ADS_DATA_DIR=.data/unified
 UNIFIED_ADS_MAPPING_FILE=config/unified.mapping.example.json
@@ -39,9 +39,12 @@ es texto; `brand` es `izzi` o `sky`; monedas admitidas: MXN y USD. Una misma cue
 asignarse a dos marcas. Se admite `UNIFIED_ADS_MAPPING` como alternativa JSON al archivo.
 Un error de configuración detiene esta fuente: **no se reemplaza por mock**.
 
-El ejemplo contiene las cuatro cuentas TikTok indicadas por el usuario y, por su confirmación,
-**solo X `18ce53wx5ui` de izzi**. Las cuentas X de Sky quedan fuera. Para Google, Meta, Microsoft
-y Spotify falta confirmar el mapeo por ID; no se asignan clientes automáticamente por el nombre.
+El mapeo incorpora las **31 cuentas indicadas por el usuario: 25 izzi y seis Sky**. Incluye nueve
+Google, 15 Meta, cuatro TikTok, una Microsoft, una Spotify y **solo X `18ce53wx5ui` de izzi**.
+Sky Sports pertenece a Sky; `izzi - Sky Social` pertenece a izzi. Los IDs se conservan como texto.
+El número de Microsoft `F107U5WL` se resolvió mediante la API al ID `138689064`, sin inferirlo
+por nombre. Se verificaron 26 monedas MXN y cinco USD. Las cuentas descubiertas adicionales
+no se incorporan al monitoreo. Las tasas mensuales se capturan en [Tipo de cambio](TIPO_DE_CAMBIO.md).
 El motor, los presupuestos vigentes y los filtros usan la marca explícita. IDs internos:
 `plataforma:cuenta` y `plataforma:cuenta:campaña`; usar estos IDs en ajustes manuales.
 
@@ -75,8 +78,13 @@ Ante `API_RATE_LIMITED`, respetar el límite del proveedor; no regenerar credenc
 - Solo se conservan las métricas admitidas y el offset horario de X. Se descartan payloads crudos,
   mensajes del proveedor, valores OAuth, cabeceras y URLs firmadas. Los registros operativos
   viven en otro directorio; errores de archivo o Blobs no se disfrazan de éxito en memoria.
-- Una respuesta parcial se rechaza, salvo `primary_conversion_not_selected`: no impide usar
-  gasto válido. Entidades ajenas, monedas distintas, duplicados y fechas inválidas se rechazan.
+- Una respuesta parcial se rechaza salvo advertencias explícitas que no afectan gasto,
+  impresiones o clics: acción principal sin elegir; alcance/frecuencia/conversiones externas por
+  hora de Meta; ingresos/conversiones desconocidos de Spotify. La excepción exige el proveedor
+  y alcance esperados. Un `ACCESS_DENIED` del descubrimiento Google sobre otra cuenta explícita
+  solo se admite si la seleccionada está presente. Errores sin alcance, cuotas, advertencias
+  genéricas y datos provisionales de Microsoft siguen bloqueando la carga.
+  Entidades ajenas, monedas distintas, duplicados y fechas inválidas se rechazan.
 - No se rellenan filas ni horas ausentes con cero. Un día vacío no equivale a gasto cero. Las
   ventanas horarias incompletas y los totales con costos desconocidos quedan sin valor; los
   chequeos señalan horas faltantes. El mapa de calor tampoco inventa ceros.

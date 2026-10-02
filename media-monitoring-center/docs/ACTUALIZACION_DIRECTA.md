@@ -55,10 +55,13 @@ elimina automáticamente por tiempo: revisar que no siga activo el proceso propi
 recuperarlo. La espera persistida se conserva. El disco debe ser durable/compartido en producción;
 este worker local no resuelve disco efímero ni transacciones de varios servidores.
 
-Falta confirmar IDs y marcas para Google, Meta, Microsoft y Spotify antes de incluirlos. El
-inventario de cuentas accesibles puede guardarse en un archivo privado para apoyar esa selección;
-no autoriza asignar marcas por nombre. Microsoft conserva su bloqueo de salida al ZIP, una cuenta
-Spotify requiere permiso y X necesita disponibilidad de cuota para horas/histórico ampliado.
+Los IDs y marcas de las 31 cuentas ya fueron indicados por el usuario e incorporados al mapeo.
+Microsoft descargó el ZIP y se guardaron 266 filas horarias del 30 de septiembre con datos
+completos (`MICROSOFT_ADS_RETURN_ONLY_COMPLETE_DATA=true`). Los diarios UTC se rechazan como
+días mexicanos. Spotify de izzi permite el reporte diario UTC; el horario sigue fallando con
+`PROVIDER_ERROR`. La cuenta USD de Spotify sin permiso queda fuera del mapeo autorizado.
+X necesita disponibilidad de cuota para horas/histórico ampliado. Capturar las tasas en
+[Tipo de cambio](TIPO_DE_CAMBIO.md) antes de conciliar consolidaciones MXN.
 
 El proceso no queda activado de forma permanente en esta entrega. Elegir supervisor/scheduler,
 credenciales y almacenamiento del entorno destino precede a una propuesta de publicación.

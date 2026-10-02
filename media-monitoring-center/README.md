@@ -174,3 +174,10 @@ media-monitoring-center/
 **Actualización del histórico:** `npm run unified:refresh -- --provider tiktok` ejecuta una ronda
 acotada con espera persistida y backoff; `--watch` permite un worker local explícito.
 Ver [ACTUALIZACION_DIRECTA.md](docs/ACTUALIZACION_DIRECTA.md). No instala un cron ni publica.
+
+**Cuentas y moneda:** el mapeo autorizado incorpora 31 cuentas (25 izzi/seis Sky), con cinco
+cuentas USD. **Operación → Tipo de cambio** permite capturar tasas mensuales USD→MXN con
+permisos administrativos y bitácora de valores anteriores/nuevos. No se eligieron tasas:
+[instrucciones de captura y límites](docs/TIPO_DE_CAMBIO.md). La lectura del 30 de septiembre
+incorpora Google (2390 filas horarias), Meta (2789) y Microsoft (266, con datos completos).
+Quedan pendientes conciliación, cobertura por zona, Spotify horario y cuotas de X.

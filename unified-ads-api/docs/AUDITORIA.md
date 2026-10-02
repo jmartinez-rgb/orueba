@@ -3,6 +3,54 @@
 Fecha: 1 de octubre de 2026. Rama: `codex/entrega-auditoria-claude`. Estado recibido: commit
 `39a65be` (idéntico al ZIP `unified-ads-api-para-auditoria.zip`, comprobado archivo por archivo).
 
+## Cuentas autorizadas y captura mensual de divisas — 2 de octubre de 2026 UTC
+
+Continuación en `codex/finalizacion-verificador-meta-x` después de `0350770`. El usuario entregó
+31 cuentas: **25 izzi y seis Sky**, por ID y marca explícitos. Monedas comprobadas: 26 MXN/cinco
+USD. Sky Sports corresponde a Sky; `izzi - Sky Social` corresponde a izzi; X sigue solo izzi.
+Microsoft `F107U5WL` se resolvió por API a `138689064`. No se incorporaron cuentas extra del
+descubrimiento ni se convirtieron IDs largos a números JavaScript.
+
+Primera carga del **30 de septiembre**, sin declarar conciliación:
+
+- Google: nueve catálogos; **100 filas diarias de ocho cuentas y 2390 horarias de nueve**.
+  Universal+ (`4536282576`, Chicago) diario se rechaza con `DAILY_TIMEZONE_MISMATCH`.
+- Meta: 15 catálogos; **109 filas diarias de 14 cuentas y 2789 horarias de 15**. izzi ABCW
+  (`226733029954417`, Chicago) conserva el mismo bloqueo diario. La advertencia horaria de
+  alcance/frecuencia/conversiones externas no bloquea las tres métricas base importadas;
+  fixtures prueban que una advertencia sobre gasto sí bloquea.
+- Microsoft: ZIP real descargado del host permitido, **266 filas horarias guardadas**, con
+  `MICROSOFT_ADS_RETURN_ONLY_COMPLETE_DATA=true`. El bloqueo previo del proxy es histórico;
+  no se cambió TLS ni se eludió el proxy. El diario UTC se rechaza como día mexicano. Todavía
+  hay que conciliar y completar las horas adyacentes del día local; no hay prueba de todas
+  las cuentas Microsoft ni del riesgo residual DNS por esta lectura.
+- Spotify de izzi: catálogo y diario UTC con una fila; advertencias de ingresos/evento principal
+  no afectan gasto/impresiones/clics. El diario no se incorpora como día mexicano. Horario
+  responde **502/PROVIDER_ERROR**, pendiente de diagnosticar; no se afirma conversión horaria.
+- TikTok y X conservan el histórico ya descrito. Esta ronda no volvió a consultar X ni certifica
+  su cuota actual. Una cuenta USD de Spotify sin permiso queda fuera del mapeo del usuario.
+
+La metadata de zona de cuenta admite `null` (Spotify) o el identificador de Microsoft; nunca
+se inventa UTC para ese catálogo. La zona de cada fila de rendimiento sigue siendo IANA válida.
+Un `ACCESS_DENIED` de descubrimiento sobre otra cuenta explícita solo se tolera con la seleccionada
+presente. Cuotas, errores sin alcance y avisos genéricos siguen bloqueando la carga.
+
+**Operación → Tipo de cambio** permite capturar USD→MXN por mes, compartido entre marcas, con
+edición administrativa y consulta interna. No se eligió tasa para septiembre/octubre. La tasa
+visible usa el mismo cálculo que la conversión: exacta, anterior provisional o desconocida;
+nunca una futura. La bitácora registra mes/actor/valor anterior y nuevo (mejor esfuerzo existente,
+no registro financiero transaccional). Detalles: [TIPO_DE_CAMBIO.md](../../media-monitoring-center/docs/TIPO_DE_CAMBIO.md).
+
+Validación del monitoreo: **295 pruebas**, tipos/lint y build; comprobaciones HTTP de la sección
+con Juan Pablo, Daniel, Sebastián, Hernán y cliente. No se escribieron tasas ficticias en los
+registros operativos. API: **619 pruebas**, tipos/lint/formato. Particiones, contraseñas y secretos
+continúan privados. No hubo publicación ni despliegue.
+
+Pendientes de esta carga: **configuración**, capturar tasas y activar almacenamiento/worker durable;
+**código**, diagnosticar Spotify horario y completar/conciliar cobertura local; **permisos**,
+ningún acceso adicional se presume para cuentas fuera del mapeo; **negocio**, eventos principales,
+reglas offline y conciliación ya documentados. El proyecto sigue sujeto a auditoría.
+
 ## Actualización incremental local — 2 de octubre de 2026 UTC
 
 El monitoreo incorpora `unified:refresh`: ronda acotada de tres días por cuenta del mapeo,
@@ -564,14 +612,14 @@ Spotify y la primera lectura real de X, descritos al inicio. TikTok se verificó
 detalles y totales en [TIKTOK_PRIMERA_LECTURA.md](TIKTOK_PRIMERA_LECTURA.md). La finalización del
 verificador añadió una lectura de un día y 26 presupuestos actuales, descrita arriba.
 
-| Plataforma | Simulador            | OAuth y credenciales reales                  | Cuentas reales                                 | Campañas reales      | Informes y métricas reales                                              | Conciliación con la interfaz |
-| ---------- | -------------------- | -------------------------------------------- | ---------------------------------------------- | -------------------- | ----------------------------------------------------------------------- | ---------------------------- |
-| Google Ads | Sí                   | Sí                                           | Sí (33 raíces, 2274 en jerarquías)             | Sí (muestra de 150)  | Muestras diarias, horarias y de conversiones                            | Pendiente                    |
-| Meta       | Sí                   | Sí (token)                                   | Sí (17 activas)                                | Sí (muestra)         | Muestras diarias, horarias y de conversiones                            | Pendiente                    |
-| TikTok     | Sí                   | Sí, OAuth y token real                       | Sí (4, monedas y zonas leídas)                 | Sí (178)             | Monitoreo: 35 días, 1022 filas diarias/10432 horarias; US con actividad | Pendiente                    |
-| Microsoft  | Sí                   | Sí                                           | Sí (4)                                         | Sí (43)              | 11 presupuestos y 2 señales; ZIP de cuenta activa bloqueado por proxy   | Pendiente                    |
-| Spotify    | Sí                   | Sí (refresh token)                           | Sí (6); 1 USD sin permiso de campañas/informes | Sí (14 accesibles)   | 3 filas diarias y 36 por evento; valores desconocidos conservados       | Pendiente                    |
-| X Ads      | Sí, fixtures sin red | Sí, OAuth 1.0a; HTTP 200, estado `connected` | Sí (3); monitoreo solo izzi por instrucción    | Sí (1288); izzi 1276 | API: 3864 filas diarias; monitoreo izzi: 3828; horas HTTP 429           | Pendiente                    |
+| Plataforma | Simulador            | OAuth y credenciales reales                  | Cuentas reales                              | Campañas reales         | Informes y métricas reales                                                   | Conciliación con la interfaz |
+| ---------- | -------------------- | -------------------------------------------- | ------------------------------------------- | ----------------------- | ---------------------------------------------------------------------------- | ---------------------------- |
+| Google Ads | Sí                   | Sí                                           | Sí (9 mapeadas; jerarquías verificadas)     | Sí                      | Monitoreo 30/09: 100 diarias/2390 horarias; Universal+ diario fuera de zona  | Pendiente                    |
+| Meta       | Sí                   | Sí (token)                                   | Sí (15 mapeadas de 17 activas)              | Sí                      | Monitoreo 30/09: 109 diarias/2789 horarias; izzi ABCW diario fuera de zona   | Pendiente                    |
+| TikTok     | Sí                   | Sí, OAuth y token real                       | Sí (4, monedas y zonas leídas)              | Sí (178)                | Monitoreo: 35 días, 1022 filas diarias/10432 horarias; US con actividad      | Pendiente                    |
+| Microsoft  | Sí                   | Sí                                           | Sí (4; monitoreo 1 izzi)                    | Sí (43; cuenta izzi 15) | ZIP descargado: 266 horarias completas; diario UTC fuera de zona             | Pendiente                    |
+| Spotify    | Sí                   | Sí (refresh token)                           | Sí (6; monitoreo 1 MXN izzi)                | Sí (14 accesibles)      | Muestras diarias UTC; izzi horario 502/PROVIDER_ERROR; USD extra sin permiso | Pendiente                    |
+| X Ads      | Sí, fixtures sin red | Sí, OAuth 1.0a; HTTP 200, estado `connected` | Sí (3); monitoreo solo izzi por instrucción | Sí (1288); izzi 1276    | API: 3864 filas diarias; monitoreo izzi: 3828; horas HTTP 429                | Pendiente                    |
 
 ## Pendientes y orden recomendado
 
@@ -605,8 +653,8 @@ y esta rama conserva esas correcciones.
   diarios (sin ellas muestra cómo conectarlo; en modo demo usa datos de ejemplo rotulados).
 - Monitoreo v1: APIs directas e histórico por archivo implementados y configurados localmente.
   Acceso nominal validado localmente; faltan su configuración en producción, tasas mensuales USD,
-  scheduler y volumen durable compartido en el entorno destino. Confirmar IDs por marca de Google, Meta, Microsoft y Spotify; X de Sky queda
-  fuera. `v1:check` valida configuración, no cobertura de datos ni aceptación de producción.
+  scheduler y volumen durable compartido en el entorno destino. Los 31 IDs y marcas del usuario ya están mapeados; X de Sky queda fuera.
+  Tasas mensuales capturables desde Operación → Tipo de cambio, aún sin valores del equipo. `v1:check` valida configuración, no cobertura de datos ni aceptación de producción.
 - `TOKEN_STORE_FILE` o un gestor de secretos en el despliegue.
 - Acciones principales y mapeos.
 - TikTok: conservar token y lista de cuatro IDs en la configuración privada del entorno destino.
@@ -614,8 +662,9 @@ y esta rama conserva esas correcciones.
 - X: conservar en el entorno destino las cuatro variables OAuth 1.0a comprobadas; no volver
   a regenerarlas por los errores históricos ya resueltos. Configurar evento principal por cuenta
   y timeout apropiado para backfills. La primera lectura usó un plazo de 120 segundos.
-- Microsoft: permitir en la infraestructura HTTPS a `bingadsappsstorageprod.blob.core.windows.net`.
-  `microsoft:red` confirma `proxy_denied`; el borrador de red sin restricciones no levanta ese bloqueo.
+- Microsoft: la descarga al host permitido se comprobó en esta continuación. Conservar salida
+  HTTPS al mismo host y `MICROSOFT_ADS_RETURN_ONLY_COMPLETE_DATA=true`; volver a validar
+  desde el entorno destino. El rechazo previo del proxy queda como evidencia histórica.
 - Despliegue (Cloud Run) con sus secretos.
 
 **Código**
@@ -645,10 +694,11 @@ y esta rama conserva esas correcciones.
 1. Conciliar Google y Meta contra sus interfaces: un día, una cuenta, mismo criterio de atribución
    (comprueba ceros reales y cierra atribución).
 2. Decidir y configurar las acciones principales y los mapeos de conversiones.
-3. Microsoft desde un entorno con salida al almacenamiento de informes; conciliar un día por hora
-   (cierra el riesgo de UTC).
-4. Spotify: resolver el permiso de una cuenta USD, ampliar la muestra a dos días y conciliar
-   gasto, conversiones y final inclusivo documentado. El acceso global y la muestra diaria ya funcionan.
+3. Microsoft: conciliar las 266 filas horarias reales, completar las horas adyacentes del día
+   mexicano y comprobar nuevamente el host de descarga desde producción.
+4. Spotify: diagnosticar el horario de izzi (502/PROVIDER_ERROR), ampliar la muestra y conciliar
+   gasto, conversiones y final inclusivo documentado. El permiso USD solo aplica si el usuario
+   incorpora esa cuenta adicional; hoy queda fuera del mapeo autorizado.
 5. TikTok: conciliar los nuevos 35 días diarios/horarios y sus vacíos, el gasto US ahora presente
    y la zona de visualización de Sky Sports; verificar unidades de compra con una muestra no nula.
 6. Despliegue con secretos y `TOKEN_STORE_FILE`; después n8n, BigQuery y alertas.

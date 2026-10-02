@@ -1,5 +1,41 @@
 # Traspaso a Claude: continuación de TikTok y X Ads
 
+## Actualización para retomar — cuentas y tipo de cambio (2 de octubre de 2026 UTC)
+
+La rama activa es `codex/finalizacion-verificador-meta-x`, continuación después de `0350770`.
+Esta sección prevalece sobre los estados históricos de acceso y configuración más abajo.
+
+- El usuario confirmó **31 cuentas**, mapeadas en
+  `media-monitoring-center/config/unified.mapping.example.json`: 25 izzi/seis Sky, nueve Google,
+  15 Meta, cuatro TikTok y una de Microsoft, Spotify y X. Microsoft `F107U5WL` es `138689064`.
+  X solo izzi. Las cinco cuentas USD están identificadas; no se decidió tipo de cambio.
+- Nueva sección **Operación → Tipo de cambio** (`/tipo-de-cambio`), compartida entre marcas por mes,
+  edición con `settings:write`, consulta interna y bitácora con valores anteriores/nuevos.
+  Revisar [TIPO_DE_CAMBIO.md](../../media-monitoring-center/docs/TIPO_DE_CAMBIO.md). No se
+  cargaron tasas ficticias. Se conserva la regla previa de tasa anterior provisional, ahora
+  visible usando el mismo cálculo de conversión. La bitácora es de mejor esfuerzo; concurrencia
+  entre instancias/registro financiero transaccional permanecen pendientes.
+- Primera carga del 30/09: Google 100 diarias/2390 horarias; Meta 109/2789. Dos diarios en Chicago
+  se rechazan por diferencia de zona. Los reportes horarios conservan su reloj y pasan al de México.
+- **Microsoft descargó el ZIP** y guardó 266 filas horarias con datos completos. La configuración
+  privada local exige `MICROSOFT_ADS_RETURN_ONLY_COMPLETE_DATA=true`. El rechazo de proxy es
+  histórico en este entorno; falta conciliar y revalidar en producción. No hubo evasión TLS/proxy.
+- Spotify izzi: diario UTC devuelve una fila, pero no se acepta como día mexicano. Horario:
+  **502/PROVIDER_ERROR**, pendiente. X no se reconsultó en esta ronda; se conserva el límite
+  horario observado y su histórico diario. La cuenta USD extra de Spotify está fuera del mapeo.
+- El sincronizador admite solo advertencias concretas ajenas a las tres métricas importadas;
+  fixtures prueban que errores de gasto, genéricos, de otra cuenta o cuotas bloquean la carga.
+  No se importan conversiones/ventas por defecto ni se cambian las reglas de negocio.
+- Validación: API **619 pruebas** y tipos/lint/formato; monitoreo **295 pruebas** y tipos/lint/build.
+  HTTP local de permisos nominales y tasas sin capturas falsas. API local actual puerto **8088**,
+  monitoreo **3000**, configuración privada preservada; el puerto anterior ocupado no se liberó
+  sin identificar su propietario. No publicar ni desplegar.
+
+Prioridad al retomar: auditar conversión/alcance de las 31 cuentas y permisos; capturar las tasas
+del equipo desde la sección; diagnosticar Spotify horario; completar cobertura mexicana sin
+inventar horas/ceros; conciliar; luego preparar worker y volumen durable del destino. Leer primero
+[AUDITORIA.md](AUDITORIA.md) y [V1.md](../../media-monitoring-center/docs/V1.md).
+
 **Documento histórico de la entrega `b4226e9`.** La continuación actual está en
 `codex/finalizacion-verificador-meta-x`, desde la auditoría `c79b17f` de Claude.
 Lee primero [VERIFICACION.md](VERIFICACION.md) y la sección más reciente de

@@ -1,10 +1,191 @@
 {
   "version": 1,
   "accounts": [
-    { "platform": "tiktok", "accountId": "7338571937913978882", "brand": "sky", "currency": "MXN" },
-    { "platform": "tiktok", "accountId": "7545502925565771792", "brand": "sky", "currency": "MXN" },
-    { "platform": "tiktok", "accountId": "7361545670072909840", "brand": "izzi", "currency": "MXN" },
-    { "platform": "tiktok", "accountId": "7688066712031182866", "brand": "izzi", "currency": "USD" },
-    { "platform": "x", "accountId": "18ce53wx5ui", "brand": "izzi", "currency": "MXN" }
+    {
+      "platform": "google",
+      "accountId": "1970842746",
+      "brand": "sky",
+      "currency": "MXN"
+    },
+    {
+      "platform": "google",
+      "accountId": "7367928294",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "google",
+      "accountId": "3224850043",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "google",
+      "accountId": "7771629164",
+      "brand": "izzi",
+      "currency": "USD"
+    },
+    {
+      "platform": "google",
+      "accountId": "1445650307",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "google",
+      "accountId": "8779536058",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "google",
+      "accountId": "6214109105",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "google",
+      "accountId": "8110571939",
+      "brand": "izzi",
+      "currency": "USD"
+    },
+    {
+      "platform": "google",
+      "accountId": "4536282576",
+      "brand": "izzi",
+      "currency": "USD"
+    },
+    {
+      "platform": "meta",
+      "accountId": "902854812517704",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "meta",
+      "accountId": "801573051220234",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "meta",
+      "accountId": "1002273077117011",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "meta",
+      "accountId": "1092413174550532",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "meta",
+      "accountId": "761656674370974",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "meta",
+      "accountId": "255028689061987",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "meta",
+      "accountId": "1396016284226084",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "meta",
+      "accountId": "1750829311848550",
+      "brand": "sky",
+      "currency": "MXN"
+    },
+    {
+      "platform": "meta",
+      "accountId": "2626263524259511",
+      "brand": "sky",
+      "currency": "MXN"
+    },
+    {
+      "platform": "meta",
+      "accountId": "750449062200981",
+      "brand": "sky",
+      "currency": "MXN"
+    },
+    {
+      "platform": "meta",
+      "accountId": "226733029954417",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "meta",
+      "accountId": "568474318175977",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "meta",
+      "accountId": "465392948082619",
+      "brand": "izzi",
+      "currency": "USD"
+    },
+    {
+      "platform": "meta",
+      "accountId": "400085401160967",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "meta",
+      "accountId": "1742111066053708",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "microsoft",
+      "accountId": "138689064",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "spotify",
+      "accountId": "f154306e-82ce-4c8b-a772-09140c1a24c6",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "tiktok",
+      "accountId": "7338571937913978882",
+      "brand": "sky",
+      "currency": "MXN"
+    },
+    {
+      "platform": "tiktok",
+      "accountId": "7545502925565771792",
+      "brand": "sky",
+      "currency": "MXN"
+    },
+    {
+      "platform": "tiktok",
+      "accountId": "7361545670072909840",
+      "brand": "izzi",
+      "currency": "MXN"
+    },
+    {
+      "platform": "tiktok",
+      "accountId": "7688066712031182866",
+      "brand": "izzi",
+      "currency": "USD"
+    },
+    {
+      "platform": "x",
+      "accountId": "18ce53wx5ui",
+      "brand": "izzi",
+      "currency": "MXN"
+    }
   ]
 }

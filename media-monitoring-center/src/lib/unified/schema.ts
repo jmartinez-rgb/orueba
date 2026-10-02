@@ -13,7 +13,7 @@ export type UnifiedScope = z.infer<typeof scopeSchema>;
 export const sameScope = (a: UnifiedScope, b: UnifiedScope) => a.platform === b.platform && a.accountId === b.accountId && a.brand === b.brand && a.currency === b.currency;
 const time = z.iso.datetime({ offset: true });
 const number = z.number().finite().nonnegative().nullable();
-export const accountSchema = z.object({ platform: scopeSchema.shape.platform, account_id: id, account_name: z.string(), currency: z.enum(["MXN", "USD"]), timezone: z.string().refine(isValidTimeZone), is_manager: z.boolean().optional() });
+export const accountSchema = z.object({ platform: scopeSchema.shape.platform, account_id: id, account_name: z.string(), currency: z.enum(["MXN", "USD"]), timezone: z.string().min(1).max(80).nullable(), is_manager: z.boolean().optional() });
 export const campaignSchema = z.object({ platform: scopeSchema.shape.platform, account_id: id, campaign_id: id, campaign_name: z.string(), campaign_status: z.enum(["active", "paused", "removed", "unknown"]), source_status: z.string().nullable(), objective: z.string().nullable() });
 export const performanceSchema = z.object({ platform: scopeSchema.shape.platform, account_id: id, campaign_id: id, date: z.iso.date(), hour: z.number().int().min(0).max(23).nullable(), currency: z.enum(["MXN", "USD"]), source_timezone: z.string().refine(isValidTimeZone), spend: number, impressions: number, clicks: number, extracted_at: time, raw_metrics: z.object({ report_utc_offset_minutes: z.number().int().min(-840).max(840).optional() }).default({}) });
 export type ApiPerformance = z.infer<typeof performanceSchema>;

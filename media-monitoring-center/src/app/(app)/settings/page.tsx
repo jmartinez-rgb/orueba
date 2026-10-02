@@ -8,7 +8,8 @@ import { SettingsForm } from "@/components/monitoring/settings-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CurrencySettings } from "@/components/settings/currency-settings";
 import { ClassifierEditor } from "@/components/settings/classifier-editor";
-import { addDays, businessDate, monthOf } from "@/lib/time/tz";
+import { businessDate } from "@/lib/time/tz";
+import { fxMonths } from "@/lib/data/fx-months";
 
 export const metadata: Metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
@@ -19,13 +20,13 @@ export default async function SettingsPage() {
   const catalog = await ctx.source.getCatalog();
   const [sourceCatalog, sourceRates] = await Promise.all([ctx.source.original.getCatalog(), ctx.source.original.getFxRates().catch(() => [])]);
   const today = businessDate(ctx.source.now(), ctx.settings.timezone);
-  const months = [...new Set(Array.from({ length: 7 }, (_, i) => monthOf(addDays(today, -31 * (5 - i)))))].sort();
+  const months = fxMonths(today, ctx.settings.currency.rates, Object.fromEntries(sourceRates.map(r => [r.month, r.rate])));
   const settings = canEdit ? ctx.settings : { ...ctx.settings, recipients: ctx.settings.recipients.map((r) => ({ ...r, address: maskAddress(r.address) })) };
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Settings"
-        subtitle={`${ctx.mode === "mock" ? "Los cambios se guardan en el almacén de la app y aplican para todo el equipo." : "Los cambios se guardan en BigQuery (monitoring_settings) para todo el equipo."} Solo cambian el monitoreo: nada se modifica en las plataformas. Rol actual: ${ROLE_LABEL[ctx.session.role]}${ctx.session.mode === "open" ? " (acceso abierto: cámbialo desde el menú de usuario)" : ""}.`}
+        subtitle={`Los cambios se guardan en el almacén configurado y aplican para todo el equipo. Solo cambian el monitoreo: nada se modifica en las plataformas. Rol actual: ${ROLE_LABEL[ctx.session.role]}${ctx.session.mode === "open" ? " (acceso abierto: cámbialo desde el menú de usuario)" : ""}.`}
       />
       <SettingsForm initial={settings} canEdit={canEdit} mode={ctx.mode} campaigns={catalog.campaigns.map((c) => ({ id: c.id, name: c.name, platform: c.platform, objective: c.objective }))} />
       <Card id="moneda" className="scroll-mt-20">

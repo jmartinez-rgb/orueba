@@ -106,6 +106,7 @@ Tres reglas más, pensadas para los datos reales de la hoja:
 | Operación | Automation | Workflows de n8n | Entender qué corre solo |
 | Operación | Usuarios | Personas, accesos y bitácora (solo administradores) | Saber quién entró y qué hizo |
 | Operación | Settings | Umbrales, horarios, histórico, destinatarios, tipo de cambio, moneda por cuenta y clasificadores | Ajustar cómo evalúa el monitoreo |
+| Operación | Tipo de cambio | Captura mensual USD→MXN, tasa aplicada y monedas de las cuentas de la marca | Capturar la tasa del equipo y revisar pendientes de conversión |
 | Ayuda | Guía | Esta guía | Resolver dudas |
 | Ayuda | Bugs y sugerencias | Enviar un bug o una idea; ver el estado de lo enviado. El administrador tiene la bandeja completa | Cuando algo falla o se te ocurre una mejora |
 

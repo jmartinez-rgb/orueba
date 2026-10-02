@@ -312,9 +312,14 @@ El monitoreo ahora consume rendimiento/histórico con `DATA_SOURCE=unified` y su
 Se guardaron 35 días de TikTok (1022 filas diarias/10432 horarias) y tres días de X de izzi
 (3828 filas diarias). X de Sky queda fuera por instrucción del usuario; su muestra diaria
 anterior sigue siendo evidencia de acceso, no una cuenta asignada al monitoreo.
-La extracción horaria de X encontró HTTP 429; Microsoft sigue bloqueado por el proxy.
-Usuarios nominales, volumen/scheduler en producción, mapeos adicionales y conciliación siguen
-pendientes. Las conversiones de negocio no se inventan ni se cambian sus reglas.
+La extracción horaria de X encontró HTTP 429. La continuación verificó las 31 cuentas indicadas
+por el usuario (25 izzi/seis Sky) y guardó 2390 filas horarias de Google, 2789 de Meta y 266 de
+Microsoft para el 30 de septiembre. El ZIP de Microsoft ya se descargó en este entorno; se
+configuró `MICROSOFT_ADS_RETURN_ONLY_COMPLETE_DATA=true`. No se aceptan diarios UTC como
+días mexicanos. Spotify horario sigue respondiendo `PROVIDER_ERROR`.
+El acceso nominal y la sección [Tipo de cambio mensual](../media-monitoring-center/docs/TIPO_DE_CAMBIO.md)
+están validados localmente. Captura de tasas, volumen/scheduler en producción y conciliación
+siguen pendientes. Las conversiones de negocio no se inventan ni se cambian sus reglas.
 
 El [traspaso actualizado a Claude](docs/TRASPASO_CLAUDE.md) reúne la rama entregada, commits,
 evidencias reales, validación, reglas vigentes y trabajo que puede avanzar sin accesos nuevos.

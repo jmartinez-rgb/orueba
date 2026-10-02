@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlatformMark } from "@/components/monitoring/status";
+import { rateLookup } from "@/lib/data/currency";
 
 export interface CurrencyAccount {
   id: string;
@@ -34,6 +35,7 @@ export function CurrencySettings({
   accounts,
   accountCurrency,
   canEdit,
+  editAccountCurrency = true,
 }: {
   months: string[];
   settingsRates: Record<string, number>;
@@ -41,10 +43,12 @@ export function CurrencySettings({
   accounts: CurrencyAccount[];
   accountCurrency: Record<string, Currency>;
   canEdit: boolean;
+  editAccountCurrency?: boolean;
 }) {
   const router = useRouter();
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(months.map((m) => [m, settingsRates[m] ? String(settingsRates[m]) : ""])));
   const [busy, setBusy] = useState<string | null>(null);
+  const lookup = rateLookup(new Map(Object.entries({ ...sourceRates, ...settingsRates })));
 
   async function saveRate(month: string) {
     const raw = values[month]?.replace(",", ".").trim();
@@ -95,7 +99,7 @@ export function CurrencySettings({
             <tbody>
               {months.map((m) => {
                 const [y, mo] = m.split("-").map(Number);
-                const used = settingsRates[m] ?? sourceRates[m] ?? null;
+                const { rate: used, usedMonth } = lookup(m);
                 return (
                   <tr key={m} className="border-t">
                     <td className="px-2 py-1 font-medium">
@@ -103,7 +107,7 @@ export function CurrencySettings({
                     </td>
                     <td className="px-2 py-1">
                       {canEdit ? (
-                        <Input value={values[m] ?? ""} onChange={(e) => setValues((v) => ({ ...v, [m]: e.target.value }))} inputMode="decimal" placeholder={sourceRates[m] ? String(sourceRates[m]) : "18.45"} className="h-7 w-28 text-xs" aria-label={`Tasa de ${m}`} />
+                        <Input value={values[m] ?? ""} disabled={busy !== null} onChange={(e) => setValues((v) => ({ ...v, [m]: e.target.value }))} inputMode="decimal" placeholder={sourceRates[m] ? String(sourceRates[m]) : "18.45"} className="h-7 w-28 text-xs" aria-label={`Tasa de ${m}`} />
                       ) : (
                         (settingsRates[m] ?? "—")
                       )}
@@ -113,13 +117,14 @@ export function CurrencySettings({
                         <span className="font-semibold text-status-attention-text">Falta</span>
                       ) : (
                         <span>
-                          {used.toFixed(4)} <span className="text-muted-foreground">({settingsRates[m] ? "Settings" : "fuente"})</span>
+                          {used.toFixed(4)} <span className="text-muted-foreground">({usedMonth && settingsRates[usedMonth] ? "capturada" : "fuente"})</span>
+                          {usedMonth !== m && <span className="block text-status-attention-text">Provisional: tasa de {usedMonth}</span>}
                         </span>
                       )}
                     </td>
                     {canEdit && (
                       <td className="px-2 py-1 text-right">
-                        <Button size="xs" variant="outline" disabled={busy === m} onClick={() => saveRate(m)}>
+                        <Button size="xs" variant="outline" disabled={busy !== null} onClick={() => saveRate(m)}>
                           Guardar
                         </Button>
                       </td>
@@ -130,7 +135,7 @@ export function CurrencySettings({
             </tbody>
           </table>
         </div>
-        <p className="text-[11px] text-muted-foreground">Sin tasa de un mes se usa la del mes anterior y baja la confianza de datos; si no hay ninguna, el gasto en USD queda NULL (nunca se inventa).</p>
+        <p className="text-[11px] text-muted-foreground">Sin tasa de un mes se usa la del mes anterior más cercano y baja la confianza de datos; si no hay ninguna, el gasto en USD queda pendiente. Vaciar una tasa y guardar la elimina.</p>
       </div>
       <div className="min-w-0 space-y-2">
         <p className="text-[13px] font-semibold text-foreground">Moneda de cada cuenta</p>
@@ -149,21 +154,21 @@ export function CurrencySettings({
                       </span>
                     </td>
                     <td className="px-2 py-1.5 text-right">
-                      <div className="inline-flex rounded-md border p-0.5" role="radiogroup" aria-label={`Moneda de ${a.name}`}>
+                      {editAccountCurrency ? <div className="inline-flex rounded-md border p-0.5" role="radiogroup" aria-label={`Moneda de ${a.name}`}>
                         {(["MXN", "USD"] as Currency[]).map((c) => (
                           <button
                             key={c}
                             type="button"
                             role="radio"
                             aria-checked={current === c}
-                            disabled={!canEdit || busy === a.id}
+                            disabled={!canEdit || busy !== null}
                             onClick={() => current !== c && setCurrency(a, c)}
                             className={cn("rounded px-2 py-0.5 text-[11px] font-semibold", current === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground disabled:hover:text-muted-foreground")}
                           >
                             {c}
                           </button>
                         ))}
-                      </div>
+                      </div> : <span className="font-semibold">{current}</span>}
                     </td>
                   </tr>
                 );

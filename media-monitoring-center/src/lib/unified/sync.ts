@@ -6,7 +6,7 @@ import { accountSchema, campaignSchema, mappingSchema, performanceSchema, Unifie
 import { UnifiedSnapshotStore } from "./store";
 import { dailyAligned } from "./source";
 
-const errors = z.array(z.object({ error: z.object({ code: z.string(), details: z.object({ limitation: z.string().optional() }).optional() }) })).default([]);
+const errors = z.array(z.object({ error: z.object({ code: z.string(), details: z.object({ limitation: z.string().optional(), account_id: z.string().optional(), provider: z.string().optional(), partial_data: z.boolean().optional(), unsupported_metrics: z.array(z.string()).optional() }).optional() }) })).default([]);
 export interface UnifiedSyncOptions {
   mapping: UnifiedMapping; store: UnifiedSnapshotStore; url: string; apiKey: string;
   from: string; to: string; granularities: Array<"daily" | "hourly">;
@@ -25,7 +25,7 @@ export async function syncUnified(options: UnifiedSyncOptions) {
   const request = options.request ?? fetch, clock = options.clock ?? (() => new Date());
   const unlock = await options.store.lock();
   const result: Array<{ platform: string; accountId: string; granularity: string; status: string; rows: number; code: string | null }> = [];
-  const call = async <T extends z.ZodType>(route: string, query: Record<string, string>, schema: T): Promise<z.infer<T>[]> => {
+  const call = async <T extends z.ZodType>(route: string, query: Record<string, string>, schema: T, selectedAccountId?: string): Promise<z.infer<T>[]> => {
     const url = new URL(`/api/v1/${route}`, base); url.search = new URLSearchParams(query).toString();
     let response: Response;
     try { response = await request(url, { headers: { "X-API-Key": options.apiKey, Accept: "application/json" }, signal: AbortSignal.timeout(options.timeoutMs ?? 120000), redirect: "error", cache: "no-store" }); }
@@ -41,7 +41,17 @@ export async function syncUnified(options: UnifiedSyncOptions) {
     try { body = JSON.parse(bytes.toString("utf8")); } catch { throw new UnifiedDataError("INVALID_API_RESPONSE"); }
     const parsed = z.object({ data: z.array(schema).max(options.maxRows ?? 100000), errors }).safeParse(body);
     if (!parsed.success) throw new UnifiedDataError("INVALID_API_RESPONSE");
-    if (parsed.data.errors.some(e => e.error.details?.limitation !== "primary_conversion_not_selected")) throw new UnifiedDataError("PARTIAL_API_RESPONSE");
+    const selectedPresent = selectedAccountId && parsed.data.data.some(row => (row as { account_id?: string; platform?: string }).account_id === selectedAccountId && (row as { platform?: string }).platform === query.provider);
+    if (parsed.data.errors.some(({ error }) => {
+      const d = error.details;
+      if (d?.limitation === "primary_conversion_not_selected") return false;
+      if (route === "accounts" && selectedPresent && error.code === "ACCESS_DENIED" && d?.account_id && d.account_id !== selectedAccountId) return false;
+      // The adapter imports only spend/impressions/clicks; Meta's explicit limitation
+      // concerns other metrics. Any warning touching imported metrics still fails closed.
+      if (route === "performance" && query.provider === "meta" && query.granularity === "hourly" && error.code === "PROVIDER_ERROR" && d?.provider === "meta" && d.limitation === "hourly_breakdown" && d.partial_data === true && d.unsupported_metrics?.length && d.unsupported_metrics.every(m => ["reach", "frequency", "offsite_conversions"].includes(m))) return false;
+      if (route === "performance" && query.provider === "spotify" && error.code === "PROVIDER_ERROR" && d?.provider === "spotify" && d.account_id === query.account_id && ["revenue_unavailable", "privacy_suppressed_conversions", "primary_conversion_not_configured", "revenue_not_split_by_event"].includes(d.limitation ?? "")) return false;
+      return true;
+    })) throw new UnifiedDataError("PARTIAL_API_RESPONSE");
     return parsed.data.data;
   };
   try {
@@ -49,7 +59,7 @@ export async function syncUnified(options: UnifiedSyncOptions) {
       const at = clock().toISOString();
       try {
         // Unmapped manager accounts may have no currency/timezone. Validate only the selected account.
-        const accounts = await call("accounts", { provider: scope.platform }, z.object({ platform: z.string(), account_id: z.string() }).passthrough());
+        const accounts = await call("accounts", { provider: scope.platform }, z.object({ platform: z.string(), account_id: z.string() }).passthrough(), scope.accountId);
         const selected = accounts.filter(a => a.account_id === scope.accountId && a.platform === scope.platform);
         if (selected.length !== 1) throw new UnifiedDataError("ACCOUNT_NOT_ACCESSIBLE");
         const parsedAccount = accountSchema.safeParse(selected[0]);

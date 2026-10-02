@@ -34,7 +34,7 @@ export interface CurrencyOptions {
 
 type RateLookup = (month: string) => { rate: number | null; usedMonth: string | null };
 
-function rateLookup(table: Map<string, number>): RateLookup {
+export function rateLookup(table: Map<string, number>): RateLookup {
   const months = [...table.keys()].sort();
   return (month) => {
     const exact = table.get(month);

@@ -5,6 +5,8 @@ import { getAppContext, loadStoredSettings, saveStoredSettings } from "@/lib/ser
 import { logActivity } from "@/lib/services/activity";
 import { badRequest, forbidden, json, readJson, serverError, unauthorized } from "@/lib/services/http";
 import { isValidTimeZone } from "@/lib/time/tz";
+import { DEFAULT_SETTINGS } from "@/lib/config/settings";
+import { fxRateChanges } from "@/lib/config/fx-audit";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +33,12 @@ export async function PUT(req: Request) {
   if (s.schedule.startHour > s.schedule.endHour) return badRequest("La hora de inicio debe ser menor o igual a la de fin.");
   try {
     const ctx = await getAppContext();
-    const merged = applyEditedSettings(await loadStoredSettings(ctx), ctx.settings, s);
+    const stored = await loadStoredSettings(ctx);
+    const merged = applyEditedSettings(stored, ctx.settings, s);
     if (!merged) return badRequest("Configuración inválida.");
     await saveStoredSettings(ctx, merged, session.user.name);
-    await logActivity(session, "SETTINGS_CHANGED", "Configuración del monitoreo actualizada.");
+    const changes = fxRateChanges(stored.currency.rates, merged.currency.rates);
+    await logActivity(session, "SETTINGS_CHANGED", `Configuración del monitoreo actualizada.${changes ? ` Tipo de cambio: ${changes}.` : ""}`);
     return json({ ok: true, settings: merged });
   } catch (err) {
     return serverError("api", err, "settings");
@@ -45,8 +49,10 @@ export async function DELETE() {
   const session = await requirePermission("settings:write");
   if (!session) return forbidden();
   const ctx = await getAppContext();
+  const stored = await loadStoredSettings(ctx);
   await saveStoredSettings(ctx, null, session.user.name);
-  await logActivity(session, "SETTINGS_CHANGED", "Configuración restablecida a valores por defecto.");
+  const changes = fxRateChanges(stored.currency.rates, DEFAULT_SETTINGS.currency.rates);
+  await logActivity(session, "SETTINGS_CHANGED", `Configuración restablecida a valores por defecto.${changes ? ` Tipo de cambio: ${changes}.` : ""}`);
   return json({ ok: true });
 }
 
@@ -71,11 +77,13 @@ export async function PATCH(req: Request) {
   try {
     const ctx = await getAppContext();
     // Sobre lo guardado (leído en este momento), no sobre la configuración vigente de la marca.
-    const next = setSettingAtPath(await loadStoredSettings(ctx), body.path, body.value);
+    const stored = await loadStoredSettings(ctx);
+    const next = setSettingAtPath(stored, body.path, body.value);
     if (!next) return badRequest("El valor no es válido para esta configuración.");
     await saveStoredSettings(ctx, next, session.user.name);
     const root = Object.keys(PATH_LABEL).find((k) => body.path === k || body.path!.startsWith(`${k}.`)) ?? body.path;
-    await logActivity(session, "SETTINGS_CHANGED", `${PATH_LABEL[root] ?? root} (${body.path})`);
+    const changes = fxRateChanges(stored.currency.rates, next.currency.rates);
+    await logActivity(session, "SETTINGS_CHANGED", `${PATH_LABEL[root] ?? root} (${body.path})${changes ? `: ${changes}` : ""}`);
     return json({ ok: true, settings: next });
   } catch (err) {
     return serverError("api", err, "settings:patch");
