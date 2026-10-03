@@ -7,6 +7,8 @@ import "server-only";
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_FAILURES = 5;
 const LOCK_MS = 10 * 60 * 1000;
+/** Tope de memoria por instancia. Llenarlo nunca reinicia los contadores vigentes. */
+export const MAX_TRACKED_KEYS = 20_000;
 
 interface Entry {
   failures: number[];
@@ -34,9 +36,28 @@ export function registerFailure(key: string, now = Date.now()): { locked: boolea
     e.lockedUntil = now + LOCK_MS;
     e.failures = [];
   }
+  // Reinsertar mantiene el orden por último fallo (el Map conserva el orden de inserción).
+  map.delete(key);
   map.set(key, e);
-  if (map.size > 5000) map.clear();
+  if (map.size > MAX_TRACKED_KEYS) prune(map, now);
   return { locked: e.lockedUntil > now };
+}
+
+/**
+ * Antes se vaciaba todo el mapa al superar el tope, lo que permitía reiniciar el contador de una
+ * cuenta enviando fallos con usuarios inventados. Ahora se descartan primero las entradas vencidas
+ * y, si aún sobra, las de fallo más antiguo sin bloqueo vigente.
+ */
+function prune(map: Map<string, Entry>, now: number) {
+  for (const [key, e] of map) if (e.lockedUntil <= now && e.failures.every((t) => now - t >= WINDOW_MS)) map.delete(key);
+  for (const [key, e] of map) {
+    if (map.size <= MAX_TRACKED_KEYS) return;
+    if (e.lockedUntil <= now) map.delete(key);
+  }
+  for (const key of map.keys()) {
+    if (map.size <= MAX_TRACKED_KEYS) return;
+    map.delete(key);
+  }
 }
 
 export function registerSuccess(key: string) {

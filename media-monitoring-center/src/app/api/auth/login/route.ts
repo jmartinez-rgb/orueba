@@ -1,7 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { getAuthConfig, normalizeUsername } from "@/lib/auth/config";
 import { effectiveUniversal, findEffectiveAccount, listAccounts } from "@/lib/auth/users";
-import { verifyPassword } from "@/lib/auth/password";
+import { verifyDecoyPassword, verifyPassword } from "@/lib/auth/password";
 import { isLocked, loginKey, registerFailure, registerSuccess } from "@/lib/auth/rate-limit";
 import { randomId, SESSION_COOKIE, signSessionToken, type SessionClaims } from "@/lib/auth/token";
 import { recordAudit, requestInfo, touchUser } from "@/lib/records/audit";
@@ -64,7 +64,11 @@ export async function POST(req: Request) {
     const name = cleanDisplayName(rawUser);
     if (!name) return badRequest("Con la contraseña universal escribe tu nombre y apellido (mínimo 3 letras).");
     const reserved = (await listAccounts()).some((a) => normalizeUsername(a.name) === normalizeUsername(name));
-    if (!reserved && (await verifyPassword(password, universal.hash))) claimsBase = { sub: guestId(name), name, role: universal.role, kind: "universal", v: universal.version };
+    // Se verifica siempre: un nombre reservado no debe responder antes que uno libre.
+    const valid = await verifyPassword(password, universal.hash);
+    if (!reserved && valid) claimsBase = { sub: guestId(name), name, role: universal.role, kind: "universal", v: universal.version };
+  } else {
+    await verifyDecoyPassword(password);
   }
 
   if (inactive) {

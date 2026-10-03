@@ -46,3 +46,15 @@ export async function verifyPassword(password: string, stored: string): Promise<
     return false;
   }
 }
+
+let decoy: Promise<string> | null = null;
+
+/**
+ * Mismo trabajo scrypt que una verificación real cuando el usuario no existe: el tiempo de
+ * respuesta del inicio de sesión no revela qué usuarios o correos tienen cuenta. Siempre falla.
+ */
+export async function verifyDecoyPassword(password: string): Promise<false> {
+  decoy ??= hashPassword(randomBytes(18).toString("base64url"));
+  await verifyPassword(password, await decoy);
+  return false;
+}
