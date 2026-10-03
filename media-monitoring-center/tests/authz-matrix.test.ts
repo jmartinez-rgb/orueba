@@ -295,3 +295,27 @@ describe("administrador principal, delegación y revocación de sesiones", () =>
     expect((await absoluteTop.GET(req("GET"))).status).toBe(403);
   });
 });
+
+describe("escrituras ligadas a recursos de la marca vigente", () => {
+  it("un estado de alerta con ID de otra marca o inexistente no se guarda", async () => {
+    await login("operador.izzi");
+    for (const id of ["SKY-ALT-ABC", "ALT-ZZZ"]) {
+      expect((await alert.PATCH(req("PATCH", { status: "RESOLVED" }), params({ id }))).status, id).toBe(404);
+    }
+    expect(mocks.setAlertStatus).not.toHaveBeenCalled();
+    expect(mocks.activity).not.toHaveBeenCalled();
+    expect((await alert.PATCH(req("PATCH", { status: "RESOLVED" }), params({ id: "ALT-ABC" }))).status).toBe(200);
+    expect(mocks.setAlertStatus).toHaveBeenCalledWith("ALT-ABC", "RESOLVED", "operador.izzi");
+  });
+
+  it("un dictamen de auditoría sobre un incidente ajeno a la marca no se guarda", async () => {
+    await login("jp.principal");
+    const write = vi.spyOn(getRecordStore(), "update");
+    for (const id of ["SKY-INC-0001", "INC-9999"]) {
+      expect((await auditReview.POST(req("POST", { verdict: "CUMPLE", comment: "" }), params({ id }))).status, id).toBe(404);
+    }
+    expect(write).not.toHaveBeenCalled();
+    expect(mocks.activity).not.toHaveBeenCalled();
+    expect((await auditReview.POST(req("POST", { verdict: "CUMPLE", comment: "" }), params({ id: "INC-0001" }))).status).toBe(200);
+  });
+});
