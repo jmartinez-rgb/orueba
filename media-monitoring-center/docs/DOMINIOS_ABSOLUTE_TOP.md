@@ -325,3 +325,35 @@ Pendientes separados:
   Google y tasas mensuales USD→MXN permanecen bajo decisión del equipo.
 - **Producción:** faltan URLs de destino y aceptación del alojamiento/persistencia. La
   publicación del entorno de Codex no acredita el despliegue del sistema.
+
+## K. Auditoría final hacia v1 (rama `claude/auditoria-final-v1`)
+
+Correcciones con regresiones, sin lecturas publicitarias nuevas
+([informe de la ronda](AUDITORIA_FINAL_V1_2026-10-02.md)):
+
+- **Checkpoint que no retrocede** (`src/lib/absolute-top/engine.ts`). Una auditoría de una ventana
+  anterior a la última evaluada (por ejemplo un backfill ejecutado después) se conserva en el historial
+  con el aviso `AUDIT_PERIOD_PRECEDES_CHECKPOINT`, pero no confirma recuperación, no reinicia la
+  persistencia, no cierra incidencias y deja N/D el ponderado del dominio. Antes, un backfill sano de
+  una ventana antigua podía cerrar una incidencia vigente.
+- **Corte por instante de extracción.** El día u hora en curso se determina con el primer `extracted_at`,
+  no con la hora de recepción: una hora o un día todavía abiertos al consultar Google no se evalúan
+  como cerrados aunque la respuesta llegue después del cambio de hora o de día.
+- **Entidades que salen del catálogo activo.** Una extracción **completa y vigente** devuelve todas las
+  entidades Search activas; una ausente ya no se arrastra como N/D indefinido (eso dejaba el ponderado
+  del dominio en N/D para siempre). Las extracciones parciales, no disponibles o antiguas siguen
+  conservando las ausentes como N/D. Su incidencia, si existía, **permanece abierta** (no hay falsa
+  recuperación: `incident-manager.ts` solo resuelve con cobertura nueva de esa huella).
+- **Capacidad antes de descargar** (`unified-ads-api/src/providers/google/absolute-top.ts`). El límite de
+  100.000 observaciones por nivel se valida con el catálogo activo antes de paginar métricas.
+- **Conciliación específica:** `npm run conciliar:absolute-top` ([guía](CONCILIACION.md#absolute-top-comparación-específica-por-campaña-y-grupo)).
+
+Riesgos abiertos que requieren decisión o datos reales (no se cambiaron):
+
+| Severidad | Riesgo | Propuesta |
+| --- | --- | --- |
+| Media | Releer el mismo período cerrado incrementa `consecutive_audits`: tres extracciones del mismo día llegan a «Alerta persistente» (`engine.ts`) | Decidir junto con la frecuencia del extractor si la persistencia cuenta períodos distintos en vez de lecturas |
+| Media | Google omite filas con todas las métricas en cero: horas sin tráfico quedan N/D y la evaluación horaria resulta casi siempre insuficiente; una campaña activa sin fila diaria deja N/D el ponderado de su dominio | Conforme a la regla de no convertir N/D en cero; evaluar con datos reales si conviene excluir del ponderado las campañas sin impresiones confirmadas |
+| Media | Una incidencia de una entidad pausada queda abierta indefinidamente porque nunca vuelve a tener cobertura | Anotarla o cerrarla manualmente con nota cuando una extracción completa vigente ya no contiene la entidad; no cerrarla como recuperación |
+| Baja | La caída súbita frente a la auditoría anterior exige el mismo corte horario; en la práctica solo opera en diario | Revisar con la frecuencia horaria definitiva |
+| Baja | Una carrera entre la consulta de catálogo y la de métricas hace fallar la lectura completa con `PROVIDER_ERROR` | Error explícito, sin datos silenciosos; reintentar en la siguiente ronda |
