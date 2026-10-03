@@ -1,10 +1,12 @@
 import "server-only";
-import { mkdir, open, readdir, readFile, rename, rm } from "node:fs/promises";
+import { constants } from "node:fs";
+import { lstat, mkdir, open, readdir, rename, rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { getStore } from "@netlify/blobs";
 import { logger, recordIntegrationEvent } from "@/lib/logging/logger";
 import { withRecordWrite } from "./write-lock";
+import { withFileLock } from "./file-lock";
 import { checkedBlobsFetch } from "./blobs-fetch";
 
 /**
@@ -39,7 +41,8 @@ export interface RecordStore {
    * may replay it after a conflict or a lost response. Append operations must
    * deduplicate an operation ID; this does not guarantee exactly-once execution.
    * Returning null stores JSON null (no delete).
-   * File/memory serialize inside this process; Blobs uses conditional writes.
+   * Memory serializes inside this process. File adds a lock file between processes of the
+   * same host (not between hosts sharing a network volume). Blobs uses conditional writes.
    */
   update<T>(key: string, transform: (current: T | null) => T | null): Promise<T | null>;
   delete(key: string): Promise<void>;
@@ -88,34 +91,64 @@ export class FileRecordStore implements RecordStore {
     return path.join(this.root, ...parts) + ".json";
   }
   async get<T>(key: string) {
+    let handle;
     try {
-      return JSON.parse(await readFile(this.file(key), "utf8")) as T;
+      // O_NOFOLLOW: a symlink planted in the data directory is never followed.
+      handle = await open(this.file(key), constants.O_RDONLY | constants.O_NOFOLLOW);
     } catch (error) {
       if (missing(error)) return null;
       throw new RecordStoreError();
     }
+    try {
+      return JSON.parse(await handle.readFile("utf8")) as T;
+    } catch {
+      throw new RecordStoreError();
+    } finally {
+      await handle.close().catch(() => undefined);
+    }
   }
   private scope(key: string) { return `file:${path.resolve(this.file(key))}`; }
+  /**
+   * In-process queue first, then a lock file next to the record: the server and the scripts
+   * (separate Node processes on the same disk) cannot lose each other's updates.
+   */
+  private async locked<T>(key: string, write: (stillHeld: () => Promise<boolean>) => Promise<T>): Promise<T> {
+    const f = this.file(key);
+    return withRecordWrite(this.scope(key), async () => {
+      try { await mkdir(path.dirname(f), { recursive: true, mode: 0o700 }); }
+      catch { throw new RecordStoreError(); }
+      let acquired = false;
+      try {
+        return await withFileLock(`${f}.lock`, (stillHeld) => { acquired = true; return write(stillHeld); });
+      } catch (error) {
+        // Domain errors from a transform propagate unchanged; lock failures are not confirmed writes.
+        if (acquired) throw error;
+        throw new RecordStoreError();
+      }
+    });
+  }
   async set(key: string, value: unknown) {
-    await withRecordWrite(this.scope(key), () => this.write(key, value));
+    await this.locked(key, (stillHeld) => this.write(key, value, stillHeld));
   }
   async update<T>(key: string, transform: (current: T | null) => T | null): Promise<T | null> {
-    return withRecordWrite(this.scope(key), async () => {
+    return this.locked(key, async (stillHeld) => {
       const next = transform(await this.get<T>(key));
       assertSyncValue(next);
-      await this.write(key, next);
+      await this.write(key, next, stillHeld);
       return next;
     });
   }
-  private async write(key: string, value: unknown) {
+  private async write(key: string, value: unknown, stillHeld: () => Promise<boolean>) {
     const f = this.file(key);
     const temp = `${f}.${randomUUID()}.tmp`;
     try {
-      await mkdir(path.dirname(f), { recursive: true, mode: 0o700 });
       const file = await open(temp, "wx", 0o600);
       try { await file.writeFile(JSON.stringify(value), "utf8"); await file.sync(); }
       finally { await file.close(); }
+      // Fencing: never publish if the lock was taken over as abandoned meanwhile.
+      if (!(await stillHeld())) throw new RecordStoreError();
       await rename(temp, f);
+      await syncDirectory(path.dirname(f));
     } catch {
       throw new RecordStoreError();
     } finally {
@@ -123,8 +156,9 @@ export class FileRecordStore implements RecordStore {
     }
   }
   async delete(key: string) {
-    await withRecordWrite(this.scope(key), async () => {
-      try { await rm(this.file(key), { force: true }); }
+    const f = this.file(key);
+    await this.locked(key, async () => {
+      try { await rm(f, { force: true }); await syncDirectory(path.dirname(f)); }
       catch { throw new RecordStoreError(); }
     });
   }
@@ -140,15 +174,32 @@ export class FileRecordStore implements RecordStore {
       }
       for (const e of entries) {
         if (e.isDirectory()) await walk(path.join(dir, e.name), [...rel, decodeURIComponent(e.name)]);
-        else if (e.name.endsWith(".json")) out.push([...rel, decodeURIComponent(e.name.slice(0, -5))].join("/"));
+        else if (e.isFile() && e.name.endsWith(".json")) out.push([...rel, decodeURIComponent(e.name.slice(0, -5))].join("/"));
       }
     };
     // Solo se recorre el directorio del primer segmento del prefijo.
     const first = prefix.split("/")[0];
     const encoded = first === "." || first === ".." ? first.replaceAll(".", "%2E") : encodeURIComponent(first);
-    await walk(path.join(this.root, encoded), first ? [first] : []);
+    const start = path.join(this.root, encoded);
+    // A symlinked collection directory inside the root is never traversed.
+    if (first) {
+      try { if ((await lstat(start)).isSymbolicLink()) return []; }
+      catch (error) { if (missing(error)) return []; throw new RecordStoreError(); }
+    }
+    await walk(start, first ? [first] : []);
     return out.filter((k) => k.startsWith(prefix));
   }
+}
+
+/** fsync of the directory makes the rename durable after a power loss. */
+async function syncDirectory(dir: string) {
+  const handle = await open(dir, constants.O_RDONLY | constants.O_DIRECTORY);
+  try { await handle.sync(); }
+  catch (error) {
+    // Some filesystems cannot fsync a directory; the rename itself is still atomic.
+    const code = error !== null && typeof error === "object" && "code" in error ? error.code : "";
+    if (code !== "EINVAL" && code !== "ENOTSUP") throw error;
+  } finally { await handle.close(); }
 }
 
 // ── Netlify Blobs ───────────────────────────────────────────────────────────
