@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { getEnv } from "@/lib/config/env";
 import { evaluateAllBrands } from "@/lib/services/evaluate";
 import { json, readJson, serverError } from "@/lib/services/http";
@@ -9,10 +9,11 @@ export const maxDuration = 26;
 function authorized(req: Request, key: string): boolean {
   const header = req.headers.get("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : (req.headers.get("x-api-key") ?? "");
-  const a = Buffer.from(token);
-  const b = Buffer.from(key);
-  return a.length === b.length && timingSafeEqual(a, b);
+  // Huellas de longitud fija: la comparación no termina antes según la longitud de la llave probada.
+  return timingSafeEqual(digest(token), digest(key));
 }
+
+const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();
 
 /**
  * Endpoint para n8n (WF07 Monitoring Runner). Autenticación servidor-a-servidor con
