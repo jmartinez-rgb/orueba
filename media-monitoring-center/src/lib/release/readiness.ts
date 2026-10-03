@@ -58,15 +58,26 @@ export function v1Configuration(
     ServerEnv,
     "dataSource" | "requestedDataSource" | "sheets" | "bigquery" | "unifiedApi"
   > & Pick<Partial<ServerEnv>, "unifiedData">,
-  auth: Pick<AuthConfig, "mode" | "accounts" | "issues">,
+  auth: Pick<AuthConfig, "mode" | "accounts" | "issues"> & Pick<Partial<AuthConfig>, "alertResponders" | "primaryAdminId">,
   backend: RecordBackend,
   unifiedMappingReady = false,
 ) {
   const liveData = env.dataSource !== "mock" && (env.dataSource !== "unified" || Boolean(env.unifiedData?.configured && unifiedMappingReady));
-  const secured =
+  const usernames = new Set(auth.accounts.map((account) => account.username));
+  // Without the nominal list the role policy returns (administrators and operators outside the list could
+  // write alerts); without a protected primary administrator nobody keeps maximum control.
+  const accessPolicy = !auth.primaryAdminId || !usernames.has(auth.primaryAdminId)
+    ? "PRIMARY_ADMIN_MISSING"
+    : !auth.alertResponders?.length
+      ? "ALERT_RESPONDERS_MISSING"
+      : auth.alertResponders.some((id) => !usernames.has(id))
+        ? "ALERT_RESPONDERS_UNKNOWN"
+        : null;
+  const accounts =
     auth.mode === "password" &&
     auth.accounts.length > 0 &&
     auth.issues.length === 0;
+  const secured = accounts && accessPolicy === null;
   const persistent = backend !== "memory";
   const checks: ReadinessCheck[] = [
     {
@@ -97,8 +108,14 @@ export function v1Configuration(
         ? "NAMED_ACCOUNTS_CONFIGURED"
         : auth.mode === "header"
           ? "SSO_REQUIRES_VERIFICATION"
-          : "NAMED_ACCOUNTS_CONFIGURATION_MISSING",
-      variables: secured ? [] : ["AUTH_SECRET", "AUTH_USERS"],
+          : accounts && accessPolicy
+            ? accessPolicy
+            : "NAMED_ACCOUNTS_CONFIGURATION_MISSING",
+      variables: secured
+        ? []
+        : accounts && accessPolicy
+          ? [accessPolicy === "PRIMARY_ADMIN_MISSING" ? "AUTH_PRIMARY_ADMIN_ID" : "ALERT_RESPONDER_USER_IDS"]
+          : ["AUTH_SECRET", "AUTH_USERS"],
     },
     {
       id: "records",

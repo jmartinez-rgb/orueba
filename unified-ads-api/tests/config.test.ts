@@ -32,6 +32,13 @@ describe("configuración", () => {
     });
   });
 
+  it("la documentación OpenAPI queda inactiva por omisión en producción y se puede activar explícitamente", () => {
+    expect(loadConfig({ API_KEYS: KEY, NODE_ENV: "production" }).docsEnabled).toBe(false);
+    expect(loadConfig({ API_KEYS: KEY, NODE_ENV: "production", DOCS_ENABLED: "true" }).docsEnabled).toBe(true);
+    expect(loadConfig({ API_KEYS: KEY, NODE_ENV: "production", DOCS_ENABLED: " " }).docsEnabled).toBe(false);
+    expect(loadConfig({ API_KEYS: KEY, NODE_ENV: "development", DOCS_ENABLED: "false" }).docsEnabled).toBe(false);
+  });
+
   it("guarda solo variables de proveedores, nunca otras", () => {
     const c = loadConfig({ API_KEYS: KEY, META_ACCESS_TOKEN: "x", HOME: "/root" });
     expect(c.providerEnv).toEqual({ META_ACCESS_TOKEN: "x" });

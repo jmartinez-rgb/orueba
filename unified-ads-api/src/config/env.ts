@@ -21,7 +21,13 @@ const schema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(120),
   RATE_LIMIT_WINDOW: z.string().min(1).default("1 minute"),
   TRUST_PROXY: bool(false),
-  DOCS_ENABLED: bool(true),
+  /** Swagger y /docs/json. Sin valor: activo fuera de producción e inactivo en producción. */
+  DOCS_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) =>
+      v === undefined || v.trim() === "" ? null : ["1", "true", "yes", "on"].includes(v.trim().toLowerCase()),
+    ),
   PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).default(15000),
   /** Archivo privado (0600) donde se conservan los refresh tokens que las plataformas rotan. */
   TOKEN_STORE_FILE: z.string().optional(),
@@ -81,7 +87,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, version = "0
       .filter(Boolean),
     rateLimit: { max: e.RATE_LIMIT_MAX, timeWindow: e.RATE_LIMIT_WINDOW },
     trustProxy: e.TRUST_PROXY,
-    docsEnabled: e.DOCS_ENABLED,
+    docsEnabled: e.DOCS_ENABLED ?? e.NODE_ENV !== "production",
     providerTimeoutMs: e.PROVIDER_TIMEOUT_MS,
     tokenStoreFile: e.TOKEN_STORE_FILE?.trim() || null,
     providerEnv,

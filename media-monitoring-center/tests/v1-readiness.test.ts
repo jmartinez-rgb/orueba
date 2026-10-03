@@ -34,9 +34,24 @@ const auth = {
     },
   ],
   issues: [],
-} as Pick<AuthConfig, "mode" | "accounts" | "issues">;
+  primaryAdminId: "synthetic-user",
+  alertResponders: ["synthetic-user"],
+} as Pick<AuthConfig, "mode" | "accounts" | "issues" | "primaryAdminId" | "alertResponders">;
 
 describe("preparación de configuración de v1", () => {
+  it("named accounts are not ready without a protected primary administrator and a nominal responder list", () => {
+    const direct = { ...env, dataSource: "sheets" } as typeof env;
+    const code = (patch: Partial<typeof auth>) => v1Configuration(direct, { ...auth, ...patch }, "file").checks.find((c) => c.id === "auth");
+    expect(code({})).toMatchObject({ status: "configured", code: "NAMED_ACCOUNTS_CONFIGURED" });
+    expect(code({ primaryAdminId: null })).toMatchObject({ status: "pending", code: "PRIMARY_ADMIN_MISSING", variables: ["AUTH_PRIMARY_ADMIN_ID"] });
+    expect(code({ primaryAdminId: "otra-persona" })).toMatchObject({ code: "PRIMARY_ADMIN_MISSING" });
+    // Omitted list = legacy role policy: administrators/operators outside the list could write alerts.
+    expect(code({ alertResponders: null })).toMatchObject({ status: "pending", code: "ALERT_RESPONDERS_MISSING", variables: ["ALERT_RESPONDER_USER_IDS"] });
+    expect(code({ alertResponders: [] })).toMatchObject({ code: "ALERT_RESPONDERS_MISSING" });
+    expect(code({ alertResponders: ["synthetic-user", "desconocido"] })).toMatchObject({ code: "ALERT_RESPONDERS_UNKNOWN" });
+    expect(JSON.stringify(code({ alertResponders: ["synthetic-user", "desconocido"] }))).not.toContain("desconocido");
+  });
+
   it("direct APIs require a valid account mapping and storage configuration", () => {
     const direct = { ...env, dataSource: "unified" as const, requestedDataSource: "unified" as const, unifiedData: { configured: true, directory: ".data/unified", mappingFile: "config/unified.mapping.json", mappingJson: undefined } };
     expect(v1Configuration(direct, auth, "file").configurationReady).toBe(false);
