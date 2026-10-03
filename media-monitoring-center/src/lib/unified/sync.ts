@@ -8,6 +8,7 @@ import { dailyAligned } from "./source";
 import { fetchGoogleDomainConfig } from "@/lib/domains/api";
 import { domainMetadata } from "@/lib/domains/config";
 import { createHash } from "node:crypto";
+import { responseDiagnostic } from "./diagnostic";
 
 const errors = z.array(z.object({ provider: z.string().optional(), error: z.object({ code: z.string(), details: z.object({ limitation: z.string().optional(), account_id: z.string().optional(), provider: z.string().optional(), partial_data: z.boolean().optional(), unsupported_metrics: z.array(z.string()).optional() }).optional() }) })).default([]);
 export interface UnifiedSyncOptions {
@@ -27,13 +28,15 @@ export async function syncUnified(options: UnifiedSyncOptions) {
   if (!base || !options.apiKey) throw new UnifiedDataError("API_CONFIGURATION_MISSING");
   const request = options.request ?? fetch, clock = options.clock ?? (() => new Date());
   const unlock = await options.store.lock();
-  const result: Array<{ platform: string; accountId: string; granularity: string; status: string; rows: number; code: string | null }> = [];
+  const result: Array<{ platform: string; accountId: string; granularity: string; status: string; rows: number; code: string | null; diagnostic?: string }> = [];
+  const diagnosticOf = (error: unknown) => (error instanceof UnifiedDataError && error.diagnostic ? { diagnostic: error.diagnostic } : {});
   const call = async <T extends z.ZodType>(route: string, query: Record<string, string>, schema: T, selectedAccountId?: string): Promise<z.infer<T>[]> => {
     const url = new URL(`/api/v1/${route}`, base); url.search = new URLSearchParams(query).toString();
     let response: Response;
     try { response = await request(url, { headers: { "X-API-Key": options.apiKey, Accept: "application/json" }, signal: AbortSignal.timeout(options.timeoutMs ?? 120000), redirect: "error", cache: "no-store" }); }
     catch { throw new UnifiedDataError("API_TRANSPORT_ERROR"); }
-    if (!response.ok) throw new UnifiedDataError(response.status === 401 ? "API_AUTH_ERROR" : response.status === 429 ? "API_RATE_LIMITED" : response.status === 403 ? "API_ACCESS_DENIED" : "API_RESPONSE_ERROR");
+    // The status alone hides the cause (every PROVIDER_ERROR is 502): keep only an allowlisted diagnosis.
+    if (!response.ok) throw new UnifiedDataError(response.status === 401 ? "API_AUTH_ERROR" : response.status === 429 ? "API_RATE_LIMITED" : response.status === 403 ? "API_ACCESS_DENIED" : "API_RESPONSE_ERROR", (await responseDiagnostic(response)) ?? undefined);
     if (!response.body) throw new UnifiedDataError("INVALID_API_RESPONSE");
     const reader = response.body.getReader(), chunks: Uint8Array[] = [];
     let size = 0;
@@ -90,8 +93,8 @@ export async function syncUnified(options: UnifiedSyncOptions) {
       } catch (error) {
         const code = error instanceof UnifiedDataError ? error.code : "CATALOG_READ_FAILED";
         for (const granularity of options.granularities) {
-          await options.store.saveAttempt(scope, granularity, { at, status: "FAILED", code, rows: 0 });
-          result.push({ ...scope, granularity, status: "FAILED", rows: 0, code });
+          await options.store.saveAttempt(scope, granularity, { at, status: "FAILED", code, rows: 0, ...diagnosticOf(error) });
+          result.push({ ...scope, granularity, status: "FAILED", rows: 0, code, ...diagnosticOf(error) });
         }
         continue;
       }
@@ -120,8 +123,8 @@ export async function syncUnified(options: UnifiedSyncOptions) {
           result.push({ ...scope, granularity, status: "SUCCESS", rows: count, code: null });
         } catch (error) {
           const code = error instanceof UnifiedDataError ? error.code : "PERFORMANCE_READ_FAILED";
-          await options.store.saveAttempt(scope, granularity, { at: clock().toISOString(), status: "FAILED", code, rows: count });
-          result.push({ ...scope, granularity, status: "FAILED", rows: count, code });
+          await options.store.saveAttempt(scope, granularity, { at: clock().toISOString(), status: "FAILED", code, rows: count, ...diagnosticOf(error) });
+          result.push({ ...scope, granularity, status: "FAILED", rows: count, code, ...diagnosticOf(error) });
         }
       }
     }

@@ -18,7 +18,7 @@ export const accountSchema = z.object({ ...domainFields, platform: scopeSchema.s
 export const campaignSchema = z.object({ ...domainFields, platform: scopeSchema.shape.platform, account_id: id, campaign_id: id, campaign_name: z.string(), campaign_status: z.enum(["active", "paused", "removed", "unknown"]), source_status: z.string().nullable(), objective: z.string().nullable() });
 export const performanceSchema = z.object({ ...domainFields, platform: scopeSchema.shape.platform, account_id: id, campaign_id: id, date: z.iso.date(), hour: z.number().int().min(0).max(23).nullable(), currency: z.enum(["MXN", "USD"]), source_timezone: z.string().refine(isValidTimeZone), spend: number, impressions: number, clicks: number, extracted_at: time, raw_metrics: z.object({ report_utc_offset_minutes: z.number().int().min(-840).max(840).optional() }).default({}) });
 export type ApiPerformance = z.infer<typeof performanceSchema>;
-export const attemptSchema = z.object({ at: time, status: z.enum(["SUCCESS", "FAILED"]), code: z.string().regex(/^[A-Z_]{1,80}$/).nullable(), rows: z.number().int().nonnegative() });
+export const attemptSchema = z.object({ at: time, status: z.enum(["SUCCESS", "FAILED"]), code: z.string().regex(/^[A-Z_]{1,80}$/).nullable(), rows: z.number().int().nonnegative(), diagnostic: z.string().regex(/^[A-Za-z0-9_.:;=|-]{1,600}$/).optional() });
 export const catalogSchema = z.object({ version: z.literal(1), scope: scopeSchema, extractedAt: time, account: accountSchema, campaigns: z.array(campaignSchema) });
 export const partitionSchema = z.object({ version: z.literal(1), scope: scopeSchema, date: z.iso.date(), granularity: z.enum(["daily", "hourly"]), extractedAt: time, rows: z.array(performanceSchema) });
 export type ApiCatalog = z.infer<typeof catalogSchema>;
@@ -28,5 +28,6 @@ export const sourceId = (s: UnifiedScope) => `${s.platform}:${s.accountId}`;
 export const campaignId = (s: UnifiedScope, id: string) => `${sourceId(s)}:${id}`;
 
 export class UnifiedDataError extends Error {
-  constructor(readonly code: string) { super(`No se pudo cargar la fuente de APIs directas (${code}).`); this.name = "UnifiedDataError"; }
+  /** diagnostic: allowlisted tokens only (see diagnostic.ts), never messages or bodies. */
+  constructor(readonly code: string, readonly diagnostic?: string) { super(`No se pudo cargar la fuente de APIs directas (${code}).`); this.name = "UnifiedDataError"; }
 }
