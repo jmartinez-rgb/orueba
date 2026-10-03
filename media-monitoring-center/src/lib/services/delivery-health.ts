@@ -96,7 +96,8 @@ export function buildDeliveryView(input: DeliveryInput): DeliveryView {
   for (const b of input.budgets) {
     if (b.platform !== "meta") continue;
     if (input.directAccounts && input.directAccounts.get(`${b.platform}:${b.account_id}`) !== input.brand) continue;
-    const daily = b.daily_budget ?? b.daily_estimate ?? 0;
+    // An unknown daily amount is not zero: the account's daily total becomes unknown (NaN), never understated.
+    const daily = b.daily_budget ?? b.daily_estimate ?? Number.NaN;
     dailyByAccount.set(b.account_id, (dailyByAccount.get(b.account_id) ?? 0) + daily);
   }
   const items: HealthItem[] = [];
@@ -108,7 +109,7 @@ export function buildDeliveryView(input: DeliveryInput): DeliveryView {
       // Cuánto alcanza el tope con el presupuesto diario vigente de la cuenta (misma moneda).
       const remaining = Math.max(0, s.spend_cap - s.amount_spent);
       const daily = dailyByAccount.get(s.account_id) ?? 0;
-      const days = daily > 0 ? remaining / daily : null;
+      const days = Number.isFinite(daily) && daily > 0 ? remaining / daily : null;
       if (severity !== "critical" && days !== null) severity = days < 1 ? "critical" : days < input.daysLeft + 1 ? "warning" : "info";
       detail = `Quedan ${remaining.toLocaleString("es-MX", { maximumFractionDigits: 0 })} ${s.currency ?? ""} de ${s.spend_cap.toLocaleString("es-MX", { maximumFractionDigits: 0 })}${
         days !== null ? `: alcanza para ${days < 1 ? "menos de un día" : plural(Math.floor(days), "día", "días")} al diario actual` : ""
