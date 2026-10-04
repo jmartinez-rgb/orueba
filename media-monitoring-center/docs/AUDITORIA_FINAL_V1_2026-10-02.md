@@ -145,8 +145,9 @@ Git). Es un contraste independiente, no el export de la interfaz.
 **Resultado del 1 de octubre (ejecutado el 4 de octubre en el equipo del responsable): salida 2.** Ambos
 lados maduros y sin bloqueos; las 56 filas de Dataslayer se unieron por nombre. Impr. (Top) % coincide en
 54 de 56 campañas (las otras 2, a 0,005 pp). Impr. (Abs. Top) % coincide en 19 de 56; las 37 diferencias
-son pequeñas y sin dirección (mediana 0,013 pp, máxima 0,111 pp, cociente 0,994–1,007). Una campaña de la
-fuente con tasas N/D no aparece en Dataslayer. Causa no afirmada; la tolerancia no se relajó. Detalle en
+son pequeñas y sin dirección (mediana 0,013 pp, máxima 0,111 pp, cociente 0,994–1,007) y ninguna cambia el
+estado frente al mínimo del dominio (56 de 56 iguales). Una campaña sin métricas de Google ese día (N/D en la
+fuente) no aparece en Dataslayer. Causa no afirmada; la tolerancia no se relajó. Detalle en
 [CONCILIACION.md](CONCILIACION.md#primera-ejecución-1-de-octubre-de-2026-salida-2-no-concilia).
 
 ## Proveedores

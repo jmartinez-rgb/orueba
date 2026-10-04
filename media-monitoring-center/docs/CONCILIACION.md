@@ -326,7 +326,9 @@ Ejecutada el 4 de octubre en el equipo del responsable, contra las auditorías d
 
 - Las 56 filas de Dataslayer encontraron su campaña por nombre (ningún `NAME_NOT_FOUND` ni
   `NAME_AMBIGUOUS`). Una campaña de la fuente (cuenta 8779536058) no tiene fila en Dataslayer
-  (`MISSING_REFERENCE`); sus tasas son N/D en la fuente.
+  (`MISSING_REFERENCE`): en la fuente sus impresiones y tasas son N/D (Google no devolvió métricas ese
+  día), se guarda como desconocido y no como 0, y el monitoreo no la evalúa. Dataslayer solo lista
+  campañas con datos. No es una diferencia de valores.
 - En Abs. Top las diferencias no tienen dirección (22 por encima, 15 por debajo) y el cociente
   fuente/referencia va de 0,994 a 1,007. Por cuenta: 4/14, 2/4, 8/24 y 5/14 coinciden (3224850043,
   8779536058, 6214109105, 7367928294).
@@ -334,6 +336,9 @@ Ejecutada el 4 de octubre en el equipo del responsable, contra las auditorías d
   descarta que Dataslayer entregue otra métrica (como «Search abs. top IS»); el signo mixto descarta un
   sesgo. **Causa no afirmada.** Candidatas: el instante distinto de extracción (unas 2 h) y la forma de la
   consulta (la API filtra `segments.ad_network_type = 'SEARCH'`; Dataslayer no segmenta por red).
+- Efecto operativo: con los mínimos del maestro (70 %, 10 % y 25 %, y la banda «cerca» de 5 pp), las 56
+  campañas quedan en el mismo estado (cumple, cerca o debajo) con ambas fuentes; el valor más próximo a
+  una frontera está a 0,11 pp de ella. Ninguna alerta cambiaría por estas diferencias.
 - La tolerancia no se relajó: medio dígito de los decimales mostrados es el criterio para el export de
   la interfaz. Aceptar una tolerancia operativa para este contraste es una decisión de negocio. E2 se
   cierra con el export de la interfaz de Google Ads del mismo día, no con Dataslayer.
