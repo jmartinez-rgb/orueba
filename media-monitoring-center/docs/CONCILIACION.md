@@ -103,6 +103,27 @@ npm run conciliar -- --from 2026-09-30 --to 2026-09-30 \
   --output reportes/conciliacion-con-referencia.json
 ```
 
+### Generar la referencia desde los exports de la interfaz
+
+En lugar de llenar la plantilla a mano, `npm run conciliar:referencia` lee el CSV exportado de la interfaz
+(un día) y suma por cuenta. El mapa de columnas declara las cabeceras reales
+(`config/conciliacion-columnas.google.example.json`, `…microsoft.example.json`); las cuentas fuera del mapeo
+izzi (Sky u otras) se omiten y se cuentan; la moneda sale del mapeo y, si se mapea, la del export debe
+coincidir; una celda `--` deja desconocido el total de esa cuenta. IDs entre corchetes (`[138689064]`) o con
+guiones (`877-953-6058`) se normalizan. `--anexar` agrega otra plataforma en un archivo nuevo, conservando la
+hora de exportación más temprana; una cuenta repetida se rechaza.
+
+```bash
+UNIFIED_ADS_MAPPING_FILE=config/unified.mapping.example.json npm run conciliar:referencia -- \
+  --plataforma google --csv privado/google-cuentas.csv --columnas config/conciliacion-columnas.google.example.json \
+  --fecha 2026-10-01 --zona America/Mexico_City --exportado 2026-10-04T22:30:00Z \
+  --output reportes/referencia-cuentas-google-2026-10-01.json
+```
+
+`--zona` es el reloj del export: la cuenta de Google o Meta en su zona, Microsoft y Spotify en UTC (la API
+las lee en UTC). Si no coincide con la zona de la fuente, la comparación lo marca `INCOMPATIBLE_CLOCK`.
+Solo exports de la interfaz: una hoja de Dataslayer u otra extracción por API no es `ADS_MANAGER`.
+
 La referencia debe tener exactamente el rango solicitado; sus filas deben pertenecer a las
 cuentas izzi mapeadas y al rango. Se permiten referencias parciales, que quedan pendientes.
 Una clave duplicada de marca/plataforma/cuenta/día/granularidad se rechaza, incluso si cambia

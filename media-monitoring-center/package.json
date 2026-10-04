@@ -9,6 +9,7 @@
   "scripts": {
     "produccion:smoke": "node --import tsx scripts/production-smoke.ts",
     "conciliar": "node --conditions=react-server --import tsx scripts/reconcile.ts",
+    "conciliar:referencia": "node --conditions=react-server --import tsx scripts/reconcile-reference.ts",
     "conciliar:absolute-top": "node --conditions=react-server --import tsx scripts/reconcile-absolute-top.ts",
     "datos:respaldo": "node --import tsx scripts/data-backup.ts",
     "v1:check": "node --conditions=react-server --import tsx scripts/v1-check.ts",

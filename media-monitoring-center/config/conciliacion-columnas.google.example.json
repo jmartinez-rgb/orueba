@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "columns": {
+    "accountId": "Customer ID",
+    "currency": "Currency code",
+    "date": null,
+    "spend": "Cost",
+    "impressions": "Impr.",
+    "clicks": "Clicks"
+  }
+}
