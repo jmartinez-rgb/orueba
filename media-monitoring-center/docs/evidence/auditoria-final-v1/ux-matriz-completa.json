@@ -1,0 +1,84 @@
+{
+ "categories": {
+  "absolute-top": {
+   "cases": 14,
+   "failed": 0
+  },
+  "page": {
+   "cases": 310,
+   "failed": 0
+  },
+  "keyboard": {
+   "cases": 8,
+   "failed": 0
+  },
+  "role": {
+   "cases": 6,
+   "failed": 0
+  },
+  "gates": {
+   "cases": 4,
+   "failed": 0
+  },
+  "nexus": {
+   "cases": 1,
+   "failed": 0
+  },
+  "forms": {
+   "cases": 1,
+   "failed": 0
+  }
+ },
+ "generatedAt": "2026-10-04T16:36:28.086Z",
+ "base": "http://127.0.0.1:[puerto-aislado]",
+ "mode": "mock",
+ "profiles": [
+  {
+   "width": 320,
+   "height": 740
+  },
+  {
+   "width": 390,
+   "height": 844
+  },
+  {
+   "width": 768,
+   "height": 1024
+  },
+  {
+   "width": 1024,
+   "height": 900
+  },
+  {
+   "width": 1440,
+   "height": 1000
+  }
+ ],
+ "themes": [
+  "light",
+  "dark"
+ ],
+ "cases": 344,
+ "passed": 344,
+ "failed": 0,
+ "failures": [],
+ "mutationCounts": {
+  "POST /api/domain (fixture)": 2,
+  "PUT /api/settings": 1,
+  "PATCH /api/settings": 1
+ },
+ "fixtureMethod": "Synthetic RSC dashboard and browser-intercepted domain/Nexus responses; server domain cookies and Google data are not validated.",
+ "caseFilter": null,
+ "fullMatrix": true,
+ "configuredRouteCount": 31,
+ "routeCount": 31,
+ "limits": [
+  "Positive Absolute Top data are synthetic fixtures; no real Ads Manager coverage is certified.",
+  "Domain selection in positive browser fixtures does not validate server cookie persistence.",
+  "Browser fixtures do not validate real platform credentials or data reconciliation.",
+  "Permission checks exercise demo roles, not real nominal-account credentials.",
+  "Geometry/name checks and keyboard tests do not establish full WCAG certification or real screen-reader behavior.",
+  "No mutations persisted; role and brand changes are browser-local demo cookies."
+ ],
+ "note": "Demo aislada en loopback: DATA_SOURCE=mock, RECORDS_BACKEND=memory, AUTH_MODE=open, sin webhooks ni configuración privada. Build de claude/auditoria-final-v1 tras etiquetar los desplegables. Ejecución previa sobre el build anterior: 342/344 (dos fallos en /settings, desplegables sin nombre accesible)."
+}

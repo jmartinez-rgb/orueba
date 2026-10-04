@@ -115,7 +115,7 @@ export function ClassifierEditor({ initial, canEdit, initialPlatform = "meta" }:
                   <td className="px-2 py-1">
                     {canEdit ? (
                       <Select value={r.field} onValueChange={(v) => setRule(i, { field: v as ClassifierRule["field"] })}>
-                        <SelectTrigger size="sm" className="h-7 w-40 text-xs">
+                        <SelectTrigger aria-label={`Campo de la regla ${i + 1}`} size="sm" className="h-7 w-40 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -154,7 +154,7 @@ export function ClassifierEditor({ initial, canEdit, initialPlatform = "meta" }:
                 Si ninguna coincide →{" "}
                 {canEdit ? (
                   <Select value={config.fallback.type} onValueChange={(v) => update((c) => (c.fallback.type = v as ClassifierConfig["fallback"]["type"]))}>
-                    <SelectTrigger size="sm" className="ml-1 inline-flex h-7 w-44 text-xs">
+                    <SelectTrigger aria-label="Clasificación por omisión" size="sm" className="ml-1 inline-flex h-7 w-44 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

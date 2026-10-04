@@ -107,7 +107,7 @@ export function CompareView({ initial, attention, delayed = [] }: { initial: Com
                   setFocus("total");
                 }}
               >
-                <SelectTrigger size="sm" className="w-44">
+                <SelectTrigger aria-label="Plataforma" size="sm" className="w-44">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -127,7 +127,7 @@ export function CompareView({ initial, attention, delayed = [] }: { initial: Com
             <div className="space-y-1">
               <Label>Hora de corte</Label>
               <Select value={String(cutoff)} onValueChange={(v) => setCutoff(Number(v))}>
-                <SelectTrigger size="sm" className="w-28">
+                <SelectTrigger aria-label="Hora de corte" size="sm" className="w-28">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -160,7 +160,7 @@ export function CompareView({ initial, attention, delayed = [] }: { initial: Com
             <div className="space-y-1">
               <Label>Métrica</Label>
               <Select value={metric} onValueChange={(v) => setMetric(v as MetricId)}>
-                <SelectTrigger size="sm" className="w-36">
+                <SelectTrigger aria-label="Métrica" size="sm" className="w-36">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

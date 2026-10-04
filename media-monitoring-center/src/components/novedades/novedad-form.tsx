@@ -152,7 +152,7 @@ export function NovedadForm({
             <div className="space-y-1.5">
               <Label>Tipo de ajuste</Label>
               <Select value={kind} onValueChange={(v) => pickKind(v as NovedadKind)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger aria-label="Tipo de ajuste" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -194,7 +194,7 @@ export function NovedadForm({
                       setCampaignText("");
                     }}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger aria-label="Plataforma" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -217,7 +217,7 @@ export function NovedadForm({
                       setCampaignText("");
                     }}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger aria-label="Cuenta" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -251,7 +251,7 @@ export function NovedadForm({
             <div className="space-y-1.5">
               <Label>Medio de aprobación</Label>
               <Select value={channel} onValueChange={(v) => setChannel(v as ApprovalChannel)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger aria-label="Medio de aprobación" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

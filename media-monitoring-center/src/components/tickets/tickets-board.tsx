@@ -149,7 +149,7 @@ export function TicketsBoard({
           ]}
         />
         <Select value={platform} onValueChange={(v) => setPlatform(v as PlatformId | "all")}>
-          <SelectTrigger size="sm" className="w-40">
+          <SelectTrigger aria-label="Filtrar por plataforma" size="sm" className="w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -444,7 +444,7 @@ function NewTicketDialog({
             <div className="space-y-1.5">
               <Label>Severidad</Label>
               <Select value={severity} onValueChange={(v) => setSeverity(v as Severity)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger aria-label="Severidad" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -458,7 +458,7 @@ function NewTicketDialog({
             <div className="space-y-1.5">
               <Label>Categoría</Label>
               <Select value={category} onValueChange={(v) => setCategory(v as TicketCategory)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger aria-label="Categoría" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -473,7 +473,7 @@ function NewTicketDialog({
             <div className="col-span-2 space-y-1.5 sm:col-span-1">
               <Label>Plataforma</Label>
               <Select value={platform} onValueChange={(v) => setPlatform(v as PlatformId | "none")}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger aria-label="Plataforma" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -495,7 +495,7 @@ function NewTicketDialog({
             <div className="space-y-1.5">
               <Label>Canal</Label>
               <Select value={channel} onValueChange={(v) => setChannel(v as TicketChannel)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger aria-label="Canal" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

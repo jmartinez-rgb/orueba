@@ -461,7 +461,7 @@ function AccountDialog({ mode, account, self, grantable, onClose, onSaved }: { m
                 if (!custom) setPermissions(permissionsOf(v as Role));
               }}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger aria-label="Rol" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -567,7 +567,7 @@ function UniversalDialog({ universal, onClose, onSaved }: { universal: Universal
           <div className="space-y-1.5">
             <Label>Rol de quien entra así</Label>
             <Select value={role} onValueChange={(v) => setRole(v as "viewer" | "manager")} disabled={!enabled}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger aria-label="Rol de quien entra así" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

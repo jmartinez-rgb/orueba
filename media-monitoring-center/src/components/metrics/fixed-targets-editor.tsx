@@ -86,7 +86,7 @@ export function FixedTargetsEditor({ targets, checks, accounts, canEdit }: { tar
                     {canEdit ? (
                       <div className="flex flex-col gap-1">
                         <Select value={r.platform} onValueChange={(v) => set(i, { platform: v as PlatformId, accountId: null })}>
-                          <SelectTrigger size="sm" className="h-7 w-40 text-xs">
+                          <SelectTrigger aria-label={`Plataforma de la meta ${i + 1}`} size="sm" className="h-7 w-40 text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -98,7 +98,7 @@ export function FixedTargetsEditor({ targets, checks, accounts, canEdit }: { tar
                           </SelectContent>
                         </Select>
                         <Select value={r.accountId ?? "all"} onValueChange={(v) => set(i, { accountId: v === "all" ? null : v })}>
-                          <SelectTrigger size="sm" className="h-7 w-40 text-xs">
+                          <SelectTrigger aria-label={`Cuenta de la meta ${i + 1}`} size="sm" className="h-7 w-40 text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -123,7 +123,7 @@ export function FixedTargetsEditor({ targets, checks, accounts, canEdit }: { tar
                   <td className="px-2 py-1">
                     {canEdit ? (
                       <Select value={r.metric} onValueChange={(v) => set(i, { metric: v as MetricId })}>
-                        <SelectTrigger size="sm" className="h-7 w-36 text-xs">
+                        <SelectTrigger aria-label={`Métrica de la meta ${i + 1}`} size="sm" className="h-7 w-36 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -141,7 +141,7 @@ export function FixedTargetsEditor({ targets, checks, accounts, canEdit }: { tar
                   <td className="px-2 py-1">
                     {canEdit ? (
                       <Select value={r.kind} onValueChange={(v) => set(i, { kind: v as "min" | "max" })}>
-                        <SelectTrigger size="sm" className="h-7 w-24 text-xs">
+                        <SelectTrigger aria-label={`Tipo de límite de la meta ${i + 1}`} size="sm" className="h-7 w-24 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
