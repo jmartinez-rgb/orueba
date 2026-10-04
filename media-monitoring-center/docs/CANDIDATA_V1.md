@@ -77,8 +77,9 @@ Estado de E2 al 4 de octubre (día 2026-10-01):
   salida 2 solo por una campaña sin métricas ese día (N/D), explicada.
   [Detalle](CONCILIACION.md#conciliación-apiinterfaz-nivel-campaña-1-de-octubre-56-de-56).
 - [ ] **Nivel grupo: 516 de 516 coinciden**, sin diferencias; 38 grupos de la fuente sin fila en el export
-  explicados por impresiones N/D, cero o una; **faltan por explicar 2 filas del export** de 6214109105 sin
-  grupo con ese nombre en la fuente (`NAME_NOT_FOUND`).
+  explicados por impresiones N/D, cero o una; 2 filas del export de 6214109105 sin pareja por nombre
+  (campaña 22238774102; 29 y 11 impresiones, bajo el mínimo de 100 que evalúa el monitoreo). **Falta
+  confirmar en Google Ads si esos dos grupos están hoy pausados, eliminados o renombrados.**
   [Detalle](CONCILIACION.md#conciliación-apiinterfaz-nivel-grupo-1-de-octubre-516-de-516).
 - Contraste adicional con Dataslayer: salida 2 por diferencias de 0,005 a 0,111 pp atribuibles a la
   extracción de Dataslayer (la interfaz coincide con la API). No afecta E2.

@@ -430,8 +430,13 @@ bloqueo.
 - Los 38 `MISSING_REFERENCE` se explican por la fuente: 34 grupos sin métricas ese día (impresiones N/D),
   1 con 0 impresiones y 3 con 1 impresión, que son los grupos que la interfaz exporta con `0` en ambas tasas
   (sin impresiones superiores en Búsqueda de Google) y la importación omite.
-- **Pendiente:** 2 filas del export de 6214109105 sin grupo con ese nombre en esa campaña de la fuente
-  (`NAME_NOT_FOUND`). La fuente solo incluye grupos habilitados al momento de la extracción; falta
-  identificar esos dos grupos con su fila de referencia (`referenceRow` en el informe privado) y comprobar
-  su estado.
+- 2 filas del export de 6214109105 sin grupo con ese nombre en esa campaña de la fuente (`NAME_NOT_FOUND`),
+  identificadas por su `referenceRow`: ambas de la campaña 22238774102, con 29 y 11 impresiones en la
+  interfaz. La extracción solo lee grupos habilitados (`ad_group.status = 'ENABLED'`) de campañas de Búsqueda
+  habilitadas en el momento de extraer, así que un grupo pausado, eliminado o renombrado después del día no
+  aparece. Las dos quedan por debajo de `minImpressions` (100), con lo que el monitoreo no las evaluaría
+  aunque estuvieran: no cambian ninguna alerta. **Falta confirmar en Google Ads su estado actual** para
+  cerrar la explicación.
+- Propiedad del diseño, no defecto: la auditoría de un día evalúa las entidades habilitadas al extraer. Una
+  entidad pausada dentro de la ventana de maduración (48 h) no se evalúa retroactivamente para ese día.
 - Sigue abierto E1 (costo, impresiones y clics por cuenta y día con `npm run conciliar`).
