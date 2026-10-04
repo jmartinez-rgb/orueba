@@ -13,9 +13,18 @@ export interface AbsoluteTopCheckpoint {
   latestAudit: AbsoluteTopAudit | null;
   matchesConfig: boolean;
 }
+/**
+ * The customer document is rewritten whole on every ingestion. Measured with synthetic rows of the
+ * largest izzi account: daily once a day for 90 days ≈ 18 MiB; hourly once a day ≈ 430 MiB, which
+ * would exhaust memory. Past this budget an ingestion with rows fails explicitly and the stored
+ * document stays intact. Empty unavailable markers (~300 bytes) are always accepted so a failed
+ * extraction never leaves an older green reading current.
+ */
+export const ABSOLUTE_TOP_HISTORY_MAX_BYTES = 64 * 1024 * 1024;
+
 /** One customer is one atomic CAS document: extraction history and its counters cannot diverge. */
 export class AbsoluteTopStore {
-  constructor(private readonly records: RecordStore = getRecordStore()) {}
+  constructor(private readonly records: RecordStore = getRecordStore(), private readonly maxBytes = ABSOLUTE_TOP_HISTORY_MAX_BYTES) {}
   private key(customer: string) { if (!/^\d{10}$/.test(customer)) throw new AbsoluteTopError("INVALID_CUSTOMER"); return `absolute-top/izzi/${customer}`; }
   async ingest(input: AbsoluteTopAudit, inputConfig: GoogleDomainConfig, now = new Date()): Promise<AbsoluteTopEvaluation[]> {
     const parsed = absoluteTopAuditSchema.safeParse(input), master = googleDomainsSchema.safeParse(inputConfig);
@@ -30,6 +39,10 @@ export class AbsoluteTopStore {
       if (duplicate) { if (JSON.stringify(duplicate) !== JSON.stringify(audit)) throw new AbsoluteTopError("AUDIT_ID_CONFLICT"); return old; }
       const audits = [...old.audits.filter(item => Date.parse(item.observedAt) >= cutoff), audit].sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt) || a.auditId.localeCompare(b.auditId));
       if (audits.length > 5000) throw new AbsoluteTopError("HISTORY_CAPACITY");
+      if (audit.rows.length) {
+        let bytes = 0;
+        for (const item of audits) { bytes += JSON.stringify(item).length; if (bytes > this.maxBytes) throw new AbsoluteTopError("HISTORY_BYTES_CAPACITY"); }
+      }
       const later = !old.latestAudit || Date.parse(audit.observedAt) > Date.parse(old.latestAudit.observedAt) || (Date.parse(audit.observedAt) === Date.parse(old.latestAudit.observedAt) && audit.auditId > old.latestAudit.auditId);
       const evaluated = later ? evaluateAbsoluteTop(audit, audits, config, old.latest) : old.latest;
       // A later extraction of a window older than the checkpoint (backfill) is history only: it never

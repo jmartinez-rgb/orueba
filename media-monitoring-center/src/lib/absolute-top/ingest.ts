@@ -36,7 +36,7 @@ export async function syncAbsoluteTop(options: AbsoluteTopSyncOptions) {
   try { config = await fetchGoogleDomainConfig({ base, apiKey: options.apiKey, request, timeoutMs: options.timeoutMs }); }
   catch { throw new AbsoluteTopError("DOMAIN_CONFIGURATION_UNAVAILABLE"); }
   if (!options.dryRun) await options.cache?.saveDomainConfig(config, clock().toISOString());
-  const results: Array<{ customerId: string; status: "SUCCESS" | "FAILED"; rows: number; code: string | null }> = [];
+  const results: Array<{ customerId: string; status: "SUCCESS" | "FAILED"; rows: number; code: string | null; markerCode?: string }> = [];
   for (const account of config.domains.flatMap(domain => domain.accounts)) {
     const observedAt = clock().toISOString(), auditId = randomUUID();
     try {
@@ -57,8 +57,13 @@ export async function syncAbsoluteTop(options: AbsoluteTopSyncOptions) {
     } catch (error) {
       const code = error instanceof AbsoluteTopError ? error.code : "EXTRACTION_FAILED";
       // A failed audit is persisted as unknown; it must not keep an older green result current.
-      if (!options.dryRun) await store.ingest({ version: 1, auditId, customerId: account.customerId, observedAt, from: options.from, to: options.to, granularity: options.granularity, coverage: "unavailable", rows: [], warnings: [code] }, config, clock());
-      results.push({ customerId: account.customerId, status: "FAILED", rows: 0, code });
+      // If even that marker cannot be stored, report it and continue with the next account.
+      let marker: string | null = null;
+      if (!options.dryRun) {
+        try { await store.ingest({ version: 1, auditId, customerId: account.customerId, observedAt, from: options.from, to: options.to, granularity: options.granularity, coverage: "unavailable", rows: [], warnings: [code] }, config, clock()); }
+        catch (markerError) { marker = markerError instanceof AbsoluteTopError ? markerError.code : "STORE_FAILED"; }
+      }
+      results.push({ customerId: account.customerId, status: "FAILED", rows: 0, code, ...(marker ? { markerCode: marker } : {}) });
     }
   }
   return results;
