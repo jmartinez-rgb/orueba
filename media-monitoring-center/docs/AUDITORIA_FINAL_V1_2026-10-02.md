@@ -6,8 +6,9 @@ documental). Árbol local limpio al empezar y sin cambios ajenos. No se hizo pus
 no se reescribió historial, no se desplegó, no se activó cron/n8n/WhatsApp ni se enviaron mensajes.
 
 **Estado: candidata v1 preparada; v1 NO terminada.** Faltan dos requisitos que no dependen del código:
-la **conciliación independiente** con exports de Google Ads Manager y la **aceptación del
-alojamiento** autorizado. La [checklist de aceptación y reversión](CANDIDATA_V1.md) define cómo
+completar la **conciliación independiente** con exports de Google Ads Manager (Absolute Top por campaña
+ya concilia, 56 de 56 el 1 de octubre; faltan nivel grupo y costo/impresiones/clics por cuenta) y la
+**aceptación del alojamiento** autorizado. La [checklist de aceptación y reversión](CANDIDATA_V1.md) define cómo
 cerrarlos. Alcance de cifras: **solo izzi**; Sky conserva sus datos, cuentas y permisos.
 
 ## Método
@@ -125,12 +126,15 @@ explícitamente sin dañar lo guardado.
 
 ## Conciliación independiente
 
-Lista para ejecutarse; **pendiente por falta de datos**. No hay exports de Ads Manager en el repositorio
-ni en este entorno (los CSV/Excel existentes provienen de la API y no sirven como referencia). La lectura
-real de 2026-10-01 se extrajo antes de la madurez de 48 h; repetirla después del 4 de octubre a las
-06:00 UTC antes de comparar. Se necesitan, por cuenta izzi (8779536058, 6214109105, 3224850043,
-7367928294): dos CSV de 2026-10-01 (campañas y grupos, solo Red de Búsqueda de Google) con su hora de
-exportación, más el export por cuenta y día para `npm run conciliar`.
+**Absolute Top por campaña, 1 de octubre: concilia (56 de 56).** El 4 de octubre, en el equipo del
+responsable, se repitió la lectura diaria ya madura (18:51 UTC) y se comparó con el informe de campañas
+exportado de la interfaz de Google Ads de las cuatro cuentas izzi: Impr. (Abs. Top) % e Impr. (Top) %
+coinciden en las 56 campañas dentro de medio dígito del redondeo mostrado. La única entidad pendiente es
+una campaña sin métricas de Google ese día (N/D en la fuente), ausente del export: salida 2 explicada.
+`importar` acepta ahora ese informe sin IDs (unión por nombre exacto, solo nivel campaña y tasas
+superiores). Sigue pendiente el nivel grupo (export con IDs de campaña y grupo) y `npm run conciliar`
+de costo, impresiones y clics por cuenta y día. Detalle en
+[CONCILIACION.md](CONCILIACION.md#conciliación-apiinterfaz-nivel-campaña-1-de-octubre-56-de-56).
 
 ### Actualización del 4 de octubre: históricos de Dataslayer
 

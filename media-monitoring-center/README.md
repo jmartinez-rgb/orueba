@@ -14,7 +14,9 @@ y Tercer Dominio. `/absolute-top` evalúa campañas y grupos Search por separado
 `npm run absolute-top:sync -- --help` explica la extracción explícita; abrir la página solo relee
 las auditorías guardadas. Se comprobaron las cuatro cuentas izzi en granularidad diaria y
 horaria para el 1 de octubre de 2026, con reloj `America/Mexico_City`; las auditorías diarias
-quedaron almacenadas localmente en privado. La conciliación independiente sigue pendiente.
+quedaron almacenadas localmente en privado. Conciliación independiente: Absolute Top por campaña
+coincide 56 de 56 con la interfaz de Google Ads (1 de octubre); faltan nivel grupo y costo/impresiones/
+clics por cuenta ([detalle](docs/CONCILIACION.md)).
 
 **Entrega vigente para la fase final:** [guía de auditoría y continuación](docs/ENTREGA_CLAUDE_FASE_FINAL.md)
 y [prompt listo para pegar](docs/PROMPT_PARA_CLAUDE.md). Usar el último HEAD de

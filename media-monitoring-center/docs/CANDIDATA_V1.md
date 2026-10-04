@@ -2,7 +2,8 @@
 
 Rama `claude/auditoria-final-v1`, desde `07a6ae2` (base funcional `2c8ca56`), 2 a 4 de octubre de 2026.
 Esta lista convierte la candidata en v1 aceptada. **Mientras falte una casilla obligatoria, la v1 no
-está terminada.** A esta fecha siguen abiertas la conciliación independiente (sección E) y la
+está terminada.** A esta fecha siguen abiertas parte de la conciliación independiente (sección E: E2
+concilia a nivel campaña; faltan nivel grupo y E1) y la
 aceptación del alojamiento (secciones B, F y H). El informe de esta ronda está en
 [AUDITORIA_FINAL_V1_2026-10-02.md](AUDITORIA_FINAL_V1_2026-10-02.md).
 
@@ -70,10 +71,14 @@ API del monitoreo (ocultar un botón no basta). Resultado esperado: 403 o 401 en
 
 No se acepta comparar la API consigo misma ni una plantilla. Una salida 0 no certifica producción.
 
-Estado de E2 al 4 de octubre: contraste con Dataslayer del 1 de octubre ejecutado, **salida 2** (Abs. Top
-19 de 56 dentro de tolerancia; diferencias de 0,005 a 0,111 pp, sin dirección; ninguna cambia el estado
-frente al mínimo del dominio). No cierra E2: falta el
-export de la interfaz. Detalle en [CONCILIACION.md](CONCILIACION.md#primera-ejecución-1-de-octubre-de-2026-salida-2-no-concilia).
+Estado de E2 al 4 de octubre (día 2026-10-01):
+
+- [x] **Nivel campaña contra la interfaz de Google Ads: 56 de 56** en Abs. Top y Top, sin diferencias;
+  salida 2 solo por una campaña sin métricas ese día (N/D), explicada.
+  [Detalle](CONCILIACION.md#conciliación-apiinterfaz-nivel-campaña-1-de-octubre-56-de-56).
+- [ ] Nivel grupo: falta un export con ID de campaña e ID de grupo.
+- Contraste adicional con Dataslayer: salida 2 por diferencias de 0,005 a 0,111 pp atribuibles a la
+  extracción de Dataslayer (la interfaz coincide con la API). No afecta E2.
 
 ## F. Persistencia, respaldo y recuperación
 

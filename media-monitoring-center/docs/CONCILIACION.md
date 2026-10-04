@@ -377,5 +377,23 @@ Top igual en 19 de 56 y distinto en 37 (22 por encima, 15 por debajo, máximo 0,
 distinto en 2 (+0,01 pp). En las 12 campañas con mayor y menor diferencia API–Dataslayer cuyos valores de
 la API se conocen, **la interfaz coincide con la API dentro del redondeo y no con Dataslayer** (por
 ejemplo 17,021 % en la API, 17,02 % en la interfaz y 16,91 % en Dataslayer). La desviación está en la
-extracción de Dataslayer. Falta la comparación formal API–interfaz con `comparar` sobre las auditorías
-guardadas, que es la que puede cerrar E2 a nivel campaña.
+extracción de Dataslayer.
+
+#### Conciliación API–interfaz, nivel campaña (1 de octubre): 56 de 56
+
+`comparar` sobre las mismas auditorías diarias guardadas (extraídas 18:51–18:52 UTC) contra las cuatro
+referencias de la interfaz importadas por nombre (`GOOGLE_ADS_UI_EXPORT`, `CAMPAIGN_NAME`,
+`TOP_METRICS_SEARCH_ONLY`; `--exportado 2026-10-04T21:40:40Z`, cota inferior de la hora de exportación;
+4, 24, 14 y 14 campañas, 17 filas de otros tipos omitidas). Ambos lados maduros.
+
+| Métrica | Comparadas | Coinciden (±0,005 pp) | Difieren |
+| --- | --- | --- | --- |
+| Impr. (Abs. Top) % (principal) | 56 | 56 | 0 |
+| Impr. (Top) % | 56 | 56 | 0 |
+
+- Salida 2 únicamente por una entidad `MISSING_REFERENCE`: la campaña de la cuenta 8779536058 sin métricas
+  de Google ese día (impresiones y tasas N/D en la fuente), que el export no trae como campaña de Búsqueda
+  con datos. Explicada; no es una diferencia de valores.
+- Con esto E2 queda conciliada **a nivel campaña** para el 1 de octubre. Siguen abiertos el nivel grupo
+  (requiere un export con ID de campaña e ID de grupo, porque los nombres de grupo se repiten) y E1
+  (costo, impresiones y clics por cuenta y día con `npm run conciliar`).
