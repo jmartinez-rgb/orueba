@@ -4,7 +4,7 @@ import type { GoogleDomainConfig } from "@/lib/domains/config";
 import { googleDomainsSchema } from "@/lib/domains/config";
 import { getRecordStore, type RecordStore } from "@/lib/records/store";
 import { absoluteTopAuditSchema } from "./schema";
-import { evaluateAbsoluteTop } from "./engine";
+import { evaluateAbsoluteTop, STALE_PERIOD_WARNING } from "./engine";
 import { AbsoluteTopError, type AbsoluteTopAudit, type AbsoluteTopEvaluation } from "./types";
 
 interface CustomerHistory { version: 1; audits: AbsoluteTopAudit[]; latest: AbsoluteTopEvaluation[]; latestAudit: AbsoluteTopAudit | null; configFingerprint?: string }
@@ -30,8 +30,12 @@ export class AbsoluteTopStore {
       if (duplicate) { if (JSON.stringify(duplicate) !== JSON.stringify(audit)) throw new AbsoluteTopError("AUDIT_ID_CONFLICT"); return old; }
       const audits = [...old.audits.filter(item => Date.parse(item.observedAt) >= cutoff), audit].sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt) || a.auditId.localeCompare(b.auditId));
       if (audits.length > 5000) throw new AbsoluteTopError("HISTORY_CAPACITY");
-      const newer = !old.latestAudit || Date.parse(audit.observedAt) > Date.parse(old.latestAudit.observedAt) || (Date.parse(audit.observedAt) === Date.parse(old.latestAudit.observedAt) && audit.auditId > old.latestAudit.auditId);
-      return { version: 1, audits, latest: newer ? evaluateAbsoluteTop(audit, audits, config, old.latest) : old.latest, latestAudit: newer ? audit : old.latestAudit, configFingerprint: newer ? createHash("sha256").update(JSON.stringify(config)).digest("hex") : old.configFingerprint };
+      const later = !old.latestAudit || Date.parse(audit.observedAt) > Date.parse(old.latestAudit.observedAt) || (Date.parse(audit.observedAt) === Date.parse(old.latestAudit.observedAt) && audit.auditId > old.latestAudit.auditId);
+      const evaluated = later ? evaluateAbsoluteTop(audit, audits, config, old.latest) : old.latest;
+      // A later extraction of a window older than the checkpoint (backfill) is history only: it never
+      // replaces the current reading with a stale, insufficient one.
+      const newer = later && !(evaluated.length > 0 && evaluated.every(row => row.warnings.includes(STALE_PERIOD_WARNING)));
+      return { version: 1, audits, latest: newer ? evaluated : old.latest, latestAudit: newer ? audit : old.latestAudit, configFingerprint: newer ? createHash("sha256").update(JSON.stringify(config)).digest("hex") : old.configFingerprint };
     });
     if (!state) throw new AbsoluteTopError("STORE_UNCONFIRMED");
     return state.latest;

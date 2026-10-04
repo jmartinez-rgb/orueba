@@ -140,8 +140,10 @@ describe("contrato Absolute Top — backfill extremo a extremo (almacén, tabler
     const later = new Date("2026-10-02T10:00:00Z");
     await store.ingest(audit([row(.95, { date: "2026-09-20", extracted_at: "2026-10-02T09:30:00Z" })], { auditId: "backfill", observedAt: "2026-10-02T09:30:00Z", from: "2026-09-20", to: "2026-09-20" }), config, later);
     const dashboard = await getAbsoluteTopDashboard({ brand: "izzi", config, store, now: later, domainId: "all", allowedCustomerIds: [first] });
-    expect(dashboard.rows[0]).toMatchObject({ state: "insufficient", episode_open: true, last_valid_rate: .5 });
-    expect(dashboard.summaries[0].weighted_absolute_top).toBeNull();
+    // The backfill stays in history only: the current reading (and its open episode) remains the dashboard row.
+    expect(dashboard.rows[0]).toMatchObject({ state: "below", episode_open: true, last_valid_rate: .5, audit_id: opened.rows[0].audit_id });
+    expect(dashboard.rows[0].warnings).not.toContain("AUDIT_PERIOD_PRECEDES_CHECKPOINT");
+    expect(dashboard.summaries[0].weighted_absolute_top).not.toBe(.95);
     const after = reconcile(initial.state, run(dashboard.rows, later.toISOString()), opts);
     expect(after.state.incidents.filter(incident => incident.resolvedAt === null)).toHaveLength(1);
   });
