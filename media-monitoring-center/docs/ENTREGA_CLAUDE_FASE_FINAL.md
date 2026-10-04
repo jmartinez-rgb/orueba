@@ -8,8 +8,8 @@ y registrar su hash exacto al empezar. Crear una rama propia, por ejemplo
 `claude/auditoria-final-v1`, sin sustituir cambios ajenos ni hacer push a la base.
 
 Esta entrega prepara la continuación hacia una candidata v1. **La conciliación independiente
-está incompleta** (Absolute Top por campaña concilia 56 de 56 contra la interfaz el 1 de octubre;
-faltan nivel grupo y costo/impresiones/clics por cuenta) **y la aceptación de producción sigue
+está incompleta** (Absolute Top concilia contra la interfaz el 1 de octubre: 56 de 56 campañas y
+516 de 516 grupos, con 2 filas de grupo por explicar; falta costo/impresiones/clics por cuenta) **y la aceptación de producción sigue
 pendiente.** La publicación confirmada corresponde
 al entorno de Codex: no se han proporcionado URLs públicas del monitoreo y de la API.
 La extracción y aceptación son **solo izzi**; conservar Sky, sus datos y permisos.

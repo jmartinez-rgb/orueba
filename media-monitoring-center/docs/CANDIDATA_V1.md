@@ -3,7 +3,7 @@
 Rama `claude/auditoria-final-v1`, desde `07a6ae2` (base funcional `2c8ca56`), 2 a 4 de octubre de 2026.
 Esta lista convierte la candidata en v1 aceptada. **Mientras falte una casilla obligatoria, la v1 no
 está terminada.** A esta fecha siguen abiertas parte de la conciliación independiente (sección E: E2
-concilia a nivel campaña; faltan nivel grupo y E1) y la
+concilia por campaña y por grupo, con 2 filas de grupo por explicar; falta E1) y la
 aceptación del alojamiento (secciones B, F y H). El informe de esta ronda está en
 [AUDITORIA_FINAL_V1_2026-10-02.md](AUDITORIA_FINAL_V1_2026-10-02.md).
 
@@ -76,7 +76,10 @@ Estado de E2 al 4 de octubre (día 2026-10-01):
 - [x] **Nivel campaña contra la interfaz de Google Ads: 56 de 56** en Abs. Top y Top, sin diferencias;
   salida 2 solo por una campaña sin métricas ese día (N/D), explicada.
   [Detalle](CONCILIACION.md#conciliación-apiinterfaz-nivel-campaña-1-de-octubre-56-de-56).
-- [ ] Nivel grupo: falta un export con ID de campaña e ID de grupo.
+- [ ] **Nivel grupo: 516 de 516 coinciden**, sin diferencias; 38 grupos de la fuente sin fila en el export
+  explicados por impresiones N/D, cero o una; **faltan por explicar 2 filas del export** de 6214109105 sin
+  grupo con ese nombre en la fuente (`NAME_NOT_FOUND`).
+  [Detalle](CONCILIACION.md#conciliación-apiinterfaz-nivel-grupo-1-de-octubre-516-de-516).
 - Contraste adicional con Dataslayer: salida 2 por diferencias de 0,005 a 0,111 pp atribuibles a la
   extracción de Dataslayer (la interfaz coincide con la API). No afecta E2.
 

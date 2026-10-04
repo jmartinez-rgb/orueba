@@ -6,8 +6,9 @@ documental). Árbol local limpio al empezar y sin cambios ajenos. No se hizo pus
 no se reescribió historial, no se desplegó, no se activó cron/n8n/WhatsApp ni se enviaron mensajes.
 
 **Estado: candidata v1 preparada; v1 NO terminada.** Faltan dos requisitos que no dependen del código:
-completar la **conciliación independiente** con exports de Google Ads Manager (Absolute Top por campaña
-ya concilia, 56 de 56 el 1 de octubre; faltan nivel grupo y costo/impresiones/clics por cuenta) y la
+completar la **conciliación independiente** con exports de Google Ads Manager (Absolute Top ya concilia el
+1 de octubre: 56 de 56 campañas y 516 de 516 grupos comparados, con 2 filas de grupo por explicar; falta
+costo/impresiones/clics por cuenta) y la
 **aceptación del alojamiento** autorizado. La [checklist de aceptación y reversión](CANDIDATA_V1.md) define cómo
 cerrarlos. Alcance de cifras: **solo izzi**; Sky conserva sus datos, cuentas y permisos.
 
@@ -132,7 +133,9 @@ exportado de la interfaz de Google Ads de las cuatro cuentas izzi: Impr. (Abs. T
 coinciden en las 56 campañas dentro de medio dígito del redondeo mostrado. La única entidad pendiente es
 una campaña sin métricas de Google ese día (N/D en la fuente), ausente del export: salida 2 explicada.
 `importar` acepta ahora ese informe sin IDs (unión por nombre exacto, solo nivel campaña y tasas
-superiores). Sigue pendiente el nivel grupo (export con IDs de campaña y grupo) y `npm run conciliar`
+superiores). **Nivel grupo: 516 de 516 comparados coinciden** (unión por ID de campaña y nombre exacto
+del grupo); 38 grupos de la fuente sin fila en el export se explican por impresiones N/D, cero o una, y 2 filas
+del export de 6214109105 sin pareja por nombre quedan por identificar. Sigue pendiente `npm run conciliar`
 de costo, impresiones y clics por cuenta y día. Detalle en
 [CONCILIACION.md](CONCILIACION.md#conciliación-apiinterfaz-nivel-campaña-1-de-octubre-56-de-56).
 

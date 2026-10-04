@@ -408,6 +408,30 @@ referencias de la interfaz importadas por nombre (`GOOGLE_ADS_UI_EXPORT`, `CAMPA
 - Salida 2 únicamente por una entidad `MISSING_REFERENCE`: la campaña de la cuenta 8779536058 sin métricas
   de Google ese día (impresiones y tasas N/D en la fuente), que el export no trae como campaña de Búsqueda
   con datos. Explicada; no es una diferencia de valores.
-- Con esto E2 queda conciliada **a nivel campaña** para el 1 de octubre. Siguen abiertos el nivel grupo
-  (requiere un export con ID de campaña e ID de grupo, porque los nombres de grupo se repiten) y E1
-  (costo, impresiones y clics por cuenta y día con `npm run conciliar`).
+- Con esto E2 queda conciliada **a nivel campaña** para el 1 de octubre.
+
+#### Conciliación API–interfaz, nivel grupo (1 de octubre): 516 de 516
+
+Informes de grupos de la interfaz de las cuatro cuentas (sin ID de grupo ni segmento de red), importados con
+`campaignId` + `adGroupName` (`AD_GROUP_NAME`, `TOP_METRICS_SEARCH_ONLY`, `--exportado 2026-10-04T22:03:52Z`,
+cota inferior): 29, 196, 112 y 181 grupos; 16 filas omitidas (13 de Display, video y Demand Gen; 3 grupos de
+Búsqueda con `0` en ambas tasas). Mismas auditorías diarias guardadas; ambos lados maduros, sin razones de
+bloqueo.
+
+| Cuenta | Grupos en la fuente | Coinciden (Abs. Top y Top) | Difieren | Falta en el export | Sin pareja en la fuente |
+| --- | --- | --- | --- | --- | --- |
+| 8779536058 | 39 | 29 | 0 | 10 | 0 |
+| 6214109105 | 211 | 194 | 0 | 17 | 2 |
+| 3224850043 | 112 | 112 | 0 | 0 | 0 |
+| 7367928294 | 192 | 181 | 0 | 11 | 0 |
+| **Total** | **554** | **516** | **0** | **38** | **2** |
+
+- Mayor diferencia absoluta en Abs. Top: 0,005 pp (dentro de la tolerancia).
+- Los 38 `MISSING_REFERENCE` se explican por la fuente: 34 grupos sin métricas ese día (impresiones N/D),
+  1 con 0 impresiones y 3 con 1 impresión, que son los grupos que la interfaz exporta con `0` en ambas tasas
+  (sin impresiones superiores en Búsqueda de Google) y la importación omite.
+- **Pendiente:** 2 filas del export de 6214109105 sin grupo con ese nombre en esa campaña de la fuente
+  (`NAME_NOT_FOUND`). La fuente solo incluye grupos habilitados al momento de la extracción; falta
+  identificar esos dos grupos con su fila de referencia (`referenceRow` en el informe privado) y comprobar
+  su estado.
+- Sigue abierto E1 (costo, impresiones y clics por cuenta y día con `npm run conciliar`).
