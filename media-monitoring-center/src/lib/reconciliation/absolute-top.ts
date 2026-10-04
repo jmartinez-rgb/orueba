@@ -22,28 +22,40 @@ export const MATURITY_HOURS = 48;
 const digits = z.string().regex(/^\d{1,20}$/);
 const cell = z.string().max(40);
 const numberFormat = z.strictObject({ decimal: z.enum([".", ","]), thousands: z.enum([",", ".", " ", ""]) }).refine(f => f.decimal !== f.thousands);
+/** Metrics a third-party extraction without network segmentation can be compared on: top rates are Search-only. */
+export const NAME_JOIN_METRICS: readonly AtMetric[] = ["absolute_top_rate", "top_of_page_rate"];
+export const normalizeName = (value: string) => value.normalize("NFC").trim().replace(/\s+/g, " ");
 const atReferenceSchema = z.strictObject({
   version: z.literal(1),
-  origin: z.literal("GOOGLE_ADS_UI_EXPORT"),
+  /** GOOGLE_ADS_UI_EXPORT: Google Ads interface. DATASLAYER: independent third-party extraction, not the UI. */
+  origin: z.enum(["GOOGLE_ADS_UI_EXPORT", "DATASLAYER"]),
   exportedAt: z.iso.datetime({ offset: true }),
   customerId: z.string().refine(v => normalizeGoogleCustomerId(v) !== null),
   level: z.enum(["campaign", "ad_group"]),
   date: z.iso.date(),
   timezone: z.string().max(80).refine(isValidTimeZone),
   currency: z.string().regex(/^[A-Z]{3}$/),
+  /** ID (default) or exact campaign name within the customer, for sources that carry no IDs. */
+  joinBy: z.enum(["ID", "CAMPAIGN_NAME"]).default("ID"),
   /** Operator declaration: the export kept only the Google Search network (no Search partners). */
   network: z.literal("GOOGLE_SEARCH_ONLY"),
-  networkEvidence: z.enum(["SEGMENT_COLUMN", "FILTERED_IN_UI"]),
+  networkEvidence: z.enum(["SEGMENT_COLUMN", "FILTERED_IN_UI", "TOP_METRICS_SEARCH_ONLY"]),
   numberFormat,
   rows: z.array(z.strictObject({
-    campaignId: digits,
+    campaignId: digits.nullable(),
+    campaignName: z.string().min(1).max(500).nullable().optional(),
     adGroupId: digits.nullable(),
     cells: z.strictObject(Object.fromEntries(AT_METRICS.map(m => [m, cell.optional()])) as Record<AtMetric, z.ZodOptional<typeof cell>>),
   })).max(100000),
 }).superRefine((ref, ctx) => {
+  const byName = ref.joinBy === "CAMPAIGN_NAME";
+  // A name join is only for campaign-level third-party data, and only on the Search-only top rates.
+  if (byName && (ref.origin !== "DATASLAYER" || ref.level !== "campaign")) ctx.addIssue({ code: "custom", message: "Name join requires DATASLAYER campaign rows." });
+  if ((ref.networkEvidence === "TOP_METRICS_SEARCH_ONLY") !== byName) ctx.addIssue({ code: "custom", message: "Network evidence does not match the join." });
   const keys = new Set<string>();
   for (const row of ref.rows) {
-    const key = `${row.campaignId}/${row.adGroupId}`;
+    const key = byName ? normalizeName(row.campaignName ?? "") : `${row.campaignId}/${row.adGroupId}`;
+    if (byName ? row.campaignId !== null || !row.campaignName || Object.keys(row.cells).some(m => !NAME_JOIN_METRICS.includes(m as AtMetric)) : row.campaignId === null || (row.campaignName ?? null) !== null) ctx.addIssue({ code: "custom", message: "Row does not match the join." });
     if ((ref.level === "campaign") !== (row.adGroupId === null) || keys.has(key)) ctx.addIssue({ code: "custom", message: "Inconsistent or duplicate entity." });
     // Google Help limits Search lost IS (budget) to campaigns; never accept it as an ad group value.
     if (ref.level === "ad_group" && row.cells.search_lost_is_budget !== undefined) ctx.addIssue({ code: "custom", message: "Budget lost IS is campaign-only." });
@@ -101,7 +113,11 @@ export interface AtComparison {
 export interface AtEntityResult {
   customerId: string;
   level: AbsoluteTopLevel;
-  campaignId: string;
+  /** Null only for a name-joined reference row that matched no single source campaign. */
+  campaignId: string | null;
+  /** 1-based row of the private reference file, so an unresolved name can be found without exporting it. */
+  referenceRow: number | null;
+  joinReason: "NAME_NOT_FOUND" | "NAME_AMBIGUOUS" | null;
   adGroupId: string | null;
   date: string;
   codes: AtCode[];
@@ -113,6 +129,8 @@ export interface AtPartitionResult {
   date: string;
   timezone: string;
   currency: string;
+  origin: AtReference["origin"];
+  joinBy: AtReference["joinBy"];
   network: "GOOGLE_SEARCH_ONLY";
   networkEvidence: AtReference["networkEvidence"];
   referenceExportedAt: string;
@@ -239,23 +257,33 @@ export async function buildAbsoluteTopReconciliation(opts: {
     if (!referenceMature) reasons.push("REFERENCE_MATURITY_PENDING");
     const blocking: AtCode | null = clockMismatch ? "INCOMPATIBLE_CLOCK" : currencyMismatch ? "INCOMPATIBLE_CURRENCY" : reasons.includes("SOURCE_EXTRACTED_BEFORE_DAY_CLOSED") ? "MISSING_SOURCE" : null;
     const sourceByKey = new Map(rows.map(r => [entityKey(r.level, r.campaign_id, r.ad_group_id), r]));
-    const refByKey = new Map(ref.rows.map(r => [entityKey(ref.level, r.campaignId, r.adGroupId), r]));
+    // Name join: exact normalized campaign name within this customer's source rows; never a fuzzy match.
+    const byName = new Map<string, AbsoluteTopRow[]>();
+    for (const r of rows) byName.set(normalizeName(r.campaign_name), [...(byName.get(normalizeName(r.campaign_name)) ?? []), r]);
+    const refByKey = new Map<string, { row: AtReference["rows"][number]; index: number; reason: AtEntityResult["joinReason"] }>();
+    ref.rows.forEach((r, index) => {
+      if (ref.joinBy === "ID") { refByKey.set(entityKey(ref.level, r.campaignId!, r.adGroupId), { row: r, index, reason: null }); return; }
+      const found = byName.get(normalizeName(r.campaignName!)) ?? [];
+      if (found.length === 1) refByKey.set(entityKey("campaign", found[0].campaign_id, null), { row: r, index, reason: null });
+      else refByKey.set(`unresolved/${index}`, { row: r, index, reason: found.length ? "NAME_AMBIGUOUS" : "NAME_NOT_FOUND" });
+    });
     const keys = [...new Set([...sourceByKey.keys(), ...refByKey.keys()])].sort();
     const entities: AtEntityResult[] = keys.map(key => {
-      const srcRow = sourceByKey.get(key), refRow = refByKey.get(key);
-      const [, campaignId, adGroup] = key.split("/");
+      const srcRow = sourceByKey.get(key), ref_ = refByKey.get(key), refRow = ref_?.row;
+      const unresolved = key.startsWith("unresolved/");
+      const [, campaignId, adGroup] = unresolved ? [null, null, null] : key.split("/");
       const missing: AtCode | null = !srcRow ? "MISSING_SOURCE" : !refRow ? "MISSING_REFERENCE" : null;
       const comparisons = Object.fromEntries(AT_METRICS.map(metric => {
-        if (missing || !srcRow) return [metric, { code: missing ?? "MISSING_SOURCE", source: sourceValue(srcRow, metric).value, sourceBound: sourceValue(srcRow, metric).bound, referenceText: refRow?.cells[metric] ?? null, reference: null, referenceBound: null, delta: null, tolerance: null, reason: null } satisfies AtComparison];
+        if (missing || !srcRow) return [metric, { code: missing ?? "MISSING_SOURCE", source: sourceValue(srcRow, metric).value, sourceBound: sourceValue(srcRow, metric).bound, referenceText: refRow?.cells[metric] ?? null, reference: null, referenceBound: null, delta: null, tolerance: null, reason: ref_?.reason ?? null } satisfies AtComparison];
         return [metric, compare(metric, srcRow, refRow?.cells[metric], ref.numberFormat, blocking)];
       })) as Record<AtMetric, AtComparison>;
       const codes = [...new Set(AT_METRICS.map(m => comparisons[m].code))].filter(c => c !== "NOT_EXPORTED");
-      return { customerId: ref.customerId, level: ref.level, campaignId, adGroupId: adGroup || null, date: ref.date, codes: codes.length ? codes : ["NOT_EXPORTED"], comparisons };
+      return { customerId: ref.customerId, level: ref.level, campaignId, adGroupId: adGroup || null, referenceRow: ref_ ? ref_.index + 1 : null, joinReason: ref_?.reason ?? null, date: ref.date, codes: codes.length ? codes : ["NOT_EXPORTED"], comparisons };
     });
     const counts = emptyCounts();
     for (const entity of entities) for (const code of entity.codes) counts[code]++;
     partitions.push({
-      customerId: ref.customerId, level: ref.level, date: ref.date, timezone: ref.timezone, currency: ref.currency, network: ref.network, networkEvidence: ref.networkEvidence,
+      customerId: ref.customerId, level: ref.level, date: ref.date, timezone: ref.timezone, currency: ref.currency, origin: ref.origin, joinBy: ref.joinBy, network: ref.network, networkEvidence: ref.networkEvidence,
       referenceExportedAt: ref.exportedAt, referenceDigestSha256: createHash("sha256").update(JSON.stringify(ref)).digest("hex"),
       sourceAuditId: audit?.auditId ?? null, sourceObservedAt: audit?.observedAt ?? null, sourceExtractedAtFrom: extracted[0] ?? null, sourceExtractedAtTo: extracted.at(-1) ?? null,
       sourceTimezone: zones.length === 1 ? zones[0] : null, sourceCurrency: currencies.length === 1 ? currencies[0] : null,

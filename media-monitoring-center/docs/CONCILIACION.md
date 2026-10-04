@@ -281,3 +281,34 @@ referencias inválidas. Una referencia intradía o futura se rechaza. La declara
 privada para leer las auditorías guardadas. La comparación está lista y probada con fixtures
 (19 casos: formato, censura, N/D frente a cero, niveles, reloj/moneda, madurez, selección de
 auditoría, importación UTF-16 y CLI sin red); **la conciliación real sigue pendiente**.
+
+### Referencia independiente de Dataslayer (contraste, no interfaz)
+
+La hoja de Absolute Top que mantiene Dataslayer (`Date`, `Account`, `Campaign`,
+`Absolute top impression percentage`, `Top impression percentage`, en porcentaje con dos decimales)
+es una **extracción independiente** de la API unificada: sirve para contrastar el valor nativo por
+campaña sin comparar la API consigo misma. **No sustituye** el export de la interfaz de Google Ads:
+la referencia queda marcada `origin: "DATASLAYER"` en el informe.
+
+```bash
+# Descargar la hoja como CSV (o convertirla desde el libro, sin abrir «Ventas Detalle»):
+npm run conciliar:absolute-top -- importar-dataslayer --csv privado/hoja-absolute-top.csv \
+  --fecha 2026-10-01 --zona America/Mexico_City --moneda MXN \
+  --exportado 2026-10-04T12:03:37-05:00 --directorio reportes/referencias-dataslayer
+npm run conciliar:absolute-top -- comparar --referencia reportes/referencias-dataslayer/dataslayer-at-8779536058-2026-10-01.json …
+```
+
+- `--exportado` es el instante de la última actualización de esa consulta (hoja `DataslayerQueries`,
+  columna «Updated»), con su zona. Debe ser al menos 48 h posterior al cierre del día comparado.
+- Las cuentas se identifican por el **nombre exacto del maestro** (`google-ads-domains.json`); las demás
+  (Sky u otras cuentas izzi) se omiten y se cuentan. Las campañas se unen por **nombre exacto**
+  normalizado dentro de la cuenta: un nombre inexistente o repetido se reporta (`NAME_NOT_FOUND`,
+  `NAME_AMBIGUOUS`, con el número de fila de la referencia privada) y nunca se adivina.
+- Solo nivel campaña y solo las dos tasas superiores: Dataslayer no segmenta por red, y esas tasas
+  existen únicamente en la Red de Búsqueda (`TOP_METRICS_SEARCH_ONLY`). Impresiones, clics, gasto y
+  cuotas no se comparan por esta vía; las columnas de «Search absolute top impression share» y sus
+  pérdidas son otras métricas y no se importan.
+- Una celda vacía queda desconocida; `0` en la referencia frente a N/D en la fuente es `UNKNOWN_METRIC`.
+
+La hoja de rendimiento por campaña de Dataslayer excluye por filtro una campaña (`CampaignId`
+23619568244), por lo que **no sirve** como total de cuenta con todas las campañas para `npm run conciliar`.

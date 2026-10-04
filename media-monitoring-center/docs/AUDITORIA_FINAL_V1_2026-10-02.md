@@ -132,6 +132,17 @@ real de 2026-10-01 se extrajo antes de la madurez de 48 h; repetirla después de
 7367928294): dos CSV de 2026-10-01 (campañas y grupos, solo Red de Búsqueda de Google) con su hora de
 exportación, más el export por cuenta y día para `npm run conciliar`.
 
+### Actualización del 4 de octubre: históricos de Dataslayer
+
+El equipo entregó el libro de Dataslayer actualizado al 4 de octubre (12:03). Se leyeron sus hojas de
+plataformas **sin abrir «Ventas Detalle»**. La hoja de Absolute Top cubre 2026-06-01 a 2026-10-04 por
+campaña, con la métrica `absolute_top_impression_percentage` en porcentaje, y ya está madura para el 1
+de octubre. Se añadió `conciliar:absolute-top -- importar-dataslayer` (unión por nombre exacto de cuenta
+del maestro y de campaña, solo las dos tasas superiores, procedencia `DATASLAYER`) y se generaron
+referencias privadas para 2026-10-01, 02 y 03 de las cuatro cuentas (4, 24, 14 y 14 campañas, fuera de
+Git). **La comparación queda pendiente de ejecutarse donde están las auditorías guardadas de la API**;
+este entorno no las tiene. Es un contraste independiente, no el export de la interfaz.
+
 ## Proveedores
 
 - **Microsoft:** causa del 502 **no afirmada**. Cada fallo del informe indica ahora su etapa

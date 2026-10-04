@@ -10,7 +10,7 @@ import { FileRecordStore } from "@/lib/records/store";
 import { AbsoluteTopStore } from "@/lib/absolute-top/store";
 import type { AbsoluteTopAudit, AbsoluteTopRow } from "@/lib/absolute-top/types";
 import { buildAbsoluteTopReconciliation, parseAtReference, parseCell, selectAudit, type AtReference } from "@/lib/reconciliation/absolute-top";
-import { decodeExport, importAtExport, parseDelimited, type AtImportOptions } from "@/lib/reconciliation/absolute-top-import";
+import { decodeExport, importAtExport, importDataslayerAbsoluteTop, parseDelimited, type AtImportOptions } from "@/lib/reconciliation/absolute-top-import";
 import { absoluteTopReconciliationCsv, writeAbsoluteTopReconciliation } from "@/lib/reconciliation/absolute-top-output";
 
 const config = googleDomainsSchema.parse(JSON.parse(readFileSync(new URL("../../unified-ads-api/src/config/google-ads-domains.json", import.meta.url), "utf8")));
@@ -226,4 +226,47 @@ describe("private outputs and offline CLI", () => {
     expect(bad.stderr).toContain("INVALID_AT_REFERENCE");
     expect(bad.stderr).not.toContain("ID de campa");
   }, 30000);
+});
+
+describe("Dataslayer como referencia independiente (no es la interfaz de Ads Manager)", () => {
+  const names = Object.fromEntries(config.domains.flatMap(d => d.accounts.map(a => [a.customerId, a.name])));
+  const header = "Date,Account,Campaign,Absolute top impression percentage,Top impression percentage,Search absolute top impression share,Impressions On Top";
+  const line = (date: string, account: string, campaign: string, abs: string, top: string) => `${date},"${account}","${campaign}",${abs},${top},9.99,1000`;
+  const sheet = [header,
+    line("2026-10-01", names[customer], "Search Marca", "45.67", "80.00"),
+    line("2026-10-01", names[customer], "Search Genérica", "", "50.00"),
+    line("2026-10-01", "Sky - ABCW", "Campaña Sky", "70.00", "80.00"),
+    line("2026-09-30", names[customer], "Search Marca", "40.00", "70.00"),
+  ].join("\n");
+  const opts = { master: config, date: day, timezone: "America/Mexico_City", currency: "MXN", exportedAt: mature, decimal: "." as const, thousands: "" as const, delimiter: "," as const };
+  it("convierte la hoja en una referencia por cuenta del maestro, por nombre exacto y solo con las tasas superiores", () => {
+    const result = importDataslayerAbsoluteTop(sheet, opts);
+    expect(result).toMatchObject({ skippedAccounts: 1, skippedRows: 2 });
+    expect(result.references).toHaveLength(1);
+    expect(result.references[0]).toMatchObject({ origin: "DATASLAYER", joinBy: "CAMPAIGN_NAME", networkEvidence: "TOP_METRICS_SEARCH_ONLY", customerId: customer, level: "campaign", rows: [{ campaignId: null, campaignName: "Search Marca", cells: { absolute_top_rate: "45.67%", top_of_page_rate: "80.00%" } }, { campaignName: "Search Genérica", cells: { absolute_top_rate: "--" } }] });
+    expect(() => importDataslayerAbsoluteTop(sheet.replace("2026-10-01,", "01/10/2026,"), opts)).toThrow(/AT_EXPORT_DATE_FORMAT_2/);
+    expect(() => importDataslayerAbsoluteTop(sheet.replace("Absolute top impression percentage", "Search abs. top IS"), opts)).toThrow(/AT_EXPORT_HEADERS_NOT_FOUND/);
+  });
+  it("une por nombre exacto normalizado y reporta nombres inexistentes o ambiguos sin adivinar", async () => {
+    const reference = importDataslayerAbsoluteTop(sheet.replace('"Search Marca"', '" Search  Marca "'), opts).references[0];
+    const history = [audit([row({ campaign_name: "Search Marca" }), row({ campaign_id: "222", campaign_name: "Otra", absolute_top_rate: .5 })])];
+    const report = await reconcile([reference], history);
+    const p = report.partitions[0];
+    expect(p).toMatchObject({ origin: "DATASLAYER", joinBy: "CAMPAIGN_NAME" });
+    const matched = p.entities.find(e => e.campaignId === "111")!;
+    expect(matched.comparisons.absolute_top_rate.code).toBe("MATCH");
+    expect(matched.comparisons.impressions.code).toBe("NOT_EXPORTED");
+    expect(p.entities.find(e => e.campaignId === "222")!.codes).toEqual(["MISSING_REFERENCE"]);
+    expect(p.entities.find(e => e.campaignId === null)).toMatchObject({ joinReason: "NAME_NOT_FOUND", referenceRow: 2, codes: ["MISSING_SOURCE"] });
+    const ambiguous = await reconcile([reference], [audit([row({ campaign_name: "Search Marca" }), row({ campaign_id: "333", campaign_name: "Search Marca" })])]);
+    expect(ambiguous.partitions[0].entities.find(e => e.referenceRow === 1)).toMatchObject({ campaignId: null, joinReason: "NAME_AMBIGUOUS" });
+    expect(absoluteTopReconciliationCsv(report)).not.toContain("Search Marca");
+  });
+  it("una unión por nombre no admite impresiones, gasto ni grupos, ni procedencia de interfaz", () => {
+    const base = importDataslayerAbsoluteTop(sheet, opts).references[0];
+    expect(() => parseAtReference({ ...base, rows: [{ ...base.rows[0], cells: { ...base.rows[0].cells, impressions: "1,000" } }] })).toThrow(/INVALID_AT_REFERENCE/);
+    expect(() => parseAtReference({ ...base, origin: "GOOGLE_ADS_UI_EXPORT" })).toThrow(/INVALID_AT_REFERENCE/);
+    expect(() => parseAtReference({ ...base, level: "ad_group" })).toThrow(/INVALID_AT_REFERENCE/);
+    expect(() => parseAtReference({ ...base, networkEvidence: "FILTERED_IN_UI" })).toThrow(/INVALID_AT_REFERENCE/);
+  });
 });

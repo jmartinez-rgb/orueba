@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { isValidTimeZone } from "@/lib/time/tz";
 import { normalizeGoogleCustomerId } from "@/lib/domains/config";
-import { AT_METRICS, parseAtReference, parseCell, type AtMetric, type AtReference } from "./absolute-top";
+import { AT_METRICS, normalizeName, parseAtReference, parseCell, type AtMetric, type AtReference } from "./absolute-top";
+import type { GoogleDomainConfig } from "@/lib/domains/config";
 import { ReconciliationError } from "./reconcile";
 
 /**
@@ -123,4 +124,65 @@ export function importAtExport(text: string, columnsValue: unknown, options: AtI
     timezone: options.timezone, currency: options.currency, network: "GOOGLE_SEARCH_ONLY",
     networkEvidence: c.network !== null ? "SEGMENT_COLUMN" : "FILTERED_IN_UI", numberFormat: format, rows,
   });
+}
+
+/** Fixed Dataslayer headers of the Absolute Top sheet (query metrics AbsoluteTopImpressionPercentage, TopImpressionPercentage). */
+export const DATASLAYER_AT_COLUMNS = { date: "Date", account: "Account", campaign: "Campaign", absolute_top_rate: "Absolute top impression percentage", top_of_page_rate: "Top impression percentage" } as const;
+
+export interface DataslayerImportOptions {
+  master: GoogleDomainConfig;
+  date: string;
+  timezone: string;
+  currency: string;
+  /** Instant of the Dataslayer refresh that produced the sheet (DataslayerQueries → Updated), with offset. */
+  exportedAt: string;
+  decimal: "." | ",";
+  thousands: "," | "." | " " | "";
+  delimiter: "," | ";" | "\t";
+}
+
+/**
+ * Dataslayer sheet → one campaign-level reference per master account found. Accounts join by the exact
+ * master name (no similarity) and campaigns later join by exact name; other accounts are skipped and
+ * counted. Values are percent numbers (70.33) and become "70.33%" cells; an empty cell stays unknown.
+ */
+export function importDataslayerAbsoluteTop(text: string, options: DataslayerImportOptions): { references: AtReference[]; skippedAccounts: number; skippedRows: number } {
+  if (!z.iso.date().safeParse(options.date).success || !isValidTimeZone(options.timezone) || !/^[A-Z]{3}$/.test(options.currency) || !z.iso.datetime({ offset: true }).safeParse(options.exportedAt).success) throw new ReconciliationError("INVALID_AT_OPTIONS");
+  const records = parseDelimited(text, options.delimiter);
+  const wanted = Object.values(DATASLAYER_AT_COLUMNS);
+  const headerIndex = records.findIndex(r => wanted.every(name => r.filter(cell => cell.trim() === name).length === 1));
+  if (headerIndex < 0) throw new ReconciliationError("AT_EXPORT_HEADERS_NOT_FOUND");
+  const head = records[headerIndex].map(cell => cell.trim());
+  const col = (name: string) => head.indexOf(name);
+  const customerByName = new Map(options.master.domains.flatMap(d => d.accounts.map(a => [normalizeName(a.name), a.customerId] as const)));
+  const format = { decimal: options.decimal, thousands: options.thousands };
+  const rows = new Map<string, AtReference["rows"]>();
+  const skipped = new Set<string>();
+  let skippedRows = 0;
+  for (let n = headerIndex + 1; n < records.length; n++) {
+    const record = records[n];
+    if (record.every(cell => !cell.trim())) continue;
+    const date = (record[col(DATASLAYER_AT_COLUMNS.date)] ?? "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}(?:[ T]00:00(?::00)?)?$/.test(date)) throw new ReconciliationError(`AT_EXPORT_DATE_FORMAT_${n + 1}`);
+    if (date.slice(0, 10) !== options.date) { skippedRows++; continue; }
+    const account = normalizeName(record[col(DATASLAYER_AT_COLUMNS.account)] ?? "");
+    const customer = customerByName.get(account);
+    if (!customer) { skipped.add(account); skippedRows++; continue; }
+    const campaign = (record[col(DATASLAYER_AT_COLUMNS.campaign)] ?? "").trim();
+    if (!campaign) throw new ReconciliationError(`AT_EXPORT_ROW_WITHOUT_NAME_${n + 1}`);
+    const cells: Partial<Record<AtMetric, string>> = {};
+    for (const metric of ["absolute_top_rate", "top_of_page_rate"] as const) {
+      const raw = (record[col(DATASLAYER_AT_COLUMNS[metric])] ?? "").trim();
+      const value = raw === "" ? "--" : `${raw}%`;
+      try { parseCell(metric, value, format); } catch { throw new ReconciliationError(`AT_EXPORT_INVALID_CELL_${n + 1}`); }
+      cells[metric] = value;
+    }
+    rows.set(customer, [...(rows.get(customer) ?? []), { campaignId: null, campaignName: campaign, adGroupId: null, cells }]);
+  }
+  const references = [...rows.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([customerId, list]) => parseAtReference({
+    version: 1, origin: "DATASLAYER", exportedAt: options.exportedAt, customerId, level: "campaign", date: options.date,
+    timezone: options.timezone, currency: options.currency, joinBy: "CAMPAIGN_NAME", network: "GOOGLE_SEARCH_ONLY",
+    networkEvidence: "TOP_METRICS_SEARCH_ONLY", numberFormat: format, rows: list,
+  }));
+  return { references, skippedAccounts: skipped.size, skippedRows };
 }
