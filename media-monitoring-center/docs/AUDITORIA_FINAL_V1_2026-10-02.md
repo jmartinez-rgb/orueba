@@ -140,8 +140,14 @@ campaña, con la métrica `absolute_top_impression_percentage` en porcentaje, y 
 de octubre. Se añadió `conciliar:absolute-top -- importar-dataslayer` (unión por nombre exacto de cuenta
 del maestro y de campaña, solo las dos tasas superiores, procedencia `DATASLAYER`) y se generaron
 referencias privadas para 2026-10-01, 02 y 03 de las cuatro cuentas (4, 24, 14 y 14 campañas, fuera de
-Git). **La comparación queda pendiente de ejecutarse donde están las auditorías guardadas de la API**;
-este entorno no las tiene. Es un contraste independiente, no el export de la interfaz.
+Git). Es un contraste independiente, no el export de la interfaz.
+
+**Resultado del 1 de octubre (ejecutado el 4 de octubre en el equipo del responsable): salida 2.** Ambos
+lados maduros y sin bloqueos; las 56 filas de Dataslayer se unieron por nombre. Impr. (Top) % coincide en
+54 de 56 campañas (las otras 2, a 0,005 pp). Impr. (Abs. Top) % coincide en 19 de 56; las 37 diferencias
+son pequeñas y sin dirección (mediana 0,013 pp, máxima 0,111 pp, cociente 0,994–1,007). Una campaña de la
+fuente con tasas N/D no aparece en Dataslayer. Causa no afirmada; la tolerancia no se relajó. Detalle en
+[CONCILIACION.md](CONCILIACION.md#primera-ejecución-1-de-octubre-de-2026-salida-2-no-concilia).
 
 ## Proveedores
 

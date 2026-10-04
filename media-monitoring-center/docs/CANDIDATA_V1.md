@@ -70,6 +70,10 @@ API del monitoreo (ocultar un botón no basta). Resultado esperado: 403 o 401 en
 
 No se acepta comparar la API consigo misma ni una plantilla. Una salida 0 no certifica producción.
 
+Estado de E2 al 4 de octubre: contraste con Dataslayer del 1 de octubre ejecutado, **salida 2** (Abs. Top
+19 de 56 dentro de tolerancia; diferencias de 0,005 a 0,111 pp, sin dirección). No cierra E2: falta el
+export de la interfaz. Detalle en [CONCILIACION.md](CONCILIACION.md#primera-ejecución-1-de-octubre-de-2026-salida-2-no-concilia).
+
 ## F. Persistencia, respaldo y recuperación
 
 | # | Comprobación | Condición de cierre |

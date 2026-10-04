@@ -312,3 +312,28 @@ npm run conciliar:absolute-top -- comparar --referencia reportes/referencias-dat
 
 La hoja de rendimiento por campaña de Dataslayer excluye por filtro una campaña (`CampaignId`
 23619568244), por lo que **no sirve** como total de cuenta con todas las campañas para `npm run conciliar`.
+
+#### Primera ejecución: 1 de octubre de 2026 (salida 2, no concilia)
+
+Ejecutada el 4 de octubre en el equipo del responsable, contra las auditorías diarias guardadas por
+`absolute-top:sync` (extraídas 18:51–18:52 UTC) y las referencias de Dataslayer actualizadas a las
+17:03:37 UTC. Las cuatro particiones quedan maduras de ambos lados y sin razones de bloqueo.
+
+| Métrica | Comparadas | Coinciden | Difieren | Diferencia absoluta en las que difieren |
+| --- | --- | --- | --- | --- |
+| Impr. (Top) % | 56 | 54 | 2 | 0,005 pp en ambas (frontera de redondeo) |
+| Impr. (Abs. Top) % (principal) | 56 | 19 | 37 | mediana 0,013 pp; p75 0,022 pp; máxima 0,111 pp; 36 de 37 por debajo de 0,1 pp |
+
+- Las 56 filas de Dataslayer encontraron su campaña por nombre (ningún `NAME_NOT_FOUND` ni
+  `NAME_AMBIGUOUS`). Una campaña de la fuente (cuenta 8779536058) no tiene fila en Dataslayer
+  (`MISSING_REFERENCE`); sus tasas son N/D en la fuente.
+- En Abs. Top las diferencias no tienen dirección (22 por encima, 15 por debajo) y el cociente
+  fuente/referencia va de 0,994 a 1,007. Por cuenta: 4/14, 2/4, 8/24 y 5/14 coinciden (3224850043,
+  8779536058, 6214109105, 7367928294).
+- Lectura: que Impr. (Top) % coincida descarta un problema de unión, día, reloj o red; el cociente
+  descarta que Dataslayer entregue otra métrica (como «Search abs. top IS»); el signo mixto descarta un
+  sesgo. **Causa no afirmada.** Candidatas: el instante distinto de extracción (unas 2 h) y la forma de la
+  consulta (la API filtra `segments.ad_network_type = 'SEARCH'`; Dataslayer no segmenta por red).
+- La tolerancia no se relajó: medio dígito de los decimales mostrados es el criterio para el export de
+  la interfaz. Aceptar una tolerancia operativa para este contraste es una decisión de negocio. E2 se
+  cierra con el export de la interfaz de Google Ads del mismo día, no con Dataslayer.
