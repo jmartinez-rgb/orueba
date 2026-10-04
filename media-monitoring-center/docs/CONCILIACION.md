@@ -245,6 +245,31 @@ fuera de formato, un ID duplicado o cabeceras ausentes detienen la importación 
 el número de fila, sin mostrar el contenido. `--` queda desconocido, nunca cero. Solo se aceptan
 como límites las censuras publicadas por Google: `< 10%` en Search impr. share y `> 90%` en lost IS.
 
+#### Informe de campañas sin IDs (unión por nombre)
+
+Un informe guardado de la interfaz con solo `Day`, `Campaign`, `Impr. (Top) %` e
+`Impr. (Abs. Top) %` también sirve, mapeando `campaignName` en lugar de `campaignId`
+(`config/absolute-top-columns.campaign-name.example.json`):
+
+- Solo nivel campaña y solo las dos tasas superiores; cualquier otra métrica mapeada se rechaza.
+- Unión por **nombre exacto** normalizado dentro de la cuenta, como con Dataslayer: un nombre repetido
+  en el export detiene la importación y uno inexistente o ambiguo en la fuente se reporta
+  (`NAME_NOT_FOUND`, `NAME_AMBIGUOUS`), nunca se adivina.
+- Sin columna ni filtro de red se declara `TOP_METRICS_SEARCH_ONLY` (las tasas superiores solo existen en
+  Búsqueda); `--red-etiqueta` o `--red-filtrada-en-ui` siguen disponibles si el informe los tiene.
+- Las filas con un `0` sin signo de porcentaje en ambas tasas (lo que la interfaz escribe para Performance
+  Max, Display, Demand Gen o video) se omiten y se cuentan en `skippedRows`; un `0` suelto en una sola
+  tasa es una celda inválida. El origen sigue siendo `GOOGLE_ADS_UI_EXPORT`.
+
+```bash
+npm run conciliar:absolute-top -- importar --csv privado/absolute-campaign-8779536058.csv \
+  --columnas privado/columnas-campana-nombre.json --cuenta 877-953-6058 --nivel campaign \
+  --fecha 2026-10-01 --zona America/Mexico_City --moneda MXN --exportado 2026-10-04T21:40:40Z \
+  --decimal . --miles , --separador coma --output reportes/ui-at-8779536058-2026-10-01.json
+```
+
+El nivel grupo sigue requiriendo IDs de campaña y grupo: los nombres de grupo se repiten entre campañas.
+
 ### 4. Comparación
 
 ```bash
@@ -342,3 +367,15 @@ Ejecutada el 4 de octubre en el equipo del responsable, contra las auditorías d
 - La tolerancia no se relajó: medio dígito de los decimales mostrados es el criterio para el export de
   la interfaz. Aceptar una tolerancia operativa para este contraste es una decisión de negocio. E2 se
   cierra con el export de la interfaz de Google Ads del mismo día, no con Dataslayer.
+
+#### Interfaz de Google Ads frente a Dataslayer (1 de octubre)
+
+El responsable exportó el mismo día, después de las 21:40 UTC del 4 de octubre, el informe de campañas
+de la interfaz de las cuatro cuentas (sin IDs ni segmento de red; 56 campañas de Búsqueda y 17 filas de
+otros tipos con `0`). Comparado con Dataslayer por nombre, reproduce exactamente el patrón de la API: Abs.
+Top igual en 19 de 56 y distinto en 37 (22 por encima, 15 por debajo, máximo 0,11 pp); Top igual en 54 y
+distinto en 2 (+0,01 pp). En las 12 campañas con mayor y menor diferencia API–Dataslayer cuyos valores de
+la API se conocen, **la interfaz coincide con la API dentro del redondeo y no con Dataslayer** (por
+ejemplo 17,021 % en la API, 17,02 % en la interfaz y 16,91 % en Dataslayer). La desviación está en la
+extracción de Dataslayer. Falta la comparación formal API–interfaz con `comparar` sobre las auditorías
+guardadas, que es la que puede cerrar E2 a nivel campaña.

@@ -1,5 +1,5 @@
 import { buildAbsoluteTopReconciliation } from "../src/lib/reconciliation/absolute-top";
-import { decodeExport, importAtExport, importDataslayerAbsoluteTop, type AtImportOptions } from "../src/lib/reconciliation/absolute-top-import";
+import { decodeExport, importAtExportDetailed, importDataslayerAbsoluteTop, type AtImportOptions } from "../src/lib/reconciliation/absolute-top-import";
 import { googleDomainsSchema } from "../src/lib/domains/config";
 import { join } from "node:path";
 import { writeAbsoluteTopReconciliation } from "../src/lib/reconciliation/absolute-top-output";
@@ -7,10 +7,10 @@ import { outputPath, readPrivateInputFile, readReferenceFile, writeExclusivePriv
 import { ReconciliationError } from "../src/lib/reconciliation/reconcile";
 import { AbsoluteTopStore } from "../src/lib/absolute-top/store";
 
-const HELP = `npm run conciliar:absolute-top -- importar --csv export.csv --columnas columnas.json --cuenta 877-953-6058 --nivel campaign|ad_group --fecha YYYY-MM-DD --zona America/Mexico_City --moneda MXN --exportado 2026-10-03T15:00:00Z --decimal . --miles , [--separador coma|punto-y-coma|tab] (--red-etiqueta "Google search" | --red-filtrada-en-ui) --output reportes/referencia.json
+const HELP = `npm run conciliar:absolute-top -- importar --csv export.csv --columnas columnas.json --cuenta 877-953-6058 --nivel campaign|ad_group --fecha YYYY-MM-DD --zona America/Mexico_City --moneda MXN --exportado 2026-10-03T15:00:00Z --decimal . --miles , [--separador coma|punto-y-coma|tab] [--red-etiqueta "Google search" | --red-filtrada-en-ui] --output reportes/referencia.json
 npm run conciliar:absolute-top -- importar-dataslayer --csv hoja-absolute-top.csv --fecha YYYY-MM-DD --zona America/Mexico_City --moneda MXN --exportado 2026-10-04T12:03:37-06:00 [--decimal . --miles ninguno --separador coma] [--maestro ../unified-ads-api/src/config/google-ads-domains.json] --directorio reportes/referencias-dataslayer
 npm run conciliar:absolute-top -- comparar --referencia ref1.json [--referencia ref2.json ...] [--auditoria AUDIT_ID] [--output reportes/conciliacion-absolute-top.json]
-Solo izzi. Compara Impr. (Abs. Top) % nativo por campaña/grupo (metrics.absolute_top_impression_percentage, no Search abs. top IS) contra un export independiente de Google Ads del mismo día cerrado, cuenta, reloj, moneda, red y nivel. No llama APIs ni carga .env; lee las auditorías guardadas mediante RECORDS_BACKEND/RECORDS_DIR inyectados. Tolerancia: medio dígito del redondeo mostrado por la interfaz. Maduración: 48 h tras el cierre. Salidas: 0 todo coincide y maduro; 2 diferencias, faltantes, desconocidos o maduración pendiente; 1 fallo. No certifica v1.`;
+Solo izzi. Compara Impr. (Abs. Top) % nativo por campaña/grupo (metrics.absolute_top_impression_percentage, no Search abs. top IS) contra un export independiente de Google Ads del mismo día cerrado, cuenta, reloj, moneda, red y nivel. No llama APIs ni carga .env; lee las auditorías guardadas mediante RECORDS_BACKEND/RECORDS_DIR inyectados. Sin columna ni filtro de red solo se acepta un informe de campañas sin IDs mapeado por "campaignName" (unión por nombre exacto, solo las dos tasas superiores; las filas con "0" en ambas tasas se omiten y se cuentan). Tolerancia: medio dígito del redondeo mostrado por la interfaz. Maduración: 48 h tras el cierre. Salidas: 0 todo coincide y maduro; 2 diferencias, faltantes, desconocidos o maduración pendiente; 1 fallo. No certifica v1.`;
 
 const SEPARATORS = { coma: ",", "punto-y-coma": ";", tab: "\t" } as const;
 
@@ -38,10 +38,10 @@ async function importCommand(args: string[]) {
     customerId: o.one("--cuenta")!, level, date: o.one("--fecha")!, timezone: o.one("--zona")!, currency: o.one("--moneda")!, exportedAt: o.one("--exportado")!,
     decimal, thousands: thousands as AtImportOptions["thousands"], delimiter: separator, networkLabel: o.one("--red-etiqueta"), networkFilteredInUi: o.flag("--red-filtrada-en-ui"),
   };
-  const reference = importAtExport(text, columns, importOptions);
+  const { reference, skippedRows } = importAtExportDetailed(text, columns, importOptions);
   const path = outputPath(o.one("--output"));
   await writeExclusivePrivateFiles([path], [JSON.stringify(reference, null, 2) + "\n"]);
-  console.log(JSON.stringify({ module: "absolute_top_reconciliation", step: "import", customerId: reference.customerId, level: reference.level, date: reference.date, rows: reference.rows.length, file: path }));
+  console.log(JSON.stringify({ module: "absolute_top_reconciliation", step: "import", customerId: reference.customerId, level: reference.level, date: reference.date, joinBy: reference.joinBy, networkEvidence: reference.networkEvidence, rows: reference.rows.length, skippedRows, file: path }));
 }
 
 async function dataslayerCommand(args: string[]) {

@@ -10,7 +10,7 @@ import { FileRecordStore } from "@/lib/records/store";
 import { AbsoluteTopStore } from "@/lib/absolute-top/store";
 import type { AbsoluteTopAudit, AbsoluteTopRow } from "@/lib/absolute-top/types";
 import { buildAbsoluteTopReconciliation, parseAtReference, parseCell, selectAudit, type AtReference } from "@/lib/reconciliation/absolute-top";
-import { decodeExport, importAtExport, importDataslayerAbsoluteTop, parseDelimited, type AtImportOptions } from "@/lib/reconciliation/absolute-top-import";
+import { atColumnsSchema, decodeExport, importAtExport, importAtExportDetailed, importDataslayerAbsoluteTop, parseDelimited, type AtImportOptions } from "@/lib/reconciliation/absolute-top-import";
 import { absoluteTopReconciliationCsv, writeAbsoluteTopReconciliation } from "@/lib/reconciliation/absolute-top-output";
 
 const config = googleDomainsSchema.parse(JSON.parse(readFileSync(new URL("../../unified-ads-api/src/config/google-ads-domains.json", import.meta.url), "utf8")));
@@ -177,6 +177,44 @@ describe("Google Ads UI export import", () => {
     for (const wrong of ["Search abs. top IS", "Cuota de impr. de búsqueda en la parte sup. abs.", "Search absolute top impression share"]) expect(() => importAtExport(csv, { ...columns, columns: { ...columns.columns, absolute_top_rate: wrong } }, options)).toThrow(/INVALID_AT_COLUMNS/);
     expect(() => importAtExport(csv, { ...columns, level: "ad_group" }, { ...options, level: "ad_group" })).toThrow(/INVALID_AT_COLUMNS/);
   });
+  describe("campaign report without IDs (exact-name join)", () => {
+    const byName = { version: 1, level: "campaign", columns: { ...Object.fromEntries(Object.keys(columns.columns).map(k => [k, null])), campaignId: null, campaignName: "Campaign", date: "Day", absolute_top_rate: "Impr. (Abs. Top) %", top_of_page_rate: "Impr. (Top) %" } };
+    const plain = { ...options, networkLabel: undefined };
+    const report = [
+      "Absolute Campaing", "\"October 1, 2026 - October 1, 2026\"",
+      "Day,Campaign,Impr. (Top) %,Impr. (Abs. Top) %",
+      "2026-10-01,Search  Marca,80.00%,45.67%",
+      "2026-10-01,Performance Max | 2026,0,0",
+      "2026-10-01,\"Genéricas, NUEVO\",50.00%,--",
+    ].join("\n");
+    it("joins by name on the top rates only, skipping and counting non-Search rows", async () => {
+      const { reference: ref, skippedRows } = importAtExportDetailed(report, byName, plain);
+      expect(skippedRows).toBe(1);
+      expect(ref).toMatchObject({ origin: "GOOGLE_ADS_UI_EXPORT", joinBy: "CAMPAIGN_NAME", networkEvidence: "TOP_METRICS_SEARCH_ONLY", rows: [{ campaignId: null, campaignName: "Search  Marca", adGroupId: null, cells: { absolute_top_rate: "45.67%", top_of_page_rate: "80.00%" } }, { campaignName: "Genéricas, NUEVO", cells: { absolute_top_rate: "--" } }] });
+      const result = await reconcile([ref], [audit([row({ campaign_name: "Search Marca" }), row({ campaign_id: "222", campaign_name: "Genéricas, NUEVO", top_of_page_rate: .5 })])]);
+      expect(result.partitions[0]).toMatchObject({ origin: "GOOGLE_ADS_UI_EXPORT", joinBy: "CAMPAIGN_NAME" });
+      expect(result.partitions[0].entities.find(e => e.campaignId === "111")!.comparisons.absolute_top_rate.code).toBe("MATCH");
+      expect(result.partitions[0].entities.find(e => e.campaignId === "222")!.comparisons.absolute_top_rate.code).toBe("UNKNOWN_METRIC");
+    });
+    it("ships valid column-map examples, including the name-mapped campaign report", () => {
+      for (const name of ["campaign", "ad-group", "campaign-name"]) expect(atColumnsSchema.safeParse(JSON.parse(readFileSync(new URL(`../config/absolute-top-columns.${name}.example.json`, import.meta.url), "utf8"))).success).toBe(true);
+    });
+    it("rejects IDs plus names, groups, other metrics, stray zeros, unnamed rows and repeated names", () => {
+      expect(() => importAtExport(report, { ...byName, columns: { ...byName.columns, campaignId: "Campaign ID" } }, plain)).toThrow(/INVALID_AT_COLUMNS/);
+      expect(() => importAtExport(report, { ...byName, columns: { ...byName.columns, campaignName: null } }, plain)).toThrow(/INVALID_AT_COLUMNS/);
+      expect(() => importAtExport(report, { ...byName, level: "ad_group", columns: { ...byName.columns, adGroupId: "Ad group ID" } }, { ...plain, level: "ad_group" })).toThrow(/INVALID_AT_COLUMNS/);
+      expect(() => importAtExport(report, { ...byName, columns: { ...byName.columns, impressions: "Impr." } }, plain)).toThrow(/INVALID_AT_COLUMNS/);
+      expect(() => importAtExport(report, byName, { ...plain, networkLabel: "Google search" })).toThrow(/INVALID_AT_NETWORK_DECLARATION/);
+      expect(importAtExport(report, byName, { ...plain, networkFilteredInUi: true }).networkEvidence).toBe("FILTERED_IN_UI");
+      expect(() => importAtExport(report.replace("80.00%,45.67%", "80.00%,0"), byName, plain)).toThrow(/AT_EXPORT_INVALID_CELL_4/);
+      expect(() => importAtExport(report.replace("2026-10-01,Search  Marca", "2026-10-01,"), byName, plain)).toThrow(/AT_EXPORT_ROW_WITHOUT_NAME_4/);
+      expect(() => importAtExport(report.replace("2026-10-01,Search  Marca", "2026-09-30,Search  Marca"), byName, plain)).toThrow(/AT_EXPORT_DATE_MISMATCH_4/);
+      expect(() => importAtExport(report.replace("Genéricas, NUEVO", "Search Marca"), byName, plain)).toThrow(/INVALID_AT_REFERENCE/);
+      // Without a name join, a missing network declaration is still refused.
+      expect(() => importAtExport(csv, { ...columns, columns: { ...columns.columns, network: null } }, plain)).toThrow(/INVALID_AT_NETWORK_DECLARATION/);
+      expect(() => parseAtReference(reference([{ campaignId: "111", adGroupId: null, cells: { absolute_top_rate: "45.67%" } }], { networkEvidence: "TOP_METRICS_SEARCH_ONLY" }))).toThrow(/INVALID_AT_REFERENCE/);
+    });
+  });
   it("refuses broken quoting instead of repairing it", () => {
     expect(() => parseDelimited('a,b"c\n', ",")).toThrow(/INVALID_AT_EXPORT_CSV/);
     expect(() => parseDelimited('"abierto,1\n', ",")).toThrow(/INVALID_AT_EXPORT_CSV/);
@@ -216,6 +254,7 @@ describe("private outputs and offline CLI", () => {
     };
     const imported = await cli(["importar", "--csv", join(dir, "export.csv"), "--columnas", join(dir, "columnas.json"), "--cuenta", "877-953-6058", "--nivel", "campaign", "--fecha", cliDay, "--zona", "America/Mexico_City", "--moneda", "MXN", "--exportado", cliMature, "--decimal", ",", "--miles", ".", "--separador", "punto-y-coma", "--red-filtrada-en-ui", "--output", join(dir, "ref.json")]);
     expect(imported.exitCode).toBe(0);
+    expect(JSON.parse(imported.stdout)).toMatchObject({ joinBy: "ID", networkEvidence: "FILTERED_IN_UI", rows: 1, skippedRows: 0 });
     expect((await stat(join(dir, "ref.json"))).mode & 0o777).toBe(0o600);
     const compared = await cli(["comparar", "--referencia", join(dir, "ref.json"), "--output", join(dir, "conciliacion.json")]);
     expect(compared.exitCode).toBe(0);
@@ -262,10 +301,12 @@ describe("Dataslayer como referencia independiente (no es la interfaz de Ads Man
     expect(ambiguous.partitions[0].entities.find(e => e.referenceRow === 1)).toMatchObject({ campaignId: null, joinReason: "NAME_AMBIGUOUS" });
     expect(absoluteTopReconciliationCsv(report)).not.toContain("Search Marca");
   });
-  it("una unión por nombre no admite impresiones, gasto ni grupos, ni procedencia de interfaz", () => {
+  it("una unión por nombre no admite impresiones, gasto ni grupos; Dataslayer solo se une por nombre", () => {
     const base = importDataslayerAbsoluteTop(sheet, opts).references[0];
     expect(() => parseAtReference({ ...base, rows: [{ ...base.rows[0], cells: { ...base.rows[0].cells, impressions: "1,000" } }] })).toThrow(/INVALID_AT_REFERENCE/);
-    expect(() => parseAtReference({ ...base, origin: "GOOGLE_ADS_UI_EXPORT" })).toThrow(/INVALID_AT_REFERENCE/);
+    // An informe de campañas de la interfaz sin IDs usa la misma unión, con su propia procedencia.
+    expect(parseAtReference({ ...base, origin: "GOOGLE_ADS_UI_EXPORT" })).toMatchObject({ origin: "GOOGLE_ADS_UI_EXPORT", joinBy: "CAMPAIGN_NAME" });
+    expect(() => parseAtReference({ ...base, origin: "GOOGLE_ADS_UI_EXPORT", level: "ad_group" })).toThrow(/INVALID_AT_REFERENCE/);
     expect(() => parseAtReference({ ...base, level: "ad_group" })).toThrow(/INVALID_AT_REFERENCE/);
     expect(() => parseAtReference({ ...base, networkEvidence: "FILTERED_IN_UI" })).toThrow(/INVALID_AT_REFERENCE/);
   });

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "level": "campaign",
+  "columns": {
+    "campaignId": null,
+    "campaignName": "Campaign",
+    "adGroupId": null,
+    "network": null,
+    "currency": null,
+    "date": "Day",
+    "absolute_top_rate": "Impr. (Abs. Top) %",
+    "top_of_page_rate": "Impr. (Top) %",
+    "search_impression_share": null,
+    "search_lost_is_rank": null,
+    "search_lost_is_budget": null,
+    "impressions": null,
+    "clicks": null,
+    "spend": null
+  }
+}

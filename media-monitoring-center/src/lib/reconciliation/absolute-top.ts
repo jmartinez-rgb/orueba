@@ -22,7 +22,7 @@ export const MATURITY_HOURS = 48;
 const digits = z.string().regex(/^\d{1,20}$/);
 const cell = z.string().max(40);
 const numberFormat = z.strictObject({ decimal: z.enum([".", ","]), thousands: z.enum([",", ".", " ", ""]) }).refine(f => f.decimal !== f.thousands);
-/** Metrics a third-party extraction without network segmentation can be compared on: top rates are Search-only. */
+/** Metrics a name-joined source (no IDs, often no network segment) can be compared on: top rates are Search-only. */
 export const NAME_JOIN_METRICS: readonly AtMetric[] = ["absolute_top_rate", "top_of_page_rate"];
 export const normalizeName = (value: string) => value.normalize("NFC").trim().replace(/\s+/g, " ");
 const atReferenceSchema = z.strictObject({
@@ -49,9 +49,10 @@ const atReferenceSchema = z.strictObject({
   })).max(100000),
 }).superRefine((ref, ctx) => {
   const byName = ref.joinBy === "CAMPAIGN_NAME";
-  // A name join is only for campaign-level third-party data, and only on the Search-only top rates.
-  if (byName && (ref.origin !== "DATASLAYER" || ref.level !== "campaign")) ctx.addIssue({ code: "custom", message: "Name join requires DATASLAYER campaign rows." });
-  if ((ref.networkEvidence === "TOP_METRICS_SEARCH_ONLY") !== byName) ctx.addIssue({ code: "custom", message: "Network evidence does not match the join." });
+  // A name join is only for campaign rows, and only on the Search-only top rates (UI report without IDs, or Dataslayer).
+  if (byName && ref.level !== "campaign") ctx.addIssue({ code: "custom", message: "Name join requires campaign rows." });
+  if (ref.origin === "DATASLAYER" && (!byName || ref.networkEvidence !== "TOP_METRICS_SEARCH_ONLY")) ctx.addIssue({ code: "custom", message: "Dataslayer joins by name on the top rates." });
+  if (ref.networkEvidence === "TOP_METRICS_SEARCH_ONLY" && !byName) ctx.addIssue({ code: "custom", message: "Network evidence does not match the join." });
   const keys = new Set<string>();
   for (const row of ref.rows) {
     const key = byName ? normalizeName(row.campaignName ?? "") : `${row.campaignId}/${row.adGroupId}`;
