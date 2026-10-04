@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "level": "ad_group",
+  "columns": {
+    "campaignId": "Campaign ID",
+    "adGroupId": null,
+    "adGroupName": "Ad group",
+    "network": null,
+    "currency": "Currency code",
+    "date": "Day",
+    "absolute_top_rate": "Impr. (Abs. Top) %",
+    "top_of_page_rate": "Impr. (Top) %",
+    "search_impression_share": null,
+    "search_lost_is_rank": null,
+    "search_lost_is_budget": null,
+    "impressions": null,
+    "clicks": null,
+    "spend": null
+  }
+}

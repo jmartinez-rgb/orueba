@@ -18,6 +18,8 @@ export const atColumnsSchema = z.strictObject({
     /** Instead of campaignId, for a campaign report without IDs: exact-name join, top rates only. */
     campaignName: header.nullable().optional(),
     adGroupId: header.nullable(),
+    /** Instead of adGroupId, with campaignId: campaign ID plus exact ad group name, top rates only. */
+    adGroupName: header.nullable().optional(),
     network: header.nullable(),
     currency: header.nullable(),
     date: header.nullable(),
@@ -25,10 +27,11 @@ export const atColumnsSchema = z.strictObject({
   }),
 }).superRefine((value, ctx) => {
   const c = value.columns;
-  if ((value.level === "ad_group") !== (c.adGroupId !== null) || c.absolute_top_rate === null) ctx.addIssue({ code: "custom", message: "Level or primary metric column missing." });
-  const byName = typeof c.campaignName === "string";
+  const byName = typeof c.campaignName === "string", byGroupName = typeof c.adGroupName === "string";
+  if ((value.level === "ad_group") !== (c.adGroupId !== null || byGroupName) || c.absolute_top_rate === null) ctx.addIssue({ code: "custom", message: "Level or primary metric column missing." });
   if (byName === (c.campaignId !== null)) ctx.addIssue({ code: "custom", message: "Map either the campaign ID or the campaign name." });
-  if (byName && (value.level !== "campaign" || AT_METRICS.some(m => c[m] !== null && !NAME_JOIN_METRICS.includes(m)))) ctx.addIssue({ code: "custom", message: "A name join is campaign-level and top rates only." });
+  if ((byName && value.level !== "campaign") || (byGroupName && c.adGroupId !== null)) ctx.addIssue({ code: "custom", message: "Campaign name is campaign-level; ad group name replaces the ad group ID." });
+  if ((byName || byGroupName) && AT_METRICS.some(m => c[m] !== null && !NAME_JOIN_METRICS.includes(m))) ctx.addIssue({ code: "custom", message: "A name join compares the top rates only." });
   if (value.level === "ad_group" && c.search_lost_is_budget !== null) ctx.addIssue({ code: "custom", message: "Budget lost IS is campaign-only." });
   // Defense against mapping the impression-share column (another denominator) as the rate.
   if ([c.absolute_top_rate, c.top_of_page_rate].some(name => name !== null && /\bIS\b|share|cuota/i.test(name))) ctx.addIssue({ code: "custom", message: "Impression share is not a top rate." });
@@ -91,8 +94,9 @@ export function importAtExport(text: string, columnsValue: unknown, options: AtI
 }
 
 /**
- * With a campaign-name mapping, rows whose every top-rate cell is a bare "0" (Google's value for
- * campaigns outside Search: Performance Max, Display, Demand Gen, video) are skipped and counted.
+ * With a name mapping (campaign name, or campaign ID plus ad group name), rows whose every top-rate cell
+ * is a bare "0" are skipped and counted: Google writes it where the top rates do not exist (campaigns
+ * outside Search, or ad groups without Google Search top-eligible impressions that day).
  */
 export function importAtExportDetailed(text: string, columnsValue: unknown, options: AtImportOptions): { reference: AtReference; skippedRows: number } {
   const columns = atColumnsSchema.safeParse(columnsValue);
@@ -100,9 +104,9 @@ export function importAtExportDetailed(text: string, columnsValue: unknown, opti
   const customerId = normalizeGoogleCustomerId(options.customerId);
   if (!customerId || !z.iso.date().safeParse(options.date).success || !isValidTimeZone(options.timezone) || !/^[A-Z]{3}$/.test(options.currency) || !z.iso.datetime({ offset: true }).safeParse(options.exportedAt).success) throw new ReconciliationError("INVALID_AT_OPTIONS");
   const c = columns.data.columns;
-  const byName = typeof c.campaignName === "string";
+  const byName = typeof c.campaignName === "string", byGroupName = typeof c.adGroupName === "string", nameJoin = byName || byGroupName;
   // Without a network column or UI filter, only a name join on the top rates can rely on those rates being Search-only.
-  const searchOnlyByMetric = byName && c.network === null && !options.networkFilteredInUi && !options.networkLabel;
+  const searchOnlyByMetric = nameJoin && c.network === null && !options.networkFilteredInUi && !options.networkLabel;
   if (!searchOnlyByMetric && ((c.network === null) === !options.networkFilteredInUi || (c.network !== null) !== Boolean(options.networkLabel))) throw new ReconciliationError("INVALID_AT_NETWORK_DECLARATION");
   const records = parseDelimited(text, options.delimiter);
   const mapped = Object.entries(c).filter((e): e is [string, string] => typeof e[1] === "string");
@@ -126,21 +130,25 @@ export function importAtExportDetailed(text: string, columnsValue: unknown, opti
     if (c.date !== null && (record[at(c.date)] ?? "").trim() !== options.date) throw new ReconciliationError(`AT_EXPORT_DATE_MISMATCH_${n + 1}`);
     if (c.currency !== null && (record[at(c.currency)] ?? "").trim() !== options.currency) throw new ReconciliationError(`AT_EXPORT_CURRENCY_MISMATCH_${n + 1}`);
     const adGroup = c.adGroupId === null ? null : (record[at(c.adGroupId)] ?? "").trim();
+    const groupName = byGroupName ? (record[at(c.adGroupName)] ?? "").trim() : null;
+    if (groupName !== null && (!groupName || groupName === "--")) throw new ReconciliationError(`AT_EXPORT_ROW_WITHOUT_NAME_${n + 1}`);
     if (!byName && (!/^\d{1,20}$/.test(campaign) || (adGroup !== null && !/^\d{1,20}$/.test(adGroup)))) throw new ReconciliationError(`AT_EXPORT_INVALID_ID_${n + 1}`);
     const raw = (metric: AtMetric) => (record[at(c[metric])] ?? "").trim();
     const present = AT_METRICS.filter(metric => c[metric] !== null);
-    if (byName && present.every(metric => raw(metric) === "0")) { skippedRows++; continue; }
+    if (nameJoin && present.every(metric => raw(metric) === "0")) { skippedRows++; continue; }
     const cells: Partial<Record<AtMetric, string>> = {};
     for (const metric of present) {
       const value = raw(metric);
       try { parseCell(metric, value, format); } catch { throw new ReconciliationError(`AT_EXPORT_INVALID_CELL_${n + 1}`); }
       cells[metric] = value;
     }
-    rows.push(byName ? { campaignId: null, campaignName: campaign, adGroupId: null, cells } : { campaignId: campaign, adGroupId: adGroup, cells });
+    rows.push(byName ? { campaignId: null, campaignName: campaign, adGroupId: null, cells }
+      : groupName !== null ? { campaignId: campaign, adGroupId: null, adGroupName: groupName, cells }
+      : { campaignId: campaign, adGroupId: adGroup, cells });
   }
   const reference = parseAtReference({
     version: 1, origin: "GOOGLE_ADS_UI_EXPORT", exportedAt: options.exportedAt, customerId, level: options.level, date: options.date,
-    timezone: options.timezone, currency: options.currency, joinBy: byName ? "CAMPAIGN_NAME" : "ID", network: "GOOGLE_SEARCH_ONLY",
+    timezone: options.timezone, currency: options.currency, joinBy: byName ? "CAMPAIGN_NAME" : byGroupName ? "AD_GROUP_NAME" : "ID", network: "GOOGLE_SEARCH_ONLY",
     networkEvidence: c.network !== null ? "SEGMENT_COLUMN" : searchOnlyByMetric ? "TOP_METRICS_SEARCH_ONLY" : "FILTERED_IN_UI", numberFormat: format, rows,
   });
   return { reference, skippedRows };

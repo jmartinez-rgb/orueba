@@ -197,7 +197,7 @@ describe("Google Ads UI export import", () => {
       expect(result.partitions[0].entities.find(e => e.campaignId === "222")!.comparisons.absolute_top_rate.code).toBe("UNKNOWN_METRIC");
     });
     it("ships valid column-map examples, including the name-mapped campaign report", () => {
-      for (const name of ["campaign", "ad-group", "campaign-name"]) expect(atColumnsSchema.safeParse(JSON.parse(readFileSync(new URL(`../config/absolute-top-columns.${name}.example.json`, import.meta.url), "utf8"))).success).toBe(true);
+      for (const name of ["campaign", "ad-group", "campaign-name", "ad-group-name"]) expect(atColumnsSchema.safeParse(JSON.parse(readFileSync(new URL(`../config/absolute-top-columns.${name}.example.json`, import.meta.url), "utf8"))).success).toBe(true);
     });
     it("rejects IDs plus names, groups, other metrics, stray zeros, unnamed rows and repeated names", () => {
       expect(() => importAtExport(report, { ...byName, columns: { ...byName.columns, campaignId: "Campaign ID" } }, plain)).toThrow(/INVALID_AT_COLUMNS/);
@@ -213,6 +213,45 @@ describe("Google Ads UI export import", () => {
       // Without a name join, a missing network declaration is still refused.
       expect(() => importAtExport(csv, { ...columns, columns: { ...columns.columns, network: null } }, plain)).toThrow(/INVALID_AT_NETWORK_DECLARATION/);
       expect(() => parseAtReference(reference([{ campaignId: "111", adGroupId: null, cells: { absolute_top_rate: "45.67%" } }], { networkEvidence: "TOP_METRICS_SEARCH_ONLY" }))).toThrow(/INVALID_AT_REFERENCE/);
+    });
+  });
+  describe("ad group report with campaign ID and ad group name", () => {
+    const byGroup = { version: 1, level: "ad_group", columns: { ...Object.fromEntries(Object.keys(columns.columns).map(k => [k, null])), campaignId: "Campaign ID", adGroupName: "Ad group", currency: "Currency code", date: "Day", absolute_top_rate: "Impr. (Abs. Top) %", top_of_page_rate: "Impr. (Top) %" } };
+    const plain: AtImportOptions = { ...options, level: "ad_group", networkLabel: undefined };
+    const report = [
+      "Absolute Campaing", "\"October 1, 2026 - October 1, 2026\"",
+      "Day,Campaign,Ad group,Campaign ID,Impr. (Top) %,Impr. (Abs. Top) %,Search impr. share,Impr.,Currency code",
+      "2026-10-01,Campaña secreta,Grupo  secreto,111,80.00%,45.67%,< 10%,\"1,234\",MXN",
+      "2026-10-01,Campaña secreta,Sin búsqueda,111,0,0, --,2,MXN",
+      "2026-10-01,Otra,Grupo secreto,999,50.00%,10.00%,12.00%,10,MXN",
+    ].join("\n");
+    it("joins by campaign ID plus exact ad group name, top rates only, never writing names", async () => {
+      const { reference: ref, skippedRows } = importAtExportDetailed(report, byGroup, plain);
+      expect(skippedRows).toBe(1);
+      expect(ref).toMatchObject({ level: "ad_group", joinBy: "AD_GROUP_NAME", networkEvidence: "TOP_METRICS_SEARCH_ONLY", rows: [{ campaignId: "111", adGroupId: null, adGroupName: "Grupo  secreto", cells: { absolute_top_rate: "45.67%", top_of_page_rate: "80.00%" } }, { campaignId: "999" }] });
+      const result = await reconcile([ref], [audit([group(), group({ ad_group_id: "333", ad_group_name: "Otro grupo" })])]);
+      const p = result.partitions[0];
+      expect(p).toMatchObject({ joinBy: "AD_GROUP_NAME", level: "ad_group" });
+      expect(p.entities.find(e => e.adGroupId === "222")!.comparisons.absolute_top_rate.code).toBe("MATCH");
+      expect(p.entities.find(e => e.adGroupId === "333")!.codes).toEqual(["MISSING_REFERENCE"]);
+      expect(p.entities.find(e => e.campaignId === null)).toMatchObject({ joinReason: "NAME_NOT_FOUND", referenceRow: 2, codes: ["MISSING_SOURCE"] });
+      const twice = await reconcile([ref], [audit([group(), group({ ad_group_id: "444" })])]);
+      expect(twice.partitions[0].entities.find(e => e.referenceRow === 1)).toMatchObject({ campaignId: null, joinReason: "NAME_AMBIGUOUS" });
+      expect(absoluteTopReconciliationCsv(result)).not.toContain("Grupo secreto");
+    });
+    it("rejects mixed or misplaced name mappings and malformed name-joined references", () => {
+      expect(() => importAtExport(report, { ...byGroup, columns: { ...byGroup.columns, adGroupId: "Ad group ID" } }, plain)).toThrow(/INVALID_AT_COLUMNS/);
+      expect(() => importAtExport(report, { ...byGroup, level: "campaign" }, { ...plain, level: "campaign" })).toThrow(/INVALID_AT_COLUMNS/);
+      expect(() => importAtExport(report, { ...byGroup, columns: { ...byGroup.columns, campaignId: null, campaignName: "Campaign" } }, plain)).toThrow(/INVALID_AT_COLUMNS/);
+      expect(() => importAtExport(report, { ...byGroup, columns: { ...byGroup.columns, impressions: "Impr." } }, plain)).toThrow(/INVALID_AT_COLUMNS/);
+      expect(() => importAtExport(report.replace(",Grupo  secreto,", ",,"), byGroup, plain)).toThrow(/AT_EXPORT_ROW_WITHOUT_NAME_4/);
+      expect(() => importAtExport(report.replace("Grupo  secreto,111,80.00%,45.67%,< 10%,\"1,234\",MXN", "Grupo  secreto,111,80.00%,45.67%,< 10%,\"1,234\",USD"), byGroup, plain)).toThrow(/AT_EXPORT_CURRENCY_MISMATCH_4/);
+      const ref = importAtExport(report, byGroup, plain);
+      expect(() => parseAtReference({ ...ref, level: "campaign" })).toThrow(/INVALID_AT_REFERENCE/);
+      expect(() => parseAtReference({ ...ref, rows: [{ ...ref.rows[0], adGroupId: "222" }] })).toThrow(/INVALID_AT_REFERENCE/);
+      expect(() => parseAtReference({ ...ref, rows: [ref.rows[0], { ...ref.rows[0], adGroupName: "Grupo secreto" }] })).toThrow(/INVALID_AT_REFERENCE/);
+      expect(() => parseAtReference({ ...ref, rows: [{ ...ref.rows[0], cells: { ...ref.rows[0].cells, impressions: "1,234" } }] })).toThrow(/INVALID_AT_REFERENCE/);
+      expect(() => parseAtReference({ ...ref, origin: "DATASLAYER" })).toThrow(/INVALID_AT_REFERENCE/);
     });
   });
   it("refuses broken quoting instead of repairing it", () => {

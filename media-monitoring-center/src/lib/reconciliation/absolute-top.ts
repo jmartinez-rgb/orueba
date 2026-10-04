@@ -35,8 +35,11 @@ const atReferenceSchema = z.strictObject({
   date: z.iso.date(),
   timezone: z.string().max(80).refine(isValidTimeZone),
   currency: z.string().regex(/^[A-Z]{3}$/),
-  /** ID (default) or exact campaign name within the customer, for sources that carry no IDs. */
-  joinBy: z.enum(["ID", "CAMPAIGN_NAME"]).default("ID"),
+  /**
+   * ID (default); exact campaign name within the customer, for sources without IDs; or, for ad groups,
+   * campaign ID plus exact ad group name (Google rejects duplicate ad group names within a campaign).
+   */
+  joinBy: z.enum(["ID", "CAMPAIGN_NAME", "AD_GROUP_NAME"]).default("ID"),
   /** Operator declaration: the export kept only the Google Search network (no Search partners). */
   network: z.literal("GOOGLE_SEARCH_ONLY"),
   networkEvidence: z.enum(["SEGMENT_COLUMN", "FILTERED_IN_UI", "TOP_METRICS_SEARCH_ONLY"]),
@@ -45,19 +48,24 @@ const atReferenceSchema = z.strictObject({
     campaignId: digits.nullable(),
     campaignName: z.string().min(1).max(500).nullable().optional(),
     adGroupId: digits.nullable(),
+    adGroupName: z.string().min(1).max(500).nullable().optional(),
     cells: z.strictObject(Object.fromEntries(AT_METRICS.map(m => [m, cell.optional()])) as Record<AtMetric, z.ZodOptional<typeof cell>>),
   })).max(100000),
 }).superRefine((ref, ctx) => {
-  const byName = ref.joinBy === "CAMPAIGN_NAME";
-  // A name join is only for campaign rows, and only on the Search-only top rates (UI report without IDs, or Dataslayer).
-  if (byName && ref.level !== "campaign") ctx.addIssue({ code: "custom", message: "Name join requires campaign rows." });
-  if (ref.origin === "DATASLAYER" && (!byName || ref.networkEvidence !== "TOP_METRICS_SEARCH_ONLY")) ctx.addIssue({ code: "custom", message: "Dataslayer joins by name on the top rates." });
+  const byCampaignName = ref.joinBy === "CAMPAIGN_NAME", byGroupName = ref.joinBy === "AD_GROUP_NAME", byName = byCampaignName || byGroupName;
+  // A name join (UI report without IDs, or Dataslayer) compares only the Search-only top rates.
+  if ((byCampaignName && ref.level !== "campaign") || (byGroupName && ref.level !== "ad_group")) ctx.addIssue({ code: "custom", message: "Name join does not match the level." });
+  if (ref.origin === "DATASLAYER" && (!byCampaignName || ref.networkEvidence !== "TOP_METRICS_SEARCH_ONLY")) ctx.addIssue({ code: "custom", message: "Dataslayer joins by name on the top rates." });
   if (ref.networkEvidence === "TOP_METRICS_SEARCH_ONLY" && !byName) ctx.addIssue({ code: "custom", message: "Network evidence does not match the join." });
   const keys = new Set<string>();
   for (const row of ref.rows) {
-    const key = byName ? normalizeName(row.campaignName ?? "") : `${row.campaignId}/${row.adGroupId}`;
-    if (byName ? row.campaignId !== null || !row.campaignName || Object.keys(row.cells).some(m => !NAME_JOIN_METRICS.includes(m as AtMetric)) : row.campaignId === null || (row.campaignName ?? null) !== null) ctx.addIssue({ code: "custom", message: "Row does not match the join." });
-    if ((ref.level === "campaign") !== (row.adGroupId === null) || keys.has(key)) ctx.addIssue({ code: "custom", message: "Inconsistent or duplicate entity." });
+    const campaignName = row.campaignName ?? null, groupName = row.adGroupName ?? null;
+    const key = byCampaignName ? normalizeName(campaignName ?? "") : byGroupName ? `${row.campaignId}/${normalizeName(groupName ?? "")}` : `${row.campaignId}/${row.adGroupId}`;
+    const shape = byCampaignName ? row.campaignId === null && campaignName !== null && groupName === null
+      : byGroupName ? row.campaignId !== null && row.adGroupId === null && groupName !== null && campaignName === null
+      : row.campaignId !== null && campaignName === null && groupName === null;
+    if (!shape || (byName && Object.keys(row.cells).some(m => !NAME_JOIN_METRICS.includes(m as AtMetric)))) ctx.addIssue({ code: "custom", message: "Row does not match the join." });
+    if ((ref.level === "campaign") === (row.adGroupId !== null || groupName !== null) || keys.has(key)) ctx.addIssue({ code: "custom", message: "Inconsistent or duplicate entity." });
     // Google Help limits Search lost IS (budget) to campaigns; never accept it as an ad group value.
     if (ref.level === "ad_group" && row.cells.search_lost_is_budget !== undefined) ctx.addIssue({ code: "custom", message: "Budget lost IS is campaign-only." });
     keys.add(key);
@@ -258,14 +266,16 @@ export async function buildAbsoluteTopReconciliation(opts: {
     if (!referenceMature) reasons.push("REFERENCE_MATURITY_PENDING");
     const blocking: AtCode | null = clockMismatch ? "INCOMPATIBLE_CLOCK" : currencyMismatch ? "INCOMPATIBLE_CURRENCY" : reasons.includes("SOURCE_EXTRACTED_BEFORE_DAY_CLOSED") ? "MISSING_SOURCE" : null;
     const sourceByKey = new Map(rows.map(r => [entityKey(r.level, r.campaign_id, r.ad_group_id), r]));
-    // Name join: exact normalized campaign name within this customer's source rows; never a fuzzy match.
+    // Name joins: exact normalized campaign name, or campaign ID plus exact ad group name, within this
+    // customer's source rows of the same level; never a fuzzy match.
+    const nameKey = (r: AbsoluteTopRow) => ref.joinBy === "AD_GROUP_NAME" ? `${r.campaign_id}/${normalizeName(r.ad_group_name ?? "")}` : normalizeName(r.campaign_name);
     const byName = new Map<string, AbsoluteTopRow[]>();
-    for (const r of rows) byName.set(normalizeName(r.campaign_name), [...(byName.get(normalizeName(r.campaign_name)) ?? []), r]);
+    for (const r of rows) byName.set(nameKey(r), [...(byName.get(nameKey(r)) ?? []), r]);
     const refByKey = new Map<string, { row: AtReference["rows"][number]; index: number; reason: AtEntityResult["joinReason"] }>();
     ref.rows.forEach((r, index) => {
       if (ref.joinBy === "ID") { refByKey.set(entityKey(ref.level, r.campaignId!, r.adGroupId), { row: r, index, reason: null }); return; }
-      const found = byName.get(normalizeName(r.campaignName!)) ?? [];
-      if (found.length === 1) refByKey.set(entityKey("campaign", found[0].campaign_id, null), { row: r, index, reason: null });
+      const found = byName.get(ref.joinBy === "AD_GROUP_NAME" ? `${r.campaignId}/${normalizeName(r.adGroupName!)}` : normalizeName(r.campaignName!)) ?? [];
+      if (found.length === 1) refByKey.set(entityKey(ref.level, found[0].campaign_id, found[0].ad_group_id), { row: r, index, reason: null });
       else refByKey.set(`unresolved/${index}`, { row: r, index, reason: found.length ? "NAME_AMBIGUOUS" : "NAME_NOT_FOUND" });
     });
     const keys = [...new Set([...sourceByKey.keys(), ...refByKey.keys()])].sort();

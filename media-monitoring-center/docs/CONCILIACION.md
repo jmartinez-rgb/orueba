@@ -268,7 +268,19 @@ npm run conciliar:absolute-top -- importar --csv privado/absolute-campaign-87795
   --decimal . --miles , --separador coma --output reportes/ui-at-8779536058-2026-10-01.json
 ```
 
-El nivel grupo sigue requiriendo IDs de campaña y grupo: los nombres de grupo se repiten entre campañas.
+#### Informe de grupos de anuncios con ID de campaña y nombre de grupo
+
+Si el informe de grupos trae `Campaign ID` y `Ad group` pero no `Ad group ID`, se mapea `adGroupName`
+junto con `campaignId` (`config/absolute-top-columns.ad-group-name.example.json`, `--nivel ad_group`). La
+unión es **ID de campaña + nombre exacto del grupo**: Google rechaza dos grupos con el mismo nombre en una
+campaña (`DUPLICATE_ADGROUP_NAME`), mientras que entre campañas los nombres sí se repiten. Mismas reglas que
+la unión por nombre de campaña: solo las dos tasas superiores, `TOP_METRICS_SEARCH_ONLY` sin columna de red,
+filas con `0` sin porcentaje en ambas tasas omitidas y contadas (grupos sin impresiones superiores en
+Búsqueda de Google ese día), nombres ausentes o ambiguos reportados y nunca escritos en las salidas.
+
+La fuente incluye todos los grupos habilitados de las campañas activas, también los que no tuvieron
+impresiones ese día (métricas N/D); el informe de la interfaz solo lista grupos con datos. Esos grupos
+aparecen como `MISSING_REFERENCE` y se explican con sus impresiones N/D en la fuente.
 
 ### 4. Comparación
 
