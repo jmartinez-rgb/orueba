@@ -295,7 +295,9 @@ Hasta 64 referencias (cuatro cuentas × dos niveles por día). Usa la auditoría
 reciente que cubra el día (`--auditoria ID` fija una concreta para una sola cuenta) y advierte
 `NEWER_AUDIT_NOT_COMPLETE` si una más nueva falló. Lee el backend de registros inyectado por
 `RECORDS_BACKEND`/`RECORDS_DIR`. Escribe JSON y CSV privados (0600, sin sobrescribir, IDs como
-texto, sin nombres de cuenta/campaña/grupo); stdout solo muestra conteos y rutas.
+texto, sin nombres de cuenta/campaña/grupo); stdout solo muestra conteos y rutas: códigos por tasa y por
+partición, la mayor diferencia absoluta de Abs. Top y el motivo de los faltantes (impresiones de la fuente
+N/D, cero o positivas en los `MISSING_REFERENCE`; nombres no encontrados o ambiguos en los `MISSING_SOURCE`).
 
 | Código | Significado |
 | --- | --- |

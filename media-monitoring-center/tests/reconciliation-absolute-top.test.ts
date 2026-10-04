@@ -11,7 +11,7 @@ import { AbsoluteTopStore } from "@/lib/absolute-top/store";
 import type { AbsoluteTopAudit, AbsoluteTopRow } from "@/lib/absolute-top/types";
 import { buildAbsoluteTopReconciliation, parseAtReference, parseCell, selectAudit, type AtReference } from "@/lib/reconciliation/absolute-top";
 import { atColumnsSchema, decodeExport, importAtExport, importAtExportDetailed, importDataslayerAbsoluteTop, parseDelimited, type AtImportOptions } from "@/lib/reconciliation/absolute-top-import";
-import { absoluteTopReconciliationCsv, writeAbsoluteTopReconciliation } from "@/lib/reconciliation/absolute-top-output";
+import { absoluteTopReconciliationCsv, absoluteTopSummary, writeAbsoluteTopReconciliation } from "@/lib/reconciliation/absolute-top-output";
 
 const config = googleDomainsSchema.parse(JSON.parse(readFileSync(new URL("../../unified-ads-api/src/config/google-ads-domains.json", import.meta.url), "utf8")));
 const customer = config.domains[0].accounts[0].customerId;
@@ -235,6 +235,9 @@ describe("Google Ads UI export import", () => {
       expect(p.entities.find(e => e.adGroupId === "222")!.comparisons.absolute_top_rate.code).toBe("MATCH");
       expect(p.entities.find(e => e.adGroupId === "333")!.codes).toEqual(["MISSING_REFERENCE"]);
       expect(p.entities.find(e => e.campaignId === null)).toMatchObject({ joinReason: "NAME_NOT_FOUND", referenceRow: 2, codes: ["MISSING_SOURCE"] });
+      const summary = absoluteTopSummary(await reconcile([ref], [audit([group(), group({ ad_group_id: "333", ad_group_name: "Otro grupo", impressions: null, absolute_top_rate: null }), group({ ad_group_id: "555", ad_group_name: "Con datos", impressions: 7 })])]));
+      expect(summary).toMatchObject({ metrics: { absolute_top_rate: { MATCH: 1, MISSING_REFERENCE: 2, MISSING_SOURCE: 1 } }, missingReference: { total: 2, sourceImpressionsUnknown: 1, sourceImpressionsPositive: 1, maxSourceImpressions: 7 }, missingSource: { total: 1, nameNotFound: 1 }, byPartition: [{ level: "ad_group", entities: 4, absMatch: 1, missingReference: 2, missingSource: 1 }] });
+      expect(JSON.stringify(summary)).not.toMatch(/Grupo|Otro|Con datos/);
       const twice = await reconcile([ref], [audit([group(), group({ ad_group_id: "444" })])]);
       expect(twice.partitions[0].entities.find(e => e.referenceRow === 1)).toMatchObject({ campaignId: null, joinReason: "NAME_AMBIGUOUS" });
       expect(absoluteTopReconciliationCsv(result)).not.toContain("Grupo secreto");
@@ -297,7 +300,7 @@ describe("private outputs and offline CLI", () => {
     expect((await stat(join(dir, "ref.json"))).mode & 0o777).toBe(0o600);
     const compared = await cli(["comparar", "--referencia", join(dir, "ref.json"), "--output", join(dir, "conciliacion.json")]);
     expect(compared.exitCode).toBe(0);
-    expect(JSON.parse(compared.stdout)).toMatchObject({ partitions: 1, primary: { compared: 1, matched: 1 }, exitCode: 0 });
+    expect(JSON.parse(compared.stdout)).toMatchObject({ partitions: 1, primary: { compared: 1, matched: 1 }, metrics: { absolute_top_rate: { MATCH: 1 } }, missingReference: { total: 0 }, byPartition: [{ level: "campaign", absMatch: 1 }], exitCode: 0 });
     expect(compared.stdout).not.toContain("45");
     const bad = await cli(["comparar", "--referencia", join(dir, "columnas.json")]);
     expect(bad.exitCode).toBe(1);

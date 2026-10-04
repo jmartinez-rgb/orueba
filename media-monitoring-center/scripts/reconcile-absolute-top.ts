@@ -2,7 +2,7 @@ import { buildAbsoluteTopReconciliation } from "../src/lib/reconciliation/absolu
 import { decodeExport, importAtExportDetailed, importDataslayerAbsoluteTop, type AtImportOptions } from "../src/lib/reconciliation/absolute-top-import";
 import { googleDomainsSchema } from "../src/lib/domains/config";
 import { join } from "node:path";
-import { writeAbsoluteTopReconciliation } from "../src/lib/reconciliation/absolute-top-output";
+import { absoluteTopSummary, writeAbsoluteTopReconciliation } from "../src/lib/reconciliation/absolute-top-output";
 import { outputPath, readPrivateInputFile, readReferenceFile, writeExclusivePrivateFiles } from "../src/lib/reconciliation/output";
 import { ReconciliationError } from "../src/lib/reconciliation/reconcile";
 import { AbsoluteTopStore } from "../src/lib/absolute-top/store";
@@ -71,7 +71,7 @@ async function compareCommand(args: string[]) {
   const store = new AbsoluteTopStore();
   const report = await buildAbsoluteTopReconciliation({ references, history: customer => store.history(customer), auditId: o.one("--auditoria") });
   const files = await writeAbsoluteTopReconciliation(report, o.one("--output"));
-  console.log(JSON.stringify({ module: "absolute_top_reconciliation", step: "compare", partitions: report.partitions.length, counts: report.counts, primary: { compared: report.primary.compared, matched: report.primary.matched, differences: report.primary.differences, unknown: report.primary.unknown }, files, exitCode: report.exitCode }));
+  console.log(JSON.stringify({ module: "absolute_top_reconciliation", step: "compare", partitions: report.partitions.length, counts: report.counts, primary: { compared: report.primary.compared, matched: report.primary.matched, differences: report.primary.differences, unknown: report.primary.unknown }, ...absoluteTopSummary(report), files, exitCode: report.exitCode }));
   process.exitCode = report.exitCode;
 }
 
