@@ -1,5 +1,11 @@
 # Unified Ads API
 
+**Auditoría final de Claude (rama `claude/auditoria-final-v1`):** [informe](../media-monitoring-center/docs/AUDITORIA_FINAL_V1_2026-10-02.md).
+Los fallos del informe de Microsoft indican su etapa en `details.stage` y `npm run verificar` muestra
+una columna **Diagnóstico** con campos permitidos (etapa, limitación, estados y códigos; nunca URLs,
+cuerpos ni tokens). `DOCS_ENABLED` vacío deja `/docs` inactivo en producción. 803 pruebas; la v1
+sigue pendiente de conciliación independiente y aceptación del alojamiento.
+
 **Continuación Dominios/Absolute Top:** [informe A–J](../media-monitoring-center/docs/DOMINIOS_ABSOLUTE_TOP.md),
 rama `codex/dominios-absolute-top`. [Contrato Google v25](docs/GOOGLE_ABSOLUTE_TOP.md):
 `GET /api/v1/google-domains` expone el maestro y `GET /api/v1/google/absolute-top` consulta

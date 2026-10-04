@@ -100,7 +100,7 @@ El token de WhatsApp Business **no** es una variable de la app: vive en la crede
 | `AUTH_UNIVERSAL_PASSWORD_HASH` | No* | Hash de la contraseña universal (cada persona entra con su nombre) |
 | `AUTH_UNIVERSAL_ROLE` | No | `viewer` (default) o `manager` |
 | `AUTH_SESSION_HOURS` | No | Duración de la sesión (default 12, máximo 336) |
-| `AUTH_MODE` | No | Vacío = automático (recomendado). `open` = sin contraseña (solo demo local). `header` = identidad en `x-immc-user`, `x-immc-role`, `x-immc-email` de un proxy/SSO de confianza. El valor antiguo `dev` cuenta como automático |
+| `AUTH_MODE` | No | Vacío = automático (recomendado). `open` = sin contraseña solo en desarrollo o en una demo local aislada (datos simulados, `RECORDS_BACKEND=memory`, sin credenciales, fuera de Netlify); en producción con cualquier otra configuración queda bloqueado. `header` = identidad en `x-immc-user`, `x-immc-role`, `x-immc-email` de un proxy/SSO de confianza. El valor antiguo `dev` cuenta como automático |
 | `AUTH_DEFAULT_ROLE` | No | Rol en modo abierto (default `admin`) |
 
 \* Son hashes scrypt (no contraseñas), pero trátalos como sensibles. Se generan con
@@ -136,6 +136,9 @@ nunca se guardan aquí (viven en BigQuery).
 `AUTH_PRIMARY_ADMIN_ID` identifica al administrador principal con todos los permisos; su cuenta
 no puede eliminarse ni ser modificada por otros administradores.
 `ALERT_RESPONDER_USER_IDS` restringe la escritura operativa de alertas independientemente del rol.
-Omitida conserva la política anterior; vacía restringe a todos salvo al principal.
+Omitida conserva la política anterior por rol, no apta para producción: `npm run v1:check` marca la
+autenticación pendiente (`ALERT_RESPONDERS_MISSING`) sin una lista no vacía de usuarios existentes y
+(`PRIMARY_ADMIN_MISSING`) sin `AUTH_PRIMARY_ADMIN_ID` presente entre las cuentas. Vacía restringe a
+todos salvo al principal.
 El bootstrap valida identidades únicas y guarda contraseñas privadas sin imprimirlas.
 Ver [ACCESOS_NOMINALES.md](ACCESOS_NOMINALES.md).

@@ -1,5 +1,12 @@
 # Acceso, usuarios y bitácora
 
+> **Documento heredado.** La política vigente de cuentas nominales, administrador principal y
+> respondedores de alertas está en [ACCESOS_NOMINALES.md](ACCESOS_NOMINALES.md); la matriz verificada
+> rol × ruta × método está en `tests/authz-matrix.test.ts`. Las tablas de abajo describen la primera
+> versión (cuentas `jmartinez`/`operaciones`) y no prevalecen sobre esa política: por ejemplo, el
+> cliente no envía bugs ni ve la bandeja, y la escritura de alertas depende de `ALERT_RESPONDER_USER_IDS`.
+
+
 El Monitoring Center es **solo de monitoreo**: ningún rol puede modificar campañas, presupuestos
 ni configuraciones en Google, Meta, TikTok, Microsoft, Spotify o X. Los permisos de escritura solo
 cambian datos internos de la app (umbrales, notas, tickets, métricas a vigilar…).
@@ -88,7 +95,7 @@ repositorio.
 | `AUTH_UNIVERSAL_PASSWORD_HASH` | Hash de la contraseña universal |
 | `AUTH_UNIVERSAL_ROLE` | `viewer` (default) o `manager`. Nunca admin |
 | `AUTH_SESSION_HOURS` | Duración de la sesión (default 12, máximo 336) |
-| `AUTH_MODE` | Vacío = automático (recomendado). `open` = sin contraseña (solo demo local). `header` = identidad desde un proxy/SSO |
+| `AUTH_MODE` | Vacío = automático (recomendado). `open` = sin contraseña solo en desarrollo o en una demo local aislada (datos simulados, registros en memoria, sin credenciales, fuera de Netlify); en cualquier otra configuración de producción queda bloqueado. `header` = identidad desde un proxy/SSO |
 | `AUTH_DEFAULT_ROLE` | Rol en modo abierto (default `admin`) |
 
 Modo automático:

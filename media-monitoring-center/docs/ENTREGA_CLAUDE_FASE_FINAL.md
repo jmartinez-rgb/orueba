@@ -12,6 +12,17 @@ y la aceptación de producción siguen pendientes.** La publicación confirmada 
 al entorno de Codex: no se han proporcionado URLs públicas del monitoreo y de la API.
 La extracción y aceptación son **solo izzi**; conservar Sky, sus datos y permisos.
 
+## Resultado de la auditoría de Claude (2–4 de octubre de 2026)
+
+Rama `claude/auditoria-final-v1`, desde el HEAD `07a6ae2`. [Informe con hallazgos por severidad,
+reproducción y archivo/línea](AUDITORIA_FINAL_V1_2026-10-02.md) y [checklist de aceptación y
+reversión](CANDIDATA_V1.md). API 803/803 y monitoreo 1377/1377 en Node 22.22.2; build aislado y matriz
+completa de navegador 344/344. Se corrigieron 5 hallazgos altos, 10 medios y 7 bajos (autorización,
+Absolute Top, concurrencia del backend File, capacidad del historial, accesibilidad), y se añadieron
+`conciliar:absolute-top`, `datos:respaldo` y el diagnóstico seguro del 502 de Microsoft.
+**La v1 sigue sin terminar:** faltan la conciliación con exports independientes de Ads Manager y la
+aceptación del alojamiento autorizado. Las secciones siguientes conservan la entrega de Codex.
+
 ## Lecturas y punto de partida
 
 | Documento | Uso |

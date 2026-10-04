@@ -20,3 +20,7 @@ La publicación confirmada corresponde al **entorno de Codex**. No hay URLs púb
 del monitoreo ni de la API. Faltan conciliación independiente y aceptación del alojamiento.
 Secretos, contraseñas y datos privados no viajan en Git. No desplegar ni activar envíos/schedulers
 para realizar esta auditoría; preparar el resultado y los bloqueos para revisión.
+
+**Resultado de Claude:** rama `claude/auditoria-final-v1`. [Informe de la auditoría final](media-monitoring-center/docs/AUDITORIA_FINAL_V1_2026-10-02.md)
+y [checklist de candidata v1](media-monitoring-center/docs/CANDIDATA_V1.md). La v1 no está terminada:
+faltan conciliación independiente y aceptación del alojamiento.

@@ -88,6 +88,20 @@ El cliente actual envía `X-API-Key`; no genera ID tokens de Google para Cloud R
 por compatible una API protegida exclusivamente por IAM sin implementar ese transporte. Usar
 HTTPS, controles de red del alojamiento y la autenticación implementada; validar desde el destino.
 
+## Respaldo, frecuencia de Absolute Top y documentación de la API
+
+- **Respaldo y restauración:** con el servidor y el extractor detenidos,
+  `npm run datos:respaldo -- respaldar --destino /ruta/nueva` copia `RECORDS_DIR` y
+  `UNIFIED_ADS_DATA_DIR` con manifiesto SHA-256; `verificar` comprueba cada archivo y `restaurar` solo
+  escribe en directorios vacíos tras verificar todo. No carga `.env` ni imprime nombres. El archivo
+  `TOKEN_STORE_FILE` de la API se respalda aparte (0600). Guardar los respaldos cifrados y fuera de Git.
+- **Absolute Top:** programar la extracción una vez al día, de un solo día cerrado y madurado
+  (`--from D --to D --granularity daily`, ≥ 48 h después del cierre). El historial por cuenta se
+  reescribe completo en cada ingesta y tiene un tope de 64 MiB; la lectura horaria frecuente lo excede
+  ([medición](AUDITORIA_FINAL_V1_2026-10-02.md#dominios-y-absolute-top)).
+- **API:** `DOCS_ENABLED` vacío deja `/docs` inactivo con `NODE_ENV=production`.
+- **Acceso:** definir `AUTH_PRIMARY_ADMIN_ID` y `ALERT_RESPONDER_USER_IDS`; `v1:check` los exige.
+
 ## Comprobación antes de publicar
 
 Con configuración de runtime ya cargada, desde el monitoreo:

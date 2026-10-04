@@ -1,6 +1,6 @@
 # Candidata v1: checklist de aceptación y reversión
 
-Rama `claude/auditoria-final-v1`, desde `07a6ae2` (base funcional `2c8ca56`), 2 de octubre de 2026.
+Rama `claude/auditoria-final-v1`, desde `07a6ae2` (base funcional `2c8ca56`), 2 a 4 de octubre de 2026.
 Esta lista convierte la candidata en v1 aceptada. **Mientras falte una casilla obligatoria, la v1 no
 está terminada.** A esta fecha siguen abiertas la conciliación independiente (sección E) y la
 aceptación del alojamiento (secciones B, F y H). El informe de esta ronda está en
@@ -17,9 +17,9 @@ Quién firma: **Juan Pablo Martínez** (control máximo) con el operador autoriz
 | # | Comprobación | Comando o evidencia | Estado |
 | --- | --- | --- | --- |
 | A1 | Commit candidato identificado y sin cambios locales | `git rev-parse HEAD`, `git status` | Pendiente de elegir commit final |
-| A2 | API: tipos, lint, formato, pruebas y build | `cd unified-ads-api && npm ci && npm run typecheck && npm run lint && npm run format:check && npm test && npm run build` | Pasa en la rama (ver informe) |
-| A3 | Monitoreo: tipos, lint y pruebas | `cd media-monitoring-center && npm ci && npm run check` | Pasa en la rama |
-| A4 | Build del monitoreo aislado (mock/Memory, sin archivos privados) | `DATA_SOURCE=mock USE_MOCK_DATA=true RECORDS_BACKEND=memory npx next build --webpack` | Pasa en la rama |
+| A2 | API: tipos, lint, formato, pruebas y build | `cd unified-ads-api && npm ci && npm run typecheck && npm run lint && npm run format:check && npm test && npm run build` | Pasa en la rama: 803/803 (Node 22.22.2) |
+| A3 | Monitoreo: tipos, lint y pruebas | `cd media-monitoring-center && npm ci && npm run check` | Pasa en la rama: 1377/1377 (Node 22.22.2) |
+| A4 | Build del monitoreo aislado (mock/Memory, sin archivos privados) | `DATA_SOURCE=mock USE_MOCK_DATA=true RECORDS_BACKEND=memory npx next build --webpack` | Pasa en la rama; matriz de navegador completa 344/344 sobre ese build |
 | A5 | CI de API en Node 22 y 24 sobre el commit final | GitHub Actions | Pendiente para el commit final |
 | A6 | Imágenes Docker de ambos servicios construyen como usuario `node` | [PRODUCCION.md](PRODUCCION.md) | Histórico (base anterior); repetir sobre el commit final |
 
@@ -28,8 +28,8 @@ Quién firma: **Juan Pablo Martínez** (control máximo) con el operador autoriz
 | # | Comprobación | Condición de cierre |
 | --- | --- | --- |
 | B1 | Dos servicios Node/Docker con **disco persistente** montado en `/var/data`, una sola instancia escritora cada uno | URL HTTPS asignada a cada servicio; sin réplicas web/worker |
-| B2 | Variables de runtime cargadas solo en el proveedor | Lista mínima de [PRODUCCION.md](PRODUCCION.md); nada con `NEXT_PUBLIC_` sensible |
-| B3 | `DATA_SOURCE=unified`, `RECORDS_BACKEND=file`, rutas bajo `/var/data` | `npm run v1:check -- --sin-red --destino contenedor --volumen /var/data --registros` sin códigos pendientes de configuración |
+| B2 | Variables de runtime cargadas solo en el proveedor | Lista mínima de [PRODUCCION.md](PRODUCCION.md); nada con `NEXT_PUBLIC_` sensible; en la API `DOCS_ENABLED` vacío o `false` (inactivo por omisión en producción) |
+| B3 | `DATA_SOURCE=unified`, `RECORDS_BACKEND=file`, rutas bajo `/var/data`; `AUTH_PRIMARY_ADMIN_ID` y `ALERT_RESPONDER_USER_IDS` definidos | `npm run v1:check -- --sin-red --destino contenedor --volumen /var/data --registros` sin códigos pendientes (incluye `PRIMARY_ADMIN_MISSING` y `ALERT_RESPONDERS_MISSING`) |
 | B4 | `AUTH_MODE` no es `open`; `AUTH_SECRET` y las 15 cuentas existentes migradas sin regenerarlas | Login de cada identidad (sección C) |
 | B5 | Mapeo privado revisado: IDs y marca de las cuentas izzi | Extracción con `--brand izzi` no consulta otras cuentas |
 | B6 | Comprobación pública desde fuera | `npm run produccion:smoke -- --monitor https://… --api https://…` sale 0 (no certifica v1) |
@@ -44,7 +44,7 @@ Quién firma: **Juan Pablo Martínez** (control máximo) con el operador autoriz
 | C4 | Hernán (admin) | Administración amplia | Escribir en alertas (notas, estados, acuses, tickets, novedades, mensajes) |
 | C5 | Guillermo, Operations y demás lectores | Leer alertas y su vista autorizada | Cualquier escritura de alertas |
 | C6 | Cliente | Resumen de marca/dominio y alertas públicas de lectura | Notas, responsables, tickets, IDs de campaña, diagnósticos, Absolute Top técnico, Nexus interno |
-| C7 | Cookies y formularios | Sesión HttpOnly, Secure y SameSite en HTTPS; mutaciones de otro origen rechazadas | Sesión válida tras desactivar usuario o cambiar contraseña/rol |
+| C7 | Cookies y formularios | Sesión HttpOnly, Secure y SameSite en HTTPS; mutaciones de otro origen rechazadas con 403 (comprobar que el proxy del alojamiento conserva `Host`/`X-Forwarded-Host` públicos) | Sesión válida tras desactivar usuario o cambiar contraseña/rol |
 
 Cada fila se prueba con la identidad real en el alojamiento y, además, con una petición directa a la
 API del monitoreo (ocultar un botón no basta). Resultado esperado: 403 o 401 en lo prohibido.
@@ -57,7 +57,7 @@ API del monitoreo (ocultar un botón no basta). Resultado esperado: 403 o 401 en
 | D2 | Seis proveedores con cobertura y frescura visibles en Salud de datos | Sin cuentas izzi esperadas sin extracción; N/D no se muestra como cero |
 | D3 | Microsoft: causa del 502 identificada | `npm run verificar -- --proveedores microsoft --cuentas microsoft:ID --fecha D` muestra la etapa en la columna **Diagnóstico**; decisión documentada según la etapa |
 | D4 | X y Spotify: acceso efectivo (aprobaciones ya concedidas) | Lectura acotada sin pedir aprobación nueva ni regenerar OAuth; Spotify sin REVENUE conserva ingresos N/D |
-| D5 | Absolute Top: lectura diaria madura de las cuatro cuentas | `npm run absolute-top:sync -- --from D --to D --granularity daily` ejecutado ≥ 48 h después del cierre del día D |
+| D5 | Absolute Top: lectura diaria madura de las cuatro cuentas | `npm run absolute-top:sync -- --from D --to D --granularity daily` ejecutado ≥ 48 h después del cierre del día D. Frecuencia de v1: una vez al día y un solo día (≈ 18 MiB por cuenta a 90 días); no programar lecturas horarias (superan el tope de 64 MiB) |
 
 ## E. Conciliación independiente (obligatoria)
 
@@ -75,8 +75,8 @@ No se acepta comparar la API consigo misma ni una plantilla. Una salida 0 no cer
 | # | Comprobación | Condición de cierre |
 | --- | --- | --- |
 | F1 | Sondeo aislado sobrevive a reinicio **y sustitución** de la instancia | Escrito, leído tras sustituir, retirado |
-| F2 | Respaldo del volumen del monitoreo y del almacén de tokens de la API | Copia con verificación de integridad antes de migrar y antes de cada cambio de versión |
-| F3 | Restauración probada en un entorno de ensayo | Datos restaurados legibles; cuentas, auditoría, tasas e histórico intactos |
+| F2 | Respaldo del volumen del monitoreo y del almacén de tokens de la API | Con servidor y extractor detenidos: `npm run datos:respaldo -- respaldar --destino …` y `… verificar --respaldo …` (manifiesto SHA-256); el archivo `TOKEN_STORE_FILE` de la API se copia aparte con permisos 0600. Guardar cifrado y fuera de Git |
+| F3 | Restauración probada en un entorno de ensayo | `npm run datos:respaldo -- restaurar --respaldo … --registros <vacío> --unified <vacío>`; datos restaurados legibles; cuentas, auditoría, tasas e histórico intactos |
 | F4 | Rotación de tokens persistida | Tras una rotación autorizada, reinicio sin perder acceso; ningún token en logs |
 | F5 | Un único escritor/extractor sobre el volumen | Supervisor documentado; sin réplicas |
 
@@ -119,8 +119,8 @@ del cambio, errores repetidos de extracción que antes no ocurrían, o decisión
 2. **Congelar evidencia:** copiar logs (sin secretos) y el estado del volumen antes de tocar nada.
 3. **Volver al commit/imagen anterior** aprobado en el proveedor (sin force-push a ramas compartidas;
    el proveedor redepliega la imagen previa etiquetada).
-4. **Restaurar datos** solo si la versión nueva los modificó: restaurar el respaldo F2 tomado antes del
-   cambio en el volumen del servicio afectado y verificar su integridad.
+4. **Restaurar datos** solo si la versión nueva los modificó: `npm run datos:respaldo -- verificar` sobre el
+   respaldo F2 tomado antes del cambio y `restaurar` en directorios vacíos del volumen afectado.
 5. **Tokens:** si se perdió una rotación, restaurar el almacén de tokens del respaldo; si el token ya
    fue invalidado por el proveedor, reautorizar con el procedimiento existente (no por errores históricos).
 6. **Comprobar:** `produccion:smoke`, login del principal, Salud de datos y una ronda supervisada.

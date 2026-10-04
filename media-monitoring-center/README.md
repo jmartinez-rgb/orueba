@@ -1,5 +1,12 @@
 # Media Monitoring Center (izzi · Sky)
 
+**Auditoría final de Claude (rama `claude/auditoria-final-v1`):** [informe con hallazgos](docs/AUDITORIA_FINAL_V1_2026-10-02.md)
+y [checklist de candidata v1](docs/CANDIDATA_V1.md). Nuevos comandos: `npm run conciliar:absolute-top`
+(comparación por campaña/grupo contra un export de Google Ads) y `npm run datos:respaldo`
+(respaldo/verificación/restauración con SHA-256). Absolute Top se programa una vez al día y de un solo
+día cerrado. 1377 pruebas y matriz de navegador 344/344; la v1 sigue pendiente de conciliación
+independiente y aceptación del alojamiento.
+
 **Dominios y Absolute Top:** [implementación, reglas y validación](docs/DOMINIOS_ABSOLUTE_TOP.md)
 en `codex/dominios-absolute-top`. El selector global clasifica Google izzi en Primer, Segundo
 y Tercer Dominio. `/absolute-top` evalúa campañas y grupos Search por separado con mínimos
@@ -148,6 +155,7 @@ gastar** (datos al día, gasto en cero las últimas 3 horas).
 | `npm run produccion:smoke` | Siete comprobaciones HTTPS sin autenticación ni escrituras; requiere `--monitor` y `--api`; no acepta la v1 |
 | `npm run conciliar` | Comparación offline izzi por cuenta/día con referencia independiente; JSON/CSV privados, sin inventar ceros, tasas ni eventos |
 | `npm run conciliar:absolute-top` | Importa un export CSV de Google Ads y compara Impr. (Abs. Top) % por campaña/grupo contra las auditorías guardadas; madurez 48 h, sin red ([guía](docs/CONCILIACION.md#absolute-top-comparación-específica-por-campaña-y-grupo)) |
+| `npm run datos:respaldo` | `respaldar`, `verificar` y `restaurar` el volumen privado (`RECORDS_DIR`, `UNIFIED_ADS_DATA_DIR`) con manifiesto SHA-256, con el servidor y el extractor detenidos ([producción](docs/PRODUCCION.md#respaldo-frecuencia-de-absolute-top-y-documentación-de-la-api)) |
 | `npm run unified:sync` | Extrae las cuentas del mapeo explícito, guarda catálogo y particiones diarias/horarias privadas; `-- --help` muestra opciones |
 | `npm run auth:setup` | Genera contraseñas nuevas, sus hashes y `AUTH_SECRET` (`-- --write` los guarda en `.env.local`) |
 | `npm run auth:hash -- "contraseña"` | Hash scrypt de una contraseña elegida |

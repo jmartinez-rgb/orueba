@@ -7,6 +7,17 @@ Usar el último HEAD de `codex/dominios-absolute-top`, que contiene `2c8ca56` y 
 documental. La [CI de API](https://github.com/jmartinez-rgb/orueba/actions/runs/37058044843)
 pasa Node 22 y 24 para ese commit funcional. No acredita conciliación ni producción.
 
+## Auditoría final de Claude hacia v1 — 2 a 4 de octubre de 2026
+
+Rama `claude/auditoria-final-v1`, desde `07a6ae2`
+([informe](../../media-monitoring-center/docs/AUDITORIA_FINAL_V1_2026-10-02.md)). En la API:
+diagnóstico seguro de la etapa de cada fallo del informe de Microsoft (el 502 es el estado que la API
+asigna a todo `PROVIDER_ERROR`; la causa sigue sin afirmarse hasta una lectura acotada con
+`npm run verificar`), columna Diagnóstico en el verificador, Absolute Top rechaza lecturas sobre el
+límite antes de descargar métricas, `DOCS_ENABLED` inactivo por omisión en producción y regresiones de
+X-API-Key en todas las rutas privadas. **803/803 pruebas en 42 archivos**, tipos, lint, formato y build
+en Node 22.22.2. Sin lecturas publicitarias nuevas; no acredita conciliación ni producción.
+
 ## Continuación de dominios y Absolute Top — 2 de octubre de 2026 UTC
 
 Rama `codex/dominios-absolute-top`, desde `f32ba707`.
