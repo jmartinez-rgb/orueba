@@ -252,11 +252,28 @@ describe("account/day comparison in original currency and native clock", () => {
 
   it("does not infer zero or complete coverage from an absent campaign row", async () => {
     await saveDaily([metricRow()]);
+    const unreferenced = (await report()).rows[0];
+    expect(unreferenced.coverage).toBe("INCOMPLETE");
+    expect(unreferenced.sourceMetrics).toEqual({ spend: null, impressions: null, clicks: null });
+    expect(unreferenced.observedSubtotal).toEqual({ spend: 10.1, impressions: 10, clicks: 1 });
+    for (const comparison of Object.values(unreferenced.comparisons)) expect(comparison.code).toBe("MISSING_SOURCE");
+    // With an independent total, the observed rows are compared and the missing campaign shows as a difference.
     const row = (await report(reference())).rows[0];
-    expect(row.coverage).toBe("INCOMPLETE");
     expect(row.sourceMetrics).toEqual({ spend: null, impressions: null, clicks: null });
-    expect(row.observedSubtotal).toEqual({ spend: 10.1, impressions: 10, clicks: 1 });
-    for (const comparison of Object.values(row.comparisons)) expect(comparison.code).toBe("MISSING_SOURCE");
+    expect(row.reasons).toEqual(["INCOMPLETE_CATALOG_COVERAGE", "COMPARED_OBSERVED_SUBTOTAL"]);
+    for (const comparison of Object.values(row.comparisons)) expect(comparison.code).toBe("DIFFERENCE");
+    expect(row.comparisons.spend).toMatchObject({ source: 10.1, delta: expect.closeTo(-20.2, 6) });
+  });
+
+  it("an independent total equal to the observed rows proves the absent campaigns added nothing", async () => {
+    await saveDaily([metricRow()]);
+    const result = await report(reference({ spend: 10.1, impressions: 10, clicks: 1 }));
+    expect(result.rows[0]).toMatchObject({ coverage: "INCOMPLETE", reasons: ["INCOMPLETE_CATALOG_COVERAGE", "COMPARED_OBSERVED_SUBTOTAL"], codes: ["MATCH"] });
+    expect(result.exitCode).toBe(0);
+    expect(result.policy.catalogGapWithReference).toBe("COMPARE_OBSERVED_SUBTOTAL");
+    // Any other gap (here an extraction before the day closed) still blocks the comparison.
+    await saveDaily([metricRow()], scope, date, "2026-09-30T18:00:00Z");
+    expect((await report(reference({ spend: 10.1, impressions: 10, clicks: 1 }))).rows[0].comparisons.spend.code).toBe("MISSING_SOURCE");
   });
 
   it("keeps an empty valid daily partition distinct from a zero-cost complete report", async () => {
@@ -287,9 +304,13 @@ describe("account/day comparison in original currency and native clock", () => {
 
   it("does not count a source campaign absent from the declared catalog as complete", async () => {
     await saveDaily([metricRow(), metricRow({ campaign_id: "foreign-campaign", spend: 20.2, impressions: 20, clicks: 2 })]);
+    expect((await report()).rows[0].comparisons.spend.code).toBe("MISSING_SOURCE");
+    // Its rows are real platform data: against an independent account total they are compared, not dropped.
     const row = (await report(reference())).rows[0];
     expect(row.sourceMetrics.spend).toBeNull();
-    expect(row.comparisons.spend.code).toBe("MISSING_SOURCE");
+    expect(row.coverage).toBe("INCOMPLETE");
+    expect(row.reasons).toContain("COMPARED_OBSERVED_SUBTOTAL");
+    expect(row.comparisons.spend.code).toBe("MATCH");
   });
 
   it("keeps reference clock differences incompatible without relabeling an aggregated day", async () => {

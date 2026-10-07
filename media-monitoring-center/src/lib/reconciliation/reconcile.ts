@@ -91,7 +91,7 @@ export interface ReconciliationReport {
   to: string;
   generatedAt: string;
   reference: { origin: "ADS_MANAGER"; exportedAt: string; digestSha256: string } | null;
-  policy: { spendAbsoluteTolerance: 0.01; countAbsoluteTolerance: 0; campaignScope: "ALL_CAMPAIGNS"; coverageBasis: "CURRENT_CATALOG"; currencyConversion: false; timezoneConversion: false };
+  policy: { spendAbsoluteTolerance: 0.01; countAbsoluteTolerance: 0; campaignScope: "ALL_CAMPAIGNS"; coverageBasis: "CURRENT_CATALOG"; catalogGapWithReference: "COMPARE_OBSERVED_SUBTOTAL"; currencyConversion: false; timezoneConversion: false };
   rows: ReconciliationRow[];
   counts: Record<FindingCode, number>;
   exitCode: 0 | 2;
@@ -181,8 +181,15 @@ export async function buildReconciliation(opts: {
       const sourceMetrics = coverage === "COMPLETE_CATALOG" ? { ...observedSubtotal } : nullMetrics();
       const base = { ...scope, brand: "izzi" as const, date, granularity: "daily" as const };
       const ref = expected.get(key(base));
-      const blocking: FindingCode | undefined = incompatibleClocks || (ref && zone && ref.timezone !== zone) ? "INCOMPATIBLE_CLOCK" : ref && ref.currency !== scope.currency ? "INCOMPATIBLE_CURRENCY" : coverage !== "COMPLETE_CATALOG" ? "MISSING_SOURCE" : !ref ? "MISSING_REFERENCE" : undefined;
-      const comparisons = Object.fromEntries(METRICS.map(metric => [metric, comparison(metric, sourceMetrics[metric], ref?.[metric] ?? null, blocking)])) as Record<Metric, Comparison>;
+      // Platforms omit campaigns without activity from daily reports, so the current catalog rarely appears in
+      // full. When that is the only gap, an independent account total arbitrates: it is compared with the rows
+      // actually observed. A match proves the absent campaigns added nothing; a gap shows as a difference.
+      // Without a reference nothing changes: absence is still never read as zero.
+      const compareObserved = Boolean(ref) && reasons.length === 1 && reasons[0] === "INCOMPLETE_CATALOG_COVERAGE";
+      if (compareObserved) reasons.push("COMPARED_OBSERVED_SUBTOTAL");
+      const compared = compareObserved ? observedSubtotal : sourceMetrics;
+      const blocking: FindingCode | undefined = incompatibleClocks || (ref && zone && ref.timezone !== zone) ? "INCOMPATIBLE_CLOCK" : ref && ref.currency !== scope.currency ? "INCOMPATIBLE_CURRENCY" : coverage !== "COMPLETE_CATALOG" && !compareObserved ? "MISSING_SOURCE" : !ref ? "MISSING_REFERENCE" : undefined;
+      const comparisons = Object.fromEntries(METRICS.map(metric => [metric, comparison(metric, compared[metric], ref?.[metric] ?? null, blocking)])) as Record<Metric, Comparison>;
       const codes = [...new Set(METRICS.map(metric => comparisons[metric].code))];
       if (!ref && !codes.includes("MISSING_REFERENCE")) codes.push("MISSING_REFERENCE");
       const extractedTimes = partition?.rows.map(r => r.extracted_at).sort((a, b) => Date.parse(a) - Date.parse(b)) ?? [];
@@ -193,7 +200,7 @@ export async function buildReconciliation(opts: {
   return {
     version: 1, origin: "RECONCILIATION", brand: "izzi", from: opts.from, to: opts.to, generatedAt: now.toISOString(),
     reference: reference ? { origin: "ADS_MANAGER", exportedAt: reference.exportedAt, digestSha256: createHash("sha256").update(JSON.stringify(reference)).digest("hex") } : null,
-    policy: { spendAbsoluteTolerance: 0.01, countAbsoluteTolerance: 0, campaignScope: "ALL_CAMPAIGNS", coverageBasis: "CURRENT_CATALOG", currencyConversion: false, timezoneConversion: false },
+    policy: { spendAbsoluteTolerance: 0.01, countAbsoluteTolerance: 0, campaignScope: "ALL_CAMPAIGNS", coverageBasis: "CURRENT_CATALOG", catalogGapWithReference: "COMPARE_OBSERVED_SUBTOTAL", currencyConversion: false, timezoneConversion: false },
     rows, counts, exitCode: reference && rows.length > 0 && rows.every(row => row.codes.length === 1 && row.codes[0] === "MATCH") ? 0 : 2, certifiesV1: false,
   };
 }
