@@ -1,48 +1,63 @@
-# Publicar la v1 en Replit con monitoreo.abcw.global
+# Publicar el monitoreo izzi en Replit (monitoreo.abcw.global)
 
-Rama `claude/auditoria-final-v1`. Esta guía publica el monitoreo y la API unificada en **una sola máquina de
-Replit siempre encendida (Reserved VM)**, con todos los datos en la **base PostgreSQL de Replit**, y lo deja en
-**https://monitoreo.abcw.global**. No toca `abcw.global` ni `app.abcw.global`.
+**Guía para el equipo de publicación.** El equipo tiene las credenciales y los accesos a Replit y Cloudflare, y
+hace todos los pasos. Juan Pablo Martínez no entrega credenciales; solo da acceso al repositorio y, al final, la
+aceptación.
+
+**Resultado:** `https://monitoreo.abcw.global` con inicio de sesión. Monitoreo y API unificada en una sola
+máquina de Replit siempre encendida (Reserved VM). La API queda interna, sin acceso desde fuera. Todos los datos
+van en la base PostgreSQL de Replit. No se tocan `abcw.global` ni `app.abcw.global`.
+
+Repositorio `jmartinez-rgb/orueba`, rama **`claude/auditoria-final-v1`**.
 
 ## Cómo queda armado
 
 | Pieza | Dónde corre | Quién la ve |
 | --- | --- | --- |
-| Monitoreo (la página que abre el equipo) | Puerto 3000 de la máquina, publicado en el 80 | Público, con inicio de sesión |
-| API unificada (habla con Google, Meta, TikTok, Microsoft, Spotify y X) | `127.0.0.1:8787` de la misma máquina | Nadie desde fuera: solo el monitoreo |
-| Usuarios, bitácora, tickets, tasas, presupuestos, Absolute Top, histórico de APIs | PostgreSQL de Replit (`DATABASE_URL`) | Solo la máquina |
-| Tokens que Microsoft y Spotify renuevan | La misma base (tabla aparte) | Solo la API |
-| Extractor izzi y lectura diaria de Absolute Top | La misma máquina, **apagados hasta que los actives** | — |
+| Monitoreo (lo que abre el equipo) | Puerto 3000, publicado en el 80 | Público, con inicio de sesión |
+| API unificada (Google, Meta, TikTok, Microsoft, Spotify, X) | `127.0.0.1:8787` de la misma máquina | Nadie desde fuera |
+| Usuarios, bitácora, tickets, tasas, presupuestos, Absolute Top, histórico | PostgreSQL de Replit | Solo la máquina |
+| Tokens que Microsoft y Spotify renuevan solos | La misma base, tabla aparte | Solo la API |
+| Extracción de izzi y lectura diaria de Absolute Top | La misma máquina | **Apagadas hasta el paso 9** |
 
-Replit no conserva archivos al volver a publicar; por eso nada se guarda en disco. El arranque lo hace
-`deploy/replit/start.mjs` y la compilación `deploy/replit/build.sh` (ambos ya configurados en `.replit`).
+El arranque y la compilación ya están configurados en el repositorio (`.replit`, `deploy/replit/start.mjs`,
+`deploy/replit/build.sh`); no hay que escribir comandos de arranque.
 
-Probado antes de entregar, con PostgreSQL 16 y datos ficticios: arranque conjunto, API inaccesible desde fuera,
-inicio de sesión, registros guardados en la base, sesión y usuarios intactos tras reiniciar, extractor activo
-sin tumbar el sitio, apagado limpio, un `PORT` impuesto por la plataforma sin choque de puertos y
-`v1:check --destino replit` listo. No se probó en la cuenta de Replit.
+## Reglas
 
-Las pruebas de PostgreSQL corren con `TEST_DATABASE_URL` apuntando a una base desechable (la vacían); sin esa
-variable se reportan como omitidas, nunca como aprobadas.
+- Las credenciales se capturan solo en el panel **Secrets** de Replit. Nunca en chats, correos, capturas de
+  pantalla, archivos del repositorio ni en el código.
+- No modificar `abcw.global` ni `app.abcw.global`.
+- No activar WhatsApp ni mensajes externos (`WHATSAPP_ALERTS_ENABLED=false`).
+- No desactivar la verificación de certificados (TLS) en ningún paso.
+- La extracción se enciende hasta el paso 9, después de comprobar todo.
 
-## Paso 1. Importar el repositorio
+## Paso 0. Antes de empezar
+
+- [ ] Acceso de lectura al repositorio de GitHub `jmartinez-rgb/orueba` (lo da Juan Pablo).
+- [ ] Cuenta de Replit con un plan que permita publicar como **Reserved VM**.
+- [ ] Acceso a la zona DNS `abcw.global` en Cloudflare.
+- [ ] Las credenciales de la lista del paso 3.
+
+## Paso 1. Crear la app en Replit
 
 1. En Replit: **Create App** → **Import from GitHub** → `jmartinez-rgb/orueba`.
-2. Elige la rama **`claude/auditoria-final-v1`** (en la pestaña Git de Replit, si no la ofrece al importar).
-3. Si Replit propone su propia configuración, conserva la de `.replit` del repositorio: Node.js 22 y PostgreSQL.
+2. Cambia a la rama **`claude/auditoria-final-v1`** (pestaña **Git** de Replit si no la ofrece al importar).
+3. Si Replit propone otra configuración, conserva la del archivo `.replit` del repositorio.
+4. Abre la **Shell** y escribe `node -v`. Debe empezar con **v22**. Si no, en la configuración de la app elige
+   Node.js 22.
 
-## Paso 2. Crear la base de datos
+## Paso 2. Base de datos
 
-En el panel **Database** de Replit, crea la base **PostgreSQL**. Replit agrega solo el secreto `DATABASE_URL`.
-Si Replit muestra base de desarrollo y base de producción por separado, la migración del paso 4 va a la que usa
-la publicación (producción).
+En el panel **Database**, crea la base **PostgreSQL**. Replit agrega solo el secreto `DATABASE_URL`.
+
+Replit usa dos bases: la de **desarrollo** (la del espacio de trabajo) y la de **producción** (la del sitio
+publicado, que Replit crea y conecta sola al publicar). El código crea sus tablas al arrancar; no hay que crear
+nada a mano.
 
 ## Paso 3. Secretos (panel **Secrets**)
 
-Nunca pegues estos valores en el chat ni en GitHub. Cópialos de tus archivos de la Mac
-(`~/orueba/media-monitoring-center/.env.local` y `~/orueba/unified-ads-api/.env`).
-
-**Configuración fija** (no son secretos, escríbelos tal cual):
+### 3.1 Configuración fija (escribir tal cual)
 
 | Nombre | Valor |
 | --- | --- |
@@ -53,108 +68,183 @@ Nunca pegues estos valores en el chat ni en GitHub. Cópialos de tus archivos de
 | `APP_TIMEZONE` | `America/Mexico_City` |
 | `UNIFIED_ADS_MAPPING_FILE` | `config/unified.mapping.example.json` |
 | `WHATSAPP_ALERTS_ENABLED` | `false` |
-| `UNIFIED_REFRESH_ENABLED` | `false` (se activa en el paso 7) |
-| `ABSOLUTE_TOP_SYNC_ENABLED` | `false` (se activa en el paso 7) |
+| `UNIFIED_REFRESH_ENABLED` | `false` (se cambia en el paso 9) |
+| `ABSOLUTE_TOP_SYNC_ENABLED` | `false` (se cambia en el paso 9) |
 
-**Llave interna** entre el monitoreo y la API: `UNIFIED_ADS_API_KEY`, una cadena nueva y larga. En la Terminal
-de la Mac, `openssl rand -hex 32` genera una; cópiala directo al secreto. La API la acepta sola; no hace falta
-`API_KEYS` (si ya existe, el arranque le agrega esta llave).
+### 3.2 Llave interna entre el monitoreo y la API
 
-**Del monitoreo** (`.env.local`): `AUTH_SECRET`, `AUTH_USERS`, `AUTH_PRIMARY_ADMIN_ID`,
-`ALERT_RESPONDER_USER_IDS` y, si existen, `AUTH_SESSION_HOURS` y `MONITORING_API_KEY`. Usa los mismos valores:
-no regeneres contraseñas ni la firma de sesiones.
+`UNIFIED_ADS_API_KEY`: una cadena nueva y larga. En la Shell de Replit, `openssl rand -hex 32` genera una;
+cópiala directo al secreto. No hace falta `API_KEYS`; si ya existe, el arranque le agrega esta llave.
 
-**De la API** (`.env`): todas las variables que empiezan con `GOOGLE_ADS_`, `META_`, `TIKTOK_`,
-`MICROSOFT_ADS_`, `SPOTIFY_ADS_` y `X_ADS_`. Para Meta usa el **token de usuario del sistema** (no vence), no el
-del Explorer. No copies `HOST`, `PORT`, `NODE_ENV`, `TOKEN_STORE_FILE` ni rutas de archivos.
+### 3.3 Acceso al monitoreo (las cuentas actuales)
 
-Si en la Mac usabas `TOKEN_STORE_FILE`, ese archivo tiene los refresh tokens más recientes de Microsoft o
-Spotify: usa esos valores para `MICROSOFT_ADS_REFRESH_TOKEN` y `SPOTIFY_ADS_REFRESH_TOKEN`.
+`AUTH_SECRET`, `AUTH_USERS`, `AUTH_PRIMARY_ADMIN_ID` y `ALERT_RESPONDER_USER_IDS`. Opcionales:
+`AUTH_SESSION_HOURS` y `MONITORING_API_KEY`.
 
-## Paso 4. Pasar los datos de la Mac a la base de Replit
+Deben ser **los valores que ya existen**: con ellos las 15 personas entran con sus contraseñas de siempre,
+Juan Pablo conserva el control máximo y solo Juan Pablo, Daniel Racines, Sebastián Vargas, Santiago Tamayo y
+Victoria Cárdenas responden alertas. Si el equipo no los tiene, detenerse y avisar: no crear cuentas nuevas ni
+regenerar contraseñas.
 
-Copia usuarios creados en la app, bitácora, tickets, novedades, tasas, presupuestos, Absolute Top y el histórico
-de APIs. No borra nada de la Mac, se niega si la base ya tiene datos y verifica cada registro. Hazlo **antes de
-abrir el sitio publicado por primera vez** (el primer inicio de sesión ya escribe en la base) y con el monitoreo y
-el extractor de la Mac detenidos, para copiar una foto quieta.
+`AUTH_USERS` es un JSON en una línea: se pega completo, sin comillas exteriores.
 
-1. En Replit, abre el panel **Database** y copia la cadena de conexión (`DATABASE_URL`).
-2. En la Terminal de la Mac:
+### 3.4 Credenciales de las plataformas
 
-```
-cd ~/orueba/media-monitoring-center
-git pull origin claude/auditoria-final-v1
-npm install
-grep -E '^(RECORDS_DIR|UNIFIED_ADS_DATA_DIR)=' .env.local
-printf 'DATABASE_URL de Replit (no se verá al pegarla): '; read -rs DB; echo
-DATABASE_URL="$DB" npm run datos:migrar-postgres -- --registros .data/records --unified .data/unified
-unset DB
-```
+Mismos nombres y valores que ya usan. Una plataforma sin credenciales aparece como "no configurada" y no
+detiene el sitio.
 
-Si el `grep` mostró otras rutas, úsalas en `--registros` y `--unified`. Debe imprimir una línea con
-`"results"` y, en cada grupo, `keys` igual a `verified`. Si la Mac no logra conectarse a la base de Replit,
-avísame y lo hacemos desde la Shell de Replit subiendo un respaldo.
+| Plataforma | Variables |
+| --- | --- |
+| Google Ads | `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_REFRESH_TOKEN`, `GOOGLE_ADS_LOGIN_CUSTOMER_ID` y, si los usan, `GOOGLE_ADS_CUSTOMER_IDS`, `GOOGLE_ADS_CLOUD_PROJECT` |
+| Meta | `META_ACCESS_TOKEN` (**token de usuario del sistema, sin vencimiento**; uno del Graph API Explorer vence en horas) y, si los usan, `META_APP_SECRET`, `META_AD_ACCOUNT_IDS`, `META_BUSINESS_IDS` |
+| TikTok | `TIKTOK_APP_ID`, `TIKTOK_APP_SECRET`, `TIKTOK_ACCESS_TOKEN`, `TIKTOK_ADVERTISER_IDS` |
+| Microsoft Advertising | `MICROSOFT_ADS_DEVELOPER_TOKEN`, `MICROSOFT_ADS_CLIENT_ID`, `MICROSOFT_ADS_CLIENT_SECRET`, `MICROSOFT_ADS_REFRESH_TOKEN` y, si los usan, `MICROSOFT_ADS_TENANT`, `MICROSOFT_ADS_ACCOUNT_IDS` |
+| Spotify | `SPOTIFY_ADS_CLIENT_ID`, `SPOTIFY_ADS_CLIENT_SECRET`, `SPOTIFY_ADS_REFRESH_TOKEN` |
+| X | `X_ADS_CONSUMER_KEY`, `X_ADS_CONSUMER_SECRET`, `X_ADS_ACCESS_TOKEN`, `X_ADS_ACCESS_TOKEN_SECRET` |
 
-## Paso 5. Publicar
+Si hoy configuran mapeos o reglas de conversión (`*_MAPPING`, `*_RULES`, `*_PRIMARY_*`), cópienlos igual.
 
-1. **Deploy** → **Reserved VM**. Elige una máquina con al menos **2 GB de RAM**.
-2. Replit toma la compilación y el arranque de `.replit`; no cambies esos comandos.
-3. Espera a que termine y abre `https://<tu-app>.replit.app/api/health`: debe decir `"mode":"unified"`.
+**No agregar:** `HOST`, `PORT`, `NODE_ENV`, `TOKEN_STORE_FILE`, `UNIFIED_ADS_API_URL`, `RECORDS_DIR`,
+`UNIFIED_ADS_DATA_DIR`. El arranque los fija.
 
-## Paso 6. Dominio monitoreo.abcw.global
+## Paso 4. Probar en el espacio de trabajo (antes de publicar)
 
-1. En la publicación: **Settings** → **Link a domain** → `monitoreo.abcw.global`.
-2. Replit muestra dos registros (uno **A** y uno **TXT**). En **Cloudflare**, zona `abcw.global`, créalos con
-   nombre `monitoreo`. Deja el registro A en **DNS only** (nube gris) hasta que Replit marque el dominio como
-   verificado y con certificado.
-3. No modifiques los registros de `abcw.global` ni de `app.abcw.global`.
-
-## Paso 7. Comprobaciones y encendido del extractor
-
-Desde la Terminal de la Mac (no necesita llaves):
-
-```
-cd ~/orueba/media-monitoring-center
-npm run produccion:smoke -- --monitor https://monitoreo.abcw.global --api-interna
-```
-
-Debe salir `"exitCode":0`, con 4 comprobaciones del monitoreo en `pass` y 3 de la API en `internal`.
-
-En la **Shell** de Replit (usa los mismos secretos):
+1. Pulsa **Run**. La primera vez compila (varios minutos). Espera en la consola la línea
+   `{"supervisor":true,"event":"started",...}`.
+2. En la vista previa debe aparecer la pantalla de inicio de sesión. Entra con una cuenta real y revisa que
+   cargue el resumen.
+3. En la **Shell**:
 
 ```
 cd media-monitoring-center
 UNIFIED_ADS_API_URL=http://127.0.0.1:8787 npm run v1:check -- --destino replit --registros
 ```
 
-Revisa que `deployment.configurationReady` sea `true` y que los proveedores izzi aparezcan conectados. Después
-cambia `UNIFIED_REFRESH_ENABLED` y `ABSOLUTE_TOP_SYNC_ENABLED` a `true` y vuelve a publicar. El extractor lee
-izzi cada dos horas respetando cuotas; Absolute Top lee una vez al día, a las 7:00 de Ciudad de México, el día
-cerrado de hace tres días (más de 48 horas de maduración).
+**Resultado esperado:** `"configurationReady":true` arriba y dentro de `deployment`, `"RECORD_IO_VERIFIED"` y,
+en `providerAccess`, las plataformas con credenciales como conectadas. La salida no contiene secretos: guárdala
+para el paso 10.
 
-## Paso 8. Aceptación con el equipo
+4. Detén **Run**.
 
-Con el sitio en `monitoreo.abcw.global`, sigue las secciones C y G de [CANDIDATA_V1.md](CANDIDATA_V1.md):
-inicio de sesión de cada identidad, permisos de los cinco respondedores, Juan Pablo con control máximo, cliente
-sin datos internos. Juan Pablo firma el [acta de conciliación](ACTA_CONCILIACION_V1.md) y la sección G.
+## Paso 5. Publicar
+
+1. **Deploy** (o **Publish**) → **Reserved VM**, con al menos **2 GB de RAM**.
+2. Confirma que la publicación tenga los mismos secretos del paso 3 (Replit los muestra en la configuración de
+   publicación; un cambio de secreto requiere volver a publicar).
+3. Publica y espera a que termine.
+4. Abre `https://<la-app>.replit.app/api/health`. Debe decir `"ok":true` y `"mode":"unified"`.
+
+## Paso 6. Datos locales de Juan Pablo (solo si se decide conservarlos)
+
+Sin este paso el sitio arranca limpio. Las cuentas de `AUTH_USERS` entran igual y el histórico de las
+plataformas se vuelve a leer solo. Empiezan vacíos: cambios hechos a usuarios dentro de la app, bitácora,
+tickets, novedades, presupuestos, tasas de cambio e historial de Absolute Top.
+
+Si se conservan, hacerlo **antes de que alguien inicie sesión en el sitio publicado**. Abrir el sitio sin
+iniciar sesión no escribe nada; la importación se niega si la base ya tiene datos.
+
+1. **Juan Pablo**, en la Terminal de su Mac (detenidos el monitoreo y la API locales):
+
+```
+cd ~/orueba/media-monitoring-center
+git pull origin claude/auditoria-final-v1 && npm install
+R=$(grep -E '^RECORDS_DIR=' .env.local | cut -d= -f2- | tr -d '"'); U=$(grep -E '^UNIFIED_ADS_DATA_DIR=' .env.local | cut -d= -f2- | tr -d '"')
+RECORDS_DIR="${R:-.data/records}" UNIFIED_ADS_DATA_DIR="${U:-.data/unified}" npm run datos:respaldo -- respaldar --destino ~/Desktop/respaldo-monitoreo
+```
+
+   Comprime la carpeta `respaldo-monitoreo` del Escritorio y compártela por Google Drive solo con la persona del
+   equipo. Contiene datos privados, así que no se envía por correo ni chat.
+
+2. **Equipo**, en Replit: sube la carpeta descomprimida a `media-monitoring-center/.data/importacion/` (ignorada
+   por Git). En la Shell:
+
+```
+cd media-monitoring-center
+npm run datos:respaldo -- verificar --respaldo .data/importacion/respaldo-monitoreo
+DATABASE_URL='<cadena de la base de PRODUCCIÓN>' npm run datos:migrar-postgres -- --registros .data/importacion/respaldo-monitoreo/records --unified .data/importacion/respaldo-monitoreo/unified
+rm -rf .data/importacion
+```
+
+   La cadena de producción está en el panel **Database**, eligiendo la base de producción. Debe imprimir
+   `"results"` con `keys` igual a `verified` en cada grupo. Si la Shell no alcanza la base de producción, detenerse
+   y avisar.
+
+## Paso 7. Dominio monitoreo.abcw.global
+
+1. En Replit, en la publicación: **Settings** → **Link a domain** (dominio personalizado) → `monitoreo.abcw.global`.
+2. Replit muestra un registro **A** y uno **TXT**. En Cloudflare, zona `abcw.global` → **DNS** → **Add record**:
+   - Tipo **A**, nombre `monitoreo`, la IP que da Replit, **Proxy status: DNS only** (nube gris).
+   - Tipo **TXT**, con el nombre y el valor exactos que da Replit.
+3. Espera a que Replit marque el dominio como verificado y con certificado. Puede tardar de minutos a horas.
+4. No modificar ningún otro registro de la zona.
+
+## Paso 8. Comprobación pública
+
+Desde cualquier computadora con Node.js 22 y el repositorio en la rama `claude/auditoria-final-v1`:
+
+```
+cd media-monitoring-center
+npm install
+npm run produccion:smoke -- --monitor https://monitoreo.abcw.global --api-interna
+```
+
+**Resultado esperado:** `"exitCode":0`; 4 comprobaciones del monitoreo en `pass` y 3 de la API en `internal`.
+Además, a mano: abrir `https://monitoreo.abcw.global`, iniciar sesión con una cuenta real y abrir **Salud de
+datos**.
+
+## Paso 9. Encender la extracción
+
+1. En los secretos de la publicación: `UNIFIED_REFRESH_ENABLED=true` y `ABSOLUTE_TOP_SYNC_ENABLED=true`.
+2. Vuelve a publicar.
+3. En los logs de la publicación debe aparecer `"refresh":true,"absolute_top":true`.
+4. En unos minutos, **Salud de datos** muestra lecturas recientes por plataforma.
+
+La extracción lee izzi cada dos horas respetando cuotas. Absolute Top lee una vez al día, a las 7:00 de Ciudad
+de México, el día cerrado de hace tres días (más de 48 horas de maduración).
+
+## Paso 10. Entregar a Juan Pablo
+
+Enviar, sin ningún secreto:
+
+- La dirección final y la confirmación de que abre con inicio de sesión.
+- La salida del paso 4 (`v1:check`) y del paso 8 (`produccion:smoke`).
+- Qué plataformas quedaron conectadas y cuáles no.
+- Si se importaron o no los datos locales (paso 6).
+
+Con eso Juan Pablo y los cinco respondedores hacen la aceptación (secciones C y G de
+[CANDIDATA_V1.md](CANDIDATA_V1.md)) y Juan Pablo firma el [acta de conciliación](ACTA_CONCILIACION_V1.md).
 
 ## Si algo falla
 
-- **El sitio no abre o reinicia en ciclo:** en **Deployments → Logs** busca la línea `"supervisor":true`; dice
-  qué proceso se detuvo. `api_not_ready` suele ser un secreto faltante (`UNIFIED_ADS_API_KEY`) o la base sin
-  crear.
-- **`RECORDS_UNAVAILABLE` o error de certificado al conectar la base:** no desactives TLS ni cambies
-  `sslmode`; revisa que `DATABASE_URL` sea la de la base de la publicación y avísame.
+- **El sitio no abre o se reinicia en ciclo:** en los logs de la publicación busca `"supervisor":true`; dice qué
+  proceso se detuvo. `api_not_ready` suele ser un secreto faltante (`UNIFIED_ADS_API_KEY`) o la base sin crear.
+- **Error de certificado al conectar la base** (`self-signed certificate`, `unable to verify` o
+  `RECORDS_UNAVAILABLE`): la conexión verifica el certificado de la base a propósito. No desactivar la
+  verificación ni cambiar `sslmode`; avisar.
 - **El inicio de sesión responde 403 en `monitoreo.abcw.global`:** el proxy no está pasando el dominio público
-  (`Host` o `X-Forwarded-Host`); es la comprobación C7 de la candidata. Avísame antes de cambiar nada.
-- **Proveedor con `NOT_CONFIGURED` o `AUTH_ERROR`:** falta o venció su secreto; `v1:check` lo indica por
-  proveedor sin mostrar valores.
+  (`Host` o `X-Forwarded-Host`). Avisar antes de cambiar nada.
+- **Plataforma con `NOT_CONFIGURED` o `AUTH_ERROR`:** falta o venció su credencial. `v1:check` lo indica por
+  plataforma sin mostrar valores.
+- **La importación del paso 6 dice `DESTINATION_NOT_EMPTY`:** alguien ya inició sesión en el sitio publicado.
+  No borrar datos sin acuerdo; avisar.
 
 ## Respaldo y reversión
 
-- **Respaldo:** antes de cada cambio importante, desde la Mac con `pg_dump` (Homebrew: `brew install libpq`):
-  `pg_dump "$DB" > respaldo-AAAA-MM-DD.sql`, guardado cifrado y fuera de Git. Replit también ofrece restaurar la
-  base a un punto anterior desde su panel.
-- **Reversión de código:** en Replit, vuelve a publicar la versión anterior desde el historial de publicaciones.
-- **Reversión de datos:** restaurar el respaldo en una base vacía; nunca encima de datos vivos.
-- **Detener extracción:** `UNIFIED_REFRESH_ENABLED=false` y volver a publicar.
+- **Respaldo de la base:** antes de cada cambio importante, `pg_dump "<cadena de producción>" > respaldo.sql`,
+  guardado cifrado y fuera de Git. Replit también permite restaurar la base a un punto anterior desde su panel.
+- **Volver a la versión anterior:** desde el historial de publicaciones de Replit.
+- **Detener la extracción:** `UNIFIED_REFRESH_ENABLED=false` y volver a publicar.
+
+## Qué se probó antes de entregar
+
+Con PostgreSQL 16 y datos ficticios, fuera de Replit:
+
+- Arranque conjunto; la API no es alcanzable desde fuera.
+- Inicio de sesión y registros guardados en la base; sesión y usuarios intactos tras reiniciar.
+- Extracción encendida sin tumbar el sitio; apagado limpio; sin choque de puertos aunque la plataforma imponga
+  `PORT`.
+- Respaldo e importación verificados, incluso con el sitio ya publicado y sin sesiones.
+- `v1:check --destino replit` listo.
+- Pruebas: monitoreo 1423/1423 y API 808/808 con base de prueba; CI de GitHub en Node 22 y 24.
+
+**No se probó dentro de una cuenta de Replit.**
