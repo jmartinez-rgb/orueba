@@ -145,6 +145,8 @@ sin datos internos. Juan Pablo firma el [acta de conciliación](ACTA_CONCILIACIO
   crear.
 - **`RECORDS_UNAVAILABLE` o error de certificado al conectar la base:** no desactives TLS ni cambies
   `sslmode`; revisa que `DATABASE_URL` sea la de la base de la publicación y avísame.
+- **El inicio de sesión responde 403 en `monitoreo.abcw.global`:** el proxy no está pasando el dominio público
+  (`Host` o `X-Forwarded-Host`); es la comprobación C7 de la candidata. Avísame antes de cambiar nada.
 - **Proveedor con `NOT_CONFIGURED` o `AUTH_ERROR`:** falta o venció su secreto; `v1:check` lo indica por
   proveedor sin mostrar valores.
 
