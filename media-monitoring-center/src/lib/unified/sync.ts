@@ -110,7 +110,15 @@ export async function syncUnified(options: UnifiedSyncOptions) {
             const keys = new Set<string>();
             for (const row of rows) {
               const key = `${row.date}/${row.hour}/${row.campaign_id}`;
-              if (row.platform !== scope.platform || row.account_id !== scope.accountId || !known.has(row.campaign_id) || row.date < start || row.date > end || (granularity === "daily") !== (row.hour === null) || row.currency !== catalog.account.currency || keys.has(key) || Date.parse(row.extracted_at) > clock().getTime() + 300000) throw new UnifiedDataError("INVALID_PERFORMANCE_SCOPE");
+              // Name the failed check (fixed tokens only) so a rejected load can be diagnosed without data.
+              const scopeFailure = row.platform !== scope.platform || row.account_id !== scope.accountId ? "foreign_account"
+                : !known.has(row.campaign_id) ? "campaign_not_in_catalog"
+                : row.date < start || row.date > end ? "date_out_of_range"
+                : (granularity === "daily") !== (row.hour === null) ? "granularity_mismatch"
+                : row.currency !== catalog.account.currency ? "currency_mismatch"
+                : keys.has(key) ? "duplicate_row"
+                : Date.parse(row.extracted_at) > clock().getTime() + 300000 ? "future_extraction" : null;
+              if (scopeFailure) throw new UnifiedDataError("INVALID_PERFORMANCE_SCOPE", `scope=${scopeFailure}`);
               keys.add(key);
               if (granularity === "daily" && !dailyAligned(row, options.timezone ?? "America/Mexico_City")) throw new UnifiedDataError("DAILY_TIMEZONE_MISMATCH");
             }

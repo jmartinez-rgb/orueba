@@ -92,8 +92,9 @@ describe("durable direct advertising source", () => {
   });
   it("rejects an unexpected campaign, duplicate row and mixed currency without replacing history", async () => {
     await sync();
-    for (const rows of [[row({ campaign_id: "other" })], [row(), row()], [row({ currency: "USD" })]]) {
-      expect((await sync(request(rows)))[0].code).toBe("INVALID_PERFORMANCE_SCOPE");
+    for (const [rows, diagnostic] of [[[row({ campaign_id: "other" })], "scope=campaign_not_in_catalog"], [[row(), row()], "scope=duplicate_row"], [[row({ currency: "USD" })], "scope=currency_mismatch"]] as const) {
+      expect((await sync(request([...rows])))[0]).toMatchObject({ code: "INVALID_PERFORMANCE_SCOPE", diagnostic });
+      expect((await store.attempt(scope, "daily"))?.diagnostic).toBe(diagnostic);
       expect((await source().getDaily({ from: "2026-09-29", to: "2026-09-29", level: "campaign" }))[0].metrics.spend).toBe(40);
     }
   });
