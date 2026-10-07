@@ -1,12 +1,12 @@
 import { decodeExport, parseDelimited } from "../src/lib/reconciliation/absolute-top-import";
-import { buildAccountReference, importAccountReferenceRecords } from "../src/lib/reconciliation/account-reference-import";
+import { applyAccountTimezones, buildAccountReference, importAccountReferenceRecords } from "../src/lib/reconciliation/account-reference-import";
 import { outputPath, readPrivateInputFile, readReferenceFile, writeExclusivePrivateFiles } from "../src/lib/reconciliation/output";
 import { ReconciliationError, type ReferenceRow } from "../src/lib/reconciliation/reconcile";
 import { readXlsxRecords } from "../src/lib/reconciliation/xlsx";
 import { mappingSchema } from "../src/lib/unified/schema";
 
-const HELP = `npm run conciliar:referencia -- --plataforma google|meta|tiktok|microsoft|spotify|x --columnas columnas.json --fecha YYYY-MM-DD --zona America/Mexico_City --exportado 2026-10-04T23:00:00Z (--archivo export.csv|.xlsx [--cuenta ID] | --entrada CUENTA=export.csv|.xlsx [--entrada …]) [--decimal . --miles , --separador coma|punto-y-coma|tab] [--anexar referencia-previa.json] --output reportes/referencia-cuentas.json
-Convierte exports de la interfaz (un solo día) en filas cuenta/día para npm run conciliar -- --reference. --archivo lee un export con columna de cuenta (o de una cuenta con --cuenta); --entrada, repetible, lee un export por cuenta. Acepta CSV o .xlsx de una sola hoja. Suma por cuenta, omite y cuenta las cuentas fuera del mapeo izzi (UNIFIED_ADS_MAPPING_FILE o config/unified.mapping.json), nunca convierte moneda ni reloj. --anexar agrega otra plataforma a una referencia previa en un archivo nuevo. Solo exports de la interfaz: Dataslayer u otras extracciones por API no son ADS_MANAGER.`;
+const HELP = `npm run conciliar:referencia -- --plataforma google|meta|tiktok|microsoft|spotify|x --columnas columnas.json --fecha YYYY-MM-DD --zona America/Mexico_City --exportado 2026-10-04T23:00:00Z (--archivo export.csv|.xlsx [--cuenta ID] | --entrada CUENTA=export.csv|.xlsx [--entrada …]) [--decimal . --miles , --separador coma|punto-y-coma|tab] [--zona-cuenta ID=Zona …] [--anexar referencia-previa.json] --output reportes/referencia-cuentas.json
+Convierte exports de la interfaz (un solo día) en filas cuenta/día para npm run conciliar -- --reference. --archivo lee un export con columna de cuenta (o de una cuenta con --cuenta); --entrada, repetible, lee un export por cuenta. Acepta CSV o .xlsx de una sola hoja. Suma por cuenta, omite y cuenta las cuentas fuera del mapeo izzi (UNIFIED_ADS_MAPPING_FILE o config/unified.mapping.json), nunca convierte moneda ni reloj. --zona-cuenta, repetible, declara la zona de una cuenta que reporta en otro reloj (Google exporta cada cuenta en su propia zona). --anexar agrega otra plataforma a una referencia previa en un archivo nuevo. Solo exports de la interfaz: Dataslayer u otras extracciones por API no son ADS_MANAGER.`;
 
 const SEPARATORS = { coma: ",", "punto-y-coma": ";", tab: "\t" } as const;
 const PLATFORMS = ["google", "meta", "tiktok", "microsoft", "spotify", "x"] as const;
@@ -19,12 +19,16 @@ async function records(path: string, delimiter: "," | ";" | "\t"): Promise<strin
 async function main() {
   const args = process.argv.slice(2);
   if (!args.length || ["--help", "--ayuda"].includes(args[0])) { console.log(HELP); return; }
-  const allowed = ["--plataforma", "--archivo", "--csv", "--entrada", "--columnas", "--fecha", "--zona", "--exportado", "--decimal", "--miles", "--separador", "--cuenta", "--anexar", "--output"];
-  const o: Record<string, string> = {}, inputs: { accountId?: string; path: string }[] = [];
+  const allowed = ["--plataforma", "--archivo", "--csv", "--entrada", "--columnas", "--fecha", "--zona", "--exportado", "--decimal", "--miles", "--separador", "--cuenta", "--zona-cuenta", "--anexar", "--output"];
+  const o: Record<string, string> = {}, inputs: { accountId?: string; path: string }[] = [], zones: Record<string, string> = {};
   for (let i = 0; i < args.length; i += 2) {
     const name = args[i], value = args[i + 1];
-    if (!allowed.includes(name) || !value || value.startsWith("--") || (name !== "--entrada" && o[name])) throw new ReconciliationError("INVALID_OPTIONS");
-    if (name === "--entrada") {
+    if (!allowed.includes(name) || !value || value.startsWith("--") || (!["--entrada", "--zona-cuenta"].includes(name) && o[name])) throw new ReconciliationError("INVALID_OPTIONS");
+    if (name === "--zona-cuenta") {
+      const split = value.indexOf("=");
+      if (split < 1 || split === value.length - 1 || zones[value.slice(0, split)]) throw new ReconciliationError("INVALID_OPTIONS");
+      zones[value.slice(0, split)] = value.slice(split + 1);
+    } else if (name === "--entrada") {
       const split = value.indexOf("=");
       if (split < 1 || split === value.length - 1) throw new ReconciliationError("INVALID_OPTIONS");
       inputs.push({ accountId: value.slice(0, split), path: value.slice(split + 1) });
@@ -59,6 +63,7 @@ async function main() {
     }
   }
   if (!rows.length) throw new ReconciliationError("NO_IZZI_ACCOUNTS_IN_EXPORT");
+  rows.splice(0, rows.length, ...applyAccountTimezones(rows, zones));
   const previous = o["--anexar"] ? await readReferenceFile(o["--anexar"]) : undefined;
   const reference = buildAccountReference(rows, { date: o["--fecha"], exportedAt: o["--exportado"] }, previous);
   const path = outputPath(o["--output"]);

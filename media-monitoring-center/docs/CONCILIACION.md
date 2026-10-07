@@ -130,6 +130,11 @@ Microsoft en español usa punto y coma, coma decimal y punto de miles
 
 `--zona` es el reloj del export: la cuenta de Google o Meta en su zona, Microsoft y Spotify en UTC (la API
 las lee en UTC). Si no coincide con la zona de la fuente, la comparación lo marca `INCOMPATIBLE_CLOCK`.
+Google exporta cada cuenta en su propia zona, así que un mismo CSV puede mezclar relojes: `--zona-cuenta
+ID=Zona`, repetible, declara la zona de una cuenta y deja `--zona` para las demás (por ejemplo
+`--zona-cuenta 7771629164=<zona de esa cuenta>`; la zona sale de la columna `timezone` del reporte de la
+fuente o de la configuración de la cuenta). Una zona inválida o una cuenta que no está en el export se rechaza
+con `INVALID_ACCOUNT_TIMEZONE`; la herramienta nunca convierte cifras de un reloj a otro.
 Solo exports de la interfaz: una hoja de Dataslayer u otra extracción por API no es `ADS_MANAGER`.
 
 La referencia debe tener exactamente el rango solicitado; sus filas deben pertenecer a las

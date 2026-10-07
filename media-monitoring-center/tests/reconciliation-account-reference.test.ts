@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
-import { accountColumnsSchema, buildAccountReference, importAccountReferenceRecords, importAccountReferenceRows, normalizeAccountId, type AccountImportOptions } from "@/lib/reconciliation/account-reference-import";
+import { accountColumnsSchema, applyAccountTimezones, buildAccountReference, importAccountReferenceRecords, importAccountReferenceRows, normalizeAccountId, type AccountImportOptions } from "@/lib/reconciliation/account-reference-import";
 import { readXlsxRecords } from "@/lib/reconciliation/xlsx";
 import { parseReference } from "@/lib/reconciliation/reconcile";
 import { mappingSchema } from "@/lib/unified/schema";
@@ -75,6 +75,13 @@ describe("referencia cuenta/día desde un export de la interfaz", () => {
     expect(merged.exportedAt).toBe("2026-10-04T22:30:00Z");
     expect(() => buildAccountReference(g, { date: "2026-10-01", exportedAt: "2026-10-05T01:00:00Z" }, first)).toThrow(/DUPLICATE_OR_INVALID_ACCOUNT_REFERENCE/);
     expect(() => buildAccountReference(ms, { date: "2026-10-02", exportedAt: "2026-10-05T01:00:00Z" }, first)).toThrow(/REFERENCE_RANGE_MISMATCH/);
+  });
+  it("declara la zona de una cuenta que reporta en otro reloj sin tocar las demás", () => {
+    const rows = importAccountReferenceRows(googleCsv, googleColumns, google).rows;
+    const result = applyAccountTimezones(rows, { "7771629164": "America/Los_Angeles" });
+    expect(result.map(r => `${r.accountId}:${r.timezone}`)).toEqual(["7771629164:America/Los_Angeles", "8779536058:America/Mexico_City"]);
+    expect(() => applyAccountTimezones(rows, { "7771629164": "Mexico/Inventada" })).toThrow(/INVALID_ACCOUNT_TIMEZONE/);
+    expect(() => applyAccountTimezones(rows, { "1111111111": "UTC" })).toThrow(/INVALID_ACCOUNT_TIMEZONE/);
   });
   it("incluye mapas de columnas de ejemplo válidos", () => {
     for (const name of ["google", "microsoft", "meta"]) expect(accountColumnsSchema.safeParse(JSON.parse(readFileSync(new URL(`../config/conciliacion-columnas.${name}.example.json`, import.meta.url), "utf8"))).success).toBe(true);

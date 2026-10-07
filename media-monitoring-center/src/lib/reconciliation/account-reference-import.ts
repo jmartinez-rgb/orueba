@@ -111,6 +111,17 @@ export function importAccountReferenceRecords(records: string[][], columnsValue:
   return { rows, sourceRows, skippedRows, skippedAccounts: skipped.size };
 }
 
+/**
+ * Interfaces such as Google Ads report each account in its own time zone; one export can therefore mix
+ * clocks. An explicit per-account declaration (`--zona-cuenta ID=Zona`) overrides the general --zona.
+ */
+export function applyAccountTimezones(rows: ReferenceRow[], overrides: Record<string, string>): ReferenceRow[] {
+  for (const [accountId, zone] of Object.entries(overrides)) {
+    if (!isValidTimeZone(zone) || !rows.some(r => r.accountId === accountId)) throw new ReconciliationError("INVALID_ACCOUNT_TIMEZONE");
+  }
+  return rows.map(r => (overrides[r.accountId] ? { ...r, timezone: overrides[r.accountId] } : r));
+}
+
 /** New reference, or the previous one plus this platform's rows; a repeated account/day is refused. */
 export function buildAccountReference(rows: ReferenceRow[], meta: { date: string; exportedAt: string }, previous?: unknown): ReferenceDocument {
   if (!z.iso.datetime({ offset: true }).safeParse(meta.exportedAt).success) throw new ReconciliationError("INVALID_ACCOUNT_OPTIONS");
