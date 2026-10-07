@@ -19,7 +19,7 @@ let store: UnifiedSnapshotStore;
 async function cli(args: string[]) {
   const guard = join(directory, "offline-guard.mjs");
   await writeFile(guard, 'globalThis.fetch = async () => { throw new Error("Network prohibited in offline CLI test"); };\n');
-  const options = { cwd: process.cwd(), env: { ...process.env, UNIFIED_ADS_DATA_DIR: store.root, UNIFIED_ADS_MAPPING: JSON.stringify({ version: 1, accounts: [scope] }) } };
+  const options = { cwd: process.cwd(), env: { ...process.env, UNIFIED_ADS_DATA_DIR: store.root!, UNIFIED_ADS_MAPPING: JSON.stringify({ version: 1, accounts: [scope] }) } };
   try { const result = await run(process.execPath, ["--import", guard, "--conditions=react-server", "--import", "tsx", "scripts/reconcile.ts", ...args], options); return { ...result, exitCode: 0 }; }
   catch (error) { const result = error as Error & { code: number; stdout: string; stderr: string }; return { stdout: result.stdout, stderr: result.stderr, exitCode: result.code }; }
 }

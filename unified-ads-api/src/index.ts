@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 import { buildApp } from "./app.js";
 import { ConfigError, loadConfig } from "./config/env.js";
-import { prepareEnv } from "./config/load-env.js";
+import { prepareEnvAsync } from "./config/load-env.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
 
 async function main() {
   let config;
   try {
-    prepareEnv();
+    await prepareEnvAsync();
     config = loadConfig(process.env, pkg.version);
   } catch (err) {
     if (err instanceof ConfigError) {

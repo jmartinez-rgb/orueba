@@ -32,7 +32,7 @@ describe("diagnóstico seguro de errores de la API unificada", () => {
     const expected = "api_status=502;api_code=PROVIDER_ERROR;stage=report_download;limitation=report_download_rejected;blob_error_code=AuthenticationFailed;http_status=403";
     expect(result[0]).toMatchObject({ status: "FAILED", code: "API_RESPONSE_ERROR", diagnostic: expected });
     expect(await s.attempt(scope, "daily")).toMatchObject({ status: "FAILED", code: "API_RESPONSE_ERROR", diagnostic: expected });
-    for (const file of files(s.root)) {
+    for (const file of files(s.root!)) {
       const body = await readFile(file, "utf8");
       expect(body).not.toContain("sig=secreto");
       expect(body).not.toContain("r.zip");

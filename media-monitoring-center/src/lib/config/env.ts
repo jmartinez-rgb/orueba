@@ -33,7 +33,7 @@ function joinUrl(base: string | undefined, pathOrUrl: string | undefined): strin
 export type DataSourceKind = "mock" | "sheets" | "bigquery" | "unified";
 
 export interface ServerEnv {
-  unifiedData: { directory: string | undefined; mappingJson: string | undefined; mappingFile: string; configured: boolean };
+  unifiedData: { directory: string | undefined; store?: "file" | "postgres"; mappingJson: string | undefined; mappingFile: string; configured: boolean };
   appName: string;
   /** Fuente efectiva: simulada, Sheets, BigQuery o histórico de APIs directas. */
   dataSource: DataSourceKind;
@@ -121,9 +121,11 @@ export function getEnv(): ServerEnv {
   else if (requested === "bigquery") dataSource = bqConfigured ? "bigquery" : "mock";
   else if (requested === "mock" || bool("USE_MOCK_DATA", true)) dataSource = "mock";
   else dataSource = sheetsConfigured ? "sheets" : bqConfigured ? "bigquery" : "mock";
+  const unifiedStore: "file" | "postgres" = (str("UNIFIED_ADS_STORE") ?? "").toLowerCase() === "postgres" ? "postgres" : "file";
 
   cached = {
-    unifiedData: { directory: str("UNIFIED_ADS_DATA_DIR"), mappingJson: str("UNIFIED_ADS_MAPPING"), mappingFile: str("UNIFIED_ADS_MAPPING_FILE") ?? "config/unified.mapping.json", configured: Boolean(str("UNIFIED_ADS_DATA_DIR") && str("UNIFIED_ADS_API_URL") && str("UNIFIED_ADS_API_KEY")) },
+    // UNIFIED_ADS_STORE=postgres keeps the history in DATABASE_URL instead of a directory (hosts without a persistent disk).
+    unifiedData: { directory: str("UNIFIED_ADS_DATA_DIR"), store: unifiedStore, mappingJson: str("UNIFIED_ADS_MAPPING"), mappingFile: str("UNIFIED_ADS_MAPPING_FILE") ?? "config/unified.mapping.json", configured: Boolean((unifiedStore === "postgres" ? str("DATABASE_URL") : str("UNIFIED_ADS_DATA_DIR")) && str("UNIFIED_ADS_API_URL") && str("UNIFIED_ADS_API_KEY")) },
     appName: str("NEXT_PUBLIC_APP_NAME") ?? "izzi Media Monitoring Center",
     dataSource,
     requestedDataSource: requested,

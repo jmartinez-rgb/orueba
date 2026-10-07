@@ -1,7 +1,7 @@
 import { loadEnvConfig } from "@next/env";
 import { getEnv } from "../src/lib/config/env";
 import { businessDate } from "../src/lib/time/tz";
-import { loadUnifiedMapping, UnifiedSnapshotStore } from "../src/lib/unified/store";
+import { loadUnifiedMapping, openUnifiedStore } from "../src/lib/unified/store";
 import { syncUnified } from "../src/lib/unified/sync";
 import { UnifiedDataError } from "../src/lib/unified/schema";
 import { filterUnifiedMapping, parseSyncOptions } from "../src/lib/unified/cli-options";
@@ -15,11 +15,12 @@ async function main() {
   const options = parseSyncOptions(args);
   loadEnvConfig(process.cwd(), false, { info() {}, error() {} });
   const env = getEnv(), timezone = env.timezone ?? "America/Mexico_City";
-  if (!env.unifiedData.directory || !env.unifiedApi.url || !env.unifiedApi.apiKey) throw new UnifiedDataError("API_CONFIGURATION_MISSING");
+  const store = openUnifiedStore(env.unifiedData);
+  if (!store || !env.unifiedApi.url || !env.unifiedApi.apiKey) throw new UnifiedDataError("API_CONFIGURATION_MISSING");
   const mapping = filterUnifiedMapping(await loadUnifiedMapping(), options);
   const mode = options.granularity;
   const today = businessDate(new Date(), timezone);
-  const results = await syncUnified({ mapping, store: new UnifiedSnapshotStore(env.unifiedData.directory), url: env.unifiedApi.url, apiKey: env.unifiedApi.apiKey, from: options.from ?? today, to: options.to ?? today, granularities: mode === "both" ? ["daily", "hourly"] : [mode], timezone });
+  const results = await syncUnified({ mapping, store, url: env.unifiedApi.url, apiKey: env.unifiedApi.apiKey, from: options.from ?? today, to: options.to ?? today, granularities: mode === "both" ? ["daily", "hourly"] : [mode], timezone });
   console.log(JSON.stringify({ source: "unified", operations: results }));
   process.exitCode = results.every(r => r.status === "SUCCESS" && r.rows > 0) ? 0 : 2;
 }

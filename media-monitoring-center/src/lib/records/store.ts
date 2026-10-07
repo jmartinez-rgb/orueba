@@ -8,6 +8,7 @@ import { logger, recordIntegrationEvent } from "@/lib/logging/logger";
 import { withRecordWrite } from "./write-lock";
 import { withFileLock } from "./file-lock";
 import { checkedBlobsFetch } from "./blobs-fetch";
+import { PostgresRecordStore } from "./postgres";
 
 /**
  * Registros operativos de la app que no son métricas: bitácora de accesos y actividad,
@@ -15,12 +16,13 @@ import { checkedBlobsFetch } from "./blobs-fetch";
  *
  * Backend (automático):
  * - Netlify Blobs cuando corre en Netlify (persistente entre despliegues, sin configurar nada).
+ * - PostgreSQL con RECORDS_BACKEND=postgres y DATABASE_URL (Replit u otro host sin disco persistente).
  * - Archivos en `.data/records` en desarrollo local (ignorado por git).
  * - Memoria como último recurso (se pierde al reiniciar).
  * Las métricas de las APIs directas usan un directorio separado de los registros operativos.
  */
 
-export type RecordBackend = "netlify-blobs" | "file" | "memory";
+export type RecordBackend = "netlify-blobs" | "postgres" | "file" | "memory";
 
 export class RecordStoreError extends Error {
   readonly code = "RECORDS_UNAVAILABLE";
@@ -273,12 +275,12 @@ class BlobsRecordStore implements RecordStore {
 
 const validEtag = (etag: unknown): etag is string => typeof etag === "string" && etag.trim().length > 0;
 
-function assertSyncValue(value: unknown): void {
+export function assertSyncValue(value: unknown): void {
   if (value === undefined || (value !== null && typeof value === "object" && "then" in value && typeof value.then === "function")) throw new RecordStoreError();
   serialize(value);
 }
 
-function serialize(value: unknown): string {
+export function serialize(value: unknown): string {
   try {
     const serialized = JSON.stringify(value);
     if (serialized === undefined) throw new RecordStoreError();
@@ -296,6 +298,7 @@ export function getRecordStore(): RecordStore {
   if (instance) return instance;
   const forced = (process.env.RECORDS_BACKEND ?? "").toLowerCase();
   if (forced === "memory") instance = new MemoryRecordStore();
+  else if (forced === "postgres") instance = new PostgresRecordStore("records");
   else if (forced === "blobs" || (forced === "" && hasBlobsContext())) instance = new BlobsRecordStore();
   else if (forced === "file" || process.env.RECORDS_DIR || process.env.NODE_ENV !== "production") {
     instance = new FileRecordStore(path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.RECORDS_DIR ?? ".data/records"));
@@ -305,6 +308,7 @@ export function getRecordStore(): RecordStore {
 
 export const RECORD_BACKEND_LABEL: Record<RecordBackend, string> = {
   "netlify-blobs": "Netlify Blobs (persistente)",
+  postgres: "PostgreSQL (persistente)",
   file: "Archivos locales (.data/records)",
   memory: "Memoria del servidor (se reinicia)",
 };

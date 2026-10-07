@@ -53,7 +53,7 @@ Las filas en verificación se actualizan con la última corrida antes de firmar.
 
 | # | Excepción | Motivo | Acepta (Sí/No) |
 | --- | --- | --- | --- |
-| 1 | 2 grupos de la campaña 22238774102 (6214109105) sin pareja en la fuente | La lectura de Absolute Top solo incluye grupos habilitados al extraer; con 29 y 11 impresiones quedan bajo el mínimo de 100 que evalúa el monitoreo, así que no cambian ninguna alerta. Se confirma su estado actual en Google Ads | |
+| 1 | 2 grupos de la campaña 22238774102 (6214109105) sin pareja en la fuente | Confirmado el 7 de octubre: ambos grupos están apagados, y la lectura de Absolute Top solo incluye grupos habilitados. Con 29 y 11 impresiones quedan además bajo el mínimo de 100 que evalúa el monitoreo | |
 | 2 | X fuera de la conciliación de v1 | Decisión del 7 de octubre de avanzar sin X; se concilia antes de usar sus cifras para decisiones | |
 | 3 | TikTok y Spotify sin conciliar el 1 de octubre | Inversión de izzi inmaterial ese día (TikTok 0,27 MXN y Spotify 0, según la hoja de monitoreo); se concilian el primer día con inversión material | |
 | 4 | Meta 1396016284226084 sin export | Solo si no se entrega su export antes de firmar | |

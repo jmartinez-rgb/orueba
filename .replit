@@ -1,0 +1,13 @@
+# Replit, Reserved VM: monitoreo público en el puerto 3000 (externo 80) y API interna en 127.0.0.1:8080.
+# Registros, histórico y tokens rotados viven en la base PostgreSQL de Replit (DATABASE_URL).
+# Guía paso a paso: media-monitoring-center/docs/PUBLICACION_REPLIT.md
+modules = ["nodejs-22", "postgresql-16"]
+run = "sh deploy/replit/build.sh && node deploy/replit/start.mjs"
+
+[deployment]
+build = ["sh", "deploy/replit/build.sh"]
+run = ["node", "deploy/replit/start.mjs"]
+
+[[ports]]
+localPort = 3000
+externalPort = 80

@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { buildReconciliation, dateRange, ReconciliationError } from "../src/lib/reconciliation/reconcile";
 import { readReferenceFile, writeReconciliationArtifacts } from "../src/lib/reconciliation/output";
-import { UnifiedSnapshotStore } from "../src/lib/unified/store";
+import { openUnifiedStore, UnifiedSnapshotStore } from "../src/lib/unified/store";
 import { mappingSchema, UnifiedDataError } from "../src/lib/unified/schema";
 
 async function main() {
@@ -25,7 +25,7 @@ async function main() {
   const mapping = mappingSchema.safeParse(value);
   if (!mapping.success) throw new ReconciliationError("INVALID_MAPPING");
   const reference = values["--reference"] ? await readReferenceFile(values["--reference"]) : undefined;
-  const report = await buildReconciliation({ mapping: mapping.data, store: new UnifiedSnapshotStore(root), from: values["--from"], to: values["--to"], reference });
+  const report = await buildReconciliation({ mapping: mapping.data, store: process.env.UNIFIED_ADS_STORE?.trim().toLowerCase() === "postgres" ? openUnifiedStore({ directory: undefined, store: "postgres" })! : new UnifiedSnapshotStore(root), from: values["--from"], to: values["--to"], reference });
   const files = await writeReconciliationArtifacts(report, values["--output"]);
   console.log(JSON.stringify({ brand: "izzi", rows: report.rows.length, counts: report.counts, files, exitCode: report.exitCode }));
   process.exitCode = report.exitCode;

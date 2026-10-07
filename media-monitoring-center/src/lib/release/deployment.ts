@@ -2,7 +2,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { isIP } from "node:net";
 import type { RecordBackend } from "@/lib/records/store";
 
-export type DeploymentTarget = "local" | "netlify" | "contenedor";
+export type DeploymentTarget = "local" | "netlify" | "contenedor" | "replit";
 
 export function parseReadinessOptions(args: string[]) {
   let target: DeploymentTarget = "local";
@@ -15,7 +15,7 @@ export function parseReadinessOptions(args: string[]) {
     if (["--sin-red", "--registros", "--ayuda", "--help"].includes(arg)) continue;
     if (arg === "--destino") {
       const value = args[++i];
-      if (!["local", "netlify", "contenedor"].includes(value)) throw new Error("INVALID_TARGET");
+      if (!["local", "netlify", "contenedor", "replit"].includes(value)) throw new Error("INVALID_TARGET");
       target = value as DeploymentTarget;
     } else if (arg === "--volumen") {
       volume = args[++i];
@@ -42,6 +42,19 @@ export function productionApiUrl(value: string | undefined): boolean {
   } catch { return false; }
 }
 
+/**
+ * The API running beside the monitor in the same machine (Replit): plain HTTP on the loopback interface
+ * only, never exposed. Any other host still needs HTTPS.
+ */
+export function colocatedApiUrl(value: string | undefined): boolean {
+  if (!value || /[\u0000-\u0020]/.test(value)) return false;
+  try {
+    const url = new URL(value);
+    const authority = value.split("//")[1]?.split(/[/?#]/)[0];
+    return url.protocol === "http:" && url.hostname === "127.0.0.1" && Boolean(url.port) && !authority?.includes("@") && !url.username && !url.password && !url.search && !url.hash && (url.pathname === "/" || url.pathname === "");
+  } catch { return false; }
+}
+
 function withinVolume(value: string | undefined, volume: string | undefined): boolean {
   if (!value || !volume || !isAbsolute(volume) || resolve(volume) === sep || /[\u0000-\u001f]/.test(value + volume)) return false;
   const child = relative(resolve(volume), resolve(value));
@@ -55,11 +68,17 @@ export function deploymentConfiguration(input: {
   recordsBackend: RecordBackend;
   recordsDirectory?: string;
   unifiedDirectory?: string;
+  unifiedStore?: "file" | "postgres";
   apiUrl?: string;
 }) {
   const checks: Array<{ id: string; status: "configured" | "pending"; code: string }> = [];
   const add = (id: string, ok: boolean, success: string, failure: string) => checks.push({ id, status: ok ? "configured" : "pending", code: ok ? success : failure });
-  if (input.target !== "local") {
+  if (input.target === "replit") {
+    // No persistent disk: records and history must live in PostgreSQL; the API may only be reached over loopback or HTTPS.
+    add("api_transport", productionApiUrl(input.apiUrl) || colocatedApiUrl(input.apiUrl), productionApiUrl(input.apiUrl) ? "HTTPS_API_URL_CONFIGURED" : "COLOCATED_LOOPBACK_API_CONFIGURED", "PRODUCTION_API_URL_INVALID");
+    add("records_topology", input.recordsBackend === "postgres", "POSTGRES_RECORD_BACKEND_CONFIGURED", "REPLIT_REQUIRES_POSTGRES_RECORDS");
+    if (input.dataSource === "unified") add("history_topology", input.unifiedStore === "postgres", "POSTGRES_HISTORY_CONFIGURED", "REPLIT_REQUIRES_POSTGRES_HISTORY");
+  } else if (input.target !== "local") {
     add("api_transport", productionApiUrl(input.apiUrl), "HTTPS_API_URL_CONFIGURED", "PRODUCTION_API_URL_INVALID");
     if (input.target === "netlify") {
       add("records_topology", input.recordsBackend === "netlify-blobs", "EXTERNAL_RECORD_BACKEND_CONFIGURED", "NETLIFY_RECORD_BACKEND_UNSUPPORTED");

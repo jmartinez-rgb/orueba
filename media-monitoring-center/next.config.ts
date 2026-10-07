@@ -12,7 +12,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   // El SDK de BigQuery solo corre en el servidor y no debe empaquetarse.
-  serverExternalPackages: ["@google-cloud/bigquery", "google-auth-library"],
+  // pg (PostgreSQL en Replit) también corre solo en el servidor y carga módulos opcionales en tiempo de ejecución.
+  serverExternalPackages: ["@google-cloud/bigquery", "google-auth-library", "pg"],
   // El mapeo de BigQuery (no secreto) se lee de config/*.json en tiempo de ejecución.
   outputFileTracingIncludes: { "/**": ["./config/**/*.json"] },
   async headers() {

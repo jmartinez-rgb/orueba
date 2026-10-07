@@ -6,7 +6,7 @@ export class SmokeOptionsError extends Error {
 
 /** Explicit public URLs only. Never read configuration files or credentials. */
 export function parseSmokeOptions(args: string[]) {
-  const options: { monitorUrl?: string; apiUrl?: string; timeoutMs?: number; help: boolean } = { help: false };
+  const options: { monitorUrl?: string; apiUrl?: string; apiInternal?: boolean; timeoutMs?: number; help: boolean } = { help: false };
   const seen = new Set<string>();
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
@@ -14,6 +14,10 @@ export function parseSmokeOptions(args: string[]) {
     seen.add(flag);
     if (flag === "--help" || flag === "--ayuda") {
       options.help = true;
+      continue;
+    }
+    if (flag === "--api-interna") {
+      options.apiInternal = true;
       continue;
     }
     if (!["--monitor", "--api", "--timeout-ms"].includes(flag)) throw new SmokeOptionsError();
@@ -27,5 +31,6 @@ export function parseSmokeOptions(args: string[]) {
     } else if (flag === "--monitor") options.monitorUrl = value;
     else options.apiUrl = value;
   }
+  if (options.apiInternal && options.apiUrl !== undefined) throw new SmokeOptionsError();
   return options;
 }

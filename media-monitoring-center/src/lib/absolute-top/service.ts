@@ -2,7 +2,7 @@ import "server-only";
 import type { BrandId } from "@/lib/brands";
 import type { GoogleDomainConfig } from "@/lib/domains/config";
 import { getEnv } from "@/lib/config/env";
-import { UnifiedSnapshotStore } from "@/lib/unified/store";
+import { openUnifiedStore } from "@/lib/unified/store";
 import { maxSeverity } from "@/lib/anomaly-engine/severity";
 import type { Anomaly, MonitoringRun } from "@/lib/monitoring/types";
 import { APPROXIMATION_NOTICE, summarizeAbsoluteTop } from "./engine";
@@ -15,8 +15,8 @@ export async function getAbsoluteTopDashboard(options: { brand: BrandId; domainI
   let config = options.config;
   const warnings: string[] = [];
   if (config === undefined) {
-    const directory = getEnv().unifiedData.directory;
-    try { config = directory ? await new UnifiedSnapshotStore(directory).domainConfig() : null; }
+    const snapshots = openUnifiedStore(getEnv().unifiedData);
+    try { config = snapshots ? await snapshots.domainConfig() : null; }
     catch { config = null; warnings.push("No se pudo leer la configuración central guardada."); }
   }
   const selectedDomain = options.domainId ?? "all";

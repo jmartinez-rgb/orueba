@@ -2,7 +2,7 @@ import { loadEnvConfig } from "@next/env";
 import { setTimeout } from "node:timers/promises";
 import { getEnv } from "../src/lib/config/env";
 import { UnifiedDataError } from "../src/lib/unified/schema";
-import { loadUnifiedMapping, UnifiedSnapshotStore } from "../src/lib/unified/store";
+import { loadUnifiedMapping, openUnifiedStore } from "../src/lib/unified/store";
 import { refreshUnified } from "../src/lib/unified/refresh";
 import { filterUnifiedMapping, parseRefreshOptions } from "../src/lib/unified/cli-options";
 
@@ -16,14 +16,15 @@ async function main() {
   loadEnvConfig(process.cwd(), false, { info() {}, error() {} });
   process.env.LOG_LEVEL = "error";
   const env = getEnv();
-  if (env.dataSource !== "unified" || !env.unifiedData.directory || !env.unifiedApi.url || !env.unifiedApi.apiKey) throw new UnifiedDataError("API_CONFIGURATION_MISSING");
+  const store = openUnifiedStore(env.unifiedData);
+  if (env.dataSource !== "unified" || !store || !env.unifiedApi.url || !env.unifiedApi.apiKey) throw new UnifiedDataError("API_CONFIGURATION_MISSING");
   const mapping = filterUnifiedMapping(await loadUnifiedMapping(), options);
   const shutdown = new AbortController();
   const stop = () => shutdown.abort();
   process.once("SIGINT", stop); process.once("SIGTERM", stop);
   try {
     do {
-      const results = await refreshUnified({ mapping, store: new UnifiedSnapshotStore(env.unifiedData.directory), url: env.unifiedApi.url, apiKey: env.unifiedApi.apiKey, timezone: env.timezone ?? "America/Mexico_City", intervalMs: intervalMinutes * 60_000, signal: shutdown.signal });
+      const results = await refreshUnified({ mapping, store, url: env.unifiedApi.url, apiKey: env.unifiedApi.apiKey, timezone: env.timezone ?? "America/Mexico_City", intervalMs: intervalMinutes * 60_000, signal: shutdown.signal });
       console.log(JSON.stringify({ source: "unified", refresh: results }));
       if (!watch) { process.exitCode = results.some(result => result.status === "FAILED" || result.status === "PARTIAL") ? 2 : 0; break; }
       if (shutdown.signal.aborted) break;

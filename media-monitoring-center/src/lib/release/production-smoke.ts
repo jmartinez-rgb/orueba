@@ -6,7 +6,8 @@ export type SmokeStatus = "pass" | "fail" | "blocked";
 export interface ProductionSmokeCheck {
   target: SmokeTarget;
   id: string;
-  status: SmokeStatus;
+  /** "internal": the API runs beside the monitor on loopback (Replit) and is not public by design. */
+  status: SmokeStatus | "internal";
   code: string;
   httpStatus: number | null;
 }
@@ -15,7 +16,7 @@ export interface ProductionSmokeReport {
   generatedAt: string;
   status: SmokeStatus;
   checks: ProductionSmokeCheck[];
-  counts: Record<SmokeStatus, number>;
+  counts: Record<SmokeStatus | "internal", number>;
   exitCode: 0 | 1 | 2;
   transport: "DEFAULT_FETCH" | "INJECTED_TRANSPORT";
   policy: { method: "GET"; maxRequests: 7; credentials: "omit"; redirects: "manual"; timeoutMs: number; maxBodyBytes: number };
@@ -27,6 +28,8 @@ export interface ProductionSmokeReport {
 export interface ProductionSmokeOptions {
   monitorUrl?: string;
   apiUrl?: string;
+  /** The API is internal to the monitor's machine: its three checks are reported as internal, not blocked. */
+  apiInternal?: boolean;
   request?: typeof fetch;
   timeoutMs?: number;
   maxBodyBytes?: number;
@@ -190,15 +193,17 @@ export async function runProductionSmoke(options: ProductionSmokeOptions = {}): 
   const now = options.now ?? new Date();
   const validOptions = Number.isInteger(timeoutMs) && timeoutMs >= 1_000 && timeoutMs <= 15_000 &&
     Number.isInteger(maxBodyBytes) && maxBodyBytes >= 1_024 && maxBodyBytes <= 1024 * 1024 &&
-    now instanceof Date && Number.isFinite(now.getTime()) && (options.request === undefined || typeof options.request === "function");
+    now instanceof Date && Number.isFinite(now.getTime()) && (options.request === undefined || typeof options.request === "function") &&
+    !(options.apiInternal && options.apiUrl !== undefined);
   const urls = { monitor: validateSmokeUrl(options.monitorUrl, "monitor"), api: validateSmokeUrl(options.apiUrl, "api") };
   const checks: ProductionSmokeCheck[] = [];
   // Sequential, no retries: a complete run issues at most seven bounded requests.
   for (const check of probes) {
     const configured = urls[check.target];
+    if (validOptions && options.apiInternal && check.target === "api") { checks.push({ target: "api", id: check.id, status: "internal", code: "API_INTERNAL_NOT_PUBLIC", httpStatus: null }); continue; }
     checks.push(!validOptions || !configured.url ? { target: check.target, id: check.id, status: "blocked", code: validOptions ? configured.code : "OPTIONS_INVALID", httpStatus: null } : await probe(check, configured.url, options.request ?? fetch, timeoutMs, maxBodyBytes, now));
   }
-  const counts = { pass: 0, fail: 0, blocked: 0 };
+  const counts = { pass: 0, fail: 0, blocked: 0, internal: 0 };
   for (const check of checks) counts[check.status]++;
   const status = counts.fail ? "fail" : counts.blocked ? "blocked" : "pass";
   return {

@@ -3,7 +3,7 @@
 Rama `claude/auditoria-final-v1`, desde `07a6ae2` (base funcional `2c8ca56`), 2 a 4 de octubre de 2026.
 Esta lista convierte la candidata en v1 aceptada. **Mientras falte una casilla obligatoria, la v1 no
 está terminada.** Al 7 de octubre siguen abiertas parte de la conciliación independiente (sección E: E2
-concilia por campaña y por grupo, con 2 filas de grupo por confirmar; E1 concilia 3 cuentas de Google y 9 de
+concilia por campaña y por grupo; E1 concilia 3 cuentas de Google y 9 de
 Meta) y la aceptación del alojamiento (secciones B, F y H). El informe de esta ronda está en
 [AUDITORIA_FINAL_V1_2026-10-02.md](AUDITORIA_FINAL_V1_2026-10-02.md) y el acta para firmar la sección E, en
 [ACTA_CONCILIACION_V1.md](ACTA_CONCILIACION_V1.md).
@@ -26,6 +26,13 @@ Quién firma: **Juan Pablo Martínez** (control máximo) con el operador autoriz
 | A6 | Imágenes Docker de ambos servicios construyen como usuario `node` | [PRODUCCION.md](PRODUCCION.md) | Histórico (base anterior); repetir sobre el commit final |
 
 ## B. Alojamiento y configuración (requiere autorización del equipo)
+
+**Alojamiento elegido el 7 de octubre: Replit (Reserved VM) en `monitoreo.abcw.global`**, con registros, histórico
+y tokens rotados en su PostgreSQL. Pasos en [PUBLICACION_REPLIT.md](PUBLICACION_REPLIT.md). En Replit, B1 se
+cumple con una máquina siempre encendida (monitoreo público y API solo en loopback) y PostgreSQL en lugar del
+disco; B3 con `v1:check -- --destino replit --registros`; B6 con `produccion:smoke -- --monitor … --api-interna`;
+F1–F3 con reinicio y nueva publicación, `pg_dump` y restauración en una base vacía. La tabla conserva la
+variante de contenedor con disco.
 
 | # | Comprobación | Condición de cierre |
 | --- | --- | --- |
@@ -88,10 +95,11 @@ Estado de E2 al 4 de octubre (día 2026-10-01):
 - [x] **Nivel campaña contra la interfaz de Google Ads: 56 de 56** en Abs. Top y Top, sin diferencias;
   salida 2 solo por una campaña sin métricas ese día (N/D), explicada.
   [Detalle](CONCILIACION.md#conciliación-apiinterfaz-nivel-campaña-1-de-octubre-56-de-56).
-- [ ] **Nivel grupo: 516 de 516 coinciden**, sin diferencias; 38 grupos de la fuente sin fila en el export
+- [x] **Nivel grupo: 516 de 516 coinciden**, sin diferencias; 38 grupos de la fuente sin fila en el export
   explicados por impresiones N/D, cero o una; 2 filas del export de 6214109105 sin pareja por nombre
-  (campaña 22238774102; 29 y 11 impresiones, bajo el mínimo de 100 que evalúa el monitoreo). **Falta
-  confirmar en Google Ads si esos dos grupos están hoy pausados, eliminados o renombrados.**
+  (campaña 22238774102; 29 y 11 impresiones, bajo el mínimo de 100 que evalúa el monitoreo). **El 7 de
+  octubre se confirmó que ambos grupos están apagados**: la lectura de Absolute Top solo incluye grupos
+  habilitados, así que su ausencia es la esperada.
   [Detalle](CONCILIACION.md#conciliación-apiinterfaz-nivel-grupo-1-de-octubre-516-de-516).
 - Contraste adicional con Dataslayer: salida 2 por diferencias de 0,005 a 0,111 pp atribuibles a la
   extracción de Dataslayer (la interfaz coincide con la API). No afecta E2.

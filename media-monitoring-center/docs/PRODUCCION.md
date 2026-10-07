@@ -1,5 +1,8 @@
 # Preparar las URLs y validar producción
 
+> **Alojamiento elegido para la v1: Replit (Reserved VM) en `monitoreo.abcw.global`, con PostgreSQL.** Sigue
+> [PUBLICACION_REPLIT.md](PUBLICACION_REPLIT.md). Esta página conserva la variante de contenedores con disco.
+
 Las URLs las asigna el proveedor de alojamiento al crear y publicar un servicio. El repositorio
 GitHub y los puertos locales no son esas URLs. Esta entrega prepara artefactos y comprobaciones;
 no crea servicios, contrata un plan, publica ni cambia los accesos privados existentes.

@@ -31,6 +31,9 @@ const schema = z.object({
   PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).default(15000),
   /** Archivo privado (0600) donde se conservan los refresh tokens que las plataformas rotan. */
   TOKEN_STORE_FILE: z.string().optional(),
+  /** "postgres": conserva esos tokens en DATABASE_URL (alojamientos sin disco persistente, como Replit). */
+  TOKEN_STORE: z.string().optional(),
+  DATABASE_URL: z.string().optional(),
 });
 
 export type Env = z.infer<typeof schema>;
@@ -49,6 +52,8 @@ export interface AppConfig {
   providerTimeoutMs: number;
   /** Ruta del almacén de refresh tokens rotados, o null si no se conservan. */
   tokenStoreFile: string | null;
+  /** Conexión PostgreSQL del almacén de tokens rotados (TOKEN_STORE=postgres), o null. */
+  tokenStoreDatabaseUrl: string | null;
   /** Variables de proveedores (solo para saber si están configurados; se leen al integrar cada uno). */
   providerEnv: Readonly<Record<string, string | undefined>>;
   version: string;
@@ -70,6 +75,12 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, version = "0
   const e = parsed.data;
   const keys = parseApiKeys(e.API_KEYS);
   const issues = [...keys.errors];
+  const tokenStore = e.TOKEN_STORE?.trim().toLowerCase() || "file";
+  const databaseUrl = e.DATABASE_URL?.trim() || null;
+  if (tokenStore !== "file" && tokenStore !== "postgres") issues.push("TOKEN_STORE: usa file o postgres.");
+  if (tokenStore === "postgres" && !databaseUrl) issues.push("TOKEN_STORE=postgres requiere DATABASE_URL.");
+  if (tokenStore === "postgres" && e.TOKEN_STORE_FILE?.trim())
+    issues.push("TOKEN_STORE=postgres no se combina con TOKEN_STORE_FILE: elige un solo almacén.");
   if (e.NODE_ENV !== "test" && keys.hashes.length === 0)
     issues.push("API_KEYS: define al menos una llave interna (X-API-Key).");
   if (issues.length) throw new ConfigError(issues);
@@ -90,6 +101,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, version = "0
     docsEnabled: e.DOCS_ENABLED ?? e.NODE_ENV !== "production",
     providerTimeoutMs: e.PROVIDER_TIMEOUT_MS,
     tokenStoreFile: e.TOKEN_STORE_FILE?.trim() || null,
+    tokenStoreDatabaseUrl: tokenStore === "postgres" ? databaseUrl : null,
     providerEnv,
     version,
   };
@@ -109,6 +121,7 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     docsEnabled: true,
     providerTimeoutMs: 2000,
     tokenStoreFile: null,
+    tokenStoreDatabaseUrl: null,
     providerEnv: {},
     version: "0.0.0-test",
     ...overrides,

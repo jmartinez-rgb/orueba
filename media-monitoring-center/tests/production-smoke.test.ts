@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runProductionSmoke, validateSmokeUrl } from "@/lib/release/production-smoke";
+import { parseSmokeOptions } from "@/lib/release/smoke-options";
 
 const now = new Date("2026-10-02T18:00:00Z");
 const options = { monitorUrl: "https://monitor.example.com", apiUrl: "https://api.example.com", now };
@@ -220,5 +221,25 @@ describe("contract failures and safe unavailable results", () => {
   it("failure takes precedence over an unavailable other service", async () => {
     const report = await runProductionSmoke({ monitorUrl: options.monitorUrl, now, request: selected("/api/settings", () => json({ private: true })) });
     expect(report).toMatchObject({ status: "fail", exitCode: 1, counts: { pass: 3, fail: 1, blocked: 3 } });
+  });
+});
+
+describe("API interna junto al monitoreo (Replit)", () => {
+  it("las tres comprobaciones de la API quedan internas y solo se consulta el monitoreo", async () => {
+    const calls: string[] = [];
+    const fake: typeof fetch = async input => {
+      calls.push(new URL(String(input)).pathname);
+      return new Response(null, { status: 599 });
+    };
+    const report = await runProductionSmoke({ monitorUrl: "https://monitoreo.example.test", apiInternal: true, request: fake, now: new Date("2026-10-07T12:00:00Z") });
+    expect(calls.every(path => !path.startsWith("/api/v1"))).toBe(true);
+    expect(report.counts.internal).toBe(3);
+    expect(report.checks.filter(check => check.target === "api").every(check => check.status === "internal" && check.code === "API_INTERNAL_NOT_PUBLIC")).toBe(true);
+  });
+  it("no combina --api-interna con una URL pública de API", async () => {
+    expect(parseSmokeOptions(["--monitor", "https://m.example.test", "--api-interna"])).toMatchObject({ apiInternal: true });
+    expect(() => parseSmokeOptions(["--api-interna", "--api", "https://a.example.test"])).toThrow();
+    expect(() => parseSmokeOptions(["--api-interna", "--api-interna"])).toThrow();
+    expect((await runProductionSmoke({ monitorUrl: "https://m.example.test", apiUrl: "https://a.example.test", apiInternal: true, request: async () => new Response(null) })).checks.every(check => check.code === "OPTIONS_INVALID")).toBe(true);
   });
 });

@@ -90,6 +90,7 @@ conciliación y producción siguen pendientes.
 **Conciliación y preparación de producción:** [CONCILIACION.md](docs/CONCILIACION.md) añade
 `npm run conciliar`, sin red, para las 25 cuentas izzi en su moneda/reloj original. Necesita
 exports independientes de Ads Manager; los informes de la API no sirven como referencia propia.
+La v1 se publica en Replit en `monitoreo.abcw.global`, con PostgreSQL: [PUBLICACION_REPLIT.md](docs/PUBLICACION_REPLIT.md).
 [PRODUCCION.md](docs/PRODUCCION.md) explica cómo obtener las URLs y preparar discos persistentes.
 Los Dockerfiles excluyen secretos/histórico del contexto; no crean servicios. `v1:check` añade
 `--destino netlify|contenedor` y `--volumen /var/data`, con bloqueos de transporte/almacenamiento.
@@ -157,6 +158,7 @@ gastar** (datos al día, gasto en cero las últimas 3 horas).
 | `npm run produccion:smoke` | Siete comprobaciones HTTPS sin autenticación ni escrituras; requiere `--monitor` y `--api`; no acepta la v1 |
 | `npm run conciliar` | Comparación offline izzi por cuenta/día con referencia independiente; JSON/CSV privados, sin inventar ceros, tasas ni eventos |
 | `npm run conciliar:absolute-top` | Importa un export CSV de Google Ads y compara Impr. (Abs. Top) % por campaña/grupo contra las auditorías guardadas; madurez 48 h, sin red ([guía](docs/CONCILIACION.md#absolute-top-comparación-específica-por-campaña-y-grupo)) |
+| `npm run datos:migrar-postgres` | Copia registros e histórico de los directorios locales a PostgreSQL (`DATABASE_URL`) para Replit; verifica cada llave y se niega si el destino tiene datos ([publicación](docs/PUBLICACION_REPLIT.md)) |
 | `npm run datos:respaldo` | `respaldar`, `verificar` y `restaurar` el volumen privado (`RECORDS_DIR`, `UNIFIED_ADS_DATA_DIR`) con manifiesto SHA-256, con el servidor y el extractor detenidos ([producción](docs/PRODUCCION.md#respaldo-frecuencia-de-absolute-top-y-documentación-de-la-api)) |
 | `npm run unified:sync` | Extrae las cuentas del mapeo explícito, guarda catálogo y particiones diarias/horarias privadas; `-- --help` muestra opciones |
 | `npm run auth:setup` | Genera contraseñas nuevas, sus hashes y `AUTH_SECRET` (`-- --write` los guarda en `.env.local`) |

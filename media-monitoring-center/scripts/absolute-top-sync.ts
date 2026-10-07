@@ -3,7 +3,7 @@ import { DEFAULT_SETTINGS } from "../src/lib/config/settings";
 import { getEnv } from "../src/lib/config/env";
 import { AbsoluteTopError } from "../src/lib/absolute-top/types";
 import { syncAbsoluteTop } from "../src/lib/absolute-top/ingest";
-import { UnifiedSnapshotStore } from "../src/lib/unified/store";
+import { openUnifiedStore } from "../src/lib/unified/store";
 import { addDays, businessDate } from "../src/lib/time/tz";
 
 async function main() {
@@ -15,9 +15,10 @@ async function main() {
   if ((options["--from"] === undefined) !== (options["--to"] === undefined) || (options["--granularity"] && !["daily", "hourly"].includes(options["--granularity"]))) throw new AbsoluteTopError("INVALID_OPTIONS");
   loadEnvConfig(process.cwd(), false, { info() {}, error() {} });
   const env = getEnv();
-  if (!env.unifiedApi.url || !env.unifiedApi.apiKey || !env.unifiedData.directory) throw new AbsoluteTopError("API_CONFIGURATION_MISSING");
+  const cache = openUnifiedStore(env.unifiedData);
+  if (!env.unifiedApi.url || !env.unifiedApi.apiKey || !cache) throw new AbsoluteTopError("API_CONFIGURATION_MISSING");
   const yesterday = addDays(businessDate(new Date(), env.timezone ?? DEFAULT_SETTINGS.timezone), -1);
-  const result = await syncAbsoluteTop({ url: env.unifiedApi.url, apiKey: env.unifiedApi.apiKey, from: options["--from"] ?? addDays(yesterday, -2), to: options["--to"] ?? yesterday, granularity: options["--granularity"] === "hourly" ? "hourly" : "daily", dryRun, cache: new UnifiedSnapshotStore(env.unifiedData.directory) });
+  const result = await syncAbsoluteTop({ url: env.unifiedApi.url, apiKey: env.unifiedApi.apiKey, from: options["--from"] ?? addDays(yesterday, -2), to: options["--to"] ?? yesterday, granularity: options["--granularity"] === "hourly" ? "hourly" : "daily", dryRun, cache });
   console.log(JSON.stringify({ module: "absolute_top", dryRun, operations: result }));
   process.exitCode = result.every(row => row.status === "SUCCESS") ? 0 : 2;
 }

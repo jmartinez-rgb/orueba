@@ -4,7 +4,8 @@ import { resolve, join } from "node:path";
 import { z } from "zod";
 import { createHash } from "node:crypto";
 import { googleDomainsSchema, type GoogleDomainConfig } from "@/lib/domains/config";
-import { FileRecordStore } from "@/lib/records/store";
+import { FileRecordStore, type RecordStore } from "@/lib/records/store";
+import { PostgresRecordStore } from "@/lib/records/postgres";
 import { attemptSchema, catalogSchema, mappingSchema, partitionSchema, sameScope, UnifiedDataError, type ApiCatalog, type ApiPartition, type SyncAttempt, type UnifiedMapping, type UnifiedScope } from "./schema";
 import { getEnv } from "@/lib/config/env";
 
@@ -31,11 +32,34 @@ export async function loadUnifiedMapping(): Promise<UnifiedMapping> {
   catch { throw new UnifiedDataError("INVALID_ACCOUNT_MAPPING"); }
 }
 
-/** Independent private metric directory. A failed partition never replaces its previous version. */
+/**
+ * Independent private metric history: a directory, or PostgreSQL (namespace "unified") on hosts without a
+ * persistent disk. A failed partition never replaces its previous version.
+ */
 export class UnifiedSnapshotStore {
-  private readonly files: FileRecordStore;
-  readonly root: string;
-  constructor(root: string) { this.root = resolve(root); this.files = new FileRecordStore(this.root); }
+  private readonly files: RecordStore;
+  private readonly postgres: PostgresRecordStore | null;
+  readonly root: string | null;
+  constructor(root: string | PostgresRecordStore) {
+    if (typeof root === "string") { this.root = resolve(root); this.files = new FileRecordStore(this.root); this.postgres = null; }
+    else { this.root = null; this.files = root; this.postgres = root; }
+  }
+  /** Where the refresh scheduler keeps cooldowns and backoff (same backend as the history). */
+  schedulerRecords(): RecordStore {
+    return this.postgres ? new PostgresRecordStore("unified-scheduler") : new FileRecordStore(join(this.root!, ".scheduler"));
+  }
+  async schedulerLock(): Promise<() => Promise<void>> {
+    if (this.postgres) {
+      const release = await this.postgres.lease("refresh-lock");
+      if (!release) throw new UnifiedDataError("REFRESH_LOCKED");
+      return release;
+    }
+    const directory = join(this.root!, ".scheduler");
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+    const lock = join(directory, ".refresh-lock");
+    try { await mkdir(lock, { mode: 0o700 }); } catch { throw new UnifiedDataError("REFRESH_LOCKED"); }
+    return async () => { await rm(lock, { recursive: true, force: true }); };
+  }
   private prefix(s: UnifiedScope) { return `${s.brand}/${s.platform}/${s.accountId}`; }
   async domainConfig(): Promise<GoogleDomainConfig | null> {
     const raw = await this.files.get(".metadata/google-domains");
@@ -81,9 +105,20 @@ export class UnifiedSnapshotStore {
   }
   async saveAttempt(s: UnifiedScope, granularity: "daily" | "hourly", attempt: SyncAttempt) { await this.files.set(`${this.prefix(s)}/attempt-${granularity}`, attemptSchema.parse(attempt)); }
   async lock(): Promise<() => Promise<void>> {
-    await mkdir(this.root, { recursive: true, mode: 0o700 });
-    const lock = join(this.root, ".sync-lock");
+    if (this.postgres) {
+      const release = await this.postgres.lease("sync-lock");
+      if (!release) throw new UnifiedDataError("SYNC_LOCKED");
+      return release;
+    }
+    await mkdir(this.root!, { recursive: true, mode: 0o700 });
+    const lock = join(this.root!, ".sync-lock");
     try { await mkdir(lock, { mode: 0o700 }); } catch { throw new UnifiedDataError("SYNC_LOCKED"); }
     return async () => { await rm(lock, { recursive: true, force: true }); };
   }
+}
+
+/** The configured history store, or null when neither a directory nor PostgreSQL is declared. */
+export function openUnifiedStore(data: { directory?: string; store?: "file" | "postgres" } = getEnv().unifiedData): UnifiedSnapshotStore | null {
+  if (data.store === "postgres") return new UnifiedSnapshotStore(new PostgresRecordStore("unified"));
+  return data.directory ? new UnifiedSnapshotStore(data.directory) : null;
 }

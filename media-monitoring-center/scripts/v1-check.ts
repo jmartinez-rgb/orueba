@@ -19,7 +19,7 @@ async function main() {
   const options = parseReadinessOptions(args);
   if (options.help) {
     process.stdout.write(
-      "npm run v1:check -- [--sin-red] [--registros] [--destino local|netlify|contenedor] [--volumen /var/data]\nEl destino predeterminado es local. La configuración de contenedor requiere declarar el volumen durable que contendrá registros e histórico; esa declaración no demuestra montaje, ausencia de symlinks ni persistencia. --registros escribe, lee y elimina un sondeo aislado. No publica ni sustituye conciliación o aceptación de v1.\n",
+      "npm run v1:check -- [--sin-red] [--registros] [--destino local|netlify|contenedor|replit] [--volumen /var/data]\nEl destino predeterminado es local. La configuración de contenedor requiere declarar el volumen durable que contendrá registros e histórico; esa declaración no demuestra montaje, ausencia de symlinks ni persistencia. Replit no tiene disco persistente: exige PostgreSQL para registros e histórico (RECORDS_BACKEND=postgres, UNIFIED_ADS_STORE=postgres) y admite la API en loopback de la misma máquina. --registros escribe, lee y elimina un sondeo aislado. No publica ni sustituye conciliación o aceptación de v1.\n",
     );
     return;
   }
@@ -41,7 +41,7 @@ async function main() {
     getRecordStore().backend,
     unifiedMappingReady,
   );
-  const deployment = deploymentConfiguration({ target: options.target, volume: options.volume, dataSource: env.requestedDataSource ?? env.dataSource, recordsBackend: getRecordStore().backend, recordsDirectory: process.env.RECORDS_DIR ?? ".data/records", unifiedDirectory: env.unifiedData.directory, apiUrl: env.unifiedApi.url });
+  const deployment = deploymentConfiguration({ target: options.target, volume: options.volume, dataSource: env.requestedDataSource ?? env.dataSource, recordsBackend: getRecordStore().backend, recordsDirectory: process.env.RECORDS_DIR ?? ".data/records", unifiedDirectory: env.unifiedData.directory, unifiedStore: env.unifiedData.store, apiUrl: env.unifiedApi.url });
   const recordStorage = options.records ? await checkRecordStorage(getRecordStore()) : { checked: false, available: null, code: "RECORD_IO_NOT_CHECKED" };
   let access: {
     checked: boolean;

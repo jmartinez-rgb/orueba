@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deploymentConfiguration, parseReadinessOptions, productionApiUrl } from "@/lib/release/deployment";
+import { colocatedApiUrl, deploymentConfiguration, parseReadinessOptions, productionApiUrl } from "@/lib/release/deployment";
 import { execFile } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -71,6 +71,28 @@ describe("topología del destino", () => {
     const report = deploymentConfiguration({ ...base, apiUrl: "https://private:user@private.example.test?private=1", recordsDirectory: "/private/records", unifiedDirectory: "/private/history", volume: "/private/volume" });
     expect(JSON.stringify(report)).not.toContain("private");
   });
+});
+
+describe("Replit: sin disco persistente, todo en PostgreSQL", () => {
+  const replit = { target: "replit" as const, dataSource: "unified", recordsBackend: "postgres" as const, unifiedStore: "postgres" as const, apiUrl: "http://127.0.0.1:8080" };
+  it("PostgreSQL para registros e histórico con la API en loopback es solo configuración", () => {
+    expect(deploymentConfiguration(replit)).toMatchObject({ configurationReady: true, runtimeVerified: false, certifiesV1: false, checks: [
+      { id: "api_transport", code: "COLOCATED_LOOPBACK_API_CONFIGURED" }, { id: "records_topology", code: "POSTGRES_RECORD_BACKEND_CONFIGURED" }, { id: "history_topology", code: "POSTGRES_HISTORY_CONFIGURED" },
+    ] });
+  });
+  it.each([
+    [{ recordsBackend: "file" as const }, "REPLIT_REQUIRES_POSTGRES_RECORDS"],
+    [{ unifiedStore: "file" as const }, "REPLIT_REQUIRES_POSTGRES_HISTORY"],
+    [{ apiUrl: "http://api.example.test" }, "PRODUCTION_API_URL_INVALID"],
+  ])("archivos locales o API sin TLS fuera de loopback quedan pendientes: %o", (patch, code) => {
+    const report = deploymentConfiguration({ ...replit, ...patch });
+    expect(report.configurationReady).toBe(false);
+    expect(report.checks.map(check => check.code)).toContain(code);
+  });
+  it.each(["http://127.0.0.1:8080", "http://127.0.0.1:8080/"])("acepta la API local de la misma máquina: %s", value => expect(colocatedApiUrl(value)).toBe(true));
+  it.each([undefined, "http://localhost:8080", "http://127.0.0.1", "http://10.0.0.5:8080", "http://user:x@127.0.0.1:8080", "http://127.0.0.1:8080/api?k=1", "https://127.0.0.1:8080"])("rechaza cualquier otro transporte sin TLS: %s", value => expect(colocatedApiUrl(value)).toBe(false));
+  it("acepta --destino replit sin volumen", () => expect(parseReadinessOptions(["--destino", "replit", "--sin-red"])).toMatchObject({ target: "replit", noNetwork: true }));
+  it("rechaza --volumen con replit", () => expect(() => parseReadinessOptions(["--destino", "replit", "--volumen", "/var/data"])).toThrow());
 });
 
 describe("opciones explícitas", () => {

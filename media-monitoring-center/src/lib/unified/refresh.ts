@@ -1,8 +1,5 @@
 import "server-only";
-import { mkdir, rm } from "node:fs/promises";
-import { join } from "node:path";
 import { z } from "zod";
-import { FileRecordStore } from "@/lib/records/store";
 import { addDays, businessDate } from "@/lib/time/tz";
 import { mappingSchema, UnifiedDataError } from "./schema";
 import { syncUnified, type UnifiedSyncOptions } from "./sync";
@@ -20,11 +17,8 @@ export async function refreshUnified(options: RefreshOptions): Promise<RefreshRe
   const interval = options.intervalMs ?? 120 * 60_000;
   if (!mapping.success || !Number.isInteger(interval) || interval < MIN_INTERVAL || interval > MAX_INTERVAL) throw new UnifiedDataError("INVALID_REFRESH_OPTIONS");
   const clock = options.clock ?? (() => new Date());
-  const directory = join(options.store.root, ".scheduler");
-  await mkdir(directory, { recursive: true, mode: 0o700 });
-  const lock = join(directory, ".refresh-lock");
-  try { await mkdir(lock, { mode: 0o700 }); } catch { throw new UnifiedDataError("REFRESH_LOCKED"); }
-  const records = new FileRecordStore(directory);
+  const release = await options.store.schedulerLock();
+  const records = options.store.schedulerRecords();
   const results: RefreshResult[] = [];
   try {
     for (const scope of mapping.data.accounts) {
@@ -60,6 +54,6 @@ export async function refreshUnified(options: RefreshOptions): Promise<RefreshRe
       await records.set(key, { version: 1, startedAt: at.toISOString(), completedAt: completed.toISOString(), nextDueAt, failures, code });
       results.push({ platform: scope.platform, accountId: scope.accountId, status, rows, code, nextDueAt });
     }
-  } finally { await rm(lock, { recursive: true, force: true }); }
+  } finally { await release(); }
   return results;
 }

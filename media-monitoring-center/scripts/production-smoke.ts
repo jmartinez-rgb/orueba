@@ -4,7 +4,7 @@ import { parseSmokeOptions } from "../src/lib/release/smoke-options";
 async function main() {
   const options = parseSmokeOptions(process.argv.slice(2));
   if (options.help) {
-    console.log("npm run produccion:smoke -- --monitor https://monitoreo.example.com --api https://api.example.com [--timeout-ms 1000..15000]\nComprueba siete endpoints públicos sin llaves, cookies, OAuth ni lecturas publicitarias. No carga .env, no sigue redirecciones ni escribe datos. Sin ambas URL queda pendiente. Salida 0: comprobaciones HTTP pasan; 1: fallo u opciones inválidas; 2: falta información o no se pudo comprobar. No certifica la v1 ni la persistencia del alojamiento.");
+    console.log("npm run produccion:smoke -- --monitor https://monitoreo.example.com (--api https://api.example.com | --api-interna) [--timeout-ms 1000..15000]\n--api-interna: la API corre junto al monitoreo solo en loopback (Replit) y no es pública; sus tres comprobaciones se reportan como internas.\nComprueba siete endpoints públicos sin llaves, cookies, OAuth ni lecturas publicitarias. No carga .env, no sigue redirecciones ni escribe datos. Sin ambas URL queda pendiente. Salida 0: comprobaciones HTTP pasan; 1: fallo u opciones inválidas; 2: falta información o no se pudo comprobar. No certifica la v1 ni la persistencia del alojamiento.");
     return;
   }
   if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0") {

@@ -29,7 +29,7 @@ import { BrandScopedSource } from "@/lib/data/brand-source";
 import { BRAND_COOKIE, BRAND_IDS, BRANDS, parseBrand, type BrandId, type BrandInfo } from "@/lib/brands";
 import type { PlatformId } from "@/lib/types";
 import { UnifiedDataSource } from "@/lib/unified/source";
-import { loadUnifiedMapping, UnifiedSnapshotStore } from "@/lib/unified/store";
+import { loadUnifiedMapping, openUnifiedStore } from "@/lib/unified/store";
 import { UnifiedDataError } from "@/lib/unified/schema";
 import { settingsRevision, SettingsConflictError } from "@/lib/config/settings-revision";
 import { DomainScopedSource } from "@/lib/data/domain-source";
@@ -244,9 +244,9 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
   let inner: MonitoringDataSource;
   let domainConfig: GoogleDomainConfig | null = null;
   if (mode === "unified") {
-    if (!env.unifiedData.directory) throw new UnifiedDataError("DATA_DIRECTORY_MISSING");
+    const snapshots = openUnifiedStore(env.unifiedData);
+    if (!snapshots) throw new UnifiedDataError("DATA_DIRECTORY_MISSING");
     const direct = await loadUnifiedMapping();
-    const snapshots = new UnifiedSnapshotStore(env.unifiedData.directory);
     domainConfig = await snapshots.domainConfig().catch(error => { logger.warn("domains.configuration_unavailable", { error }); return null; });
     inner = new UnifiedDataSource({ store: snapshots, accounts: direct.accounts.filter(a => a.brand === brand), timezone: settings.timezone, domainConfig });
     const platforms = [...new Set(direct.accounts.filter(a => a.brand === brand).map(a => a.platform))];
