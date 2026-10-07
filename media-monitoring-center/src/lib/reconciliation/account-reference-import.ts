@@ -11,21 +11,26 @@ import { METRIC_DEFINITIONS, METRICS, parseReference, ReconciliationError, type 
  * them explicitly. Rows are summed per account; accounts outside the izzi mapping are skipped and counted.
  */
 const header = z.string().min(1).max(120);
+/** One header, or alternatives of which exactly one is present (e.g. "Amount spent (MXN)" / "(USD)"). */
+const headers = z.union([header, z.array(header).min(1).max(6)]);
 export const accountColumnsSchema = z.strictObject({
   version: z.literal(1),
   columns: z.strictObject({
-    /** Null only with a single-account export and an explicit --cuenta. */
+    /** Null only with single-account exports and an explicit account per file. */
     accountId: header.nullable(),
     currency: header.nullable(),
     date: header.nullable(),
-    spend: header,
-    impressions: header,
-    clicks: header,
+    spend: headers,
+    impressions: headers,
+    clicks: headers,
   }),
 }).superRefine((value, ctx) => {
-  const names = Object.values(value.columns).filter((v): v is string => v !== null);
+  const names = Object.values(value.columns).flatMap(v => (v === null ? [] : Array.isArray(v) ? v : [v]));
   if (new Set(names).size !== names.length) ctx.addIssue({ code: "custom", message: "A header can map one field only." });
 });
+const candidates = (v: string | string[] | null) => (v === null ? [] : Array.isArray(v) ? v : [v]);
+/** Excel stores a date cell as days since 1899-12-30; exports written as text keep the ISO date. */
+const cellDate = (raw: string) => (/^\d{5}$/.test(raw) ? new Date(Date.UTC(1899, 11, 30) + Number(raw) * 86400000).toISOString().slice(0, 10) : raw);
 
 export interface AccountImportOptions {
   platform: ReferenceRow["platform"];
@@ -45,7 +50,14 @@ export function normalizeAccountId(platform: string, raw: string): string {
   return platform === "google" ? value.replace(/-/g, "") : value;
 }
 
-export function importAccountReferenceRows(text: string, columnsValue: unknown, options: AccountImportOptions): { rows: ReferenceRow[]; sourceRows: number; skippedRows: number; skippedAccounts: number } {
+export interface AccountImportResult { rows: ReferenceRow[]; sourceRows: number; skippedRows: number; skippedAccounts: number }
+
+export function importAccountReferenceRows(text: string, columnsValue: unknown, options: AccountImportOptions): AccountImportResult {
+  return importAccountReferenceRecords(parseDelimited(text, options.delimiter), columnsValue, options);
+}
+
+/** Same as importAccountReferenceRows for rows already read (CSV or the single sheet of an .xlsx). */
+export function importAccountReferenceRecords(records: string[][], columnsValue: unknown, options: AccountImportOptions): AccountImportResult {
   const columns = accountColumnsSchema.safeParse(columnsValue);
   if (!columns.success) throw new ReconciliationError("INVALID_ACCOUNT_COLUMNS");
   if (!z.iso.date().safeParse(options.date).success || !isValidTimeZone(options.timezone)) throw new ReconciliationError("INVALID_ACCOUNT_OPTIONS");
@@ -53,12 +65,16 @@ export function importAccountReferenceRows(text: string, columnsValue: unknown, 
   if ((c.accountId === null) === !options.accountId) throw new ReconciliationError("INVALID_ACCOUNT_OPTIONS");
   const izzi = new Map(options.mapping.accounts.filter(a => a.brand === "izzi" && a.platform === options.platform).map(a => [a.accountId, a]));
   if (options.accountId && !izzi.has(normalizeAccountId(options.platform, options.accountId))) throw new ReconciliationError("ACCOUNT_NOT_IN_IZZI_MAPPING");
-  const records = parseDelimited(text, options.delimiter);
-  const mapped = Object.values(c).filter((v): v is string => v !== null);
-  const headerIndex = records.findIndex(r => mapped.every(name => r.filter(cell => cell.trim() === name).length === 1));
+  const fields = Object.values(c).filter(v => v !== null).map(candidates);
+  const present = (r: string[], name: string) => r.filter(cell => cell.trim() === name).length;
+  const headerIndex = records.findIndex(r => fields.every(alternatives => alternatives.filter(name => present(r, name) > 0).length === 1 && alternatives.every(name => present(r, name) <= 1)));
   if (headerIndex < 0) throw new ReconciliationError("ACCOUNT_EXPORT_HEADERS_NOT_FOUND");
   const head = records[headerIndex].map(cell => cell.trim());
+  const resolve = (v: string | string[] | null) => candidates(v).find(name => head.includes(name)) ?? null;
   const at = (name: string | null) => (name === null ? -1 : head.indexOf(name));
+  const metricHeader = { spend: resolve(c.spend)!, impressions: resolve(c.impressions)!, clicks: resolve(c.clicks)! };
+  // A currency written in the spend header ("Amount spent (USD)") must be the account's currency.
+  const headerCurrency = /\(([A-Z]{3})\)\s*$/.exec(metricHeader.spend)?.[1] ?? null;
   const format = { decimal: options.decimal, thousands: options.thousands };
   const totals = new Map<string, Record<Metric, number | null>>();
   const skipped = new Set<string>();
@@ -74,12 +90,12 @@ export function importAccountReferenceRows(text: string, columnsValue: unknown, 
     if (!accountId || accountId === "--") throw new ReconciliationError(`ACCOUNT_EXPORT_ROW_WITHOUT_ACCOUNT_${n + 1}`);
     const scope = izzi.get(accountId);
     if (!scope) { skipped.add(accountId); skippedRows++; continue; }
-    if (c.date !== null && (record[at(c.date)] ?? "").trim() !== options.date) throw new ReconciliationError(`ACCOUNT_EXPORT_DATE_MISMATCH_${n + 1}`);
-    if (c.currency !== null && (record[at(c.currency)] ?? "").trim() !== scope.currency) throw new ReconciliationError(`ACCOUNT_EXPORT_CURRENCY_MISMATCH_${n + 1}`);
+    if (c.date !== null && cellDate((record[at(c.date)] ?? "").trim()) !== options.date) throw new ReconciliationError(`ACCOUNT_EXPORT_DATE_MISMATCH_${n + 1}`);
+    if ((c.currency !== null && (record[at(c.currency)] ?? "").trim() !== scope.currency) || (headerCurrency !== null && headerCurrency !== scope.currency)) throw new ReconciliationError(`ACCOUNT_EXPORT_CURRENCY_MISMATCH_${n + 1}`);
     const sum = totals.get(accountId) ?? { spend: 0, impressions: 0, clicks: 0 };
     for (const metric of METRICS) {
       let value: number | null;
-      try { value = parseCell(metric, (record[at(c[metric])] ?? "").trim(), format).value; }
+      try { value = parseCell(metric, (record[at(metricHeader[metric])] ?? "").trim(), format).value; }
       catch { throw new ReconciliationError(`ACCOUNT_EXPORT_INVALID_CELL_${n + 1}`); }
       // One unknown cell makes the account total unknown; it is never read as zero.
       sum[metric] = value === null || sum[metric] === null ? null : sum[metric]! + value;

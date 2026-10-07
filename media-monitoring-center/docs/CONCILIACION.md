@@ -115,10 +115,18 @@ hora de exportación más temprana; una cuenta repetida se rechaza.
 
 ```bash
 UNIFIED_ADS_MAPPING_FILE=config/unified.mapping.example.json npm run conciliar:referencia -- \
-  --plataforma google --csv privado/google-cuentas.csv --columnas config/conciliacion-columnas.google.example.json \
+  --plataforma google --archivo privado/google-cuentas.csv --columnas config/conciliacion-columnas.google.example.json \
   --fecha 2026-10-01 --zona America/Mexico_City --exportado 2026-10-04T22:30:00Z \
   --output reportes/referencia-cuentas-google-2026-10-01.json
 ```
+
+Exports de una cuenta por archivo (Meta por cuenta, Microsoft sin columna de ID) se cargan juntos con
+`--entrada CUENTA=archivo`, repetible, en lugar de `--archivo`. Se aceptan CSV y `.xlsx` de una sola hoja; un
+libro con varias hojas se rechaza desde el índice del archivo, sin abrir ninguna hoja. El gasto admite
+cabeceras alternativas (`["Amount spent (MXN)", "Amount spent (USD)"]` en
+`config/conciliacion-columnas.meta.example.json`) y la moneda escrita en la cabecera debe ser la de la cuenta.
+Microsoft en español usa punto y coma, coma decimal y punto de miles
+(`--separador punto-y-coma --decimal , --miles .`, `config/conciliacion-columnas.microsoft-una-cuenta.example.json`).
 
 `--zona` es el reloj del export: la cuenta de Google o Meta en su zona, Microsoft y Spotify en UTC (la API
 las lee en UTC). Si no coincide con la zona de la fuente, la comparación lo marca `INCOMPATIBLE_CLOCK`.

@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
-import { accountColumnsSchema, buildAccountReference, importAccountReferenceRows, normalizeAccountId, type AccountImportOptions } from "@/lib/reconciliation/account-reference-import";
+import { accountColumnsSchema, buildAccountReference, importAccountReferenceRecords, importAccountReferenceRows, normalizeAccountId, type AccountImportOptions } from "@/lib/reconciliation/account-reference-import";
+import { readXlsxRecords } from "@/lib/reconciliation/xlsx";
 import { parseReference } from "@/lib/reconciliation/reconcile";
 import { mappingSchema } from "@/lib/unified/schema";
 
@@ -10,6 +16,8 @@ const mapping = mappingSchema.parse({ version: 1, accounts: [
   { platform: "google", accountId: "1970842746", brand: "sky", currency: "MXN" },
   { platform: "microsoft", accountId: "138689064", brand: "izzi", currency: "MXN" },
   { platform: "spotify", accountId: "f154306e-82ce-4c8b-a772-09140c1a24c6", brand: "izzi", currency: "MXN" },
+  { platform: "meta", accountId: "801573051220234", brand: "izzi", currency: "MXN" },
+  { platform: "meta", accountId: "465392948082619", brand: "izzi", currency: "USD" },
 ] });
 const googleColumns = { version: 1, columns: { accountId: "Customer ID", currency: "Currency code", date: null, spend: "Cost", impressions: "Impr.", clicks: "Clicks" } };
 const google: AccountImportOptions = { platform: "google", mapping, date: "2026-10-01", timezone: "America/Mexico_City", decimal: ".", thousands: ",", delimiter: "," };
@@ -69,6 +77,44 @@ describe("referencia cuenta/día desde un export de la interfaz", () => {
     expect(() => buildAccountReference(ms, { date: "2026-10-02", exportedAt: "2026-10-05T01:00:00Z" }, first)).toThrow(/REFERENCE_RANGE_MISMATCH/);
   });
   it("incluye mapas de columnas de ejemplo válidos", () => {
-    for (const name of ["google", "microsoft"]) expect(accountColumnsSchema.safeParse(JSON.parse(readFileSync(new URL(`../config/conciliacion-columnas.${name}.example.json`, import.meta.url), "utf8"))).success).toBe(true);
+    for (const name of ["google", "microsoft", "meta"]) expect(accountColumnsSchema.safeParse(JSON.parse(readFileSync(new URL(`../config/conciliacion-columnas.${name}.example.json`, import.meta.url), "utf8"))).success).toBe(true);
   });
+});
+
+describe("exports .xlsx de una sola hoja (Meta, Microsoft, TikTok…)", () => {
+  const fixture = (name: string) => readFileSync(new URL(`./fixtures/conciliacion/${name}`, import.meta.url));
+  const meta = JSON.parse(readFileSync(new URL("../config/conciliacion-columnas.meta.example.json", import.meta.url), "utf8"));
+  const options: AccountImportOptions = { platform: "meta", mapping, date: "2026-10-01", timezone: "America/Mexico_City", decimal: ".", thousands: ",", delimiter: ",", accountId: "801573051220234" };
+  it("lee la única hoja con textos compartidos, entidades, números exactos y fechas guardadas como día de Excel", () => {
+    const rows = readXlsxRecords(fixture("meta-una-cuenta.xlsx"));
+    expect(rows[0]).toEqual(["Reporting starts", "Reporting ends", "Campaign name", "Impressions", "Amount spent (MXN)", "Clicks (all)"]);
+    expect(rows[1]).toEqual(["46296", "2026-10-01", "Campaña & prueba <uno>", "114896", "1609.54", "574"]);
+    const result = importAccountReferenceRecords(rows, meta, options);
+    expect(result).toMatchObject({ sourceRows: 2, rows: [{ platform: "meta", accountId: "801573051220234", currency: "MXN", spend: 6335.52, impressions: 255071, clicks: 1548 }] });
+  });
+  it("rechaza libros con varias hojas antes de abrir alguna y archivos que no son .xlsx", () => {
+    expect(() => readXlsxRecords(fixture("dos-hojas.xlsx"))).toThrow(/XLSX_MULTIPLE_SHEETS/);
+    expect(() => readXlsxRecords(Buffer.from("no es un zip"))).toThrow(/INVALID_XLSX/);
+  });
+  it("una moneda escrita en la cabecera del gasto debe ser la de la cuenta", () => {
+    const csv = "Reporting starts,Reporting ends,Campaign name,Impressions,Clicks (all),Amount spent (USD)\n2026-10-01,2026-10-01,Discovery,1000,10,12.5\n";
+    expect(importAccountReferenceRows(csv, meta, { ...options, accountId: "465392948082619" }).rows[0]).toMatchObject({ currency: "USD", spend: 12.5 });
+    expect(() => importAccountReferenceRows(csv, meta, options)).toThrow(/ACCOUNT_EXPORT_CURRENCY_MISMATCH_2/);
+    expect(() => importAccountReferenceRows(csv.replace("Clicks (all)", "Amount spent (MXN)"), { ...meta, columns: { ...meta.columns, clicks: "Clicks" } }, options)).toThrow(/ACCOUNT_EXPORT_HEADERS_NOT_FOUND/);
+  });
+  it("el comando junta varias cuentas, una por archivo, en una sola referencia sin imprimir cifras", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cuentas-"));
+    try {
+      await writeFile(join(dir, "discovery.csv"), "Reporting starts,Reporting ends,Campaign name,Impressions,Clicks (all),Amount spent (USD)\n2026-10-01,2026-10-01,Discovery,1000,10,12.5\n");
+      const env = { ...process.env, UNIFIED_ADS_MAPPING: JSON.stringify(mapping) };
+      const run = promisify(execFile);
+      const { stdout } = await run(process.execPath, ["--conditions=react-server", "--import", "tsx", "scripts/reconcile-reference.ts", "--plataforma", "meta", "--columnas", "config/conciliacion-columnas.meta.example.json", "--fecha", "2026-10-01", "--zona", "America/Mexico_City", "--exportado", "2026-10-07T17:45:00Z", "--entrada", `801573051220234=${new URL("./fixtures/conciliacion/meta-una-cuenta.xlsx", import.meta.url).pathname}`, "--entrada", `465392948082619=${join(dir, "discovery.csv")}`, "--output", join(dir, "ref.json")], { cwd: process.cwd(), env });
+      expect(JSON.parse(stdout)).toMatchObject({ inputs: 2, accounts: ["801573051220234", "465392948082619"], referenceRows: 2 });
+      expect(stdout).not.toMatch(/6335|12\.5/);
+      expect((await stat(join(dir, "ref.json"))).mode & 0o777).toBe(0o600);
+      expect(parseReference(JSON.parse(await readFile(join(dir, "ref.json"), "utf8"))).rows).toHaveLength(2);
+      const bad = await run(process.execPath, ["--conditions=react-server", "--import", "tsx", "scripts/reconcile-reference.ts", "--plataforma", "meta", "--columnas", "config/conciliacion-columnas.meta.example.json", "--fecha", "2026-10-01", "--zona", "America/Mexico_City", "--exportado", "2026-10-07T17:45:00Z", "--entrada", `801573051220234=${join(dir, "discovery.csv")}`, "--entrada", `465392948082619=${join(dir, "discovery.csv")}`, "--output", join(dir, "ref2.json")], { cwd: process.cwd(), env }).catch((e: { stderr: string }) => e);
+      expect((bad as { stderr: string }).stderr).toContain("ACCOUNT_EXPORT_CURRENCY_MISMATCH_2_ENTRADA_1");
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  }, 30000);
 });

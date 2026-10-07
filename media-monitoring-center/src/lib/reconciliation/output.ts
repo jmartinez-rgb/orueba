@@ -78,7 +78,7 @@ export async function writeReconciliationArtifacts(report: ReconciliationReport,
 }
 
 /** Bounded regular files only, never through a symlink. Errors never disclose file bodies. */
-export async function readPrivateInputFile(path: string, extension: ".json" | ".csv", code: string): Promise<Buffer> {
+export async function readPrivateInputFile(path: string, extension: ".json" | ".csv" | ".xlsx", code: string): Promise<Buffer> {
   if (!path.endsWith(extension) || /[\u0000-\u001f?#]/.test(path) || /(^|[\/\\])\.env(?:\.|$)/.test(path) || /^[a-z][a-z\d+.-]*:\/\//i.test(path)) throw new ReconciliationError(code);
   const maxBytes = 8 * 1024 * 1024;
   try {

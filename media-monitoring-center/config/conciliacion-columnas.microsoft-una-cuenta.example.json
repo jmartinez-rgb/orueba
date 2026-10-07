@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "columns": {
+    "accountId": null,
+    "currency": null,
+    "date": null,
+    "spend": "Gasto",
+    "impressions": "Impresiones",
+    "clicks": "Clics"
+  }
+}

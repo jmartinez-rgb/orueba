@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "columns": {
+    "accountId": null,
+    "currency": null,
+    "date": "Reporting starts",
+    "spend": ["Amount spent (MXN)", "Amount spent (USD)"],
+    "impressions": "Impressions",
+    "clicks": "Clicks (all)"
+  }
+}
