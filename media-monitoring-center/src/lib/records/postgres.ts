@@ -28,7 +28,8 @@ export function postgresPool(url = postgresUrl()): { pool: Pool; ready: Promise<
   g.__immcPostgres ??= new Map();
   let entry = g.__immcPostgres.get(url);
   if (!entry) {
-    const pool = new Pool({ connectionString: url, max: 5, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 10_000 });
+    // allowExitOnIdle: one-shot commands (sync, reconciliation) end as soon as their queries finish.
+    const pool = new Pool({ connectionString: url, max: 10, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 10_000, allowExitOnIdle: true });
     // An idle client error must not crash the process; the next query reports it as unavailable.
     pool.on("error", () => logger.error("records.postgres_idle_error", { code: "RECORDS_UNAVAILABLE" }));
     const ready = (async () => { for (const statement of SCHEMA) await pool.query(statement); })();
@@ -151,10 +152,17 @@ export class PostgresRecordStore implements RecordStore {
     let acquired: boolean;
     try { acquired = await claim(); } catch { return this.fail("lease"); }
     if (!acquired) return null;
-    const timer = setInterval(() => { void claim().catch(() => undefined); }, Math.max(1000, Math.floor(ttlMs / 3)));
+    // Renewal only extends a row this holder still owns: it can never recreate a released or taken-over lock.
+    let released = false, renewing: Promise<unknown> = Promise.resolve();
+    const timer = setInterval(() => {
+      if (released) return;
+      renewing = pool.query("UPDATE immc_locks SET expires_at = now() + make_interval(secs => $3) WHERE name = $1 AND holder = $2", [lockName, holder, ttlMs / 1000]).catch(() => undefined);
+    }, Math.max(1000, Math.floor(ttlMs / 3)));
     timer.unref();
     return async () => {
+      released = true;
       clearInterval(timer);
+      await renewing;
       try { await pool.query("DELETE FROM immc_locks WHERE name = $1 AND holder = $2", [lockName, holder]); }
       catch { this.fail("lease_release"); }
     };

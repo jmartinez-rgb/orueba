@@ -9,7 +9,7 @@ Replit siempre encendida (Reserved VM)**, con todos los datos en la **base Postg
 | Pieza | Dónde corre | Quién la ve |
 | --- | --- | --- |
 | Monitoreo (la página que abre el equipo) | Puerto 3000 de la máquina, publicado en el 80 | Público, con inicio de sesión |
-| API unificada (habla con Google, Meta, TikTok, Microsoft, Spotify y X) | `127.0.0.1:8080` de la misma máquina | Nadie desde fuera: solo el monitoreo |
+| API unificada (habla con Google, Meta, TikTok, Microsoft, Spotify y X) | `127.0.0.1:8787` de la misma máquina | Nadie desde fuera: solo el monitoreo |
 | Usuarios, bitácora, tickets, tasas, presupuestos, Absolute Top, histórico de APIs | PostgreSQL de Replit (`DATABASE_URL`) | Solo la máquina |
 | Tokens que Microsoft y Spotify renuevan | La misma base (tabla aparte) | Solo la API |
 | Extractor izzi y lectura diaria de Absolute Top | La misma máquina, **apagados hasta que los actives** | — |
@@ -19,7 +19,11 @@ Replit no conserva archivos al volver a publicar; por eso nada se guarda en disc
 
 Probado antes de entregar, con PostgreSQL 16 y datos ficticios: arranque conjunto, API inaccesible desde fuera,
 inicio de sesión, registros guardados en la base, sesión y usuarios intactos tras reiniciar, extractor activo
-sin tumbar el sitio, apagado limpio y `v1:check --destino replit` listo. No se probó en la cuenta de Replit.
+sin tumbar el sitio, apagado limpio, un `PORT` impuesto por la plataforma sin choque de puertos y
+`v1:check --destino replit` listo. No se probó en la cuenta de Replit.
+
+Las pruebas de PostgreSQL corren con `TEST_DATABASE_URL` apuntando a una base desechable (la vacían); sin esa
+variable se reportan como omitidas, nunca como aprobadas.
 
 ## Paso 1. Importar el repositorio
 
@@ -54,7 +58,7 @@ Nunca pegues estos valores en el chat ni en GitHub. Cópialos de tus archivos de
 
 **Llave interna** entre el monitoreo y la API: `UNIFIED_ADS_API_KEY`, una cadena nueva y larga. En la Terminal
 de la Mac, `openssl rand -hex 32` genera una; cópiala directo al secreto. La API la acepta sola; no hace falta
-`API_KEYS`.
+`API_KEYS` (si ya existe, el arranque le agrega esta llave).
 
 **Del monitoreo** (`.env.local`): `AUTH_SECRET`, `AUTH_USERS`, `AUTH_PRIMARY_ADMIN_ID`,
 `ALERT_RESPONDER_USER_IDS` y, si existen, `AUTH_SESSION_HOURS` y `MONITORING_API_KEY`. Usa los mismos valores:
@@ -70,7 +74,9 @@ Spotify: usa esos valores para `MICROSOFT_ADS_REFRESH_TOKEN` y `SPOTIFY_ADS_REFR
 ## Paso 4. Pasar los datos de la Mac a la base de Replit
 
 Copia usuarios creados en la app, bitácora, tickets, novedades, tasas, presupuestos, Absolute Top y el histórico
-de APIs. No borra nada de la Mac, se niega si la base ya tiene datos y verifica cada registro.
+de APIs. No borra nada de la Mac, se niega si la base ya tiene datos y verifica cada registro. Hazlo **antes de
+abrir el sitio publicado por primera vez** (el primer inicio de sesión ya escribe en la base) y con el monitoreo y
+el extractor de la Mac detenidos, para copiar una foto quieta.
 
 1. En Replit, abre el panel **Database** y copia la cadena de conexión (`DATABASE_URL`).
 2. En la Terminal de la Mac:
@@ -118,7 +124,7 @@ En la **Shell** de Replit (usa los mismos secretos):
 
 ```
 cd media-monitoring-center
-UNIFIED_ADS_API_URL=http://127.0.0.1:8080 npm run v1:check -- --destino replit --registros
+UNIFIED_ADS_API_URL=http://127.0.0.1:8787 npm run v1:check -- --destino replit --registros
 ```
 
 Revisa que `deployment.configurationReady` sea `true` y que los proveedores izzi aparezcan conectados. Después
@@ -131,6 +137,16 @@ cerrado de hace tres días (más de 48 horas de maduración).
 Con el sitio en `monitoreo.abcw.global`, sigue las secciones C y G de [CANDIDATA_V1.md](CANDIDATA_V1.md):
 inicio de sesión de cada identidad, permisos de los cinco respondedores, Juan Pablo con control máximo, cliente
 sin datos internos. Juan Pablo firma el [acta de conciliación](ACTA_CONCILIACION_V1.md) y la sección G.
+
+## Si algo falla
+
+- **El sitio no abre o reinicia en ciclo:** en **Deployments → Logs** busca la línea `"supervisor":true`; dice
+  qué proceso se detuvo. `api_not_ready` suele ser un secreto faltante (`UNIFIED_ADS_API_KEY`) o la base sin
+  crear.
+- **`RECORDS_UNAVAILABLE` o error de certificado al conectar la base:** no desactives TLS ni cambies
+  `sslmode`; revisa que `DATABASE_URL` sea la de la base de la publicación y avísame.
+- **Proveedor con `NOT_CONFIGURED` o `AUTH_ERROR`:** falta o venció su secreto; `v1:check` lo indica por
+  proveedor sin mostrar valores.
 
 ## Respaldo y reversión
 

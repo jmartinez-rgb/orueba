@@ -91,7 +91,9 @@ export function v1Configuration(
       variables: liveData
         ? []
         : env.requestedDataSource === "unified"
-          ? ["DATA_SOURCE", "UNIFIED_ADS_DATA_DIR", "UNIFIED_ADS_MAPPING_FILE"]
+          ? env.unifiedData?.store === "postgres"
+            ? ["DATA_SOURCE", "UNIFIED_ADS_STORE", "DATABASE_URL", "UNIFIED_ADS_MAPPING_FILE"]
+            : ["DATA_SOURCE", "UNIFIED_ADS_DATA_DIR", "UNIFIED_ADS_MAPPING_FILE"]
         : env.requestedDataSource === "bigquery"
           ? ["DATA_SOURCE", "GOOGLE_CLOUD_PROJECT", "BIGQUERY_DATASET"]
           : [

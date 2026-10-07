@@ -20,6 +20,7 @@ function connect(url: string) {
       max: 2,
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
+      allowExitOnIdle: true,
     });
     pool.on("error", () => undefined);
     const ready = pool.query(TABLE);

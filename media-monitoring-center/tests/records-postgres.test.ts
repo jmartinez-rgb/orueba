@@ -123,6 +123,19 @@ describe.skipIf(!url)("PostgreSQL storage for hosts without a persistent disk", 
     await takeover!();
   });
 
+  it("a held lease is renewed past its TTL and, once released, is never recreated by a late renewal", async () => {
+    const store = new PostgresRecordStore("unified");
+    const release = await store.lease("renewal-lock", 1500);
+    await new Promise(done => setTimeout(done, 2600));
+    expect(await store.lease("renewal-lock", 1500)).toBeNull();
+    await release!();
+    await new Promise(done => setTimeout(done, 700));
+    expect((await admin.query("SELECT count(*)::int AS n FROM immc_locks WHERE name = 'unified:renewal-lock'")).rows[0].n).toBe(0);
+    const next = await store.lease("renewal-lock", 1500);
+    expect(next).not.toBeNull();
+    await next!();
+  });
+
   it("keeps the direct-API history, its sync lock and the refresh scheduler in PostgreSQL", async () => {
     const snapshots = openUnifiedStore({ directory: undefined, store: "postgres" })!;
     expect(snapshots.root).toBeNull();

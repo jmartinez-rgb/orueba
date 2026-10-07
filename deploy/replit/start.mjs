@@ -18,15 +18,19 @@ import { setTimeout as sleep } from "node:timers/promises";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const apiDir = join(root, "unified-ads-api");
 const webDir = join(root, "media-monitoring-center");
-const apiPort = process.env.UNIFIED_API_INTERNAL_PORT?.trim() || "8080";
-const webPort = process.env.PORT?.trim() || "3000";
+// Fixed ports matching .replit ([[ports]] localPort 3000 → 80). A PORT injected by the platform is ignored
+// on purpose so the web server and the internal API can never collide on it.
+const apiPort = process.env.UNIFIED_API_INTERNAL_PORT?.trim() || "8787";
+const webPort = process.env.MONITOR_PORT?.trim() || "3000";
 const apiUrl = `http://127.0.0.1:${apiPort}`;
 const truthy = (value) => ["1", "true", "yes", "si", "sí", "on"].includes((value ?? "").trim().toLowerCase());
 const log = (event, extra = {}) => console.log(JSON.stringify({ supervisor: true, event, ...extra }));
 
 const shared = { ...process.env, NODE_ENV: "production" };
-// One internal key for both sides: the API accepts the key the monitor sends.
-if (!shared.API_KEYS?.trim() && shared.UNIFIED_ADS_API_KEY?.trim()) shared.API_KEYS = shared.UNIFIED_ADS_API_KEY;
+// One internal key for both sides: the API always accepts the key the monitor sends.
+const monitorKey = shared.UNIFIED_ADS_API_KEY?.trim();
+const apiKeys = (shared.API_KEYS ?? "").split(",").map((key) => key.trim()).filter(Boolean);
+if (monitorKey && !apiKeys.includes(monitorKey)) shared.API_KEYS = [...apiKeys, monitorKey].join(",");
 const apiEnv = { ...shared, HOST: "127.0.0.1", PORT: apiPort };
 const webEnv = { ...shared, PORT: webPort, HOSTNAME: "0.0.0.0", UNIFIED_ADS_API_URL: apiUrl };
 
