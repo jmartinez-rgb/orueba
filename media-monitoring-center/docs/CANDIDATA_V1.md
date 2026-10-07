@@ -2,10 +2,11 @@
 
 Rama `claude/auditoria-final-v1`, desde `07a6ae2` (base funcional `2c8ca56`), 2 a 4 de octubre de 2026.
 Esta lista convierte la candidata en v1 aceptada. **Mientras falte una casilla obligatoria, la v1 no
-está terminada.** A esta fecha siguen abiertas parte de la conciliación independiente (sección E: E2
-concilia por campaña y por grupo, con 2 filas de grupo por explicar; falta E1) y la
-aceptación del alojamiento (secciones B, F y H). El informe de esta ronda está en
-[AUDITORIA_FINAL_V1_2026-10-02.md](AUDITORIA_FINAL_V1_2026-10-02.md).
+está terminada.** Al 7 de octubre siguen abiertas parte de la conciliación independiente (sección E: E2
+concilia por campaña y por grupo, con 2 filas de grupo por confirmar; E1 concilia 3 cuentas de Google y
+falta la corrida final) y la aceptación del alojamiento (secciones B, F y H). El informe de esta ronda está en
+[AUDITORIA_FINAL_V1_2026-10-02.md](AUDITORIA_FINAL_V1_2026-10-02.md) y el acta para firmar la sección E, en
+[ACTA_CONCILIACION_V1.md](ACTA_CONCILIACION_V1.md).
 
 Alcance: **solo izzi** para extracción, conciliación y aceptación. Sky conserva sus datos, cuentas y
 permisos, sin aceptarse en esta ronda. No se despliega, contrata, activa cron/n8n/WhatsApp ni se
@@ -19,7 +20,7 @@ Quién firma: **Juan Pablo Martínez** (control máximo) con el operador autoriz
 | --- | --- | --- | --- |
 | A1 | Commit candidato identificado y sin cambios locales | `git rev-parse HEAD`, `git status` | Pendiente de elegir commit final |
 | A2 | API: tipos, lint, formato, pruebas y build | `cd unified-ads-api && npm ci && npm run typecheck && npm run lint && npm run format:check && npm test && npm run build` | Pasa en la rama: 803/803 (Node 22.22.2) |
-| A3 | Monitoreo: tipos, lint y pruebas | `cd media-monitoring-center && npm ci && npm run check` | Pasa en la rama: 1377/1377 (Node 22.22.2) |
+| A3 | Monitoreo: tipos, lint y pruebas | `cd media-monitoring-center && npm ci && npm run check` | Pasa en la rama: 1397/1397 (Node 22.22.2) |
 | A4 | Build del monitoreo aislado (mock/Memory, sin archivos privados) | `DATA_SOURCE=mock USE_MOCK_DATA=true RECORDS_BACKEND=memory npx next build --webpack` | Pasa en la rama; matriz de navegador completa 344/344 sobre ese build |
 | A5 | CI de API en Node 22 y 24 sobre el commit final | GitHub Actions | Pendiente para el commit final |
 | A6 | Imágenes Docker de ambos servicios construyen como usuario `node` | [PRODUCCION.md](PRODUCCION.md) | Histórico (base anterior); repetir sobre el commit final |
@@ -70,6 +71,16 @@ API del monitoreo (ocultar un botón no basta). Resultado esperado: 403 o 401 en
 | E4 | Referencias privadas conservadas fuera de Git | JSON/CSV 0600 en el volumen privado |
 
 No se acepta comparar la API consigo misma ni una plantilla. Una salida 0 no certifica producción.
+
+Estado de E1 al 7 de octubre (día 2026-10-01), detalle y excepciones en
+[ACTA_CONCILIACION_V1.md](ACTA_CONCILIACION_V1.md):
+
+- [x] **Google 1445650307, 3224850043 y 7367928294:** costo, impresiones y clics coinciden.
+- [ ] **Google 6214109105 y 8779536058:** diferencias pequeñas con la fuente menor que el export (patrón de
+  ajuste posterior de Google); se cierran con un export nuevo del mismo día.
+- [ ] **Google 7771629164:** reloj incompatible; se declara su zona con `--zona-cuenta` y se repite.
+- [ ] **Meta:** 11 referencias armadas; falta leer la fuente con el token de Meta cargado.
+- [ ] **Microsoft:** falta el export en UTC. **TikTok, Spotify y X:** excepciones propuestas en el acta.
 
 Estado de E2 al 4 de octubre (día 2026-10-01):
 
