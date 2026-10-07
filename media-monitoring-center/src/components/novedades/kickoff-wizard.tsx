@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PlatformMark } from "@/components/monitoring/status";
+import { KICKOFF_SAVED_EVENT } from "@/components/novedades/month-gate";
 
 export interface KickoffCampaign {
   id: string;
@@ -134,6 +135,7 @@ export function KickoffWizard({
         return;
       }
       sileo.success({ title: `Arranque de ${monthLabel} confirmado`, description: "Queda en Novedades. El monitoreo ya usa estos presupuestos." });
+      window.dispatchEvent(new Event(KICKOFF_SAVED_EVENT));
       router.push("/novedades");
       router.refresh();
     } catch {

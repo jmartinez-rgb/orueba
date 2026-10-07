@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { CalendarClock, CalendarPlus } from "lucide-react";
 import { sileo } from "sileo";
@@ -20,6 +20,16 @@ interface Status {
   missingBudgets: PlatformId[];
   pending: Array<{ key: string; name: string; platform: PlatformId; accountName: string | null; expectedStart: string | null; overdue: boolean }>;
   justStarted: string[];
+}
+
+/** The wizard fires it after a confirmed save: the gate stops blocking at once and re-reads the status. */
+export const KICKOFF_SAVED_EVENT = "immc:kickoff-saved";
+
+async function fetchKickoffStatus(): Promise<Status | null> {
+  const r = await fetch("/api/kickoff", { cache: "no-store" });
+  if (!r.ok) return null;
+  const d = (await r.json()) as Status;
+  return d?.ok ? d : null;
 }
 
 const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -53,10 +63,9 @@ export function MonthGate({ canKickoff, userId, suspended = false }: { canKickof
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/kickoff", { cache: "no-store" })
-      .then((r) => (r.ok ? (r.json() as Promise<Status>) : null))
+    fetchKickoffStatus()
       .then((d) => {
-        if (!alive || !d?.ok) return;
+        if (!alive || !d) return;
         setStatus(d);
         for (const name of d.justStarted) sileo.success({ title: "Inició una campaña pendiente", description: name });
         const month = MONTHS[Number(d.month.slice(5, 7)) - 1];
@@ -81,6 +90,34 @@ export function MonthGate({ canKickoff, userId, suspended = false }: { canKickof
     };
     // Una consulta por marca y por carga de la app; el recordatorio es una vez al día.
   }, [canKickoff, userId]);
+
+  // The status above is read once per load. Without these two refreshes a confirmed kickoff kept the stale
+  // "required" answer and the gate sent the administrator back to the wizard after every save.
+  const required = useRef(false);
+  useEffect(() => {
+    required.current = Boolean(status?.required);
+  }, [status]);
+  useEffect(() => {
+    let alive = true;
+    const refresh = () => {
+      setStatus((current) => (current ? { ...current, required: false, confirmed: true } : current));
+      fetchKickoffStatus().then((d) => { if (alive && d) setStatus(d); }).catch(() => undefined);
+    };
+    window.addEventListener(KICKOFF_SAVED_EVENT, refresh);
+    return () => {
+      alive = false;
+      window.removeEventListener(KICKOFF_SAVED_EVENT, refresh);
+    };
+  }, []);
+  // Another tab (or another administrator) may have confirmed it: re-read while it still blocks.
+  useEffect(() => {
+    if (!required.current || pathname.startsWith("/novedades/arranque")) return;
+    let alive = true;
+    fetchKickoffStatus().then((d) => { if (alive && d) setStatus(d); }).catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [pathname]);
 
   if (!status) return null;
   const month = MONTHS[Number(status.month.slice(5, 7)) - 1];
