@@ -162,6 +162,13 @@ crear campañas actuales. Hasta disponer de cobertura explícita por fecha, ese 
 el desconocido; no prueba un error de la plataforma. `COMPLETE_CATALOG` significa cobertura del
 catálogo observado, no certifica que el catálogo sea exhaustivo ni que los permisos cubran todo.
 
+**Con una referencia independiente**, cuando la única brecha es esa cobertura de catálogo (las plataformas no
+reportan campañas sin actividad del día, o el catálogo actual ya no incluye una campaña con datos), se compara la
+suma de las filas observadas contra el total de la referencia y se agrega `COMPARED_OBSERVED_SUBTOTAL` a los
+motivos. Una coincidencia demuestra que las campañas ausentes no sumaron nada; una brecha aparece como
+`DIFFERENCE`. Cualquier otro motivo (sin filas, reloj, extracción antes del cierre o futura) sigue bloqueando
+con `MISSING_SOURCE`, y sin referencia la ausencia nunca se lee como cero (`catalogGapWithReference` en la política).
+
 Los campos `sourceMetrics` son totales únicamente con esa cobertura y reloj válidos;
 `observedSubtotal` describe solo las filas presentes y no se usa para compararlas con una cuenta
 completa. Cada métrica se desconoce si alguna fila tiene `null`; un conteo fraccionario o una suma
