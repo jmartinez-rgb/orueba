@@ -3,8 +3,8 @@
 Rama `claude/auditoria-final-v1`, desde `07a6ae2` (base funcional `2c8ca56`), 2 a 4 de octubre de 2026.
 Esta lista convierte la candidata en v1 aceptada. **Mientras falte una casilla obligatoria, la v1 no
 está terminada.** Al 7 de octubre siguen abiertas parte de la conciliación independiente (sección E: E2
-concilia por campaña y por grupo, con 2 filas de grupo por confirmar; E1 concilia 3 cuentas de Google y
-falta la corrida final) y la aceptación del alojamiento (secciones B, F y H). El informe de esta ronda está en
+concilia por campaña y por grupo, con 2 filas de grupo por confirmar; E1 concilia 3 cuentas de Google y 9 de
+Meta) y la aceptación del alojamiento (secciones B, F y H). El informe de esta ronda está en
 [AUDITORIA_FINAL_V1_2026-10-02.md](AUDITORIA_FINAL_V1_2026-10-02.md) y el acta para firmar la sección E, en
 [ACTA_CONCILIACION_V1.md](ACTA_CONCILIACION_V1.md).
 
@@ -75,12 +75,13 @@ No se acepta comparar la API consigo misma ni una plantilla. Una salida 0 no cer
 Estado de E1 al 7 de octubre (día 2026-10-01), detalle y excepciones en
 [ACTA_CONCILIACION_V1.md](ACTA_CONCILIACION_V1.md):
 
-- [x] **Google 1445650307, 3224850043 y 7367928294:** costo, impresiones y clics coinciden.
-- [ ] **Google 6214109105 y 8779536058:** diferencias pequeñas con la fuente menor que el export (patrón de
-  ajuste posterior de Google); se cierran con un export nuevo del mismo día.
-- [ ] **Google 7771629164:** reloj incompatible; se declara su zona con `--zona-cuenta` y se repite.
-- [ ] **Meta:** 11 referencias armadas; falta leer la fuente con el token de Meta cargado.
-- [ ] **Microsoft:** falta el export en UTC. **TikTok, Spotify y X:** excepciones propuestas en el acta.
+- [x] **Google 1445650307, 3224850043 y 7367928294; Meta, 9 de 12 cuentas:** costo, impresiones y clics coinciden.
+- [ ] **Google 6214109105, 8779536058 y 7771629164:** diferencias con la fuente menor que el export (clics
+  inválidos descontados) o de redondeo del export por campaña; se cierran con un export nuevo por cuenta.
+- [ ] **Meta izzi ABCW (Chicago), izzi - Sky Social y Paquetes izzi Telecom:** verificación por horas,
+  diagnóstico de la carga rechazada y export faltante, respectivamente.
+- [ ] **Microsoft:** sin credenciales en la API local ni export en UTC. **TikTok, Spotify y X:** excepciones
+  propuestas en el acta.
 
 Estado de E2 al 4 de octubre (día 2026-10-01):
 

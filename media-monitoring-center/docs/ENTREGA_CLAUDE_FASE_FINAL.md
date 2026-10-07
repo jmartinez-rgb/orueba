@@ -24,7 +24,7 @@ Absolute Top, concurrencia del backend File, capacidad del historial, accesibili
 `conciliar:absolute-top`, `datos:respaldo` y el diagnóstico seguro del 502 de Microsoft.
 **La v1 sigue sin terminar:** faltan la conciliación con exports independientes de Ads Manager y la
 aceptación del alojamiento autorizado. Al 7 de octubre, E2 (Absolute Top) concilia 56/56 campañas y 516/516
-grupos, E1 concilia 3 cuentas de Google y el resto está en el [acta para firma](ACTA_CONCILIACION_V1.md)
+grupos, E1 concilia 3 cuentas de Google y 9 de Meta, y el resto está en el [acta para firma](ACTA_CONCILIACION_V1.md)
 (monitoreo 1397/1397). Las secciones siguientes conservan la entrega de Codex.
 
 ## Lecturas y punto de partida

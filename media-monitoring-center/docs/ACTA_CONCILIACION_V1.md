@@ -29,24 +29,25 @@ Detalle en [CONCILIACION.md](CONCILIACION.md#conciliación-apiinterfaz-nivel-gru
 
 ## E1. Costo, impresiones y clics por cuenta y día
 
-Estado de la segunda corrida (fuente leída el 7 de octubre; export de Google del 4 de octubre):
+Corrida del 7 de octubre (fuente leída ese día a las 19:26 UTC; export de Google del 4 de octubre; exports de
+Meta del 7 de octubre). Dos pasadas: la segunda declara la zona de las cuentas que reportan en otro reloj.
 
 | Plataforma | Cuenta | Resultado | Lectura |
 | --- | --- | --- | --- |
-| Google | 1445650307 | Coinciden costo, impresiones y clics | Conciliada |
-| Google | 3224850043 | Coinciden costo, impresiones y clics | Conciliada |
-| Google | 7367928294 | Coinciden costo, impresiones y clics | Conciliada |
-| Google | 6214109105 | Costo −61,07 MXN, clics −7; impresiones coinciden | La fuente, leída después, es menor que el export: patrón de ajuste por tráfico inválido de Google. Se confirma con un export nuevo del mismo día |
+| Google | 1445650307, 3224850043, 7367928294 | Coinciden costo, impresiones y clics | Conciliadas |
+| Google | 7771629164 (USD, America/Denver) | Coinciden impresiones y clics; costo −0,021 USD | El export trae 10 campañas redondeadas a centavos (error posible hasta 0,05); se cierra con el export por cuenta |
+| Google | 6214109105 | Costo −61,07 MXN, clics −7; impresiones coinciden | Fuente leída después del export y menor, con impresiones idénticas: patrón de clics inválidos descontados por Google. Se confirma con un export nuevo |
 | Google | 8779536058 | Costo −0,33 MXN, impresiones −13, clics −3 | Mismo patrón; mismo cierre |
-| Google | 7771629164 (USD) | Reloj incompatible | La cuenta reporta en otra zona; se declara con `--zona-cuenta` y se vuelve a comparar |
 | Google | 8110571939, 4536282576 (USD) | Sin filas en la fuente ni en el export | Sin actividad el día |
-| Meta | 11 cuentas con export | Referencia armada; fuente sin leer | La API local no tenía el token de Meta (`NOT_CONFIGURED`); se repite con el token cargado solo en memoria |
-| Meta | 1396016284226084 (Paquetes izzi Telecom) | Sin export | Ver excepción 4 |
-| Microsoft | 138689064 | Pendiente | El export recibido estaba en GMT-6 por hora; la API reporta Microsoft en UTC. Se requiere el mismo informe en UTC |
+| Meta | 902854812517704, 801573051220234, 1002273077117011, 1092413174550532, 761656674370974, 255028689061987, 465392948082619 (USD), 400085401160967, 1742111066053708 | Coinciden costo, impresiones y clics | Conciliadas |
+| Meta | 226733029954417 (izzi ABCW, America/Chicago) | Sin día en la fuente | Por diseño, el monitoreo no acepta un día de Chicago como día de México (`DAILY_TIMEZONE_MISMATCH`) y usa horas convertidas a México. Se verifica sumando sus horas del día de Chicago contra el export |
+| Meta | 568474318175977 (izzi - Sky Social) | Carga rechazada (`INVALID_PERFORMANCE_SCOPE`) | En diagnóstico: la carga ahora nombra la validación que falla |
+| Meta | 1396016284226084 (Paquetes izzi Telecom) | Fuente leída; sin export | Falta su export |
+| Microsoft | 138689064 | Sin fuente ni export en UTC | La API local no tiene configurado Microsoft; ver excepción 5 |
 | TikTok y Spotify | Cuentas izzi | Sin export de la interfaz | Ver excepción 3 |
 | X | Cuentas izzi | Fuera de esta ronda | Ver excepción 2 |
 
-Esta tabla se reemplaza con el resultado de la corrida final antes de firmar.
+Las filas en verificación se actualizan con la última corrida antes de firmar.
 
 ## Excepciones que requieren aceptación por escrito
 
@@ -56,7 +57,7 @@ Esta tabla se reemplaza con el resultado de la corrida final antes de firmar.
 | 2 | X fuera de la conciliación de v1 | Decisión del 7 de octubre de avanzar sin X; se concilia antes de usar sus cifras para decisiones | |
 | 3 | TikTok y Spotify sin conciliar el 1 de octubre | Inversión de izzi inmaterial ese día (TikTok 0,27 MXN y Spotify 0, según la hoja de monitoreo); se concilian el primer día con inversión material | |
 | 4 | Meta 1396016284226084 sin export | Solo si no se entrega su export antes de firmar | |
-| 5 | Microsoft sin export en UTC | Solo si no se entrega antes de firmar | |
+| 5 | Microsoft sin conciliar en v1 local | La API local no tiene sus credenciales y falta el export en UTC; se concilia al configurarlo en el alojamiento (D2 exige los seis proveedores), antes del go | |
 | 6 | Diferencias de Google por ajuste posterior | Solo si el export nuevo no las cierra y la diferencia sigue siendo menor (fuente leída después del export) | |
 
 Cualquier diferencia que no tenga explicación es **no-go** (criterio de salida de CANDIDATA_V1.md).
