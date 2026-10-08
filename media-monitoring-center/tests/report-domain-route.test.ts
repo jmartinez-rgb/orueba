@@ -20,17 +20,15 @@ beforeEach(() => {
   mocks.save.mockResolvedValue({ id: "RPT-FIXTURE" });
 });
 
-describe("brand report history isolation from domain views", () => {
-  it("blocks partial-scope persistence on the server and does not read brand-wide history", async () => {
+describe("brand report history and the Google domain preference", () => {
+  it("a Google domain preference never narrows Monitoreos: history and saving stay brand-wide", async () => {
     mocks.cookies.mockResolvedValue({ get: () => ({ value: "fixture_domain" }) });
     const read = await GET();
     expect(read.status).toBe(200);
-    expect(await read.json()).toEqual({ ok: true, reports: [] });
-    expect(mocks.list).not.toHaveBeenCalled();
-    const write = await POST(request());
-    expect(write.status).toBe(409);
-    expect(mocks.save).not.toHaveBeenCalled();
-    expect(mocks.activity).not.toHaveBeenCalled();
+    expect(mocks.list).toHaveBeenCalledWith(30, "izzi");
+    expect((await POST(request())).status).toBe(200);
+    expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ brand: "izzi" }));
+    expect(mocks.cookies).not.toHaveBeenCalled();
   });
 
   it("preserves full-scope storage and brand authorization", async () => {

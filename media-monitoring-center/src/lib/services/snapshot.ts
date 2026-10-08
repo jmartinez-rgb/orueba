@@ -20,7 +20,7 @@ import type { RunSummary } from "@/lib/state/store";
 import { overallConfidence, platformConfidence, summarizeExecution, type ConfidenceResult, type ExecutionSummary } from "@/lib/monitoring/confidence";
 import type { CurrencyReport } from "@/lib/data/currency";
 import { PLATFORMS } from "@/lib/platforms/registry";
-import { getAppContext, getViewContext, monitoringInput, type AppContext } from "./context";
+import { getAppContext, getViewContext, monitoringInput, type AppContext, type ViewScope } from "./context";
 import { SheetsDataSource } from "@/lib/sheets/sheets-source";
 import type { BrandId, BrandInfo } from "@/lib/brands";
 import type { DomainSelection } from "@/lib/domains/types";
@@ -244,11 +244,11 @@ export async function getFullSnapshot(): Promise<Snapshot> {
 }
 
 /** Complete evaluation first; a selected domain is a read-only projection of that result. */
-export async function getSnapshot(): Promise<Snapshot> {
+export async function getSnapshot(scope: ViewScope = "brand"): Promise<Snapshot> {
   const ctx = await getAppContext();
   try {
     const full = await buildSnapshot(ctx);
-    const view = await getViewContext(ctx);
+    const view = await getViewContext(ctx, scope);
     return view.domain?.id === "all" ? full : await buildSnapshot(view, { viewOf: full });
   } catch (err) {
     const failure = friendlyError(ctx.mode === "mock" ? "api" : ctx.mode, err);

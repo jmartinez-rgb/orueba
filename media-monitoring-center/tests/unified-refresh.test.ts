@@ -92,4 +92,71 @@ describe("actualización acotada y espera persistida", () => {
     expect(mock.sync).toHaveBeenCalledTimes(1);
   });
 
+
+  describe("histórico faltante (carga inicial en una base nueva)", () => {
+    const store = () => new UnifiedSnapshotStore(root);
+    const save = async (date: string, granularity: "daily" | "hourly", account: UnifiedScope = scope) => store().savePartition({ version: 1, scope: account, date, granularity, extractedAt: now.toISOString(), rows: [] });
+    /** Stands in for the API: every requested day is stored (empty days included), as syncUnified does. */
+    const storing = (fail?: (options: { from: string; granularities: string[] }) => string | null) => async (options: { from: string; to: string; granularities: Array<"daily" | "hourly">; mapping: { accounts: UnifiedScope[] } }) => {
+      const code = fail?.(options) ?? null;
+      if (code) return options.granularities.map(granularity => ({ granularity, status: "FAILED", rows: 0, code }));
+      for (const granularity of options.granularities) for (let date = options.from; date <= options.to; date = new Date(Date.parse(`${date}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10)) await save(date, granularity, options.mapping.accounts[0]);
+      return options.granularities.map(granularity => ({ granularity, status: "SUCCESS", rows: 2, code: null }));
+    };
+    const window = (call: unknown[]) => { const o = call[0] as { from: string; to: string; granularities: string[] }; return [o.from, o.to, o.granularities.join("+")]; };
+
+    it("completa una sola vez los días que faltan, del más reciente al más antiguo, sin repetir días guardados", async () => {
+      await save("2026-09-20", "daily"); await save("2026-09-20", "hourly");
+      mock.sync.mockImplementation(storing());
+      const [first] = await run({ historyDays: 35 });
+      expect(first).toMatchObject({ status: "SUCCESS", code: null, nextDueAt: "2026-10-02T07:30:00.000Z", history: { rows: 8, missingDays: 0 } });
+      expect(mock.sync.mock.calls.map(window)).toEqual([
+        ["2026-09-29", "2026-10-01", "daily+hourly"],
+        ["2026-09-21", "2026-09-28", "daily"], ["2026-08-27", "2026-09-19", "daily"],
+        ["2026-09-21", "2026-09-28", "hourly"], ["2026-08-27", "2026-09-19", "hourly"],
+      ]);
+      now = new Date("2026-10-02T07:30:00Z");
+      const [second] = await run({ historyDays: 35 });
+      expect(second.history).toEqual({ rows: 0, missingDays: 0 });
+      expect(mock.sync).toHaveBeenCalledTimes(6);
+    });
+
+    it("primero lee hoy en todas las cuentas y después completa el histórico", async () => {
+      mock.sync.mockImplementation(storing());
+      const other: UnifiedScope = { ...scope, accountId: "100002" };
+      const result = await run({ historyDays: 35, mapping: { version: 1, accounts: [scope, other] } });
+      const calls = mock.sync.mock.calls.map(call => [(call[0] as { mapping: { accounts: UnifiedScope[] } }).mapping.accounts[0].accountId, ...window(call)]);
+      expect(calls.slice(0, 2)).toEqual([["100001", "2026-09-29", "2026-10-01", "daily+hourly"], ["100002", "2026-09-29", "2026-10-01", "daily+hourly"]]);
+      expect(calls.slice(2).map(call => call[0])).toEqual(["100001", "100001", "100002", "100002"]);
+      expect(result.map(entry => entry.history)).toEqual([{ rows: 4, missingDays: 0 }, { rows: 4, missingDays: 0 }]);
+    });
+
+    it("no completa una granularidad que falló en la ronda normal", async () => {
+      mock.sync.mockImplementation(storing());
+      mock.sync.mockImplementationOnce(async options => [{ granularity: "daily", status: "SUCCESS", rows: 3, code: null }, { granularity: "hourly", status: "FAILED", rows: 0, code: "API_RESPONSE_ERROR" }].filter(o => options.granularities.includes(o.granularity as "daily")));
+      const [result] = await run({ historyDays: 35 });
+      expect(result).toMatchObject({ status: "PARTIAL", code: "API_RESPONSE_ERROR", history: { missingDays: 33 } });
+      expect(mock.sync.mock.calls.slice(1).map(window)).toEqual([["2026-08-27", "2026-09-28", "daily"]]);
+    });
+
+    it("un fallo del histórico lo pausa 12 horas sin cambiar el estado ni la espera de la ronda normal", async () => {
+      mock.sync.mockImplementation(storing(options => options.from !== "2026-09-29" ? "API_RATE_LIMITED" : null));
+      const [result] = await run({ historyDays: 35 });
+      expect(result).toMatchObject({ status: "SUCCESS", code: null, nextDueAt: "2026-10-02T07:30:00.000Z", history: { rows: 0, missingDays: 33 } });
+      expect(mock.sync).toHaveBeenCalledTimes(2);
+      // Next Mexico day: the window moves one day and the regular round already stored 2026-09-29.
+      now = new Date("2026-10-02T07:30:00Z");
+      expect((await run({ historyDays: 35 }))[0].history).toEqual({ rows: 0, missingDays: 32 });
+      expect(mock.sync).toHaveBeenCalledTimes(3);
+      now = new Date("2026-10-02T17:31:00Z");
+      mock.sync.mockImplementation(storing());
+      expect((await run({ historyDays: 35 }))[0].history).toMatchObject({ missingDays: 0 });
+    });
+
+    it("rechaza una ventana de histórico fuera de rango sin tocar la red", async () => {
+      for (const historyDays of [-1, 45, 3.5]) await expect(run({ historyDays })).rejects.toMatchObject({ code: "INVALID_REFRESH_OPTIONS" });
+      expect(mock.sync).not.toHaveBeenCalled();
+    });
+  });
+
 });

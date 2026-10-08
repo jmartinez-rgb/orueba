@@ -319,10 +319,18 @@ export async function getAppContext(opts: { brand?: BrandId } = {}): Promise<App
   };
 }
 
+/**
+ * Where the Google domain preference applies. Domains classify Google Ads accounts only, so the
+ * preference projects just the Google views (Google Ads page, Absolute Top) and the client portal;
+ * every other view keeps the complete brand even when the preference cookie is set.
+ */
+export type ViewScope = "brand" | "domain";
+
 /** Request-scoped view. Never pass this context to evaluateNow, kickoff writes or acuses. */
-export async function getViewContext(full?: AppContext): Promise<AppContext> {
+export async function getViewContext(full?: AppContext, scope: ViewScope = "brand"): Promise<AppContext> {
   const ctx = full ?? await getAppContext();
-  const selection = selectDomain((await cookies()).get(DOMAIN_COOKIE)?.value, ctx.brand, ctx.domainConfig ?? null);
+  const preference = scope === "domain" ? (await cookies()).get(DOMAIN_COOKIE)?.value : "all";
+  const selection = selectDomain(preference, ctx.brand, ctx.domainConfig ?? null);
   if (selection.id === "all") return { ...ctx, domain: selection, scopeKey: `${ctx.brand}:all:${hash(ctx.domainConfig)}` };
   const raw = new DomainScopedSource(ctx.source.original, selection, ctx.domainConfig ?? null, ctx.brand, ctx.settings.timezone);
   const source = new CurrencyConvertedSource(raw, { rates: ctx.settings.currency.rates, accountCurrency: ctx.settings.currency.accountCurrency });

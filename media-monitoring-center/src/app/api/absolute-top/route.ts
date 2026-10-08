@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   if (params.has("brand") && params.get("brand") !== "izzi") return badRequest("Absolute Top solo está configurado para izzi.");
   if (params.getAll("domain").length > 1) return badRequest("Selecciona un único dominio.");
   try {
-    const context = await getViewContext();
+    const context = await getViewContext(undefined, "domain");
     if (context.brand !== "izzi") return json({ ok: false, message: "La marca seleccionada cambió. Actualiza la página antes de consultar Absolute Top." }, 409);
     const domainId = params.get("domain") ?? context.domain?.id ?? "all";
     if (params.has("domain") && domainId !== "all" && domainId !== "unclassified" && !context.domainConfig?.domains.some((domain) => domain.id === domainId)) return badRequest("El dominio no existe en la configuración maestra disponible.");

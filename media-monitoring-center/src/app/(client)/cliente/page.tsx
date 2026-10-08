@@ -21,7 +21,7 @@ const LEVEL: Record<ClientLevel, { Icon: typeof CircleCheck; tone: string; tint:
 };
 
 export default async function ClientPage() {
-  const res = await safeSnapshot();
+  const res = await safeSnapshot("domain");
   if (!res.ok)
     return (
       <section className="surface p-8 text-center">
@@ -34,7 +34,7 @@ export default async function ClientPage() {
   // Avance del mes por plataforma (si hay presupuesto); si no se puede calcular, la vista sigue sin él.
   const month: Partial<Record<PlatformId | "total", { usedPct: number | null; expectedPct: number | null }>> = {};
   try {
-    const control = await getBudgetControl(await getViewContext(), snap);
+    const control = await getBudgetControl(await getViewContext(undefined, "domain"), snap);
     for (const l of control.lines) {
       if (l.level === "total") month.total = { usedPct: l.usedPct, expectedPct: l.expectedPct };
       else if (l.level === "platform" && l.platform) month[l.platform] = { usedPct: l.usedPct, expectedPct: l.expectedPct };

@@ -5,7 +5,7 @@ import { emptyMetrics } from "@/lib/metrics";
 import { inferObjective } from "@/lib/classifiers/objective";
 import type { MonitoringDataSource, DailyQuery, HourlyQuery } from "@/lib/data/source";
 import { addDays, businessDate, diffDays, zonedParts, zonedTimeToUtc } from "@/lib/time/tz";
-import { campaignId, sourceId, UnifiedDataError, type ApiPerformance, type UnifiedScope } from "./schema";
+import { campaignId, sourceId, UnifiedDataError, type ApiCatalog, type ApiPerformance, type UnifiedScope } from "./schema";
 import { UnifiedSnapshotStore } from "./store";
 import { coverAccounts } from "@/lib/data/account-coverage";
 import { domainMetadata, type GoogleDomainConfig } from "@/lib/domains/config";
@@ -41,6 +41,14 @@ export class UnifiedDataSource implements MonitoringDataSource {
   readonly kind = "unified" as const;
   private domainsPromise: Promise<GoogleDomainConfig | null> | null = null;
   constructor(private readonly opts: { store: UnifiedSnapshotStore; accounts: UnifiedScope[]; timezone: string; clock?: () => Date; domainConfig?: GoogleDomainConfig | null }) {}
+  /** One catalog read per account and request: every query of a snapshot reuses it. */
+  private readonly catalogs = new Map<string, Promise<ApiCatalog | null>>();
+  private catalog(scope: UnifiedScope) {
+    const key = `${scope.brand}/${scope.platform}/${scope.accountId}/${scope.currency}`;
+    let value = this.catalogs.get(key);
+    if (!value) { value = this.opts.store.catalog(scope); this.catalogs.set(key, value); }
+    return value;
+  }
   private domains() { return this.domainsPromise ??= this.opts.domainConfig === undefined ? this.opts.store.domainConfig().catch(() => null) : Promise.resolve(this.opts.domainConfig); }
   now() { return this.opts.clock?.() ?? new Date(); }
   private scopes(platforms?: PlatformId[]) { return this.opts.accounts.filter(s => !platforms?.length || platforms.includes(s.platform)); }
@@ -55,7 +63,7 @@ export class UnifiedDataSource implements MonitoringDataSource {
     const config = await this.domains();
     const accounts: Catalog["accounts"] = [], campaigns: Catalog["campaigns"] = [];
     for (const scope of this.opts.accounts) {
-      const value = await this.opts.store.catalog(scope);
+      const value = await this.catalog(scope);
       const name = value?.account.account_name ?? scope.accountId;
       const meta = domainMetadata(config, scope.platform, scope.accountId, name, scope.brand);
       accounts.push({ id: sourceId(scope), platform: scope.platform, name, currency: value?.account.currency ?? scope.currency, brand: scope.brand, ...meta });
@@ -69,12 +77,14 @@ export class UnifiedDataSource implements MonitoringDataSource {
     const rows: DailyRow[] = [];
     const config = await this.domains();
     for (const scope of this.scopes(q.platforms)) {
-      const catalog = await this.opts.store.catalog(scope);
+      const catalog = await this.catalog(scope);
       if (!catalog) continue;
       const meta = domainMetadata(config, scope.platform, scope.accountId, catalog.account.account_name, scope.brand);
-      for (let date = q.from; date <= q.to; date = addDays(date, 1)) {
-        const part = await this.opts.store.partition(scope, date, "daily");
-        for (const r of part?.rows ?? []) {
+      const dates: string[] = [];
+      for (let date = q.from; date <= q.to; date = addDays(date, 1)) dates.push(date);
+      const parts = await this.opts.store.partitions(scope, dates, "daily");
+      for (const date of dates) {
+        for (const r of parts.get(date)?.rows ?? []) {
           if (!dailyAligned(r, this.opts.timezone) || reportInstant({ ...r, date: addDays(r.date, 1) }, 0).getTime() > Math.min(this.now().getTime(), Date.parse(r.extracted_at))) continue;
           rows.push({ date: r.date, platform: r.platform, accountId: sourceId(scope), campaignId: campaignId(scope, r.campaign_id), metrics: metrics(r), ...meta });
         }
@@ -88,12 +98,12 @@ export class UnifiedDataSource implements MonitoringDataSource {
     const rows: HourlyRow[] = [];
     const config = await this.domains();
     for (const scope of this.scopes(q.platforms)) {
-      const catalog = await this.opts.store.catalog(scope);
+      const catalog = await this.catalog(scope);
       if (!catalog) continue;
       const meta = domainMetadata(config, scope.platform, scope.accountId, catalog.account.account_name, scope.brand);
+      const parts = await this.opts.store.partitions(scope, dates, "hourly");
       for (const date of dates) {
-        const part = await this.opts.store.partition(scope, date, "hourly");
-        for (const r of part?.rows ?? []) {
+        for (const r of parts.get(date)?.rows ?? []) {
           if (r.hour === null) throw new UnifiedDataError("INVALID_SAVED_PARTITION");
           const instant = reportInstant(r, r.hour), end = instant.getTime() + 3600000;
           if (end > this.now().getTime() || end > Date.parse(r.extracted_at)) continue;
@@ -127,7 +137,7 @@ export class UnifiedDataSource implements MonitoringDataSource {
     const rows: ExecutionControlRow[] = [];
     for (const scope of this.opts.accounts) for (const granularity of ["daily", "hourly"] as const) {
       const a = await this.opts.store.attempt(scope, granularity), visible = a && Date.parse(a.at) <= asOf.getTime();
-      rows.push({ id: `${sourceId(scope)}:${granularity}`, accountId: sourceId(scope), ...domainMetadata(await this.domains(), scope.platform, scope.accountId, (await this.opts.store.catalog(scope))?.account.account_name ?? scope.accountId, scope.brand), step: `API · ${scope.platform} · ${scope.accountId} · ${granularity}`, platform: scope.platform, source: "api", status: visible ? a.status === "FAILED" ? "ERROR" : a.rows ? "OK" : "PARCIAL" : "PENDIENTE", lastRunAt: visible ? a.at : null, rows: visible ? a.rows : null, message: visible ? a.code : "Sin extracción comprobada.", expectedEveryMinutes: 60 });
+      rows.push({ id: `${sourceId(scope)}:${granularity}`, accountId: sourceId(scope), ...domainMetadata(await this.domains(), scope.platform, scope.accountId, (await this.catalog(scope))?.account.account_name ?? scope.accountId, scope.brand), step: `API · ${scope.platform} · ${scope.accountId} · ${granularity}`, platform: scope.platform, source: "api", status: visible ? a.status === "FAILED" ? "ERROR" : a.rows ? "OK" : "PARCIAL" : "PENDIENTE", lastRunAt: visible ? a.at : null, rows: visible ? a.rows : null, message: visible ? a.code : "Sin extracción comprobada.", expectedEveryMinutes: 60 });
     }
     return rows;
   }

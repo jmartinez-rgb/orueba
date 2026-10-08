@@ -137,8 +137,8 @@ para el paso 10.
 ## Paso 6. Datos locales de Juan Pablo (solo si se decide conservarlos)
 
 Sin este paso el sitio arranca limpio. Las cuentas de `AUTH_USERS` entran igual y el histórico de las
-plataformas se vuelve a leer solo. Empiezan vacíos: cambios hechos a usuarios dentro de la app, bitácora,
-tickets, novedades, presupuestos, tasas de cambio e historial de Absolute Top.
+plataformas lo completa la extracción del paso 9 (últimos 35 días). Empiezan vacíos: cambios hechos a usuarios
+dentro de la app, bitácora, tickets, novedades, presupuestos, tasas de cambio e historial de Absolute Top.
 
 Si se conservan, hacerlo **antes de que alguien inicie sesión en el sitio publicado**. Abrir el sitio sin
 iniciar sesión no escribe nada; la importación se niega si la base ya tiene datos.
@@ -202,6 +202,17 @@ datos**.
 La extracción lee izzi cada dos horas respetando cuotas. Absolute Top lee una vez al día, a las 7:00 de Ciudad
 de México, el día cerrado de hace tres días (más de 48 horas de maduración).
 
+**Histórico.** Cada ronda lee hoy y los dos días anteriores. En una base nueva, la primera ronda, después de leer hoy
+en todas las cuentas, completa una sola vez los 35 días anteriores que falten, del más reciente al más antiguo (la comparación usa el mismo día
+de las cuatro semanas previas). Un día ya guardado no se vuelve a pedir. En los logs, cada cuenta muestra
+`"history":{"rows":…,"missingDays":…}`; `missingDays` en `0` significa histórico completo. Si una plataforma
+rechaza esa carga (por ejemplo, por cuota), solo esa carga espera 12 horas y la lectura de hoy sigue normal.
+Hasta que termine, el monitoreo puede mostrar «Histórico incompleto» y la curva horaria lineal.
+
+**Tipo de cambio.** Las cuentas en USD necesitan la tasa de cada mes. Un administrador la captura en
+**Tipo de cambio** del monitoreo (mes en curso y mes anterior). Sin ella, el gasto en USD no se convierte y la
+confianza de datos baja.
+
 ## Paso 10. Entregar a Juan Pablo
 
 Enviar, sin ningún secreto:
@@ -227,6 +238,13 @@ Con eso Juan Pablo y los cinco respondedores hacen la aceptación (secciones C y
   plataforma sin mostrar valores.
 - **La importación del paso 6 dice `DESTINATION_NOT_EMPTY`:** alguien ya inició sesión en el sitio publicado.
   No borrar datos sin acuerdo; avisar.
+- **«Histórico incompleto: 0 de 4 semanas» o curva horaria lineal:** la extracción todavía no completa los 35
+  días (ver paso 9). Revisar en los logs que `missingDays` baje a `0`. Si una cuenta sigue con días faltantes,
+  su lectura normal también está fallando: revisar esa plataforma en **Salud de datos**.
+- **Una cuenta de Meta con `DAILY_TIMEZONE_MISMATCH`:** la cuenta está configurada en otra zona horaria
+  (por ejemplo, Chicago) y sus días no coinciden con el de Ciudad de México. Es una limitación conocida: sus días
+  completos no se cargan (la lectura por hora sí) y la confianza de datos baja. No se corrige desde el
+  monitoreo; la zona horaria de la cuenta la decide quien administra Meta.
 
 ## Respaldo y reversión
 
@@ -245,6 +263,6 @@ Con PostgreSQL 16 y datos ficticios, fuera de Replit:
   `PORT`.
 - Respaldo e importación verificados, incluso con el sitio ya publicado y sin sesiones.
 - `v1:check --destino replit` listo.
-- Pruebas: monitoreo 1423/1423 y API 808/808 con base de prueba; CI de GitHub en Node 22 y 24.
+- Pruebas: monitoreo 1432/1432 y API 808/808 con base de prueba; CI de GitHub en Node 22 y 24.
 
 **No se probó dentro de una cuenta de Replit.**

@@ -158,7 +158,7 @@ auditoría nueva y válida puede avanzar la evaluación; las reglas de aviso con
 primera detección, deterioro, cambio de severidad, tiempo, recuperación y recaída.
 Las extracciones parciales, ausentes o antiguas no se usan para confirmar recuperación.
 
-La evaluación de incidencias usa el alcance **completo de la marca**. El selector global
+La evaluación de incidencias usa el alcance **completo de la marca**. El selector de dominio
 solo proyecta la vista. Los acuses críticos, la asignación y el arranque mensual no quedan
 ocultos ni pierden alcance por ese selector. Se mantienen los permisos nominales: ver el
 módulo no concede capacidad de responder, asignar o administrar cuentas.
@@ -171,8 +171,8 @@ envíos externos ni cambios en campañas o presupuestos publicitarios.
 Ruta interna `/absolute-top`, disponible para izzi. Presenta tarjetas por dominio con
 objetivo, campañas/grupos, cumplimiento y afectaciones; el agregado sano no oculta filas
 afectadas. Ofrece filtros de cuenta, campaña, grupo, nivel, estado y severidad, orden por
-puntuación y vistas de jerarquía y tabla. El selector de dominio se comparte con la barra
-global. El detalle permite revisar tasas, brecha, volumen, comparaciones, evolución,
+puntuación y vistas de jerarquía y tabla. El selector de dominio está en el encabezado de esta
+vista y comparte la preferencia con la página de Google Ads. El detalle permite revisar tasas, brecha, volumen, comparaciones, evolución,
 persistencia, contexto y texto preparado para copia.
 Cada tarjeta permite copiar un resumen del dominio completo: campañas y grupos se cuentan
 por separado, con hasta cinco afectaciones prioritarias por nivel y sus ventanas/auditorías.
@@ -193,10 +193,15 @@ su vista autorizada de marca y dominio.
 ## I. Integración transversal
 
 La dimensión se conserva en los seis endpoints Google existentes de la API, catálogos,
-filas de rendimiento, histórico directo y registros de sincronización. El selector proyecta
-resumen, alertas/incidencias, salud de datos, presupuesto/pacing, comparaciones/histórico,
-monitoreos, Nexus e informes. Las respuestas y los informes identifican su dominio para
-evitar reutilizar una conversación o exportación de otro alcance.
+filas de rendimiento, histórico directo y registros de sincronización.
+
+**Cambio del 8 de octubre de 2026 (aceptación en Replit).** Los dominios clasifican solo cuentas
+de Google Ads, así que el selector ya no está en la barra superior: aparece y se aplica únicamente
+en la página de Google Ads y en Absolute Top (y en la vista del cliente, que conserva su selector).
+Resumen, plataformas no Google, alertas/incidencias, salud de datos, presupuesto/pacing,
+comparaciones/histórico, monitoreos, Nexus e informes muestran siempre la marca completa, aunque
+la preferencia guardada sea un dominio. Antes, elegir un dominio convertía todo el tablero en una
+vista solo de Google.
 
 Se filtran datos **antes** de agregarlos. Los presupuestos totales y por plataforma de una
 marca no se reparten artificialmente entre dominios: para esa vista solo se usan referencias

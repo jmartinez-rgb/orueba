@@ -76,6 +76,19 @@ export class PostgresRecordStore implements RecordStore {
     if (!rows.length) return null;
     try { return JSON.parse(rows[0].value) as T; } catch { return this.fail("get_parse"); }
   }
+  /** Several keys in one round trip: the history reads dozens of days per account. Absent keys are left out. */
+  async getMany<T>(keys: string[]): Promise<Map<string, T>> {
+    const out = new Map<string, T>();
+    if (!keys.length) return out;
+    const pool = await this.connection();
+    let rows: Array<{ key: string; value: string }>;
+    try { rows = (await pool.query<{ key: string; value: string }>("SELECT key, value FROM immc_kv WHERE namespace = $1 AND key = ANY($2::text[])", [this.namespace, keys])).rows; }
+    catch { return this.fail("get_many"); }
+    for (const row of rows) {
+      try { out.set(row.key, JSON.parse(row.value) as T); } catch { return this.fail("get_parse"); }
+    }
+    return out;
+  }
   /** Takes the same per-key lock as update, so a plain write never lands inside a read-modify-write. */
   async set(key: string, value: unknown) {
     const text = serialize(value);

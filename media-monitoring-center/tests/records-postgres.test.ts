@@ -4,13 +4,14 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Pool } from "pg";
 import { closePostgresPools, PostgresRecordStore } from "@/lib/records/postgres";
 import { FileRecordStore, getRecordStore, resetRecordStore } from "@/lib/records/store";
 import { openUnifiedStore } from "@/lib/unified/store";
 import { syncUnified } from "@/lib/unified/sync";
 import { refreshUnified } from "@/lib/unified/refresh";
+import { UnifiedDataSource } from "@/lib/unified/source";
 import type { UnifiedScope } from "@/lib/unified/schema";
 import { googleDomainsSchema } from "@/lib/domains/config";
 import { AbsoluteTopStore } from "@/lib/absolute-top/store";
@@ -153,6 +154,19 @@ describe.skipIf(!url)("PostgreSQL storage for hosts without a persistent disk", 
     expect(result[0]).toMatchObject({ status: "SUCCESS", rows: 1 });
     expect((await snapshots.partition(scope, "2026-09-29", "daily"))?.rows[0].spend).toBe(40);
     expect((await snapshots.catalog(scope))?.campaigns).toHaveLength(1);
+    // The refresher completes missing history from this listing: only stored days of that scope and granularity.
+    expect([...await snapshots.partitionDates(scope, "daily")]).toEqual(["2026-09-29"]);
+    expect([...await snapshots.partitionDates(scope, "hourly")]).toEqual([]);
+    expect([...await snapshots.partitionDates({ ...scope, accountId: "acct2" }, "daily")]).toEqual([]);
+    // The monitor reads a month of days per account in one query, not one round trip per day.
+    expect([...(await snapshots.partitions(scope, ["2026-09-28", "2026-09-29"], "daily")).keys()]).toEqual(["2026-09-29"]);
+    const perKey = vi.spyOn(PostgresRecordStore.prototype, "get"), batched = vi.spyOn(PostgresRecordStore.prototype, "getMany");
+    const source = new UnifiedDataSource({ store: snapshots, accounts: [scope], timezone: "America/Mexico_City", clock: () => now });
+    const daily = await source.getDaily({ from: "2026-08-31", to: "2026-09-29", level: "campaign" });
+    expect(daily.map(row => row.metrics.spend)).toEqual([40]);
+    expect(batched).toHaveBeenCalledTimes(1);
+    expect(perKey.mock.calls.filter(([key]) => String(key).includes("/daily/"))).toEqual([]);
+    perKey.mockRestore(); batched.mockRestore();
     // A second extractor cannot run while the first holds the lock.
     const release = await snapshots.lock();
     await expect(snapshots.lock()).rejects.toMatchObject({ code: "SYNC_LOCKED" });

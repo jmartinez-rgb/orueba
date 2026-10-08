@@ -16,7 +16,7 @@ const mapping: UnifiedMapping = {
 describe("explicit optional brand scope for unified workers", () => {
   it("keeps the previous defaults and all configured brands when no filter is present", () => {
     expect(parseSyncOptions([])).toEqual({ granularity: "both" });
-    expect(parseRefreshOptions([])).toEqual({ watch: false, intervalMinutes: 120 });
+    expect(parseRefreshOptions([])).toEqual({ watch: false, intervalMinutes: 120, historyDays: 35 });
     expect(filterUnifiedMapping(mapping, {})).toEqual(mapping);
   });
   it.each([parseSyncOptions, parseRefreshOptions])("retains all izzi accounts across platforms and currencies while excluding Sky", parse => {
@@ -59,11 +59,17 @@ describe("explicit optional brand scope for unified workers", () => {
     expect(() => parseSyncOptions(["--granularity", "weekly"])).toThrow(/INVALID_OPTIONS/);
   });
   it("refresh preserves watch and bounded intervals with brand/provider in any order", () => {
-    expect(parseRefreshOptions(["--watch", "--brand", "izzi", "--interval-minutes", "30", "--provider", "meta"])).toEqual({ watch: true, brand: "izzi", intervalMinutes: 30, provider: "meta" });
+    expect(parseRefreshOptions(["--watch", "--brand", "izzi", "--interval-minutes", "30", "--provider", "meta"])).toEqual({ watch: true, brand: "izzi", intervalMinutes: 30, provider: "meta", historyDays: 35 });
     expect(parseRefreshOptions(["--interval-minutes", "1440", "--brand", "sky", "--watch"]).intervalMinutes).toBe(1440);
   });
   it.each(["29", "1441", "NaN", "Infinity", "30.5", "-30", "3e2"])("refresh rejects invalid interval %s", interval => {
     expect(() => parseRefreshOptions(["--interval-minutes", interval, "--brand", "izzi"])).toThrow(/INVALID_REFRESH_OPTIONS/);
+  });
+  it("refresh completes 35 days of missing history by default, bounded and switchable off", () => {
+    expect(parseRefreshOptions(["--history-days", "0"]).historyDays).toBe(0);
+    expect(parseRefreshOptions(["--history-days", "44", "--brand", "izzi"]).historyDays).toBe(44);
+    for (const days of ["6", "45", "-1", "3.5", "1e1", "many"]) expect(() => parseRefreshOptions(["--history-days", days])).toThrow(/INVALID_REFRESH_OPTIONS/);
+    expect(() => parseRefreshOptions(["--history-days", "35", "--history-days", "20"])).toThrow(/INVALID_REFRESH_OPTIONS/);
   });
   it("refresh rejects duplicate standalone watch and unexpected sync-only flags", () => {
     expect(() => parseRefreshOptions(["--watch", "--watch"])).toThrow(/INVALID_REFRESH_OPTIONS/);

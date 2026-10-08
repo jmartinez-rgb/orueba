@@ -22,7 +22,6 @@ export interface TopbarProps {
   /** Marca vigente (nombre en el logo) y botón de cambio izzi | Sky. */
   brandName: string;
   brandSwitch: ReactNode;
-  domainSwitch?: ReactNode;
   counts: NavCounts;
   permissions: Permission[];
   overall: Severity | null;
@@ -118,7 +117,6 @@ export function Topbar(p: TopbarProps) {
             />
           </div>
         </div>
-        {p.domainSwitch && <div className="flex min-h-11 flex-wrap items-center gap-2 border-t border-(--hairline) px-1 py-1">{p.domainSwitch}<span className="text-[11px] text-muted-foreground">El filtro afecta la vista; los acuses y la evaluación conservan la marca completa.</span></div>}
         <div className="flex min-h-9 items-center justify-between gap-3 border-t border-(--hairline) px-1 pb-1 text-[11px] md:hidden">
           <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
             <Clock3 aria-hidden className="size-3.5 shrink-0" />

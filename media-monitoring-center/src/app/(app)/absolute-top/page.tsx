@@ -9,6 +9,7 @@ import type { AbsoluteTopDashboard } from "@/lib/absolute-top/types";
 import { normalizeGoogleCustomerId } from "@/lib/domains/config";
 import { AbsoluteTopDashboardView } from "@/components/absolute-top/dashboard";
 import { PageHeader } from "@/components/monitoring/page-header";
+import { GoogleDomainScope } from "@/components/layout/google-domain-scope";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Absolute Top" };
@@ -24,7 +25,7 @@ export default async function AbsoluteTopPage() {
   let snapshot: AbsoluteTopDashboard | null = null;
   let switched = false;
   try {
-    const context = await getViewContext();
+    const context = await getViewContext(undefined, "domain");
     // Another browser tab may have changed the shared brand cookie while this page loaded.
     switched = context.brand !== "izzi";
     if (!switched) {
@@ -37,5 +38,5 @@ export default async function AbsoluteTopPage() {
   }
   if (switched) return <Card><CardContent className="pt-5"><p className="text-sm">La marca seleccionada cambió. Vuelve a abrir Absolute Top desde izzi.</p></CardContent></Card>;
   if (!snapshot) return <div className="flex flex-col gap-4"><PageHeader title="Absolute Top Monitoring" /><Card><CardContent className="pt-5"><p role="alert" className="text-sm font-semibold">No se pudo leer la auditoría de Absolute Top.</p><p className="mt-2 text-sm text-muted-foreground">No se interpreta como cumplimiento. Reintenta la lectura o revisa el almacenamiento y la configuración de la API unificada.</p></CardContent></Card></div>;
-  return <div className="flex flex-col gap-4"><PageHeader title="Absolute Top Monitoring" subtitle="Dominio → Cuenta → Campaña → Grupo de anuncios. Cada nivel se evalúa de forma independiente con % Abs. Top of Page." /><AbsoluteTopDashboardView key={snapshot.selectedDomain} initial={snapshot} /></div>;
+  return <div className="flex flex-col gap-4"><PageHeader title="Absolute Top Monitoring" subtitle="Dominio → Cuenta → Campaña → Grupo de anuncios. Cada nivel se evalúa de forma independiente con % Abs. Top of Page." actions={<GoogleDomainScope />} /><AbsoluteTopDashboardView key={snapshot.selectedDomain} initial={snapshot} /></div>;
 }

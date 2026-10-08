@@ -92,6 +92,26 @@ export class UnifiedSnapshotStore {
     if (value === null) return null;
     return validatedPartition(value, s, date, granularity);
   }
+  /**
+   * Stored partitions of several days of one scope. On PostgreSQL this is a single query instead of one
+   * round trip per day; the directory backend keeps reading one file at a time.
+   */
+  async partitions(s: UnifiedScope, dates: readonly string[], granularity: "daily" | "hourly"): Promise<Map<string, ApiPartition>> {
+    for (const date of dates) if (!z.iso.date().safeParse(date).success) throw new UnifiedDataError("INVALID_DATE");
+    const key = (date: string) => `${this.prefix(s)}/${granularity}/${date}`;
+    const found = new Map<string, ApiPartition>();
+    const stored = this.postgres ? await this.postgres.getMany<unknown>(dates.map(key)) : null;
+    for (const date of dates) {
+      const value = stored ? (stored.get(key(date)) ?? null) : await this.files.get(key(date));
+      if (value !== null) found.set(date, validatedPartition(value, s, date, granularity));
+    }
+    return found;
+  }
+  /** Days that already have a stored partition: a successful extraction, empty days included. */
+  async partitionDates(s: UnifiedScope, granularity: "daily" | "hourly"): Promise<Set<string>> {
+    const prefix = `${this.prefix(s)}/${granularity}/`;
+    return new Set((await this.files.list(prefix)).map(key => key.slice(prefix.length)).filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date)));
+  }
   async savePartition(value: ApiPartition) {
     const valid = validatedPartition(value);
     await this.files.set(`${this.prefix(valid.scope)}/${valid.granularity}/${valid.date}`, valid);

@@ -17,7 +17,7 @@ export default async function ClientLayout({ children }: Readonly<{ children: Re
   const allowed: BrandId[] = session.brands.length ? session.brands : BRAND_IDS;
   const wanted = parseBrand((await cookies()).get(BRAND_COOKIE)?.value);
   const brand = allowed.includes(wanted) ? wanted : allowed[0]!;
-  const ctx = await getViewContext();
+  const ctx = await getViewContext(undefined, "domain");
   const domain = ctx.domain ?? { id: "all", name: "Todos los dominios", available: true, configVersion: null };
   const domainOptions = [{ id: "all", name: "Todos los dominios" }, ...(brand === "izzi" && ctx.domainConfig ? [...ctx.domainConfig.domains.map(({ id, name }) => ({ id, name })), { id: "unclassified", name: "Sin clasificar" }] : [])];
   const statuses: BrandStatus[] =

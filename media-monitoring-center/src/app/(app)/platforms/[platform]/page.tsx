@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { classifyCampaign } from "@/lib/classifiers/classify";
 import { DEFAULT_CLASSIFIERS } from "@/lib/classifiers/defaults";
 import { ConfidenceMeter } from "@/components/monitoring/confidence-meter";
+import { GoogleDomainScope } from "@/components/layout/google-domain-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,8 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
   const { platform } = await params;
   if (!isPlatformId(platform)) notFound();
   const p = platform as PlatformId;
-  const res = await safeSnapshot();
+  // El dominio clasifica cuentas de Google: solo la página de Google Ads respeta el dominio elegido.
+  const res = await safeSnapshot(p === "google" ? "domain" : "brand");
   if (!res.ok) return <ErrorPanel message={res.message} technical={res.technical} />;
   const snap = res.snap;
   const { meta, settings } = snap;
@@ -77,8 +79,8 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
   return (
     <div className="flex flex-col gap-4">
       <nav className="flex items-center gap-1 text-xs text-muted-foreground" aria-label="Ruta">
-        <Link href="/platforms" className="hover:text-foreground">
-          Platforms
+        <Link href="/platforms" className="rounded hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+          Plataformas
         </Link>
         <ChevronRight className="size-3" />
         <span className="text-foreground">{PLATFORMS[p].name}</span>
@@ -97,7 +99,15 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
             {card.measurementNote && <span className="block">{card.measurementNote}</span>}
           </>
         }
+        actions={p === "google" ? <GoogleDomainScope /> : undefined}
       />
+
+      {meta.domain && meta.domain.id !== "all" && (
+        <p className="rounded-lg border border-(--hairline) bg-primary/5 px-4 py-2 text-xs" role="status">
+          Vista: {meta.domain.name}
+          {!meta.domain.available ? " · configuración no disponible" : ""}. Las cifras corresponden solo a las cuentas de Google Ads de este dominio; los acuses y la evaluación conservan la marca completa.
+        </p>
+      )}
 
       {bad && (
         <Card className="border-status-data/50">
@@ -194,7 +204,7 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
           <CardHeader>
             <div>
               <CardTitle>Estrategias</CardTitle>
-              <CardDescription>Clasificación por nombre de campaña (reglas en Settings · explicación en la Guía).</CardDescription>
+              <CardDescription>Clasificación por nombre de campaña (reglas en Configuración · explicación en la Guía).</CardDescription>
             </div>
             <Link href={`/compare?dimension=strategy&platform=${p}`} className="text-xs text-primary hover:underline">
               Comparar
@@ -242,7 +252,7 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>Historical comparison</CardTitle>
+            <CardTitle>Comparación histórica</CardTitle>
             <CardDescription>
               Hoy 00:00–{hourLabel(card.cutoffHour)} vs {meta.comparisonDates.map((d) => shortDateLabel(d)).join(", ")} en la misma franja.
             </CardDescription>
@@ -305,7 +315,7 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>Campaigns</CardTitle>
+            <CardTitle>Campañas</CardTitle>
             <CardDescription>El KPI de cada campaña depende de su objetivo.</CardDescription>
           </div>
         </CardHeader>
@@ -317,7 +327,7 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
       <div className="grid gap-4">
         <Card>
           <CardHeader>
-            <CardTitle>Alerts</CardTitle>
+            <CardTitle>Alertas</CardTitle>
           </CardHeader>
           <CardContent>
             <AlertsTable rows={alertRows(snap).filter((a) => a.platform === p)} timezone={tz} canWrite={meta.permissions.includes("alerts:write")} canNovedad={meta.permissions.includes("novedades:write")} compact attention={attention} />
@@ -325,7 +335,7 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Incidents</CardTitle>
+            <CardTitle>Incidentes</CardTitle>
           </CardHeader>
           <CardContent>
             <IncidentsTable incidents={snap.state.incidents.filter((i) => i.platform === p)} alerts={snap.state.alerts.filter((a) => a.incidentId !== null && a.platform === p)} notifications={snap.state.notifications} timezone={tz} asOf={meta.asOf} canWrite={meta.permissions.includes("incidents:write")} canNovedad={meta.permissions.includes("novedades:write")} compact attention={attention} />
@@ -336,7 +346,7 @@ export default async function PlatformPage({ params }: { params: Promise<{ platf
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>Data Health</CardTitle>
+            <CardTitle>Salud de datos</CardTitle>
             <CardDescription>
               Salud {health.score}/100 · última sync {formatTimeInTz(health.lastSyncAt, tz)} ({health.lastSyncStatus})
             </CardDescription>

@@ -9,10 +9,10 @@ import { filterUnifiedMapping, parseRefreshOptions } from "../src/lib/unified/cl
 async function main() {
   const args = process.argv.slice(2);
   if (args.includes("--ayuda") || args.includes("--help")) {
-    console.log("npm run unified:refresh -- [--provider google|meta|tiktok|microsoft|spotify|x] [--brand izzi|sky] [--interval-minutes 30..1440] [--watch]\n--brand limita la marca; sin --brand conserva todas las marcas del mapeo. Sin --watch: una ronda acotada (hoy y los dos días anteriores, diaria/horaria). Con --watch: proceso local detenido por SIGINT/SIGTERM. Intervalo 120 minutos por cuenta, espera persistida y backoff de fallos hasta 24 horas. No fuerza cuotas, imprime secretos, envía notificaciones ni publica."); return;
+    console.log("npm run unified:refresh -- [--provider google|meta|tiktok|microsoft|spotify|x] [--brand izzi|sky] [--interval-minutes 30..1440] [--history-days 0|7..44] [--watch]\n--brand limita la marca; sin --brand conserva todas las marcas del mapeo. Sin --watch: una ronda acotada (hoy y los dos días anteriores, diaria/horaria). Además completa una sola vez los días anteriores que falten en el histórico (35 por omisión; 0 lo apaga), del más reciente al más antiguo; un día ya guardado no se vuelve a pedir y un fallo pausa solo esa carga 12 horas. Con --watch: proceso local detenido por SIGINT/SIGTERM. Intervalo 120 minutos por cuenta, espera persistida y backoff de fallos hasta 24 horas. No fuerza cuotas, imprime secretos, envía notificaciones ni publica."); return;
   }
   const options = parseRefreshOptions(args);
-  const { watch, intervalMinutes } = options;
+  const { watch, intervalMinutes, historyDays } = options;
   loadEnvConfig(process.cwd(), false, { info() {}, error() {} });
   process.env.LOG_LEVEL = "error";
   const env = getEnv();
@@ -24,7 +24,7 @@ async function main() {
   process.once("SIGINT", stop); process.once("SIGTERM", stop);
   try {
     do {
-      const results = await refreshUnified({ mapping, store, url: env.unifiedApi.url, apiKey: env.unifiedApi.apiKey, timezone: env.timezone ?? "America/Mexico_City", intervalMs: intervalMinutes * 60_000, signal: shutdown.signal });
+      const results = await refreshUnified({ mapping, store, url: env.unifiedApi.url, apiKey: env.unifiedApi.apiKey, timezone: env.timezone ?? "America/Mexico_City", intervalMs: intervalMinutes * 60_000, historyDays, signal: shutdown.signal });
       console.log(JSON.stringify({ source: "unified", refresh: results }));
       if (!watch) { process.exitCode = results.some(result => result.status === "FAILED" || result.status === "PARTIAL") ? 2 : 0; break; }
       if (shutdown.signal.aborted) break;

@@ -42,9 +42,9 @@ afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); resetEnvCache(); inv
 describe("domain preference never becomes an evaluation or access scope", () => {
   it("keeps the full context and permissions intact while building independent views", async () => {
     const full = context();
-    const first = await getViewContext(full);
+    const first = await getViewContext(full, "domain");
     mocks.domain = "two";
-    const second = await getViewContext(full);
+    const second = await getViewContext(full, "domain");
     expect((await full.source.getCatalog()).accounts).toHaveLength(2);
     expect((await first.source.getCatalog()).accounts.map(account => account.id)).toEqual(["google:1111111111"]);
     expect((await second.source.getCatalog()).accounts.map(account => account.id)).toEqual(["google:2222222222"]);
@@ -55,21 +55,30 @@ describe("domain preference never becomes an evaluation or access scope", () => 
     expect(full.domain?.id).toBe("all");
   });
 
+  it("applies the preference only where it is requested: every other view keeps the whole brand", async () => {
+    const full = context();
+    const brandView = await getViewContext(full);
+    expect(brandView.domain?.id).toBe("all");
+    expect(brandView.source).toBe(full.source);
+    expect(brandView.brandPlatforms).toEqual(full.brandPlatforms);
+    expect((await getViewContext(full, "domain")).domain?.id).toBe("one");
+  });
+
   it("does not widen an unavailable domain and resets a Sky view to all", async () => {
     const full = context();
     full.domainConfig = null;
-    const missing = await getViewContext(full);
+    const missing = await getViewContext(full, "domain");
     expect(missing.domain).toMatchObject({ id: "one", available: false });
     expect((await missing.source.getCatalog()).accounts).toEqual([]);
     full.brand = "sky"; full.brandInfo = BRANDS.sky;
-    const sky = await getViewContext(full);
+    const sky = await getViewContext(full, "domain");
     expect(sky.domain?.id).toBe("all");
     expect(sky.source).toBe(full.source);
   });
 
   it("recomputes a projection without reading persisted alert history, reconciling or writing", async () => {
     const full = context();
-    const view = await getViewContext(full);
+    const view = await getViewContext(full, "domain");
     const reconcile = vi.spyOn(incidents, "reconcile");
     const reads = [vi.spyOn(full.store, "loadAlertState"), vi.spyOn(full.store, "listRuns")];
     const writes = [vi.spyOn(full.store, "saveAlertState"), vi.spyOn(full.store, "saveRun"), vi.spyOn(full.store, "saveNotifications")];
@@ -107,7 +116,7 @@ describe("domain preference never becomes an evaluation or access scope", () => 
 
   it("does not mislabel the whole brand as empty when a selected domain is unavailable", async () => {
     const full = context(); full.domainConfig = null;
-    const view = await getViewContext(full);
+    const view = await getViewContext(full, "domain");
     const base = nexusSnapshot(); base.state = emptyAlertState(); base.runs = []; base.run.anomalies = []; base.meta.brandHasData = true;
     const snap = await buildSnapshot(view, { viewOf: base });
     expect(snap.catalog.accounts).toEqual([]);

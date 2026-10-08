@@ -3,7 +3,7 @@ import { UnifiedDataError, type UnifiedMapping, type UnifiedScope } from "./sche
 
 export type UnifiedSelection = { provider?: typeof PLATFORM_IDS[number]; brand?: UnifiedScope["brand"] };
 export type SyncCliOptions = UnifiedSelection & { from?: string; to?: string; granularity: "daily" | "hourly" | "both" };
-export type RefreshCliOptions = UnifiedSelection & { watch: boolean; intervalMinutes: number };
+export type RefreshCliOptions = UnifiedSelection & { watch: boolean; intervalMinutes: number; historyDays: number };
 
 function selection(values: Record<string, string>, code: "INVALID_OPTIONS" | "INVALID_REFRESH_OPTIONS"): UnifiedSelection {
   const provider = values["--provider"], brand = values["--brand"];
@@ -34,13 +34,17 @@ export function parseRefreshOptions(args: readonly string[]): RefreshCliOptions 
     seen.add(flag);
     if (flag === "--watch") { watch = true; continue; }
     const value = args[++i];
-    if (!["--provider", "--brand", "--interval-minutes"].includes(flag) || !value || value.startsWith("--")) throw new UnifiedDataError("INVALID_REFRESH_OPTIONS");
+    if (!["--provider", "--brand", "--interval-minutes", "--history-days"].includes(flag) || !value || value.startsWith("--")) throw new UnifiedDataError("INVALID_REFRESH_OPTIONS");
     values[flag] = value;
   }
   const rawInterval = values["--interval-minutes"] ?? "120";
   const intervalMinutes = Number(rawInterval);
   if (!/^\d+$/.test(rawInterval) || !Number.isInteger(intervalMinutes) || intervalMinutes < 30 || intervalMinutes > 1440) throw new UnifiedDataError("INVALID_REFRESH_OPTIONS");
-  return { ...selection(values, "INVALID_REFRESH_OPTIONS"), watch, intervalMinutes };
+  // Older days the round completes once when they are missing (0 turns it off); 35 covers the comparison.
+  const rawHistory = values["--history-days"] ?? "35";
+  const historyDays = Number(rawHistory);
+  if (!/^\d+$/.test(rawHistory) || (historyDays !== 0 && (historyDays < 7 || historyDays > 44))) throw new UnifiedDataError("INVALID_REFRESH_OPTIONS");
+  return { ...selection(values, "INVALID_REFRESH_OPTIONS"), watch, intervalMinutes, historyDays };
 }
 
 /** Exact brand membership from the explicit mapping; never names or a fallback to other brands. */
