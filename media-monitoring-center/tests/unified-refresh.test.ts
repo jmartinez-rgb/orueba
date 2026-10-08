@@ -93,6 +93,26 @@ describe("actualización acotada y espera persistida", () => {
   });
 
 
+  describe("reintento al reiniciar (credenciales corregidas y republicadas)", () => {
+    const failed = (code: string, completedMinutesAgo: number) => new FileRecordStore(join(root, ".scheduler")).set("tiktok/100001/izzi/MXN", { version: 1, startedAt: new Date(now.getTime() - completedMinutesAgo * 60_000).toISOString(), completedAt: new Date(now.getTime() - completedMinutesAgo * 60_000).toISOString(), nextDueAt: new Date(now.getTime() + 20 * 60 * 60_000).toISOString(), failures: 4, code });
+
+    it("la primera ronda reintenta una cuenta que falló sin esperar su espera de hasta 24 horas", async () => {
+      await failed("API_AUTH_ERROR", 60);
+      expect((await run())[0].status).toBe("WAITING");
+      expect(mock.sync).not.toHaveBeenCalled();
+      expect((await run({ retryFailures: true }))[0]).toMatchObject({ status: "SUCCESS", code: null, nextDueAt: "2026-10-02T07:30:00.000Z" });
+      expect(mock.sync).toHaveBeenCalledTimes(1);
+    });
+
+    it("nunca adelanta un límite de cuota ni reintenta más de una vez cada 30 minutos", async () => {
+      await failed("API_RATE_LIMITED", 60);
+      expect((await run({ retryFailures: true }))[0].status).toBe("WAITING");
+      await failed("API_RESPONSE_ERROR", 10);
+      expect((await run({ retryFailures: true }))[0].status).toBe("WAITING");
+      expect(mock.sync).not.toHaveBeenCalled();
+    });
+  });
+
   describe("histórico faltante (carga inicial en una base nueva)", () => {
     const store = () => new UnifiedSnapshotStore(root);
     const save = async (date: string, granularity: "daily" | "hourly", account: UnifiedScope = scope) => store().savePartition({ version: 1, scope: account, date, granularity, extractedAt: now.toISOString(), rows: [] });

@@ -20,7 +20,7 @@ Quién firma: **Juan Pablo Martínez** (control máximo) con el operador autoriz
 | --- | --- | --- | --- |
 | A1 | Commit candidato identificado y sin cambios locales | `git rev-parse HEAD`, `git status` | Pendiente de elegir commit final |
 | A2 | API: tipos, lint, formato, pruebas y build | `cd unified-ads-api && npm ci && npm run typecheck && npm run lint && npm run format:check && npm test && npm run build` | Pasa en la rama al 7 de octubre: 808/808 con `TEST_DATABASE_URL` (PostgreSQL 16); sin base, 805 y 3 omitidas (Node 22.22.2). CI de GitHub en Node 22 y 24 |
-| A3 | Monitoreo: tipos, lint y pruebas | `cd media-monitoring-center && npm ci && npm run check` | Pasa en la rama al 8 de octubre: 1435/1435 con `TEST_DATABASE_URL` (PostgreSQL 16); sin base, 9 omitidas (Node 22.22.2) |
+| A3 | Monitoreo: tipos, lint y pruebas | `cd media-monitoring-center && npm ci && npm run check` | Pasa en la rama al 8 de octubre: 1437/1437 con `TEST_DATABASE_URL` (PostgreSQL 16); sin base, 9 omitidas (Node 22.22.2) |
 | A4 | Build del monitoreo aislado (mock/Memory, sin archivos privados) | `DATA_SOURCE=mock USE_MOCK_DATA=true RECORDS_BACKEND=memory npx next build --webpack` | Pasa en la rama; matriz de navegador completa 344/344 sobre ese build |
 | A5 | CI de API en Node 22 y 24 sobre el commit final | GitHub Actions | Pendiente para el commit final |
 | A6 | Imágenes Docker de ambos servicios construyen como usuario `node` | [PRODUCCION.md](PRODUCCION.md) | Histórico (base anterior); repetir sobre el commit final |

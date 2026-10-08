@@ -82,7 +82,8 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     source.getDaily({ from: addDays(date, -(sustainedDays + 7 * weeks)), to: addDays(date, -1), level: "campaign" }),
     source.estimatedHourly?.(date) ?? Promise.resolve([] as PlatformId[]),
   ]);
-  const coverage = (await source.historyCoverage?.()) ?? null;
+  // Without the listing the comparison keeps its previous behaviour rather than failing the evaluation.
+  const coverage = (await source.historyCoverage?.().catch(() => null)) ?? null;
   const estimatedCurve = new Set<PlatformId>(estimated);
   const budgets = mergeBudgets(sourceBudgets, ...(input.extraBudgets ?? []));
   // Lo que el equipo declaró detenido (arranque de mes, pausas aprobadas) cuenta como pausa a propósito.

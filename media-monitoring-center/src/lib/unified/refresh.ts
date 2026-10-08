@@ -15,7 +15,14 @@ const HISTORY_RETRY_MS = 12 * 60 * 60_000;
 /** Days the monitor compares against: four same weekdays ±1, the sustained-change window and the month. */
 export const DEFAULT_HISTORY_DAYS = 35;
 export type RefreshResult = { platform: string; accountId: string; status: "SUCCESS" | "EMPTY" | "PARTIAL" | "FAILED" | "WAITING"; rows: number; code: string | null; nextDueAt: string; history?: { rows: number; missingDays: number } };
-export type RefreshOptions = Omit<UnifiedSyncOptions, "from" | "to" | "granularities"> & { intervalMs?: number; signal?: AbortSignal; historyDays?: number };
+export type RefreshOptions = Omit<UnifiedSyncOptions, "from" | "to" | "granularities"> & {
+  intervalMs?: number; signal?: AbortSignal; historyDays?: number;
+  /**
+   * First round after a (re)start, e.g. a republish with corrected credentials: a failed account is retried
+   * now instead of waiting its backoff (up to 24 h). Never after a rate limit, and at most every 30 minutes.
+   */
+  retryFailures?: boolean;
+};
 
 /** Missing days in [from, to] as contiguous ranges, newest first. */
 function missingRanges(stored: Set<string>, from: string, to: string): Array<{ from: string; to: string }> {
@@ -39,10 +46,10 @@ const daysIn = (ranges: Array<{ from: string; to: string }>) => ranges.reduce((t
 async function completeHistory(o: {
   store: RefreshOptions["store"]; records: RecordStore; key: string; scope: UnifiedScope; from: string; to: string; working: Set<string>;
   sync: (from: string, to: string, granularities: Array<"daily" | "hourly">) => Promise<Array<{ status: string; rows: number }>>;
-  clock: () => Date; signal?: AbortSignal;
+  clock: () => Date; signal?: AbortSignal; ignorePause?: boolean;
 }): Promise<NonNullable<RefreshResult["history"]>> {
   const saved = historyStateSchema.safeParse(await o.records.get(o.key));
-  const paused = saved.success && Date.parse(saved.data.retryAt) > o.clock().getTime();
+  const paused = !o.ignorePause && saved.success && Date.parse(saved.data.retryAt) > o.clock().getTime();
   let rows = 0, missingDays = 0, failed = false;
   for (const granularity of ["daily", "hourly"] as const) {
     let ranges = missingRanges(await o.store.partitionDates(o.scope, granularity), o.from, o.to);
@@ -82,7 +89,8 @@ export async function refreshUnified(options: RefreshOptions): Promise<RefreshRe
       if (parsed && !parsed.success) throw new UnifiedDataError("INVALID_REFRESH_STATE");
       const previous = parsed?.data;
       const at = clock();
-      if (previous && Date.parse(previous.nextDueAt) > at.getTime()) {
+      const retryNow = !!options.retryFailures && !!previous?.completedAt && previous.code !== null && previous.code !== "API_RATE_LIMITED" && previous.code !== "IN_PROGRESS" && at.getTime() - Date.parse(previous.completedAt) >= MIN_INTERVAL;
+      if (previous && Date.parse(previous.nextDueAt) > at.getTime() && !retryNow) {
         results.push({ platform: scope.platform, accountId: scope.accountId, status: "WAITING", rows: 0, code: previous.code, nextDueAt: previous.nextDueAt });
         continue;
       }
@@ -102,7 +110,7 @@ export async function refreshUnified(options: RefreshOptions): Promise<RefreshRe
         if (historyDays > 3) {
           const working = new Set(operations.filter(operation => operation.status === "SUCCESS").map(operation => operation.granularity));
           // Its own failures never change the regular status or its cooldown.
-          history = () => completeHistory({ store: options.store, records, key: `history/${key}`, scope, from: addDays(today, -historyDays), to: addDays(today, -3), working, sync, clock, signal: options.signal }).catch(() => undefined);
+          history = () => completeHistory({ store: options.store, records, key: `history/${key}`, scope, from: addDays(today, -historyDays), to: addDays(today, -3), working, sync, clock, signal: options.signal, ignorePause: retryNow }).catch(() => undefined);
         }
       } catch (error) {
         code = error instanceof UnifiedDataError && codes.includes(error.code as typeof codes[number]) ? error.code as typeof codes[number] : "REFRESH_FAILED";

@@ -243,6 +243,12 @@ Con eso Juan Pablo y los cinco respondedores hacen la aceptación (secciones C y
   su lectura normal también está fallando: revisar esa plataforma en **Salud de datos**. Mientras una cuenta
   con gasto hoy no tenga su histórico, la plataforma muestra «Esperado —» en lugar de comparar el gasto de
   todas las cuentas contra el histórico de solo algunas (eso daba desviaciones falsas como +675 %).
+- **Una plataforma sigue «Sin datos» después de cargar o corregir sus credenciales:** cada fallo duplica la
+  espera de esa cuenta (4, 8, 16 y hasta 24 horas). Al **volver a publicar**, la primera ronda reintenta de
+  inmediato las cuentas que fallaron (salvo por límite de cuota). Después revisar **Integraciones**: cada
+  plataforma debe aparecer conectada. `MICROSOFT_ADS_REFRESH_TOKEN`, `SPOTIFY_ADS_REFRESH_TOKEN` y
+  `TIKTOK_ACCESS_TOKEN` deben tener el token generado con su asistente, nunca la dirección de regreso
+  (`https://…/oauth/...?code=...`).
 - **Ventas, CPA de venta y conversiones en «—»:** no es un problema de tokens. Con APIs directas, la v1 importa
   gasto, impresiones y clics; las ventas todavía no se importan porque requieren el mapeo de negocio
   (Google: `MCC_Offline_Purchase`; Meta: On-Facebook Purchase para campañas «CAPI WhatsApp» y Compras Offline
@@ -269,6 +275,6 @@ Con PostgreSQL 16 y datos ficticios, fuera de Replit:
   `PORT`.
 - Respaldo e importación verificados, incluso con el sitio ya publicado y sin sesiones.
 - `v1:check --destino replit` listo.
-- Pruebas: monitoreo 1435/1435 y API 808/808 con base de prueba; CI de GitHub en Node 22 y 24.
+- Pruebas: monitoreo 1437/1437 y API 808/808 con base de prueba; CI de GitHub en Node 22 y 24.
 
 **No se probó dentro de una cuenta de Replit.**
