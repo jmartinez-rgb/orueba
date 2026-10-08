@@ -240,7 +240,13 @@ Con eso Juan Pablo y los cinco respondedores hacen la aceptación (secciones C y
   No borrar datos sin acuerdo; avisar.
 - **«Histórico incompleto: 0 de 4 semanas» o curva horaria lineal:** la extracción todavía no completa los 35
   días (ver paso 9). Revisar en los logs que `missingDays` baje a `0`. Si una cuenta sigue con días faltantes,
-  su lectura normal también está fallando: revisar esa plataforma en **Salud de datos**.
+  su lectura normal también está fallando: revisar esa plataforma en **Salud de datos**. Mientras una cuenta
+  con gasto hoy no tenga su histórico, la plataforma muestra «Esperado —» en lugar de comparar el gasto de
+  todas las cuentas contra el histórico de solo algunas (eso daba desviaciones falsas como +675 %).
+- **Ventas, CPA de venta y conversiones en «—»:** no es un problema de tokens. Con APIs directas, la v1 importa
+  gasto, impresiones y clics; las ventas todavía no se importan porque requieren el mapeo de negocio
+  (Google: `MCC_Offline_Purchase`; Meta: On-Facebook Purchase para campañas «CAPI WhatsApp» y Compras Offline
+  Web (Inbound) para las demás). Ver [APIS_DIRECTAS.md](APIS_DIRECTAS.md).
 - **Una cuenta de Meta con `DAILY_TIMEZONE_MISMATCH`:** la cuenta está configurada en otra zona horaria
   (por ejemplo, Chicago) y sus días no coinciden con el de Ciudad de México. Es una limitación conocida: sus días
   completos no se cargan (la lectura por hora sí) y la confianza de datos baja. No se corrige desde el
@@ -263,6 +269,6 @@ Con PostgreSQL 16 y datos ficticios, fuera de Replit:
   `PORT`.
 - Respaldo e importación verificados, incluso con el sitio ya publicado y sin sesiones.
 - `v1:check --destino replit` listo.
-- Pruebas: monitoreo 1432/1432 y API 808/808 con base de prueba; CI de GitHub en Node 22 y 24.
+- Pruebas: monitoreo 1435/1435 y API 808/808 con base de prueba; CI de GitHub en Node 22 y 24.
 
 **No se probó dentro de una cuenta de Replit.**

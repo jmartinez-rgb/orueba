@@ -89,5 +89,6 @@ export class DomainScopedSource implements MonitoringDataSource {
     return rows.filter(row => typeof row.accountId === "string" && ids.has(row.accountId));
   }
   getFxRates() { return this.inner.getFxRates(); }
+  async historyCoverage() { return (await this.inner.historyCoverage?.()) ?? null; }
   async estimatedHourly(date: string) { const platforms = new Set((await this.getCatalog()).accounts.map(account => account.platform)); return ((await this.inner.estimatedHourly?.(date)) ?? []).filter(platform => platforms.has(platform)); }
 }

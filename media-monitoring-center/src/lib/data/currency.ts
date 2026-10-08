@@ -169,6 +169,9 @@ export class CurrencyConvertedSource implements MonitoringDataSource {
   getExecutionControl(asOf: Date) {
     return this.inner.getExecutionControl(asOf);
   }
+  async historyCoverage() {
+    return (await this.inner.historyCoverage?.()) ?? null;
+  }
   async estimatedHourly(date: string): Promise<PlatformId[]> {
     return (await this.inner.estimatedHourly?.(date)) ?? [];
   }

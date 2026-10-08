@@ -82,6 +82,7 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     source.getDaily({ from: addDays(date, -(sustainedDays + 7 * weeks)), to: addDays(date, -1), level: "campaign" }),
     source.estimatedHourly?.(date) ?? Promise.resolve([] as PlatformId[]),
   ]);
+  const coverage = (await source.historyCoverage?.()) ?? null;
   const estimatedCurve = new Set<PlatformId>(estimated);
   const budgets = mergeBudgets(sourceBudgets, ...(input.extraBudgets ?? []));
   // Lo que el equipo declaró detenido (arranque de mes, pausas aprobadas) cuenta como pausa a propósito.
@@ -148,6 +149,22 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     if (okPlatforms.includes(r.platform)) addToSeries(totalSeries, r.date, r.hour, r.metrics, strict);
   }
 
+  // Unknown is not zero. With a source that knows which days are stored, a reference day only counts for a
+  // platform (and the total) when every account with data today also has that day's history; otherwise a
+  // history still being loaded would compare today's whole spend against part of the accounts.
+  const activeToday = new Set([...accountSeries.entries()].filter(([, series]) => series.has(date)).map(([id]) => id));
+  // Daily: accounts that report daily rows at all (one that never does, e.g. by its time zone, stays out of both sides).
+  const activeDaily = new Set(recentDaily.flatMap((r) => (r.campaignId ? [r.accountId ?? campaignById.get(r.campaignId)?.accountId ?? ""] : [])));
+  const lacksHistory = (p: PlatformId, d: string, granularity: "daily" | "hourly") =>
+    !!coverage && catalog.accounts.some((a) => a.platform === p && !excluded.has(a.id) && (granularity === "hourly" ? activeToday : activeDaily).has(a.id) && !coverage[granularity].get(a.id)?.has(d));
+  for (const d of refDates) {
+    for (const p of PLATFORM_IDS) {
+      if (!lacksHistory(p, d, "hourly")) continue;
+      platformSeries.get(p)?.delete(d);
+      if (okPlatforms.includes(p)) totalSeries.delete(d);
+    }
+  }
+
   const baseline = settings.history.baseline;
   const minSamples = settings.history.minSamples;
 
@@ -170,15 +187,21 @@ export async function runMonitoring(source: MonitoringDataSource, input: Monitor
     addDaily(`account:${r.platform}:${accountId}`, r.date, spend);
     addDaily(`platform:${r.platform}`, r.date, spend);
   }
+  // Same rule for a platform's daily level: a day missing for an active account is unknown at platform level.
+  const knownFor = (key: string, p: PlatformId) => {
+    const known = platformDates.get(p);
+    if (!known || !coverage || key !== `platform:${p}`) return known;
+    return new Set([...known].filter((d) => !lacksHistory(p, d, "daily")));
+  };
   const yesterdayOf = (key: string, p: PlatformId): number | null => {
     const byDate = dailySpend.get(key);
-    const known = platformDates.get(p);
+    const known = knownFor(key, p);
     if (!byDate || !known) return null;
     return previousDayRatio({ date, weeks, baseline, minSamples, valueOn: (d) => (known.has(d) ? (byDate.get(d) ?? (strict ? null : 0)) : null) });
   };
   const sustainedOf = (key: string, p: PlatformId): SustainedLevel | null => {
     const byDate = dailySpend.get(key);
-    const known = platformDates.get(p);
+    const known = knownFor(key, p);
     if (!byDate || !known) return null;
     return sustainedLevel({
       date,

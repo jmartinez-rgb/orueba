@@ -49,4 +49,12 @@ export interface MonitoringDataSource {
   getFxRates(): Promise<FxRate[]>;
   /** Plataformas cuya franja horaria de esa fecha se estima con una curva típica (la fuente solo trae el acumulado del día). */
   estimatedHourly?(date: string): Promise<PlatformId[]>;
+  /**
+   * Days with stored history per account (fuentes con extracción propia). Lets the engine tell a day an
+   * account has not been loaded yet (unknown) from a day without spend. Absent: every day counts.
+   */
+  historyCoverage?(): Promise<HistoryCoverage | null>;
 }
+
+/** Per account id: days whose daily / hourly history is stored. */
+export interface HistoryCoverage { daily: Map<string, Set<string>>; hourly: Map<string, Set<string>> }

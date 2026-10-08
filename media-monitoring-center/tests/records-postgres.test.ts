@@ -158,6 +158,10 @@ describe.skipIf(!url)("PostgreSQL storage for hosts without a persistent disk", 
     expect([...await snapshots.partitionDates(scope, "daily")]).toEqual(["2026-09-29"]);
     expect([...await snapshots.partitionDates(scope, "hourly")]).toEqual([]);
     expect([...await snapshots.partitionDates({ ...scope, accountId: "acct2" }, "daily")]).toEqual([]);
+    // The engine's coverage check lists a whole brand at once (catalogs and attempts are not days).
+    const byBrand = await snapshots.brandPartitionDates("izzi");
+    expect([...byBrand.keys()]).toEqual(["tiktok/acct1"]);
+    expect([...byBrand.get("tiktok/acct1")!.daily]).toEqual(["2026-09-29"]);
     // The monitor reads a month of days per account in one query, not one round trip per day.
     expect([...(await snapshots.partitions(scope, ["2026-09-28", "2026-09-29"], "daily")).keys()]).toEqual(["2026-09-29"]);
     const perKey = vi.spyOn(PostgresRecordStore.prototype, "get"), batched = vi.spyOn(PostgresRecordStore.prototype, "getMany");

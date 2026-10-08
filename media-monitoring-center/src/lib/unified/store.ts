@@ -112,6 +112,19 @@ export class UnifiedSnapshotStore {
     const prefix = `${this.prefix(s)}/${granularity}/`;
     return new Set((await this.files.list(prefix)).map(key => key.slice(prefix.length)).filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date)));
   }
+  /** Stored days of every account of a brand in one listing, keyed by `${platform}/${accountId}`. */
+  async brandPartitionDates(brand: UnifiedScope["brand"]): Promise<Map<string, { daily: Set<string>; hourly: Set<string> }>> {
+    const found = new Map<string, { daily: Set<string>; hourly: Set<string> }>();
+    for (const key of await this.files.list(`${brand}/`)) {
+      const [, platform, accountId, granularity, date, ...rest] = key.split("/");
+      if (rest.length || (granularity !== "daily" && granularity !== "hourly") || !/^\d{4}-\d{2}-\d{2}$/.test(date ?? "")) continue;
+      const id = `${platform}/${accountId}`;
+      let entry = found.get(id);
+      if (!entry) found.set(id, (entry = { daily: new Set(), hourly: new Set() }));
+      entry[granularity].add(date);
+    }
+    return found;
+  }
   async savePartition(value: ApiPartition) {
     const valid = validatedPartition(value);
     await this.files.set(`${this.prefix(valid.scope)}/${valid.granularity}/${valid.date}`, valid);

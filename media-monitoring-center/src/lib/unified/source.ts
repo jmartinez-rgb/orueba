@@ -3,7 +3,7 @@ import type { Catalog, DailyRow, DataQualityStats, EntityLevel, ExecutionControl
 import { BASE_METRICS } from "@/lib/types";
 import { emptyMetrics } from "@/lib/metrics";
 import { inferObjective } from "@/lib/classifiers/objective";
-import type { MonitoringDataSource, DailyQuery, HourlyQuery } from "@/lib/data/source";
+import type { MonitoringDataSource, DailyQuery, HistoryCoverage, HourlyQuery } from "@/lib/data/source";
 import { addDays, businessDate, diffDays, zonedParts, zonedTimeToUtc } from "@/lib/time/tz";
 import { campaignId, sourceId, UnifiedDataError, type ApiCatalog, type ApiPerformance, type UnifiedScope } from "./schema";
 import { UnifiedSnapshotStore } from "./store";
@@ -153,4 +153,16 @@ export class UnifiedDataSource implements MonitoringDataSource {
   async getBudgets() { return []; }
   async getFxRates() { return []; }
   async estimatedHourly() { return []; }
+  /** One listing per brand: which days each account already has stored (empty days included). */
+  async historyCoverage(): Promise<HistoryCoverage> {
+    const daily = new Map<string, Set<string>>(), hourly = new Map<string, Set<string>>();
+    const byBrand = new Map<string, Awaited<ReturnType<UnifiedSnapshotStore["brandPartitionDates"]>>>();
+    for (const brand of new Set(this.opts.accounts.map(scope => scope.brand))) byBrand.set(brand, await this.opts.store.brandPartitionDates(brand));
+    for (const scope of this.opts.accounts) {
+      const stored = byBrand.get(scope.brand)?.get(`${scope.platform}/${scope.accountId}`);
+      daily.set(sourceId(scope), stored?.daily ?? new Set());
+      hourly.set(sourceId(scope), stored?.hourly ?? new Set());
+    }
+    return { daily, hourly };
+  }
 }

@@ -25,7 +25,7 @@ Absolute Top, concurrencia del backend File, capacidad del historial, accesibili
 **La v1 sigue sin terminar:** faltan la conciliación con exports independientes de Ads Manager y la
 aceptación del alojamiento autorizado. Al 7 de octubre, E2 (Absolute Top) concilia 56/56 campañas y 516/516
 grupos, E1 concilia 3 cuentas de Google y 9 de Meta, y el resto está en el [acta para firma](ACTA_CONCILIACION_V1.md)
-(monitoreo 1432/1432 y API 808/808 con PostgreSQL de prueba). Publicación elegida: Replit en
+(monitoreo 1435/1435 y API 808/808 con PostgreSQL de prueba). Publicación elegida: Replit en
 `monitoreo.abcw.global` ([guía](PUBLICACION_REPLIT.md)). Las secciones siguientes conservan la entrega de Codex.
 
 ## Lecturas y punto de partida
