@@ -79,8 +79,8 @@ export function ExecutionTable({
   ingestion: Partial<Record<PlatformId, IngestionMode>>;
   timezone: string;
   canEdit: boolean;
-  /** Con la hoja de Dataslayer como fuente, la conexión no se elige: siempre es Google Sheets. */
-  fixedSource?: boolean;
+  /** Conexión fija de la fuente (hoja de Dataslayer → Sheets; APIs directas → API): no se elige por plataforma. */
+  fixedSource?: IngestionMode;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<PlatformId | null>(null);
@@ -125,7 +125,7 @@ export function ExecutionTable({
         <TableBody>
           {execution.rows.map((r) => {
             const st = r.stale && r.status !== "ERROR" && r.status !== "PENDIENTE" ? { label: "Vencido", tone: "text-status-attention-text", Icon: Clock3 } : STATUS[r.status];
-            const mode = r.platform ? (fixedSource ? "sheets" : (ingestion[r.platform] ?? "sheets")) : null;
+            const mode = r.platform ? (fixedSource ?? ingestion[r.platform] ?? "sheets") : null;
             return (
               <TableRow key={r.id}>
                 <TableCell>

@@ -107,7 +107,7 @@ export default async function IntegrationsPage() {
             {snap.execution.status === "ERROR" && (
               <p className="rounded-md border border-status-critical/40 bg-status-critical/10 px-3 py-2 text-xs text-status-critical-text">Con error: {snap.execution.errors.join(", ")}. Revisa el paso en la hoja de control.</p>
             )}
-            <ExecutionTable execution={snap.execution} ingestion={snap.settings.ingestion} timezone={snap.meta.timezone} canEdit={snap.meta.permissions.includes("settings:write")} fixedSource={snap.meta.mode === "sheets" || snap.meta.mode === "unified"} />
+            <ExecutionTable execution={snap.execution} ingestion={snap.settings.ingestion} timezone={snap.meta.timezone} canEdit={snap.meta.permissions.includes("settings:write")} fixedSource={snap.meta.mode === "sheets" ? "sheets" : snap.meta.mode === "unified" ? "api" : undefined} />
           </CardContent>
         </Card>
       </section>

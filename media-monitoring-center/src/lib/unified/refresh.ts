@@ -44,7 +44,7 @@ const daysIn = (ranges: Array<{ from: string; to: string }>) => ranges.reduce((t
  * stored days (empty ones included) are never requested again. A failure pauses only this completion.
  */
 async function completeHistory(o: {
-  store: RefreshOptions["store"]; records: RecordStore; key: string; scope: UnifiedScope; from: string; to: string; working: Set<string>;
+  store: RefreshOptions["store"]; records: RecordStore; key: string; scope: UnifiedScope; from: string; to: string; working: Set<string>; derived?: Set<string>;
   sync: (from: string, to: string, granularities: Array<"daily" | "hourly">) => Promise<Array<{ status: string; rows: number }>>;
   clock: () => Date; signal?: AbortSignal; ignorePause?: boolean;
 }): Promise<NonNullable<RefreshResult["history"]>> {
@@ -52,6 +52,7 @@ async function completeHistory(o: {
   const paused = !o.ignorePause && saved.success && Date.parse(saved.data.retryAt) > o.clock().getTime();
   let rows = 0, missingDays = 0, failed = false;
   for (const granularity of ["daily", "hourly"] as const) {
+    if (o.derived?.has(granularity)) continue;
     let ranges = missingRanges(await o.store.partitionDates(o.scope, granularity), o.from, o.to);
     if (ranges.length && !paused && !failed && o.working.has(granularity)) {
       for (const range of ranges) {
@@ -108,9 +109,11 @@ export async function refreshUnified(options: RefreshOptions): Promise<RefreshRe
         const failureCode = failed.find(operation => operation.code === "API_RATE_LIMITED")?.code ?? failed[0]?.code;
         if (failed.length) code = codes.includes(failureCode as typeof codes[number]) ? failureCode as typeof codes[number] : "REFRESH_FAILED";
         if (historyDays > 3) {
-          const working = new Set(operations.filter(operation => operation.status === "SUCCESS").map(operation => operation.granularity));
+          const working = new Set(operations.filter(operation => operation.status === "SUCCESS" && operation.code !== "DAILY_FROM_HOURLY").map(operation => operation.granularity));
+          // Days rebuilt from hours have no daily partitions to complete or count.
+          const derived = new Set(operations.filter(operation => operation.code === "DAILY_FROM_HOURLY").map(operation => operation.granularity));
           // Its own failures never change the regular status or its cooldown.
-          history = () => completeHistory({ store: options.store, records, key: `history/${key}`, scope, from: addDays(today, -historyDays), to: addDays(today, -3), working, sync, clock, signal: options.signal, ignorePause: retryNow }).catch(() => undefined);
+          history = () => completeHistory({ store: options.store, records, key: `history/${key}`, scope, from: addDays(today, -historyDays), to: addDays(today, -3), working, derived, sync, clock, signal: options.signal, ignorePause: retryNow }).catch(() => undefined);
         }
       } catch (error) {
         code = error instanceof UnifiedDataError && codes.includes(error.code as typeof codes[number]) ? error.code as typeof codes[number] : "REFRESH_FAILED";

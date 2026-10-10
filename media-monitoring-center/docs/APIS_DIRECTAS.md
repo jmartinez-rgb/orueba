@@ -90,7 +90,10 @@ Ante `API_RATE_LIMITED`, respetar el límite del proveedor; no regenerar credenc
   chequeos señalan horas faltantes. El mapa de calor tampoco inventa ceros.
 - Se excluyen horas abiertas, futuras o que aún no estaban completas al extraer. Las filas
   horarias se convierten de su zona/offset al reloj de México. Un día agregado en UTC no se
-  acepta como día mexicano: `DAILY_TIMEZONE_MISMATCH`. Para Spotify/Microsoft, usar horas reales
+  acepta como día mexicano: `DAILY_TIMEZONE_MISMATCH`. Si la cuenta declara una zona IANA cuyo día no
+  coincide con el de México en todo el año (p. ej. America/Chicago, por su horario de verano), no se pide su
+  total diario: el día mexicano se calcula sumando sus horas convertidas, solo cuando terminó y cada fecha de
+  la cuenta que lo cubre está guardada y se leyó después de ese cierre. Para Spotify/Microsoft, usar horas reales
   y conciliar el reloj antes de ampliar la ingesta diaria.
 - La frescura procede del fin de la última hora recibida, no de la hora de ejecutar un backfill.
   Las cuentas atrasadas/vacías se muestran por separado. Cargar 35 días no garantiza cuatro

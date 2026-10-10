@@ -173,6 +173,17 @@ describe("actualización acotada y espera persistida", () => {
       expect((await run({ historyDays: 35 }))[0].history).toMatchObject({ missingDays: 0 });
     });
 
+    it("una cuenta en otra zona horaria solo completa horas: sus días se calculan con ellas", async () => {
+      const hourlyOnly = storing();
+      mock.sync.mockImplementation(async (options: Parameters<typeof hourlyOnly>[0]) => {
+        const hourly = await hourlyOnly({ ...options, granularities: options.granularities.filter(g => g === "hourly") });
+        return [...(options.granularities.includes("daily") ? [{ granularity: "daily", status: "SUCCESS", rows: 0, code: "DAILY_FROM_HOURLY" }] : []), ...hourly];
+      });
+      const [result] = await run({ historyDays: 35 });
+      expect(result).toMatchObject({ status: "SUCCESS", code: null, history: { missingDays: 0 } });
+      expect(mock.sync.mock.calls.slice(1).map(window)).toEqual([["2026-08-27", "2026-09-28", "hourly"]]);
+    });
+
     it("rechaza una ventana de histórico fuera de rango sin tocar la red", async () => {
       for (const historyDays of [-1, 45, 3.5]) await expect(run({ historyDays })).rejects.toMatchObject({ code: "INVALID_REFRESH_OPTIONS" });
       expect(mock.sync).not.toHaveBeenCalled();

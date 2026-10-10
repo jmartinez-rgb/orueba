@@ -253,10 +253,12 @@ Con eso Juan Pablo y los cinco respondedores hacen la aceptación (secciones C y
   gasto, impresiones y clics; las ventas todavía no se importan porque requieren el mapeo de negocio
   (Google: `MCC_Offline_Purchase`; Meta: On-Facebook Purchase para campañas «CAPI WhatsApp» y Compras Offline
   Web (Inbound) para las demás). Ver [APIS_DIRECTAS.md](APIS_DIRECTAS.md).
-- **Una cuenta de Meta con `DAILY_TIMEZONE_MISMATCH`:** la cuenta está configurada en otra zona horaria
-  (por ejemplo, Chicago) y sus días no coinciden con el de Ciudad de México. Es una limitación conocida: sus días
-  completos no se cargan (la lectura por hora sí) y la confianza de datos baja. No se corrige desde el
-  monitoreo; la zona horaria de la cuenta la decide quien administra Meta.
+- **Cuentas en otra zona horaria (izzi ABCW en Meta y Universal+ en Google, ambas en Chicago):** Chicago va
+  una hora adelante de Ciudad de México de marzo a noviembre, así que sus días no coinciden con los de México.
+  Desde el commit de esta corrección, sus días se calculan con sus horas convertidas al horario de Ciudad de
+  México (no se pide el total diario a la plataforma). En **Integraciones**, su paso diario aparece «Listo» con
+  el detalle «Días calculados con las horas». Un día solo cuenta cuando terminó y sus horas ya se leyeron; si no,
+  queda sin valor. Si todavía aparece `DAILY_TIMEZONE_MISMATCH`, la publicación es anterior a este cambio.
 
 ## Respaldo y reversión
 
@@ -275,6 +277,6 @@ Con PostgreSQL 16 y datos ficticios, fuera de Replit:
   `PORT`.
 - Respaldo e importación verificados, incluso con el sitio ya publicado y sin sesiones.
 - `v1:check --destino replit` listo.
-- Pruebas: monitoreo 1437/1437 y API 808/808 con base de prueba; CI de GitHub en Node 22 y 24.
+- Pruebas: monitoreo 1442/1442 y API 808/808 con base de prueba; CI de GitHub en Node 22 y 24.
 
 **No se probó dentro de una cuenta de Replit.**

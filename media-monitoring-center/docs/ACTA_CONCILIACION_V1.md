@@ -40,7 +40,7 @@ Meta del 7 de octubre). Dos pasadas: la segunda declara la zona de las cuentas q
 | Google | 8779536058 | Costo −0,33 MXN, impresiones −13, clics −3 | Mismo patrón; mismo cierre |
 | Google | 8110571939, 4536282576 (USD) | Sin filas en la fuente ni en el export | Sin actividad el día |
 | Meta | 902854812517704, 801573051220234, 1002273077117011, 1092413174550532, 761656674370974, 255028689061987, 465392948082619 (USD), 400085401160967, 1742111066053708 | Coinciden costo, impresiones y clics | Conciliadas |
-| Meta | 226733029954417 (izzi ABCW, America/Chicago) | Sin día en la fuente | Por diseño, el monitoreo no acepta un día de Chicago como día de México (`DAILY_TIMEZONE_MISMATCH`) y usa horas convertidas a México. Se verifica sumando sus horas del día de Chicago contra el export |
+| Meta | 226733029954417 (izzi ABCW, America/Chicago) | Sin día en la fuente | Por diseño, el monitoreo no acepta un día de Chicago como día de México. Desde el 10 de octubre de 2026 sus días mexicanos se calculan con sus horas convertidas a México (antes quedaban en `DAILY_TIMEZONE_MISMATCH`). Se verifica sumando sus horas del día de Chicago contra el export |
 | Meta | 568474318175977 (izzi - Sky Social) | Carga rechazada (`INVALID_PERFORMANCE_SCOPE`) | En diagnóstico: la carga ahora nombra la validación que falla |
 | Meta | 1396016284226084 (Paquetes izzi Telecom) | Fuente leída; sin export | Falta su export |
 | Microsoft | 138689064 | Sin fuente ni export en UTC | La API local no tiene configurado Microsoft; ver excepción 5 |

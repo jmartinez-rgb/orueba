@@ -4,7 +4,7 @@ import { validUnifiedUrl } from "@/lib/integrations/unified-api";
 import { addDays, diffDays } from "@/lib/time/tz";
 import { accountSchema, campaignSchema, mappingSchema, performanceSchema, UnifiedDataError, type UnifiedMapping } from "./schema";
 import { UnifiedSnapshotStore } from "./store";
-import { dailyAligned } from "./source";
+import { dailyAligned, sameReportDay } from "./source";
 import { fetchGoogleDomainConfig } from "@/lib/domains/api";
 import { domainMetadata } from "@/lib/domains/config";
 import { createHash } from "node:crypto";
@@ -102,6 +102,13 @@ export async function syncUnified(options: UnifiedSyncOptions) {
       const known = new Set(catalog.campaigns.map(c => c.campaign_id));
       for (const granularity of options.granularities) {
         let count = 0;
+        // An account in another report clock (e.g. America/Chicago with daylight saving time) has no Mexican
+        // daily totals at the provider: its days are rebuilt from its hourly rows, so no daily request is made.
+        if (granularity === "daily" && !sameReportDay(catalog.account.timezone, options.timezone ?? "America/Mexico_City", Number(options.from.slice(0, 4)))) {
+          await options.store.saveAttempt(scope, granularity, { at: clock().toISOString(), status: "SUCCESS", code: "DAILY_FROM_HOURLY", rows: 0 });
+          result.push({ ...scope, granularity, status: "SUCCESS", rows: 0, code: "DAILY_FROM_HOURLY" });
+          continue;
+        }
         try {
           // Small windows let each successful block be checkpointed without erasing older days.
           for (let start = options.from; start <= options.to; start = addDays(start, 3)) {

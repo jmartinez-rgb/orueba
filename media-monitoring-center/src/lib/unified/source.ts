@@ -4,7 +4,7 @@ import { BASE_METRICS } from "@/lib/types";
 import { emptyMetrics } from "@/lib/metrics";
 import { inferObjective } from "@/lib/classifiers/objective";
 import type { MonitoringDataSource, DailyQuery, HistoryCoverage, HourlyQuery } from "@/lib/data/source";
-import { addDays, businessDate, diffDays, zonedParts, zonedTimeToUtc } from "@/lib/time/tz";
+import { addDays, businessDate, diffDays, isValidTimeZone, zonedParts, zonedTimeToUtc } from "@/lib/time/tz";
 import { campaignId, sourceId, UnifiedDataError, type ApiCatalog, type ApiPerformance, type UnifiedScope } from "./schema";
 import { UnifiedSnapshotStore } from "./store";
 import { coverAccounts } from "@/lib/data/account-coverage";
@@ -18,6 +18,30 @@ export function reportInstant(row: ApiPerformance, hour: number): Date {
 export function dailyAligned(row: ApiPerformance, timezone: string): boolean {
   return reportInstant(row, 0).getTime() === zonedTimeToUtc(row.date, 0, 0, timezone).getTime() &&
     reportInstant({ ...row, date: addDays(row.date, 1) }, 0).getTime() === zonedTimeToUtc(addDays(row.date, 1), 0, 0, timezone).getTime();
+}
+/**
+ * Whether an account's report day always matches the business day. Mexico City has no daylight saving time,
+ * so an account in America/Chicago is one hour ahead from March to November: its provider daily totals are not
+ * Mexican days and are rebuilt from its hourly rows instead. Unknown or non-IANA zones keep the row check.
+ */
+export function sameReportDay(accountTimezone: string | null | undefined, timezone: string, year = new Date().getUTCFullYear()): boolean {
+  if (!accountTimezone || accountTimezone === timezone || !isValidTimeZone(accountTimezone)) return true;
+  for (const y of [year, year + 1]) for (let month = 1; month <= 12; month++) for (const day of ["01", "15"]) {
+    const date = `${y}-${String(month).padStart(2, "0")}-${day}`;
+    if (zonedTimeToUtc(date, 0, 0, accountTimezone).getTime() !== zonedTimeToUtc(date, 0, 0, timezone).getTime()) return false;
+  }
+  return true;
+}
+/** The account's report dates that overlap one business day (one or two). */
+function reportDatesOf(day: string, accountTimezone: string, timezone: string): string[] {
+  const start = zonedTimeToUtc(day, 0, 0, timezone), end = zonedTimeToUtc(addDays(day, 1), 0, 0, timezone);
+  return [...new Set([businessDate(start, accountTimezone), businessDate(new Date(end.getTime() - 1), accountTimezone)])];
+}
+const DERIVED_METRICS = ["spend", "impressions", "clicks"] as const;
+/** Code plus its allowlisted diagnosis (no bodies, URLs or tokens), so a failure can be told apart without logs. */
+function attemptMessage(attempt: { code: string | null; diagnostic?: string }): string | null {
+  if (attempt.code === "DAILY_FROM_HOURLY") return "Días calculados con las horas (la cuenta reporta en otra zona horaria).";
+  return attempt.code && attempt.diagnostic ? `${attempt.code} · ${attempt.diagnostic}` : attempt.code;
 }
 function metrics(row: ApiPerformance): MetricValues {
   // Business result mapping remains pending. Never copy an optimization default as a sale.
@@ -82,6 +106,10 @@ export class UnifiedDataSource implements MonitoringDataSource {
       const meta = domainMetadata(config, scope.platform, scope.accountId, catalog.account.account_name, scope.brand);
       const dates: string[] = [];
       for (let date = q.from; date <= q.to; date = addDays(date, 1)) dates.push(date);
+      if (!sameReportDay(catalog.account.timezone, this.opts.timezone, Number(dates[0].slice(0, 4)))) {
+        rows.push(...(await this.dailyFromHourly(scope, catalog.account.timezone!, dates)).map(row => ({ ...row, ...meta })));
+        continue;
+      }
       const parts = await this.opts.store.partitions(scope, dates, "daily");
       for (const date of dates) {
         for (const r of parts.get(date)?.rows ?? []) {
@@ -91,6 +119,31 @@ export class UnifiedDataSource implements MonitoringDataSource {
       }
     }
     return this.annotateRows(aggregate(q.level === "campaign" ? rows : coverAccounts(rows, this.scopes(q.platforms).map(s => ({ id: sourceId(s), platform: s.platform }))), q.level));
+  }
+  /**
+   * Business days of an account in another report clock, summed from its hourly rows converted to the business
+   * time zone. A day counts only once it has ended and every overlapping report date is stored and was read
+   * after that end; otherwise it stays unknown (never zero).
+   */
+  private async dailyFromHourly(scope: UnifiedScope, accountTimezone: string, days: string[]): Promise<DailyRow[]> {
+    const tz = this.opts.timezone;
+    const parts = await this.opts.store.partitions(scope, [...new Set(days.flatMap(day => reportDatesOf(day, accountTimezone, tz)))], "hourly");
+    const rows: DailyRow[] = [];
+    for (const day of days) {
+      const end = zonedTimeToUtc(addDays(day, 1), 0, 0, tz).getTime();
+      const sources = reportDatesOf(day, accountTimezone, tz).map(date => parts.get(date));
+      if (end > this.now().getTime() || sources.some(part => !part || Date.parse(part.extractedAt) < end)) continue;
+      const sums = new Map<string, MetricValues>();
+      for (const part of sources) for (const r of part!.rows) {
+        if (r.hour === null) throw new UnifiedDataError("INVALID_SAVED_PARTITION");
+        if (businessDate(reportInstant(r, r.hour), tz) !== day) continue;
+        const value = metrics(r), current = sums.get(r.campaign_id);
+        if (!current) { sums.set(r.campaign_id, value); continue; }
+        for (const metric of DERIVED_METRICS) current[metric] = current[metric] === null || value[metric] === null ? null : current[metric]! + value[metric]!;
+      }
+      for (const [campaign, value] of sums) rows.push({ date: day, platform: scope.platform, accountId: sourceId(scope), campaignId: campaignId(scope, campaign), metrics: value });
+    }
+    return rows;
   }
   async getHourly(q: HourlyQuery): Promise<HourlyRow[]> {
     if (q.dates.length > 100) throw new UnifiedDataError("INVALID_QUERY_RANGE");
@@ -137,7 +190,7 @@ export class UnifiedDataSource implements MonitoringDataSource {
     const rows: ExecutionControlRow[] = [];
     for (const scope of this.opts.accounts) for (const granularity of ["daily", "hourly"] as const) {
       const a = await this.opts.store.attempt(scope, granularity), visible = a && Date.parse(a.at) <= asOf.getTime();
-      rows.push({ id: `${sourceId(scope)}:${granularity}`, accountId: sourceId(scope), ...domainMetadata(await this.domains(), scope.platform, scope.accountId, (await this.catalog(scope))?.account.account_name ?? scope.accountId, scope.brand), step: `API · ${scope.platform} · ${scope.accountId} · ${granularity}`, platform: scope.platform, source: "api", status: visible ? a.status === "FAILED" ? "ERROR" : a.rows ? "OK" : "PARCIAL" : "PENDIENTE", lastRunAt: visible ? a.at : null, rows: visible ? a.rows : null, message: visible ? a.code : "Sin extracción comprobada.", expectedEveryMinutes: 60 });
+      rows.push({ id: `${sourceId(scope)}:${granularity}`, accountId: sourceId(scope), ...domainMetadata(await this.domains(), scope.platform, scope.accountId, (await this.catalog(scope))?.account.account_name ?? scope.accountId, scope.brand), step: `API · ${scope.platform} · ${scope.accountId} · ${granularity}`, platform: scope.platform, source: "api", status: visible ? a.status === "FAILED" ? "ERROR" : a.rows || a.code === "DAILY_FROM_HOURLY" ? "OK" : "PARCIAL" : "PENDIENTE", lastRunAt: visible ? a.at : null, rows: visible ? a.rows : null, message: visible ? attemptMessage(a) : "Sin extracción comprobada.", expectedEveryMinutes: 60 });
     }
     return rows;
   }
@@ -160,8 +213,13 @@ export class UnifiedDataSource implements MonitoringDataSource {
     for (const brand of new Set(this.opts.accounts.map(scope => scope.brand))) byBrand.set(brand, await this.opts.store.brandPartitionDates(brand));
     for (const scope of this.opts.accounts) {
       const stored = byBrand.get(scope.brand)?.get(`${scope.platform}/${scope.accountId}`);
-      daily.set(sourceId(scope), stored?.daily ?? new Set());
-      hourly.set(sourceId(scope), stored?.hourly ?? new Set());
+      const hours = stored?.hourly ?? new Set<string>();
+      hourly.set(sourceId(scope), hours);
+      const accountTimezone = (await this.catalog(scope))?.account.timezone;
+      if (sameReportDay(accountTimezone, this.opts.timezone, Number(businessDate(this.now(), this.opts.timezone).slice(0, 4)))) { daily.set(sourceId(scope), stored?.daily ?? new Set()); continue; }
+      // Days rebuilt from hours: covered when every overlapping report date is stored.
+      const candidates = new Set([...hours].flatMap(date => [addDays(date, -1), date, addDays(date, 1)]));
+      daily.set(sourceId(scope), new Set([...candidates].filter(day => reportDatesOf(day, accountTimezone!, this.opts.timezone).every(date => hours.has(date)))));
     }
     return { daily, hourly };
   }

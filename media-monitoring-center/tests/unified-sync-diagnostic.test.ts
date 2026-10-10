@@ -18,7 +18,7 @@ async function store() { const d = await mkdtemp(join(tmpdir(), "sync-diagnostic
 const providerError = (details: Record<string, unknown>) => Response.json({ error: { code: "PROVIDER_ERROR", message: "Detalle con https://bingadsappsstorageprod.blob.core.windows.net/r.zip?sig=secreto", details, request_id: "req-1" } }, { status: 502 });
 const transport = (performance: () => Response, catalog?: () => Response): typeof fetch => async input => {
   const route = new URL(String(input)).pathname.split("/").pop();
-  if (route === "accounts") return catalog?.() ?? Response.json({ data: [{ platform: "microsoft", account_id: "101", account_name: "Cuenta ficticia", currency: "MXN", timezone: "UTC" }], errors: [] });
+  if (route === "accounts") return catalog?.() ?? Response.json({ data: [{ platform: "microsoft", account_id: "101", account_name: "Cuenta ficticia", currency: "MXN", timezone: "America/Mexico_City" }], errors: [] });
   if (route === "campaigns") return Response.json({ data: [{ platform: "microsoft", account_id: "101", campaign_id: "c1", campaign_name: "Campaña ficticia", campaign_status: "active", source_status: null, objective: null }], errors: [] });
   return performance();
 };
